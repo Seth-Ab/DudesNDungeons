@@ -6,13 +6,17 @@ Use `AGENTS.md` for contributor and agent instructions. Use `STEPS.md` as the pr
 
 ## Project Structure & Module Organization
 
-This repository is currently at planning/scaffold stage. Keep new source code organized by responsibility as the project grows:
+This repository is currently at planning/scaffold stage. Keep new source code organized by responsibility:
 
-- `src/client/` for browser UI, rendering, input, and WebRTC audio handling.
-- `src/server/` for authoritative dungeon state, WebSocket signaling, sessions, and game rules.
-- `src/shared/` for message types, constants, map utilities, and code used by both client and server.
-- `assets/` for sprites, audio, maps, and other game content.
-- `tests/` for automated tests that mirror the source layout.
+- `src/client/` for browser UI, input, rendering, local state, networking, and WebRTC audio.
+- `src/server/` for authoritative dungeon state, sessions, WebSocket networking, and voice signaling.
+- `src/shared/` for protocol messages, shared game utilities, constants, and TypeScript types.
+- `content/` for editable game data such as dungeons, items, monsters, and player skills.
+- `assets/` for sprites, maps, audio, and UI media.
+- `tests/` for automated coverage split into `client`, `server`, `shared`, and `e2e`.
+- `docs/` for architecture notes and decision records.
+- `scripts/` for local automation and one-off project scripts.
+- `config/` for checked-in, non-secret configuration templates.
 
 Avoid mixing client-only browser code with server logic. Shared protocol definitions should live in one place so clients and the server cannot drift.
 

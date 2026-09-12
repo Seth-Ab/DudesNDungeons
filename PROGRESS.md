@@ -5,8 +5,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Planning and project setup.
-- Last completed work: Updated `AGENTS.md` to reference `STEPS.md` and `PROGRESS.md`; created `CLAUDE.md`.
-- Next recommended step: Resolve the opinion checkpoints in `STEPS.md`, then begin Backend Dev step 1 and Frontend Dev step 1.
+- Last completed work: Created the initial project folder skeleton and updated documentation.
+- Next recommended step: Resolve the opinion checkpoints in `STEPS.md`, then choose runtime/tooling and renderer.
 - Current blocker: Core design choices need owner input before implementation starts.
 
 ## Opinion Checkpoints
@@ -23,7 +23,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 - [ ] Choose runtime and tooling.
 - [ ] Add package scripts for development, testing, linting, and building.
-- [ ] Create `src/server/`, `src/shared/`, and `tests/` directories.
+- [x] Create `src/server/`, `src/shared/`, and `tests/` directories.
 - [ ] Define shared protocol message types.
 
 ### 2. Session and Player Management
@@ -66,7 +66,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ### 1. Project Foundation
 
 - [ ] Choose renderer.
-- [ ] Add `src/client/` structure for rendering, input, UI, and audio.
+- [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - [ ] Connect to the backend WebSocket server.
 - [ ] Render the fixed dungeon map and local player.
 
@@ -116,3 +116,5 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 - Updated `AGENTS.md` with the documentation sources of truth.
 - Created `CLAUDE.md` pointing to `AGENTS.md`.
+- Created initial tracked folders for source, assets, content, tests, docs, scripts, and config.
+- Updated `AGENTS.md`, `STEPS.md`, `PROGRESS.md`, and `README.md` to reflect the project skeleton.

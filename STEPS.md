@@ -18,7 +18,7 @@ Ask before moving past these points:
 
 - Choose runtime and tooling, likely Node.js with TypeScript.
 - Add package scripts for development, testing, linting, and building.
-- Create `src/server/`, `src/shared/`, and `tests/` directories.
+- Maintain the server/shared/test folder skeleton under `src/server/`, `src/shared/`, and `tests/`.
 - Define shared protocol message types.
 
 ### 2. Session and Player Management
@@ -61,7 +61,7 @@ Ask before moving past these points:
 ### 1. Project Foundation
 
 - Choose renderer, likely Canvas or Phaser for a fast 2D prototype.
-- Add `src/client/` structure for rendering, input, UI, and audio.
+- Maintain the `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - Connect to the backend WebSocket server.
 - Render the fixed dungeon map and local player.
 
