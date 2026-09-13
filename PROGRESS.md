@@ -5,9 +5,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Frontend foundation.
-- Last completed work: Added GitHub Actions CI for pull requests to `main`.
-- Next recommended step: Require the CI check in GitHub branch protection, then coordinate backend message contracts.
-- Current blocker: None.
+- Last completed work: Added GitHub Actions CI for pull requests to `main`; PR #1 CI passed.
+- Next recommended step: Coordinate backend message contracts, then wire real server snapshots into the frontend renderer.
+- Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
 
@@ -127,3 +127,4 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Verified the frontend with `npm run build`.
 - Added `.github/pull_request_template.md` and updated `AGENTS.md` to require it for pull requests.
 - Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.
+- Verified PR #1 CI passed. Attempted to require CI before merge, but GitHub returned a branch protection plan limit for this private repository.
