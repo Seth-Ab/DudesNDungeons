@@ -1,7 +1,16 @@
 node_modules/
 dist/
-.DS_Store
+coverage/
+
 .env
 .env.*
 !.env.example
+
+*.log
 npm-debug.log*
+
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/

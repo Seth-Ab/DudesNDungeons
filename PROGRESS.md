@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Frontend foundation.
-- Last completed work: Added GitHub Actions CI for pull requests to `main`; PR #1 CI passed.
-- Next recommended step: Coordinate backend message contracts, then wire real server snapshots into the frontend renderer.
+- Overall phase: Backend Dev step 2 complete; frontend foundation and CI are in place.
+- Last completed work: Resolved PR #2 merge conflicts by combining backend session work with the frontend Canvas shell and CI setup.
+- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State), then wire real server snapshots into the frontend renderer.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -21,17 +21,17 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [ ] Choose runtime and tooling.
-- [ ] Add package scripts for development, testing, linting, and building.
+- [x] Choose runtime and tooling. Node.js 20.11+ with TypeScript, `ws`, `zod`, `vitest`, and ESLint. See `docs/decisions/0001-runtime-and-tooling.md`.
+- [x] Add package scripts for development, testing, linting, and building. See `README.md` for the command list.
 - [x] Create `src/server/`, `src/shared/`, and `tests/` directories.
-- [ ] Define shared protocol message types.
+- [x] Define shared protocol message types. See `src/shared/protocol/`.
 
 ### 2. Session and Player Management
 
-- [ ] Create dungeon instance records with invite codes or room IDs.
-- [ ] Add player join, leave, reconnect, and disconnect handling.
-- [ ] Track player identity, position, health, and ready state.
-- [ ] Broadcast authoritative player state to all clients in a session.
+- [x] Create dungeon instance records with invite codes or room IDs. `POST /sessions` mints a room code; see `SessionStore.createSession`.
+- [x] Add player join, leave, reconnect, and disconnect handling. A drop holds the slot for `RECONNECT_GRACE_MS`; reconnect uses the resume token from `sessionJoined`.
+- [x] Track player identity, position, health, and ready state. See `SessionPlayer` in `src/server/sessions/sessionStore.ts`.
+- [x] Broadcast authoritative player state to all clients in a session. Lifecycle events plus a `stateSnapshot` each tick.
 
 ### 3. Authoritative Dungeon State
 
@@ -65,7 +65,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [x] Choose renderer.
+- [x] Choose renderer. Vanilla Canvas with Vite, recorded in `docs/decisions/0001-runtime-and-tooling.md`.
 - [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - [ ] Connect to the backend WebSocket server.
 - [x] Render the fixed dungeon map and local player.
@@ -121,6 +121,32 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Resolved opinion checkpoint: visual style set to pixel art.
 - Resolved opinion checkpoint: movement model set to slow free-roam.
 - Resolved opinion checkpoints: combat model set to hybrid (Pokémon Legends: Z-A style), voice behavior set to always-connected with distance-based volume, target party size for v1 set to 4. All five opinion checkpoints are now resolved.
+- Created the `backend-development` branch for Backend Dev work.
+- Completed Backend Dev step 1 (Project Foundation):
+  - Recorded runtime, module, validation, and renderer choices in `docs/decisions/0001-runtime-and-tooling.md`.
+  - Added `package.json`, `tsconfig.json`, `tsconfig.build.json`, `eslint.config.js`, `vitest.config.ts`, and `.gitignore`.
+  - Added shared constants in `src/shared/constants/game.ts` and core types in `src/shared/types/core.ts`.
+  - Defined the protocol in `src/shared/protocol/` covering session lifecycle, movement intent, attacks, interaction, item use, voice signaling, proximity updates, and errors.
+  - Added a minimal HTTP + WebSocket server entry point at `src/server/index.ts` that validates inbound messages and answers with `notImplemented` until session handling lands.
+  - Added protocol tests in `tests/shared/protocol.test.ts` covering valid messages, malformed JSON, unknown types, missing fields, out-of-range values, and oversized payloads.
+  - Documented commands in `README.md` and environment variables in `config/.env.example`.
+- Blocked on verification: Node.js is not installed on the development machine, so `npm install`, `npm run lint`, `npm run typecheck`, and `npm test` have not been run.
+- Unblocked and verified Backend Dev step 1 after installing Node.js 24.21.0 (npm 11.19.0):
+  - `npm install` succeeded; committed `package-lock.json` so the dependency set is reproducible.
+  - `npm run typecheck`, `npm run lint`, and `npm test` (15/15 passing) are all clean.
+  - `npm run build` emits `dist/` and the built server starts under plain `node`, confirming the ESM/NodeNext choice in `docs/decisions/0001-runtime-and-tooling.md` works without a loader.
+  - Smoke-tested the running server: `/health` returns 200 with the protocol version, unknown routes return 404, and the WebSocket layer rejects malformed JSON and unknown message types while answering a valid `joinSession` with `notImplemented`.
+  - Known issue: `npm audit` reports 5 advisories, all in the `vitest`/`vite`/`esbuild` dev dependency chain. None ship in the server build. Clearing them means upgrading Vitest 2.x to 3.x, deferred so it does not ride along with step 2.
+- Completed Backend Dev step 2 (Session and Player Management):
+  - Added `SessionStore` in `src/server/sessions/sessionStore.ts`, holding dungeon instances, room codes, and per-player identity, position, health, ready, and connection state. It takes no transport types and receives its clock and id generators by injection, so the lifecycle is testable without opening a port.
+  - Added `POST /sessions` to create a dungeon and return a shareable room code. `joinSession` now only joins an existing room and answers `sessionNotFound` otherwise.
+  - Made a dropped socket hold the player's slot for 60 seconds instead of removing them, releasing it as `playerLeft`/`timedOut` if nobody returns.
+  - Added resume tokens so a refreshed or briefly disconnected client reclaims its slot with position, health, and ready state intact. The token is sent only to its owner and never broadcast.
+  - Protocol changes: `joinSession` gained an optional `resumeToken`; `sessionJoined` gained `resumeToken` and `resumed`; added `playerConnectionChanged`; removed `disconnected` from `playerLeftReason`, which a grace window makes unreachable. Recorded in `docs/decisions/0002-session-lifecycle.md`.
+  - Split the transport into `src/server/gameServer.ts` as a `createGameServer()` factory, leaving `src/server/index.ts` as the entry point. This is what lets the e2e tests boot a real server on an ephemeral port with a compressed grace window.
+  - Added a 20Hz `stateSnapshot` broadcast. Nothing moves between ticks yet; the loop exists so step 3 has somewhere to put movement and clients read from snapshots from the start.
+  - Tests grew from 15 to 63: `tests/server/sessions.test.ts` covers the store's lifecycle and `tests/e2e/session.test.ts` drives real sockets through joins, duplicate joins, party limits, disconnect, reconnect, timeout, leave, and session isolation, including assertions that resume tokens never reach another player.
+  - Verified: typecheck, lint, 63/63 tests (stable across repeated runs), `npm run build`, and the compiled entry point serving a live join.
 - Created and pushed `feature/frontend-development`.
 - Added Vite, TypeScript, and a vanilla Canvas frontend shell.
 - Added keyboard movement preview, HUD status, microphone permission flow, and backend WebSocket connection scaffolding.
@@ -128,3 +154,4 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Added `.github/pull_request_template.md` and updated `AGENTS.md` to require it for pull requests.
 - Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.
 - Verified PR #1 CI passed. Attempted to require CI before merge, but GitHub returned a branch protection plan limit for this private repository.
+- Resolved PR #2 conflicts by keeping backend session code, frontend Canvas code, the PR template, and CI together.

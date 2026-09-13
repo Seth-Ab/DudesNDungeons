@@ -22,13 +22,15 @@ Avoid mixing client-only browser code with server logic. Shared protocol definit
 
 ## Build, Test, and Development Commands
 
-Frontend tooling uses Vite and TypeScript. Keep backend work scoped separately if another contributor is working there.
+Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint for backend and shared code.
 
 - `npm install` installs dependencies.
-- `npm run dev` starts the frontend dev server.
-- `npm run build` typechecks and builds the frontend.
-- `npm run typecheck` runs TypeScript without emitting files.
-- `npm test` currently aliases the typecheck command.
+- `npm run dev:client` starts the frontend dev server.
+- `npm run dev:server` starts the backend server with reload.
+- `npm run build` compiles the server and builds the frontend.
+- `npm run typecheck` runs TypeScript checks without emitting files.
+- `npm run lint` runs ESLint.
+- `npm test` runs the Vitest suite.
 
 GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
 
