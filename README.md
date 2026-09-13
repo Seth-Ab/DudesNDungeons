@@ -14,6 +14,8 @@ Resolved in `STEPS.md` and recorded in `PROGRESS.md`:
 
 Runtime and renderer choices are recorded in `docs/decisions/0001-runtime-and-tooling.md`. Session,
 disconnect, and reconnect behavior is recorded in `docs/decisions/0002-session-lifecycle.md`.
+Server-owned movement and dungeon state are in `docs/decisions/0003-authoritative-dungeon-state.md`,
+and combat, monsters, and items are in `docs/decisions/0004-combat-and-items.md`.
 
 ## Requirements
 

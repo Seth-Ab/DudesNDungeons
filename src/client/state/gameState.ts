@@ -60,7 +60,8 @@ export function predictMove(
   const step = stepFrom(from, direction);
   if (!step) return from;
 
-  const positions = others.map((player) => player.position);
+  // Downed players block nobody on the server, so they must not block the prediction either.
+  const positions = others.filter((player) => player.health > 0).map((player) => player.position);
   return isOpen(dungeon, positions, step.next, from) ? step.next : from;
 }
 

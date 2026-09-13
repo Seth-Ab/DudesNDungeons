@@ -4,23 +4,44 @@ import {
   isOpen,
   stepFrom,
 } from "../../shared/game/movement.js";
-import type {
-  DungeonState,
-  LootState,
-  MonsterState,
-  PlayerId,
-  PlayerState,
-  Vector2,
-} from "../../shared/types/core.js";
+import type { DungeonState, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 
+/** Tuning that stays on the server. Clients see a monster's position and health, never its stats. */
+export interface MonsterStats {
+  /** World units per second while chasing. */
+  speed: number;
+  /** Distance at which the monster notices a player and starts chasing. */
+  aggroRange: number;
+  /** Center-to-center reach. Must exceed two player radii, or the monster could never land a hit. */
+  attackRange: number;
+  damage: number;
+  attackCooldownMs: number;
+}
+
+const MONSTER_STATS: Record<string, MonsterStats> = {
+  "Ash Imp": { speed: 1.8, aggroRange: 5, attackRange: 1, damage: 8, attackCooldownMs: 1_000 },
+  "Cinder Slime": { speed: 1, aggroRange: 4, attackRange: 1, damage: 12, attackCooldownMs: 1_400 },
+};
+
+export function monsterStatsFor(monster: MonsterState): MonsterStats {
+  const stats = MONSTER_STATS[monster.name];
+  if (!stats) throw new Error(`No stats for monster "${monster.name}"`);
+  return stats;
+}
+
+/** West side of the map, outside both monsters' aggro range, so nobody is attacked on arrival. */
 const SPAWN_POINTS: Vector2[] = [
   { x: 2, y: 2 },
   { x: 2, y: 5 },
-  { x: 13, y: 2 },
-  { x: 13, y: 5 },
+  { x: 4, y: 1 },
+  { x: 2, y: 6 },
 ];
 
+/**
+ * The Ash Imp guards the Copper Key. The key opens the locked door at (11, 6), the only way into the
+ * walled vault in the south-east corner, where the exit is.
+ */
 const FIXED_DUNGEON: DungeonState = {
   map: {
     id: "ember-vault",
@@ -32,8 +53,8 @@ const FIXED_DUNGEON: DungeonState = {
       "#..............#",
       "#..####........#",
       "#.......##.....#",
-      "#..............#",
-      "#.....###......#",
+      "#..........#####",
+      "#.....###..#...#",
       "#..............#",
       "################",
     ],
@@ -44,13 +65,15 @@ const FIXED_DUNGEON: DungeonState = {
       name: "Ash Imp",
       position: { x: 11, y: 2 },
       health: 12,
+      maxHealth: 12,
       alive: true,
     },
     {
       id: "22222222-2222-4222-8222-222222222222",
       name: "Cinder Slime",
-      position: { x: 5, y: 5 },
+      position: { x: 8, y: 4 },
       health: 18,
+      maxHealth: 18,
       alive: true,
     },
   ],
@@ -58,12 +81,14 @@ const FIXED_DUNGEON: DungeonState = {
     {
       id: "33333333-3333-4333-8333-333333333333",
       name: "Copper Key",
-      position: { x: 12, y: 4 },
+      kind: "key",
+      position: { x: 12, y: 1 },
       pickedUp: false,
     },
     {
       id: "44444444-4444-4444-8444-444444444444",
       name: "Minor Tonic",
+      kind: "tonic",
       position: { x: 4, y: 6 },
       pickedUp: false,
     },
@@ -71,7 +96,7 @@ const FIXED_DUNGEON: DungeonState = {
   doors: [
     {
       id: "55555555-5555-4555-8555-555555555555",
-      position: { x: 10, y: 6 },
+      position: { x: 11, y: 6 },
       open: false,
       locked: true,
     },
@@ -83,47 +108,15 @@ const FIXED_DUNGEON: DungeonState = {
       destination: "deeper vault",
     },
   ],
+  cleared: false,
 };
 
 export type MoveResult =
   | { ok: true; player: SessionPlayer }
-  | { ok: false; reason: "blocked" | "outOfRange" | "onCooldown" };
+  | { ok: false; reason: "blocked" | "outOfRange" | "onCooldown" | "notPermitted" };
 
 function copyVector(vector: Vector2): Vector2 {
   return { x: vector.x, y: vector.y };
-}
-
-function copyMonster(monster: MonsterState): MonsterState {
-  return {
-    ...monster,
-    position: copyVector(monster.position),
-  };
-}
-
-function copyLoot(loot: LootState): LootState {
-  return {
-    ...loot,
-    position: copyVector(loot.position),
-  };
-}
-
-export function createDungeonState(): DungeonState {
-  return {
-    map: {
-      ...FIXED_DUNGEON.map,
-      tiles: [...FIXED_DUNGEON.map.tiles],
-    },
-    monsters: FIXED_DUNGEON.monsters.map(copyMonster),
-    loot: FIXED_DUNGEON.loot.map(copyLoot),
-    doors: FIXED_DUNGEON.doors.map((door) => ({
-      ...door,
-      position: copyVector(door.position),
-    })),
-    exits: FIXED_DUNGEON.exits.map((exit) => ({
-      ...exit,
-      position: copyVector(exit.position),
-    })),
-  };
 }
 
 export function cloneDungeonState(dungeon: DungeonState): DungeonState {
@@ -132,17 +125,24 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
       ...dungeon.map,
       tiles: [...dungeon.map.tiles],
     },
-    monsters: dungeon.monsters.map(copyMonster),
-    loot: dungeon.loot.map(copyLoot),
-    doors: dungeon.doors.map((door) => ({
-      ...door,
-      position: copyVector(door.position),
+    monsters: dungeon.monsters.map((monster) => ({
+      ...monster,
+      position: copyVector(monster.position),
     })),
-    exits: dungeon.exits.map((exit) => ({
-      ...exit,
-      position: copyVector(exit.position),
-    })),
+    loot: dungeon.loot.map((loot) => ({ ...loot, position: copyVector(loot.position) })),
+    doors: dungeon.doors.map((door) => ({ ...door, position: copyVector(door.position) })),
+    exits: dungeon.exits.map((exit) => ({ ...exit, position: copyVector(exit.position) })),
+    cleared: dungeon.cleared,
   };
+}
+
+export function createDungeonState(): DungeonState {
+  return cloneDungeonState(FIXED_DUNGEON);
+}
+
+/** A downed player cannot act, blocks nobody, and is ignored by monsters until they respawn. */
+export function isDown(player: SessionPlayer): boolean {
+  return player.health <= 0;
 }
 
 /**
@@ -165,15 +165,15 @@ export function findSpawnPoint(session: Session): Vector2 {
   throw new Error("Dungeon has no free floor to spawn on");
 }
 
-function otherPositions(session: Session, mover?: SessionPlayer): Vector2[] {
+function blockingPlayerPositions(session: Session, mover?: SessionPlayer): Vector2[] {
   return [...session.players.values()]
-    .filter((player) => player.id !== mover?.id)
+    .filter((player) => player.id !== mover?.id && !isDown(player))
     .map((player) => player.position);
 }
 
 /** `mover` is the player moving there; omit it when placing a player who is not in the dungeon yet. */
 export function canOccupy(session: Session, position: Vector2, mover?: SessionPlayer): boolean {
-  return isOpen(session.dungeon, otherPositions(session, mover), position, mover?.position);
+  return isOpen(session.dungeon, blockingPlayerPositions(session, mover), position, mover?.position);
 }
 
 /**
@@ -191,6 +191,7 @@ export function movePlayer(
 ): MoveResult {
   const player = session.players.get(playerId);
   if (!player) return { ok: false, reason: "outOfRange" };
+  if (isDown(player)) return { ok: false, reason: "notPermitted" };
 
   const step = stepFrom(player.position, direction);
   if (!step) return { ok: false, reason: "outOfRange" };
@@ -209,16 +210,4 @@ export function movePlayer(
   player.position = step.next;
   player.nextMoveAt = Math.max(due, now) + MOVE_INTERVAL_MS;
   return { ok: true, player };
-}
-
-export function dungeonPlayerStates(session: Session): PlayerState[] {
-  return [...session.players.values()].map((player) => ({
-    id: player.id,
-    name: player.name,
-    position: copyVector(player.position),
-    facing: copyVector(player.facing),
-    health: player.health,
-    ready: player.ready,
-    connected: player.connected,
-  }));
 }

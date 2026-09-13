@@ -90,7 +90,9 @@ const input = createInputController();
 // them and predicts exactly the steps the server will take.
 setInterval(() => {
   const heading = input.heading();
-  if (!heading || view.phase !== "inSession" || !view.dungeon) return;
+  const self = selfOf(view);
+  // A downed player cannot move; the server would refuse it, so do not predict it either.
+  if (!heading || view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return;
 
   // Intent only. The server owns placement; snapshots correct the prediction.
   if (!client.sendMoveIntent(heading)) return;

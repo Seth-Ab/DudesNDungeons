@@ -10,13 +10,15 @@ import {
 } from "../../shared/constants/game.js";
 import type { ErrorCode } from "../../shared/protocol/index.js";
 import type {
+  DungeonState,
+  EntityId,
+  InventoryItem,
   PlayerId,
   PlayerName,
   PlayerState,
   ResumeToken,
   RoomCode,
   SessionId,
-  DungeonState,
   Vector2,
 } from "../../shared/types/core.js";
 import { createDungeonState, findSpawnPoint } from "../game/dungeonState.js";
@@ -26,15 +28,21 @@ export interface SessionPlayer {
   name: PlayerName;
   position: Vector2;
   facing: Vector2;
+  /** Zero means downed: the player cannot act, blocks nobody, and waits for `respawnAt`. */
   health: number;
   ready: boolean;
   connected: boolean;
+  inventory: InventoryItem[];
   /** Server-side only. Leaves the process solely in this player's own `sessionJoined`. */
   resumeToken: ResumeToken;
   /** When the socket dropped, or null while connected. Drives the reconnect grace window. */
   disconnectedAt: number | null;
   /** Server clock time the next move is due, or null before the first. Paces movement speed. */
   nextMoveAt: number | null;
+  /** Server clock time the next attack is allowed, or null before the first. */
+  nextAttackAt: number | null;
+  /** Server clock time a downed player returns, or null while standing. */
+  respawnAt: number | null;
 }
 
 export interface Session {
@@ -45,6 +53,10 @@ export interface Session {
   /** Monotonic simulation tick, stamped onto each snapshot so clients can order what they receive. */
   tick: number;
   players: Map<PlayerId, SessionPlayer>;
+  /** Server clock time of the last simulation step, or null before the first. */
+  simulatedAt: number | null;
+  /** When each monster may attack again. Server-side only, so clients never see monster timing. */
+  monsterCooldowns: Map<EntityId, number>;
 }
 
 export interface JoinRequest {
@@ -129,6 +141,8 @@ export class SessionStore {
       dungeon: createDungeonState(),
       tick: 0,
       players: new Map(),
+      simulatedAt: null,
+      monsterCooldowns: new Map(),
     };
     this.#sessions.set(roomCode, session);
     return session;
@@ -198,9 +212,12 @@ export class SessionStore {
       health: PLAYER_MAX_HEALTH,
       ready: false,
       connected: true,
+      inventory: [],
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
       nextMoveAt: null,
+      nextAttackAt: null,
+      respawnAt: null,
     };
 
     session.players.set(player.id, player);
@@ -277,8 +294,8 @@ export class SessionStore {
 }
 
 /**
- * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and `nextMoveAt`, which are never
- * broadcast.
+ * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and the pacing and respawn timers,
+ * which are never broadcast.
  */
 export function toPlayerState(player: SessionPlayer): PlayerState {
   return {
@@ -289,6 +306,7 @@ export function toPlayerState(player: SessionPlayer): PlayerState {
     health: player.health,
     ready: player.ready,
     connected: player.connected,
+    inventory: player.inventory.map((item) => ({ ...item })),
   };
 }
 
