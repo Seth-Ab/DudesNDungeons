@@ -81,7 +81,16 @@ The frontend currently uses Vite, TypeScript, and a vanilla Canvas renderer.
 - `npm run build:client` - typecheck and build the frontend.
 - `npm run typecheck:client` - run frontend TypeScript checks only.
 
-Set `VITE_WS_URL` to point the client at a backend WebSocket server. If it is not set, the client tries `ws://localhost:8787`.
+Run `npm run dev:server` and `npm run dev:client` together: the client is served from port 5173 and
+talks to the backend on port 8080.
+
+Set `VITE_WS_URL` to point the client at a different backend, for example
+`VITE_WS_URL=ws://192.168.1.20:8080`. It defaults to `ws://localhost:8080`, and the HTTP origin for
+`POST /sessions` is derived from it, so the two can never disagree.
+
+Because the dev client and the API are on different ports, the server sends
+`Access-Control-Allow-Origin` on its HTTP routes. It allows any origin by default; set `CORS_ORIGIN`
+to restrict it. WebSocket connections are not subject to CORS and need no such setting.
 
 ## Pull Request Checks
 

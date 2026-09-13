@@ -146,6 +146,18 @@ describe("http surface", () => {
   it("404s an unknown route", async () => {
     expect((await fetch(`${baseUrl}/nope`)).status).toBe(404);
   });
+
+  // The client is served from a different origin in development, so without this header the
+  // browser blocks room creation even though the request itself succeeds.
+  it("allows cross-origin room creation", async () => {
+    const response = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: { origin: "http://localhost:5173" },
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+  });
 });
 
 describe("joining a dungeon", () => {

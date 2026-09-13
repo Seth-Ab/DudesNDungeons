@@ -4,7 +4,9 @@ import { createGameServer } from "./gameServer.js";
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? "0.0.0.0";
 
-const server = createGameServer();
+const server = createGameServer({
+  ...(process.env.CORS_ORIGIN === undefined ? {} : { allowedOrigin: process.env.CORS_ORIGIN }),
+});
 
 await server.listen(port, host);
 console.log(`[server] listening on http://${host}:${port}`);

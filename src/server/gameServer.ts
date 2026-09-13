@@ -22,6 +22,12 @@ export interface GameServerOptions {
   store?: SessionStore;
   tickIntervalMs?: number;
   sweepIntervalMs?: number;
+  /**
+   * Value for `Access-Control-Allow-Origin`. The client is served from a different origin in
+   * development (Vite on 5173, this server on 8080), so without it the browser blocks room
+   * creation. Defaults to any origin: the HTTP surface is anonymous and carries no credentials.
+   */
+  allowedOrigin?: string;
   /** Set false in tests to keep the reporter readable. */
   log?: boolean;
 }
@@ -42,6 +48,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const store = options.store ?? new SessionStore();
   const tickIntervalMs = options.tickIntervalMs ?? SERVER_TICK_MS;
   const sweepIntervalMs = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
+  const allowedOrigin = options.allowedOrigin ?? "*";
   const log = options.log ?? true;
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
@@ -70,6 +77,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   }
 
   const httpServer = createServer((request, response) => {
+    response.setHeader("access-control-allow-origin", allowedOrigin);
+
     if (request.method === "GET" && request.url === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(

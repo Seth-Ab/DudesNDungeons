@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 2 complete; frontend foundation and CI are in place.
-- Last completed work: Added repo-local shared Codex skills for progress sync, protocol changes, frontend slices, and backend authoritative state work.
-- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State), then wire real server snapshots into the frontend renderer.
+- Overall phase: Backend Dev step 2 complete; the client now talks to the server end to end.
+- Last completed work: Client networking. The browser client now speaks the shared protocol, creates and joins rooms, renders the party from server snapshots, reconnects with a resume token, and sends real movement intent. Verified in Chrome with two players, and merged with the shared agent-skills updates from `main`.
+- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State). It is now the only thing standing between the client and real multiplayer movement: the client already sends `playerMoveIntent` and renders from snapshots, but the server answers `notImplemented` and spawns everyone at {0, 0}.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -67,15 +67,30 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 - [x] Choose renderer. Vanilla Canvas with Vite, recorded in `docs/decisions/0001-runtime-and-tooling.md`.
 - [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
-- [ ] Connect to the backend WebSocket server.
+- [x] Connect to the backend WebSocket server. See `src/client/network/`.
 - [x] Render the fixed dungeon map and local player.
 
 ### 2. Multiplayer Movement
 
-- [ ] Send movement intent messages instead of direct position changes.
-- [ ] Render remote players from server broadcasts.
-- [ ] Add simple interpolation or step animation.
-- [ ] Show connection, join, leave, and disconnect states.
+- [x] Send movement intent messages instead of direct position changes. The server answers `notImplemented` until Backend step 3.
+- [x] Render remote players from server broadcasts.
+- [ ] Add simple interpolation or step animation. Deferred: there is nothing to interpolate until the server moves players.
+- [x] Show connection, join, leave, and disconnect states.
+
+#### 2a. Client Networking
+
+Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
+
+- [x] Adopt the shared protocol in the client instead of hand-rolled frames.
+- [x] Point the client at the port the server actually listens on.
+- [x] Model the connection lifecycle as explicit states. See `ConnectionPhase`.
+- [x] Implement the join flow (`POST /sessions`, then `joinSession`).
+- [x] Persist and replay the resume token from `sessionJoined`.
+- [x] Reconnect automatically inside the server's grace window.
+- [x] Build the roster from server messages rather than local guesses.
+- [x] Send `playerMoveIntent` with a sequence and an `{x, y}` direction.
+- [x] Surface lobby, room code, roster, ready, and leave in the UI.
+- [x] Cover the networking layer with browser-free tests against a real server.
 
 ### 3. Core Game UI
 
@@ -137,6 +152,18 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   - `npm run build` emits `dist/` and the built server starts under plain `node`, confirming the ESM/NodeNext choice in `docs/decisions/0001-runtime-and-tooling.md` works without a loader.
   - Smoke-tested the running server: `/health` returns 200 with the protocol version, unknown routes return 404, and the WebSocket layer rejects malformed JSON and unknown message types while answering a valid `joinSession` with `notImplemented`.
   - Known issue: `npm audit` reports 5 advisories, all in the `vitest`/`vite`/`esbuild` dev dependency chain. None ship in the server build. Clearing them means upgrading Vitest 2.x to 3.x, deferred so it does not ride along with step 2.
+- Completed Client Networking (Frontend steps 1-2; breakdown in `STEPS.md`) on `feature/client-networking`:
+  - Replaced the prototype `gameClient.ts`, which invented a `playerMove` frame the protocol does not define, never joined a session, and pointed at port 8787 while the server listens on 8080.
+  - Added `src/client/network/sessionState.ts`, a pure reducer folding server messages into a session view, and `sessionClient.ts`, which owns the socket, the join flow, resume tokens, and reconnect backoff. Both import the shared protocol, so client and server can no longer drift.
+  - Kept the networking layer free of DOM references, which lets the node test environment drive the real client against a real `createGameServer()`.
+  - Added lobby, room code, party roster, ready toggle, and leave controls; disconnected players render greyed rather than disappearing.
+  - Verified the client bundles the shared protocol through Vite (~18 kB gzipped including zod).
+  - Three bugs found only by running it in Chrome, none of which the node tests could catch:
+    - `POST /sessions` was blocked by CORS, because Vite serves the client from :5173 and the API answers on :8080. Added an `Access-Control-Allow-Origin` header, configurable via `CORS_ORIGIN`, with a regression test.
+    - The lobby stayed visible after joining: the `.lobby` class sets `display: grid`, which outranks the user agent's `[hidden]` rule.
+    - The renderer ran once during construction, before the first subscription callback had assigned the session view, throwing on load and leaving a blank page.
+  - Browser-verified with two tabs: create and join by room code, roster and ready propagating both ways, collision-checked local movement, a drop greying the player out while holding the slot, and a page reload reclaiming the same slot with ready state intact.
+  - Known gap: the server spawns every player at {0, 0}, which is inside a wall on the client's placeholder map, so remote players sit in the corner until Backend step 3 owns the dungeon.
 - Completed Backend Dev step 2 (Session and Player Management):
   - Added `SessionStore` in `src/server/sessions/sessionStore.ts`, holding dungeon instances, room codes, and per-player identity, position, health, ready, and connection state. It takes no transport types and receives its clock and id generators by injection, so the lifecycle is testable without opening a port.
   - Added `POST /sessions` to create a dungeon and return a shareable room code. `joinSession` now only joins an existing room and answers `sessionNotFound` otherwise.

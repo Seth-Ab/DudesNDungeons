@@ -1,4 +1,4 @@
-import type { MoveDirection } from "../state/gameState";
+import type { MoveDirection } from "../state/gameState.js";
 
 type InputControllerOptions = {
   onMove: (direction: MoveDirection) => void;

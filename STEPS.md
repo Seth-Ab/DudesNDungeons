@@ -72,6 +72,46 @@ Ask before moving past these points:
 - Add simple interpolation or step animation.
 - Show connection, join, leave, and disconnect states.
 
+#### 2a. Client Networking (detailed breakdown)
+
+Completes the last bullet of Frontend step 1 and most of step 2. Broken out because the frontend
+prototype shell currently invents its own message shapes and cannot talk to the backend at all.
+
+Starting condition: `src/client/network/gameClient.ts` opens a socket, never joins a session, never
+reads a server message, hand-rolls a `playerMove` frame the protocol does not define, and defaults
+to port 8787 while the server listens on 8080.
+
+1. **Adopt the shared protocol.** Import message types and parsers from `src/shared/protocol/`
+   rather than hand-writing frames. `AGENTS.md` requires one definition so client and server cannot
+   drift; the client build already bundles it (verified, ~16 kB gzipped including zod).
+2. **Fix the endpoint.** Default to the port the server actually listens on, and derive both the
+   HTTP and WebSocket origins from one place so they cannot disagree.
+3. **Model the connection lifecycle.** Track offline, connecting, connected, joining, in session,
+   disconnected, and reconnecting as distinct states, so the UI can tell "no socket" apart from
+   "socket open but not in a dungeon".
+4. **Implement the join flow.** `POST /sessions` to create a dungeon, then `joinSession` with the
+   room code, player name, and protocol version. Handle every `sessionError` code with a message a
+   player can act on.
+5. **Persist the resume token.** Store the token from `sessionJoined` in `sessionStorage`, send it
+   on reconnect, and clear it on an explicit leave. It is a credential: never log it, never put it
+   in a URL, and prefer session storage so it dies with the tab.
+6. **Reconnect automatically.** Retry with backoff while the server's 60s grace window is open, so
+   a refresh or a brief drop returns the player to the same slot.
+7. **Make server state authoritative.** Build the roster from `sessionJoined` and `stateSnapshot`
+   rather than local guesses, and apply `playerJoined`, `playerLeft`, `playerConnectionChanged`,
+   and `playerReadyChanged`. Treat `playerConnectionChanged` as "grey them out", never as removal.
+8. **Send real movement intent.** Replace the invented `playerMove` with `playerMoveIntent`
+   carrying a sequence number and an `{x, y}` direction. The server answers `notImplemented` until
+   Backend step 3, so the client keeps predicting locally until snapshots carry real positions.
+9. **Surface it in the UI.** A lobby to create or join a room, the room code, connection state, the
+   party roster with health and ready state, a ready toggle, and a leave control.
+10. **Test without a browser.** Keep the networking layer free of DOM references so the existing
+    node test environment can drive it against a real `createGameServer()`, covering join, rejoin,
+    duplicate join, party limit, disconnect, and malformed frames.
+
+Out of scope here: real movement and collision (Backend step 3), combat (step 4), and voice
+(step 5). This step only makes the client and server speak to each other correctly.
+
 ### 3. Core Game UI
 
 - Add party join flow with invite code or room ID.

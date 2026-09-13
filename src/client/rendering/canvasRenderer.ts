@@ -1,4 +1,5 @@
-import type { GameState, PlayerState } from "../state/gameState";
+import type { PlayerState, Vector2 } from "../../shared/types/core.js";
+import type { DungeonMap } from "../state/gameState.js";
 
 const tileSize = 48;
 
@@ -8,10 +9,20 @@ const colors = {
   grid: "#3a3329",
   localPlayer: "#d9b85f",
   remotePlayer: "#7eb3c7",
+  disconnectedPlayer: "#5a5f63",
   monster: "#b8584c",
+  label: "#f7f0da",
 };
 
-export function createCanvasRenderer(gameState: GameState) {
+export interface Scene {
+  dungeon: DungeonMap;
+  /** Locally predicted position for the player at this client, drawn ahead of the server. */
+  localPosition: Vector2;
+  self: PlayerState | null;
+  others: PlayerState[];
+}
+
+export function createCanvasRenderer(getScene: () => Scene) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
@@ -22,7 +33,7 @@ export function createCanvasRenderer(gameState: GameState) {
   const ctx = context;
   canvas.className = "game-canvas";
 
-  const resize = () => {
+  const resize = (): void => {
     const pixelRatio = window.devicePixelRatio || 1;
     const width = window.innerWidth;
     const height = Math.max(window.innerHeight - 58, 320);
@@ -33,31 +44,33 @@ export function createCanvasRenderer(gameState: GameState) {
     render();
   };
 
-  const drawTile = (x: number, y: number, value: string) => {
+  const drawTile = (x: number, y: number, value: string): void => {
     ctx.fillStyle = value === "#" ? colors.wall : colors.floor;
     ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
     ctx.strokeStyle = colors.grid;
     ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
   };
 
-  const drawPlayer = (player: PlayerState, color: string) => {
-    const centerX = player.position.x * tileSize + tileSize / 2;
-    const centerY = player.position.y * tileSize + tileSize / 2;
+  const drawFigure = (position: Vector2, label: string, color: string, faded: boolean): void => {
+    const centerX = position.x * tileSize + tileSize / 2;
+    const centerY = position.y * tileSize + tileSize / 2;
 
+    ctx.globalAlpha = faded ? 0.45 : 1;
     ctx.fillStyle = color;
     ctx.fillRect(centerX - 12, centerY - 14, 24, 28);
     ctx.fillStyle = "#17120c";
     ctx.fillRect(centerX - 5, centerY - 7, 4, 4);
     ctx.fillRect(centerX + 4, centerY - 7, 4, 4);
-    ctx.fillStyle = "#f7f0da";
+    ctx.fillStyle = colors.label;
     ctx.font = "12px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(player.name, centerX, centerY + 28);
+    ctx.fillText(label, centerX, centerY + 28);
+    ctx.globalAlpha = 1;
   };
 
-  const drawMonster = (x: number, y: number) => {
-    const centerX = x * tileSize + tileSize / 2;
-    const centerY = y * tileSize + tileSize / 2;
+  const drawMonster = (position: Vector2): void => {
+    const centerX = position.x * tileSize + tileSize / 2;
+    const centerY = position.y * tileSize + tileSize / 2;
 
     ctx.fillStyle = colors.monster;
     ctx.fillRect(centerX - 13, centerY - 13, 26, 26);
@@ -66,21 +79,26 @@ export function createCanvasRenderer(gameState: GameState) {
     ctx.fillRect(centerX + 3, centerY - 5, 5, 5);
   };
 
-  function render() {
+  function render(): void {
+    const scene = getScene();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    gameState.dungeon.tiles.forEach((row, y) => {
+
+    scene.dungeon.tiles.forEach((row, y) => {
       row.split("").forEach((tile, x) => drawTile(x, y, tile));
     });
-    gameState.dungeon.monsters.forEach((monster) => drawMonster(monster.x, monster.y));
-    gameState.remotePlayers.forEach((player) => drawPlayer(player, colors.remotePlayer));
-    drawPlayer(gameState.localPlayer, colors.localPlayer);
+    scene.dungeon.monsters.forEach(drawMonster);
+
+    for (const player of scene.others) {
+      drawFigure(player.position, player.name, colors.remotePlayer, !player.connected);
+    }
+
+    if (scene.self) {
+      drawFigure(scene.localPosition, scene.self.name, colors.localPlayer, false);
+    }
   }
 
   window.addEventListener("resize", resize);
   resize();
 
-  return {
-    canvas,
-    render,
-  };
+  return { canvas, render };
 }

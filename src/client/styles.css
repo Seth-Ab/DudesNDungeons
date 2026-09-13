@@ -81,3 +81,109 @@ button:focus-visible {
   image-rendering: pixelated;
   background: #101114;
 }
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hud__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__roster-entry {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #3c3630;
+  border-radius: 999px;
+  background: #23262b;
+  color: #d8ceb1;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.hud__roster-entry--self {
+  border-color: #caa85a;
+  color: #f7f0da;
+}
+
+.hud__roster-entry--offline {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* The lobby sits over the canvas so the dungeon stays visible behind the join form. */
+.lobby {
+  position: fixed;
+  inset: 58px 0 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(16, 17, 20, 0.86);
+  z-index: 10;
+}
+
+/* A class-level `display` outranks the user agent's [hidden] rule, so restate it here. */
+.lobby[hidden] {
+  display: none;
+}
+
+.lobby__panel {
+  width: min(26rem, 100%);
+  padding: 1.5rem;
+  border: 1px solid #3c3630;
+  border-radius: 10px;
+  background: #1b1c1f;
+}
+
+.lobby__panel h2 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+}
+
+.lobby__form {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.lobby__form input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #3c3630;
+  border-radius: 6px;
+  background: #121417;
+  color: #f7f0da;
+  font: inherit;
+}
+
+.lobby__form input:focus-visible {
+  border-color: #caa85a;
+  outline: none;
+}
+
+.lobby__secondary {
+  width: 100%;
+  background: transparent;
+}
+
+.lobby__message {
+  margin: 0.8rem 0 0;
+  min-height: 1.2rem;
+  color: #d8ceb1;
+  font-size: 0.85rem;
+}
+
+.hud__error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #e2a0a0;
+  font-size: 0.82rem;
+}
+
+.hud__error[hidden] {
+  display: none;
+}
