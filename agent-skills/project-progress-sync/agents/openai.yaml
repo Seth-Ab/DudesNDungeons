@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Progress Sync"
+  short_description: "Keep AGENTS, STEPS, and PROGRESS aligned after repo work"

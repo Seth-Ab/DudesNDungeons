@@ -5,7 +5,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Backend Dev step 2 complete; the client now talks to the server end to end.
-- Last completed work: Client networking. The browser client now speaks the shared protocol, creates and joins rooms, renders the party from server snapshots, reconnects with a resume token, and sends real movement intent. Verified in Chrome with two players.
+- Last completed work: Client networking. The browser client now speaks the shared protocol, creates and joins rooms, renders the party from server snapshots, reconnects with a resume token, and sends real movement intent. Verified in Chrome with two players, and merged with the shared agent-skills updates from `main`.
 - Next recommended step: Backend Dev step 3 (Authoritative Dungeon State). It is now the only thing standing between the client and real multiplayer movement: the client already sends `playerMoveIntent` and renders from snapshots, but the server answers `notImplemented` and spawns everyone at {0, 0}.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
@@ -182,3 +182,5 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.
 - Verified PR #1 CI passed. Attempted to require CI before merge, but GitHub returned a branch protection plan limit for this private repository.
 - Resolved PR #2 conflicts by keeping backend session code, frontend Canvas code, the PR template, and CI together.
+- Added repo-local shared skills under `agent-skills/`: `project-progress-sync`, `protocol-contract-change`, `frontend-gameplay-slice`, and `backend-authoritative-state`.
+- Moved shared skills from `.codex/skills/` to tool-neutral `agent-skills/` so Codex, Claude, and contributors can use the same guidance.

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Backend Authoritative State"
+  short_description: "Implement server-owned dungeon state and gameplay rules"
