@@ -14,7 +14,9 @@ import {
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId } from "../shared/types/core.js";
+import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { cloneDungeonState, movePlayer } from "./game/dungeonState.js";
+import { interact, pickupItem, useItem } from "./game/items.js";
 import { SessionStore, rosterOf, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -87,6 +89,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       const socket = socketsByPlayer.get(player.id);
       if (socket) send(socket, message);
     }
+  }
+
+  /** After an action changes the dungeon, advance the tick and send everyone the new state now. */
+  function publish(session: Session): void {
+    session.tick += 1;
+    broadcast(session, snapshotOf(session));
   }
 
   const httpServer = createServer((request, response) => {
@@ -246,8 +254,58 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
-        member.session.tick += 1;
-        broadcast(member.session, snapshotOf(member.session));
+        publish(member.session);
+        return;
+      }
+
+      if (message.type === "playerAttack") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const attack = resolvePlayerAttack(
+          member.session,
+          playerId,
+          message.direction,
+          message.targetId,
+          now(),
+        );
+        if (!attack.ok) {
+          send(socket, { type: "actionRejected", sequence: message.sequence, reason: attack.reason });
+          return;
+        }
+
+        broadcast(member.session, attack.event);
+        publish(member.session);
+        return;
+      }
+
+      if (
+        message.type === "pickupItem" ||
+        message.type === "useItem" ||
+        message.type === "playerInteract"
+      ) {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const result =
+          message.type === "pickupItem"
+            ? pickupItem(member.session, playerId, message.itemId)
+            : message.type === "useItem"
+              ? useItem(member.session, playerId, message.itemId)
+              : interact(member.session, playerId, message.targetId);
+        if (!result.ok) {
+          // These messages carry no sequence number, so the rejection cannot name one.
+          send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
+          return;
+        }
+
+        publish(member.session);
         return;
       }
 
@@ -281,15 +339,19 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   });
 
   const tickTimer = setInterval(() => {
+    const at = now();
+
     for (const session of store.listSessions()) {
+      // Monsters and respawns advance even with nobody watching, so a reconnecting party returns to
+      // a world that kept its timers rather than one frozen mid-fight.
+      const monsterAttacks = simulate(session, at);
       session.tick += 1;
 
       const hasAudience = [...session.players.values()].some((player) => player.connected);
       if (!hasAudience) continue;
 
-      broadcast(session, {
-        ...snapshotOf(session),
-      });
+      for (const attack of monsterAttacks) broadcast(session, attack);
+      broadcast(session, snapshotOf(session));
     }
   }, tickIntervalMs);
 

@@ -270,12 +270,22 @@ describe("parseServerMessage", () => {
             name: "Ash Imp",
             position: { x: 1, y: 1 },
             health: 12,
+            maxHealth: 12,
             alive: true,
           },
         ],
-        loot: [],
+        loot: [
+          {
+            id: SESSION_ID,
+            name: "Copper Key",
+            kind: "key",
+            position: { x: 1, y: 1 },
+            pickedUp: false,
+          },
+        ],
         doors: [],
         exits: [],
+        cleared: false,
       },
     };
 
@@ -285,6 +295,49 @@ describe("parseServerMessage", () => {
     if (result.ok) {
       expect(result.message).toEqual(message);
     }
+  });
+
+  it("round-trips a player carrying inventory", () => {
+    const message: ServerMessage = {
+      type: "playerJoined",
+      player: {
+        id: PLAYER_ID,
+        name: "Grix",
+        position: { x: 2, y: 2 },
+        facing: { x: 0, y: 1 },
+        health: 0,
+        ready: true,
+        connected: true,
+        inventory: [{ id: TARGET_ID, name: "Minor Tonic", kind: "tonic" }],
+      },
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
+
+  it("rejects an item of an unknown kind", () => {
+    const result = parseServerMessage(
+      JSON.stringify({
+        type: "playerJoined",
+        player: {
+          id: PLAYER_ID,
+          name: "Grix",
+          position: { x: 2, y: 2 },
+          facing: { x: 0, y: 1 },
+          health: 100,
+          ready: false,
+          connected: true,
+          inventory: [{ id: TARGET_ID, name: "Vorpal Sword", kind: "sword" }],
+        },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
   });
 
   it("rejects 'disconnected' as a leave reason, since a drop holds the slot", () => {

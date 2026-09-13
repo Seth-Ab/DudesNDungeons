@@ -4,6 +4,10 @@ import type { DungeonState, Vector2 } from "../types/core.js";
 /**
  * Movement rules shared by the server, which resolves moves, and the client, which predicts them.
  * Keeping one copy is what stops a client's prediction from drifting away from what the server does.
+ *
+ * Positions are continuous world units, and an integer position is the center of its tile: tile
+ * (x, y) covers x - 0.5 up to x + 0.5. That matches how the renderer draws, and puts spawn points and
+ * entities in the middle of their tiles.
  */
 
 export const PLAYER_RADIUS = 0.35;
@@ -26,6 +30,14 @@ export const MOVE_BURST_TOLERANCE_MS = MOVE_INTERVAL_MS;
 
 const MIN_DIRECTION_MAGNITUDE = 0.001;
 
+/** Unit vector along `direction`, or null for a direction too small to have a heading. */
+export function normalizeDirection(direction: Vector2): Vector2 | null {
+  const magnitude = Math.hypot(direction.x, direction.y);
+  if (magnitude < MIN_DIRECTION_MAGNITUDE) return null;
+
+  return { x: direction.x / magnitude, y: direction.y / magnitude };
+}
+
 export interface Step {
   /** Unit heading the player now faces. */
   heading: Vector2;
@@ -35,10 +47,9 @@ export interface Step {
 
 /** Applies one step along an unnormalized direction. Null for a direction too small to have one. */
 export function stepFrom(from: Vector2, direction: Vector2): Step | null {
-  const magnitude = Math.hypot(direction.x, direction.y);
-  if (magnitude < MIN_DIRECTION_MAGNITUDE) return null;
+  const heading = normalizeDirection(direction);
+  if (!heading) return null;
 
-  const heading = { x: direction.x / magnitude, y: direction.y / magnitude };
   return {
     heading,
     next: {
@@ -48,12 +59,20 @@ export function stepFrom(from: Vector2, direction: Vector2): Step | null {
   };
 }
 
+/** The tile a position falls in. */
+export function tileOf(position: Vector2): Vector2 {
+  return { x: Math.round(position.x), y: Math.round(position.y) };
+}
+
 export function isFloor(dungeon: DungeonState, position: Vector2): boolean {
-  const x = Math.floor(position.x);
-  const y = Math.floor(position.y);
+  const { x, y } = tileOf(position);
   if (x < 0 || y < 0 || x >= dungeon.map.width || y >= dungeon.map.height) return false;
 
   return dungeon.map.tiles[y]?.[x] === ".";
+}
+
+export function distance(a: Vector2, b: Vector2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 function distanceSquared(a: Vector2, b: Vector2): number {
@@ -68,12 +87,23 @@ function overlaps(a: Vector2, b: Vector2): boolean {
   return distanceSquared(a, b) < MIN_SEPARATION_SQUARED;
 }
 
+/** A closed door fills its whole tile, like a wall, so nothing can slip past its corners. */
+function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
+  const tile = tileOf(position);
+  return dungeon.doors.some((door) => {
+    if (door.open) return false;
+    const doorTile = tileOf(door.position);
+    return doorTile.x === tile.x && doorTile.y === tile.y;
+  });
+}
+
 /**
- * Whether a player may stand at `position`.
+ * Whether a body may stand at `position`.
  *
- * `others` are the other players' positions. `from` is where the moving player stands now; omit it
- * when placing a player who is not in the dungeon yet. With `from`, another player only blocks a
- * move that closes the gap, so players who already overlap can step apart rather than being stuck.
+ * `others` are the positions of players who can block, which excludes downed players. `from` is
+ * where the moving player stands now; omit it when placing someone new or moving a monster. With
+ * `from`, another player only blocks a move that closes the gap, so players who already overlap can
+ * step apart rather than being stuck.
  */
 export function isOpen(
   dungeon: DungeonState,
@@ -81,11 +111,10 @@ export function isOpen(
   position: Vector2,
   from?: Vector2,
 ): boolean {
-  if (!isFloor(dungeon, position)) return false;
+  if (!isFloor(dungeon, position) || isClosedDoorAt(dungeon, position)) return false;
   if (dungeon.monsters.some((monster) => monster.alive && overlaps(monster.position, position))) {
     return false;
   }
-  if (dungeon.doors.some((door) => !door.open && overlaps(door.position, position))) return false;
 
   return !others.some(
     (other) =>

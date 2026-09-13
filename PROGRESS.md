@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 3 complete; the server now owns the fixed dungeon and authoritative player movement.
-- Last completed work: Authoritative Dungeon State on `backend-development`. Each session gets a cloned Ember Vault dungeon with map metadata, monsters, loot, doors, and exits; players spawn on walkable points; `playerMoveIntent` is validated against walls, bounds, players, monsters, and closed doors; valid movement broadcasts an updated `stateSnapshot`.
-- Next recommended step: Backend Dev step 4 (Combat and Game Rules). Movement, entity placement, and dungeon snapshots are in place, so attacks, item pickup, inventory basics, and monster behavior can now resolve on server-owned state.
+- Overall phase: Backend Dev step 4 complete; the server resolves melee combat, monster behavior, downed/respawn, item pickup and use, doors, and the exit.
+- Last completed work: Combat and Game Rules on `backend-development` (protocol v3). See `docs/decisions/0004-combat-and-items.md`.
+- Next recommended step: Frontend Dev steps 3-4 (Core Game UI, Combat and Dungeon Interaction). The server accepts every gameplay action, but the client does not yet send attack, pickup, use, or interact, and does not draw loot, doors, exits, monster health, downed players, or the cleared state. That is the remaining gap to a playable demo.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -42,10 +42,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 4. Combat and Game Rules
 
-- [ ] Implement attacks, damage, death, and simple monster behavior.
-- [ ] Add item pickup and inventory basics.
-- [ ] Resolve all combat outcomes on the server.
-- [ ] Add tests for movement, combat, session joins, and invalid messages.
+- [x] Implement attacks, damage, death, and simple monster behavior. Simple real-time melee in `src/server/game/combat.ts`; monsters chase and attack on the tick; downed players respawn after `PLAYER_RESPAWN_MS`. The hybrid tactical exchange is deferred.
+- [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
+- [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
+- [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
 
 ### 5. Voice Signaling and Proximity Data
 
@@ -201,3 +201,16 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Movement keys no longer fire while typing in the lobby's name and room code fields, and the HUD shows positions to two decimals.
   - No protocol change: `onCooldown` already existed in `rejectionReasonSchema`.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (115/115 passing, stable across repeated runs), and `npm run build`. Not yet exercised in a browser.
+- Fast-forwarded `backend-development` to `main` after PR #5 merged.
+- Smoke-tested PR #5 movement against the live dev server with a two-player script (no browser available): 39 intents sent at the client's 50ms cadence drew no `onCooldown` refusals, and the mover stopped correctly against the other player.
+- Completed Backend Dev step 4 (Combat and Game Rules):
+  - Chose simple real-time melee as the first combat slice, deferring the hybrid tactical exchange. Recorded in `docs/decisions/0004-combat-and-items.md`.
+  - Added `src/server/game/combat.ts`: directional swings with reach, arc, and cooldown; monsters that chase the nearest connected standing player and attack on their own cooldown; downed players who respawn with full health.
+  - Added `src/server/game/items.ts`: loot pickup into a capped inventory, tonics that heal, locked doors opened by spending a key, and an exit that clears the dungeon.
+  - Wired `playerAttack`, `pickupItem`, `useItem`, and `playerInteract` into `src/server/gameServer.ts`, and ran the monster simulation on the server tick. Refusals use `actionRejected`.
+  - Reshaped the Ember Vault so the exit sits in a walled vault behind the locked door, with the key guarded by the Ash Imp, and moved spawn points out of monster aggro range.
+  - Fixed collision to treat integer positions as tile centers, matching the renderer; it was off by half a tile. Closed doors now block their whole tile.
+  - Protocol v3: loot `kind`, monster `maxHealth`, dungeon `cleared`, and player `inventory`.
+  - Client kept compatible: downed players do not move, do not block prediction, and show as "down" in the roster. No new gameplay controls or rendering yet.
+  - Tests grew from 115 to 146. A scripted fight against the live dev server walked to the Ash Imp, took its hit and one from the Cinder Slime, killed the imp in two swings, and picked up the Copper Key.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (146/146 passing, stable across repeated runs), and `npm run build`.

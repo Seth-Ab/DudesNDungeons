@@ -112,7 +112,8 @@ export function createHud(options: HudOptions) {
           if (!player.connected) item.classList.add("hud__roster-entry--offline");
           if (player.id === view.selfId) item.classList.add("hud__roster-entry--self");
 
-          const state = player.connected ? (player.ready ? "ready" : "waiting") : "disconnected";
+          const standing = player.health > 0 ? (player.ready ? "ready" : "waiting") : "down";
+          const state = player.connected ? standing : "disconnected";
           item.textContent = `${player.name} · ${player.health}hp · ${state}`;
           return item;
         }),

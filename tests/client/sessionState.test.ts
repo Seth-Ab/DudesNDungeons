@@ -20,6 +20,7 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     health: 100,
     ready: false,
     connected: true,
+    inventory: [],
     ...overrides,
   };
 }
@@ -37,6 +38,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     loot: [],
     doors: [],
     exits: [],
+    cleared: false,
     ...overrides,
   };
 }

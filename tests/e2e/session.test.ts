@@ -269,6 +269,23 @@ describe("joining a dungeon", () => {
       start + (burst - rejected) * PLAYER_STEP_DISTANCE,
     );
   });
+
+  it("resolves a swing at nothing and refuses loot out of reach", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+
+    client.send({ type: "playerAttack", sequence: 1, direction: { x: 1, y: 0 }, targetId: null });
+    const swing = await client.next("attackResolved");
+    expect(swing.targetId).toBeNull();
+
+    const copperKeyId = "33333333-3333-4333-8333-333333333333";
+    client.send({ type: "pickupItem", itemId: copperKeyId });
+    expect((await client.next("actionRejected")).reason).toBe("outOfRange");
+
+    const snapshot = await client.next("stateSnapshot");
+    expect(snapshot.players[0]?.inventory).toEqual([]);
+    expect(snapshot.dungeon.cleared).toBe(false);
+  });
 });
 
 describe("resume tokens stay private", () => {

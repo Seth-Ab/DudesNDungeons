@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -10,6 +10,23 @@ export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;
 export const PLAYER_MOVE_SPEED = 2.5;
 
 export const PLAYER_MAX_HEALTH = 100;
+
+export const PLAYER_ATTACK_DAMAGE = 6;
+/** Center-to-center reach of a swing, in world units. */
+export const PLAYER_ATTACK_RANGE = 1.2;
+export const PLAYER_ATTACK_COOLDOWN_MS = 500;
+/** A swing hits targets within 60 degrees either side of its direction: cos(60°). */
+export const PLAYER_ATTACK_ARC_COS = 0.5;
+
+/** Reach for picking up loot, opening doors, and using exits. */
+export const INTERACT_RANGE = 1.2;
+
+/** How long a downed player waits before returning at a spawn point with full health. */
+export const PLAYER_RESPAWN_MS = 5_000;
+
+export const MAX_INVENTORY_SIZE = 8;
+
+export const TONIC_HEAL_AMOUNT = 35;
 
 /** Distance in world units. Peers closer than this play at full volume. */
 export const VOICE_FULL_VOLUME_DISTANCE = 3;
