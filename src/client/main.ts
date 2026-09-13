@@ -1,3 +1,5 @@
+import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
+import type { Vector2 } from "../shared/types/core.js";
 import { requestMicrophonePreview } from "./audio/proximityAudio.js";
 import { createInputController } from "./input/inputController.js";
 import {
@@ -13,12 +15,7 @@ import {
   type SessionView,
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
-import {
-  LOCAL_SPAWN,
-  MOVE_VECTORS,
-  createPlaceholderDungeon,
-  predictMove,
-} from "./state/gameState.js";
+import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
 import { createHud } from "./ui/hud.js";
 import { createLobby } from "./ui/lobby.js";
 import "./styles.css";
@@ -41,7 +38,9 @@ function tokenStore() {
 }
 
 let renderedDungeon = createPlaceholderDungeon();
-let localPosition = { ...LOCAL_SPAWN };
+/** Locally predicted position. Only drawn once the server has placed this player. */
+let localPosition: Vector2 = { x: 0, y: 0 };
+let lastIntentAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
 
 const client = createSessionClient({
@@ -64,7 +63,6 @@ const hud = createHud({
   },
   onToggleReady: (ready) => client.setReady(ready),
   onLeave: () => {
-    localPosition = { ...LOCAL_SPAWN };
     client.leave();
     lobby.setMessage("You left the dungeon.");
     lobby.focus();
@@ -86,26 +84,26 @@ const lobby = createLobby({
 
 app.append(hud.element, lobby.element, renderer.canvas);
 
-const input = createInputController({
-  onMove: (direction) => {
-    if (view.phase !== "inSession") return;
+const input = createInputController();
 
-    localPosition = predictMove(renderedDungeon, localPosition, direction);
-    hud.setPosition(localPosition);
-    // Intent only. The server owns placement; local prediction is corrected by snapshots.
-    client.sendMoveIntent(MOVE_VECTORS[direction]);
-    renderer.render();
-  },
-});
+// Paced to the server's move interval, so the client sends intents at the rate the server accepts
+// them and predicts exactly the steps the server will take.
+setInterval(() => {
+  const heading = input.heading();
+  if (!heading || view.phase !== "inSession" || !view.dungeon) return;
+
+  // Intent only. The server owns placement; snapshots correct the prediction.
+  if (!client.sendMoveIntent(heading)) return;
+
+  lastIntentAt = performance.now();
+  localPosition = predictMove(view.dungeon, othersOf(view), localPosition, heading);
+  hud.setPosition(localPosition);
+  renderer.render();
+}, MOVE_INTERVAL_MS);
 
 client.subscribe((next) => {
   const joinedNow = view.phase !== "inSession" && next.phase === "inSession";
   view = next;
-
-  if (joinedNow) {
-    localPosition = { ...LOCAL_SPAWN };
-    hud.setPosition(localPosition);
-  }
 
   if (view.dungeon) {
     renderedDungeon = {
@@ -118,7 +116,11 @@ client.subscribe((next) => {
 
   const self = selfOf(view);
   if (self) {
-    localPosition = self.position;
+    // A fresh join or resume adopts the server's position outright; after that, the prediction is
+    // kept until it settles or drifts.
+    localPosition = joinedNow
+      ? { ...self.position }
+      : reconcile(localPosition, self.position, performance.now() - lastIntentAt);
     hud.setPosition(localPosition);
   }
 

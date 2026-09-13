@@ -51,6 +51,18 @@ describe("session creation and joining", () => {
     expect(session.players.size).toBe(1);
   });
 
+  it("does not spawn a new player on top of one who stayed", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const first = joinOrThrow(store, session, "One");
+    const second = joinOrThrow(store, session, "Two");
+
+    store.leave(first.player.id);
+    const third = joinOrThrow(store, session, "Three");
+
+    expect(third.player.position).not.toEqual(second.player.position);
+  });
+
   it("rejects a join for a room code that does not exist", () => {
     const store = createStore();
     store.createSession();

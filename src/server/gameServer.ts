@@ -31,6 +31,8 @@ export interface GameServerOptions {
   allowedOrigin?: string;
   /** Set false in tests to keep the reporter readable. */
   log?: boolean;
+  /** Monotonic clock in ms, used to pace movement. Wall-clock time can jump backwards. */
+  now?: () => number;
 }
 
 export interface GameServer {
@@ -51,6 +53,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const sweepIntervalMs = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
   const allowedOrigin = options.allowedOrigin ?? "*";
   const log = options.log ?? true;
+  const now = options.now ?? (() => performance.now());
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
 
@@ -233,7 +236,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
-        const moved = movePlayer(member.session, playerId, message.direction);
+        const moved = movePlayer(member.session, playerId, message.direction, now());
         if (!moved.ok) {
           send(socket, {
             type: "actionRejected",

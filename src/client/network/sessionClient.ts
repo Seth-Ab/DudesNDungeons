@@ -223,7 +223,7 @@ export function createSessionClient(options: SessionClientOptions) {
 
     /**
      * Intent, never a position. The sequence lets a later server correction say which input it is
-     * answering. The server replies `notImplemented` until Backend step 3 lands.
+     * answering. The server paces moves to `MOVE_INTERVAL_MS`, so callers should send at that rate.
      */
     sendMoveIntent(direction: Vector2): boolean {
       moveSequence += 1;

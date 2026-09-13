@@ -19,7 +19,7 @@ import type {
   DungeonState,
   Vector2,
 } from "../../shared/types/core.js";
-import { createDungeonState, spawnPointForIndex } from "../game/dungeonState.js";
+import { createDungeonState, findSpawnPoint } from "../game/dungeonState.js";
 
 export interface SessionPlayer {
   id: PlayerId;
@@ -33,6 +33,8 @@ export interface SessionPlayer {
   resumeToken: ResumeToken;
   /** When the socket dropped, or null while connected. Drives the reconnect grace window. */
   disconnectedAt: number | null;
+  /** Server clock time the next move is due, or null before the first. Paces movement speed. */
+  nextMoveAt: number | null;
 }
 
 export interface Session {
@@ -191,13 +193,14 @@ export class SessionStore {
     const player: SessionPlayer = {
       id: this.#createPlayerId(),
       name: request.playerName,
-      position: spawnPointForIndex(session.players.size),
+      position: findSpawnPoint(session),
       facing: { ...PLAYER_SPAWN_FACING },
       health: PLAYER_MAX_HEALTH,
       ready: false,
       connected: true,
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
+      nextMoveAt: null,
     };
 
     session.players.set(player.id, player);
@@ -273,7 +276,10 @@ export class SessionStore {
   }
 }
 
-/** Public view of a player. Drops `resumeToken` and `disconnectedAt`, which are never broadcast. */
+/**
+ * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and `nextMoveAt`, which are never
+ * broadcast.
+ */
 export function toPlayerState(player: SessionPlayer): PlayerState {
   return {
     id: player.id,

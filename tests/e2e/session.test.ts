@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { PROTOCOL_VERSION } from "../../src/shared/constants/game.js";
+import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { ServerMessage } from "../../src/shared/protocol/index.js";
@@ -241,6 +242,32 @@ describe("joining a dungeon", () => {
     const snapshot = await client.next("stateSnapshot");
     expect(snapshot.players[0]?.position.x).toBeGreaterThan(start);
     expect(snapshot.dungeon.map.id).toBe("ember-vault");
+  });
+
+  it("caps movement speed no matter how fast intents arrive", async () => {
+    const roomCode = await createRoom();
+    const { client, joined } = await joinRoom(roomCode, "Alpha");
+    const start = joined.players[0]?.position.y ?? 0;
+
+    const burst = 10;
+    for (let sequence = 1; sequence <= burst; sequence += 1) {
+      client.send({ type: "playerMoveIntent", sequence, direction: { x: 0, y: 1 } });
+    }
+
+    await client.next("actionRejected");
+    // A couple of ticks later, every intent in the burst has been answered.
+    await client.next("stateSnapshot");
+    await client.next("stateSnapshot");
+
+    const rejected = client
+      .received("actionRejected")
+      .filter((message) => message.reason === "onCooldown").length;
+    const latest = client.received("stateSnapshot").at(-1);
+
+    expect(rejected).toBeGreaterThan(0);
+    expect(latest?.players[0]?.position.y).toBeCloseTo(
+      start + (burst - rejected) * PLAYER_STEP_DISTANCE,
+    );
   });
 });
 
