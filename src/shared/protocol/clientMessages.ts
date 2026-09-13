@@ -3,16 +3,23 @@ import {
   entityIdSchema,
   playerIdSchema,
   playerNameSchema,
+  resumeTokenSchema,
   roomCodeSchema,
   vector2Schema,
 } from "../types/core.js";
 import { voiceSignalSchema } from "./voice.js";
 
+/**
+ * `resumeToken` is the token from an earlier `sessionJoined` in the same room. Present, it asks the
+ * server to reclaim that player slot with its position, health, and ready state intact. Absent or
+ * no longer valid, the join is treated as a brand new player.
+ */
 export const joinSessionSchema = z.object({
   type: z.literal("joinSession"),
   protocolVersion: z.number().int().nonnegative(),
   roomCode: roomCodeSchema,
   playerName: playerNameSchema,
+  resumeToken: resumeTokenSchema.nullish(),
 });
 
 export const leaveSessionSchema = z.object({

@@ -3,6 +3,7 @@ import {
   entityIdSchema,
   playerIdSchema,
   playerStateSchema,
+  resumeTokenSchema,
   roomCodeSchema,
   sessionIdSchema,
 } from "../types/core.js";
@@ -30,14 +31,26 @@ export const rejectionReasonSchema = z.enum([
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 
-export const playerLeftReasonSchema = z.enum(["left", "disconnected", "timedOut"]);
+/**
+ * Terminal reasons only. A dropped socket does not remove a player: the slot is held for
+ * `RECONNECT_GRACE_MS` and reported with `playerConnectionChanged`, becoming `timedOut` only if
+ * nobody reclaims it.
+ */
+export const playerLeftReasonSchema = z.enum(["left", "timedOut"]);
 export type PlayerLeftReason = z.infer<typeof playerLeftReasonSchema>;
 
+/**
+ * Sent only to the joining player. `resumeToken` is a credential for reclaiming this slot after a
+ * disconnect, so this message must never be broadcast to the rest of the party. `resumed` tells the
+ * client whether it reclaimed an existing slot or was given a fresh one.
+ */
 export const sessionJoinedSchema = z.object({
   type: z.literal("sessionJoined"),
   sessionId: sessionIdSchema,
   roomCode: roomCodeSchema,
   playerId: playerIdSchema,
+  resumeToken: resumeTokenSchema,
+  resumed: z.boolean(),
   tickRate: z.number().int().positive(),
   players: z.array(playerStateSchema),
 });
@@ -51,6 +64,13 @@ export const playerLeftSchema = z.object({
   type: z.literal("playerLeft"),
   playerId: playerIdSchema,
   reason: playerLeftReasonSchema,
+});
+
+/** A party member dropped or came back while keeping their slot. Not a join and not a leave. */
+export const playerConnectionChangedSchema = z.object({
+  type: z.literal("playerConnectionChanged"),
+  playerId: playerIdSchema,
+  connected: z.boolean(),
 });
 
 export const playerReadyChangedSchema = z.object({
@@ -113,6 +133,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   sessionJoinedSchema,
   playerJoinedSchema,
   playerLeftSchema,
+  playerConnectionChangedSchema,
   playerReadyChangedSchema,
   stateSnapshotSchema,
   attackResolvedSchema,

@@ -22,6 +22,26 @@ export const ROOM_CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789";
 
 export const MAX_PLAYER_NAME_LENGTH = 24;
 
+/** Where a newly joined player appears until step 3 gives the dungeon real spawn points. */
+export const PLAYER_SPAWN_POSITION = { x: 0, y: 0 } as const;
+export const PLAYER_SPAWN_FACING = { x: 0, y: 1 } as const;
+
+/**
+ * How long a disconnected player keeps their slot, position, and health before the server drops
+ * them. Long enough to survive a browser refresh or a brief network drop, short enough that a
+ * four-slot party is not held hostage by someone who closed the tab.
+ */
+export const RECONNECT_GRACE_MS = 60_000;
+
+/** Hex characters in a resume token: 16 random bytes, so guessing one is not practical. */
+export const RESUME_TOKEN_LENGTH = 32;
+
+/**
+ * How long a session with no players survives. Room creation is unauthenticated, so without this
+ * a caller could grow the session map without bound just by asking for codes.
+ */
+export const EMPTY_SESSION_TTL_MS = 10 * 60_000;
+
 export const MAX_VOICE_SIGNAL_LENGTH = 8192;
 
 /** Cap on a single inbound frame, measured in UTF-16 code units rather than bytes. */

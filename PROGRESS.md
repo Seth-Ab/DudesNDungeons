@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 1 (Project Foundation) complete and verified.
-- Last completed work: Verified the foundation on Node.js 24.21.0 / npm 11.19.0. `npm install`, `npm run typecheck`, `npm run lint`, `npm test` (15/15), and `npm run build` all pass, and the built server runs under plain `node` with a working `/health` endpoint and WebSocket validation. Work is on the `backend-development` branch.
-- Next recommended step: Backend Dev step 2 (Session and Player Management).
+- Overall phase: Backend Dev step 2 (Session and Player Management) complete and verified.
+- Last completed work: Implemented dungeon sessions end to end. `POST /sessions` creates a room, `joinSession` admits players, and the server tracks identity, position, health, ready, and connection state, broadcasting each change plus a 20Hz `stateSnapshot`. A dropped socket holds the player's slot for 60 seconds and can be reclaimed with a resume token. See `docs/decisions/0002-session-lifecycle.md`. Work is on the `backend-development` branch.
+- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State), which fills the tick loop with real movement.
 - Current blocker: None.
 
 ## Opinion Checkpoints
@@ -28,10 +28,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 2. Session and Player Management
 
-- [ ] Create dungeon instance records with invite codes or room IDs.
-- [ ] Add player join, leave, reconnect, and disconnect handling.
-- [ ] Track player identity, position, health, and ready state.
-- [ ] Broadcast authoritative player state to all clients in a session.
+- [x] Create dungeon instance records with invite codes or room IDs. `POST /sessions` mints a room code; see `SessionStore.createSession`.
+- [x] Add player join, leave, reconnect, and disconnect handling. A drop holds the slot for `RECONNECT_GRACE_MS`; reconnect uses the resume token from `sessionJoined`.
+- [x] Track player identity, position, health, and ready state. See `SessionPlayer` in `src/server/sessions/sessionStore.ts`.
+- [x] Broadcast authoritative player state to all clients in a session. Lifecycle events plus a `stateSnapshot` each tick.
 
 ### 3. Authoritative Dungeon State
 
@@ -137,3 +137,13 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   - `npm run build` emits `dist/` and the built server starts under plain `node`, confirming the ESM/NodeNext choice in `docs/decisions/0001-runtime-and-tooling.md` works without a loader.
   - Smoke-tested the running server: `/health` returns 200 with the protocol version, unknown routes return 404, and the WebSocket layer rejects malformed JSON and unknown message types while answering a valid `joinSession` with `notImplemented`.
   - Known issue: `npm audit` reports 5 advisories, all in the `vitest`/`vite`/`esbuild` dev dependency chain. None ship in the server build. Clearing them means upgrading Vitest 2.x to 3.x, deferred so it does not ride along with step 2.
+- Completed Backend Dev step 2 (Session and Player Management):
+  - Added `SessionStore` in `src/server/sessions/sessionStore.ts`, holding dungeon instances, room codes, and per-player identity, position, health, ready, and connection state. It takes no transport types and receives its clock and id generators by injection, so the lifecycle is testable without opening a port.
+  - Added `POST /sessions` to create a dungeon and return a shareable room code. `joinSession` now only joins an existing room and answers `sessionNotFound` otherwise.
+  - Made a dropped socket hold the player's slot for 60 seconds instead of removing them, releasing it as `playerLeft`/`timedOut` if nobody returns.
+  - Added resume tokens so a refreshed or briefly disconnected client reclaims its slot with position, health, and ready state intact. The token is sent only to its owner and never broadcast.
+  - Protocol changes: `joinSession` gained an optional `resumeToken`; `sessionJoined` gained `resumeToken` and `resumed`; added `playerConnectionChanged`; removed `disconnected` from `playerLeftReason`, which a grace window makes unreachable. Recorded in `docs/decisions/0002-session-lifecycle.md`.
+  - Split the transport into `src/server/gameServer.ts` as a `createGameServer()` factory, leaving `src/server/index.ts` as the entry point. This is what lets the e2e tests boot a real server on an ephemeral port with a compressed grace window.
+  - Added a 20Hz `stateSnapshot` broadcast. Nothing moves between ticks yet; the loop exists so step 3 has somewhere to put movement and clients read from snapshots from the start.
+  - Tests grew from 15 to 63: `tests/server/sessions.test.ts` covers the store's lifecycle and `tests/e2e/session.test.ts` drives real sockets through joins, duplicate joins, party limits, disconnect, reconnect, timeout, leave, and session isolation, including assertions that resume tokens never reach another player.
+  - Verified: typecheck, lint, 63/63 tests (stable across repeated runs), `npm run build`, and the compiled entry point serving a live join.

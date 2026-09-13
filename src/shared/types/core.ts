@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   MAX_PLAYER_NAME_LENGTH,
   PLAYER_MAX_HEALTH,
+  RESUME_TOKEN_LENGTH,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
 } from "../constants/game.js";
@@ -29,6 +30,16 @@ export type RoomCode = z.infer<typeof roomCodeSchema>;
 
 export const playerNameSchema = z.string().trim().min(1).max(MAX_PLAYER_NAME_LENGTH);
 export type PlayerName = z.infer<typeof playerNameSchema>;
+
+/**
+ * Bearer credential for reclaiming a player slot after a disconnect. It is only ever sent to the
+ * player it belongs to; broadcasting one would let any party member impersonate another.
+ */
+export const resumeTokenSchema = z
+  .string()
+  .length(RESUME_TOKEN_LENGTH)
+  .regex(/^[0-9a-f]+$/, "Resume token must be lowercase hex");
+export type ResumeToken = z.infer<typeof resumeTokenSchema>;
 
 /**
  * The server's view of a player, broadcast to clients. Clients never author this shape: position

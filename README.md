@@ -12,7 +12,8 @@ Resolved in `STEPS.md` and recorded in `PROGRESS.md`:
 - Voice: always connected, volume attenuated by in-game distance.
 - Party size for v1: 4.
 
-Runtime and renderer choices are recorded in `docs/decisions/0001-runtime-and-tooling.md`.
+Runtime and renderer choices are recorded in `docs/decisions/0001-runtime-and-tooling.md`. Session,
+disconnect, and reconnect behavior is recorded in `docs/decisions/0002-session-lifecycle.md`.
 
 ## Requirements
 
@@ -26,8 +27,23 @@ cp config/.env.example .env   # optional; defaults work as-is
 npm run dev
 ```
 
-The server listens on `http://localhost:8080` with a `/health` endpoint and a WebSocket endpoint on
-the same port.
+The server listens on `http://localhost:8080` and serves both HTTP and WebSocket traffic on that
+port.
+
+## Server API
+
+- `GET /health` - liveness, protocol version, and the number of live sessions.
+- `POST /sessions` - create a dungeon. Returns `{ sessionId, roomCode }`; share the room code with
+  the party.
+- `ws://localhost:8080` - gameplay. Connect, then send `joinSession` with the room code.
+
+A dungeon must exist before anyone can join it, so the flow is: one player calls `POST /sessions`,
+then everyone connects over WebSocket and sends `joinSession` with the returned room code.
+
+`sessionJoined` returns a `resumeToken`. Keep it for the life of the tab and send it back in a later
+`joinSession` to reclaim the same player slot after a refresh or a dropped connection; a slot is
+held for 60 seconds. The token is a credential, so it is only ever sent to its owner and must not be
+logged or shared.
 
 ## Commands
 

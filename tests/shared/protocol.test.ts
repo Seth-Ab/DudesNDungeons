@@ -15,6 +15,8 @@ import {
 
 const PLAYER_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const TARGET_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
+const SESSION_ID = "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f";
+const RESUME_TOKEN = "0123456789abcdef0123456789abcdef";
 
 describe("parseClientMessage", () => {
   it("accepts a well-formed joinSession message", () => {
@@ -92,6 +94,39 @@ describe("parseClientMessage", () => {
     );
 
     expect(result.ok).toBe(false);
+  });
+
+  it("accepts a joinSession carrying a resume token", () => {
+    const result = parseClientMessage(
+      JSON.stringify({
+        type: "joinSession",
+        protocolVersion: PROTOCOL_VERSION,
+        roomCode: "BCDFGH",
+        playerName: "Grix",
+        resumeToken: RESUME_TOKEN,
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.message.type === "joinSession") {
+      expect(result.message.resumeToken).toBe(RESUME_TOKEN);
+    }
+  });
+
+  it("rejects a resume token that is not the expected hex shape", () => {
+    for (const resumeToken of [RESUME_TOKEN.toUpperCase(), RESUME_TOKEN.slice(1), "zz"]) {
+      const result = parseClientMessage(
+        JSON.stringify({
+          type: "joinSession",
+          protocolVersion: PROTOCOL_VERSION,
+          roomCode: "BCDFGH",
+          playerName: "Grix",
+          resumeToken,
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+    }
   });
 
   it("rejects non-finite movement components", () => {
@@ -179,6 +214,49 @@ describe("parseServerMessage", () => {
     if (result.ok) {
       expect(result.message).toEqual(message);
     }
+  });
+
+  it("round-trips a sessionJoined carrying the resume token", () => {
+    const message: ServerMessage = {
+      type: "sessionJoined",
+      sessionId: SESSION_ID,
+      roomCode: "BCDFGH",
+      playerId: PLAYER_ID,
+      resumeToken: RESUME_TOKEN,
+      resumed: true,
+      tickRate: 20,
+      players: [],
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
+
+  it("round-trips a connection change, which is distinct from a leave", () => {
+    const message: ServerMessage = {
+      type: "playerConnectionChanged",
+      playerId: PLAYER_ID,
+      connected: false,
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
+
+  it("rejects 'disconnected' as a leave reason, since a drop holds the slot", () => {
+    const result = parseServerMessage(
+      JSON.stringify({ type: "playerLeft", playerId: PLAYER_ID, reason: "disconnected" }),
+    );
+
+    expect(result.ok).toBe(false);
   });
 
   it("rejects a volume outside the 0..1 range", () => {
