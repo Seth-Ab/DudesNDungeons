@@ -4,10 +4,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Planning and project setup.
-- Last completed work: Resolved all five opinion checkpoints from `STEPS.md` (visual style, movement model, combat model, voice behavior, target party size).
-- Next recommended step: Choose runtime/tooling (likely Node.js + TypeScript) and renderer (Canvas or Phaser), then begin Backend Dev step 1 (Project Foundation).
-- Current blocker: None.
+- Overall phase: Backend Dev step 1 (Project Foundation) implemented, pending verification.
+- Last completed work: Added project tooling (`package.json`, `tsconfig`, ESLint, Vitest), shared constants and core types, the shared protocol message definitions, a minimal WebSocket server entry point, and protocol tests. Work is on the `backend-development` branch.
+- Next recommended step: Install Node.js, run `npm install`, then `npm run lint`, `npm run typecheck`, and `npm test` to verify the foundation. Afterwards begin Backend Dev step 2 (Session and Player Management).
+- Current blocker: Node.js is not installed on the development machine, so no command in `README.md` has been executed yet. Everything in step 1 is unverified.
 
 ## Opinion Checkpoints
 
@@ -21,10 +21,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [ ] Choose runtime and tooling.
-- [ ] Add package scripts for development, testing, linting, and building.
+- [x] Choose runtime and tooling. Node.js 20.11+ with TypeScript, `ws`, `zod`, `vitest`, and ESLint. See `docs/decisions/0001-runtime-and-tooling.md`.
+- [x] Add package scripts for development, testing, linting, and building. See `README.md` for the command list.
 - [x] Create `src/server/`, `src/shared/`, and `tests/` directories.
-- [ ] Define shared protocol message types.
+- [x] Define shared protocol message types. See `src/shared/protocol/`.
 
 ### 2. Session and Player Management
 
@@ -65,7 +65,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [ ] Choose renderer.
+- [x] Choose renderer. Phaser 3, recorded in `docs/decisions/0001-runtime-and-tooling.md`. Not installed yet; it lands with the rest of Frontend Dev step 1.
 - [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - [ ] Connect to the backend WebSocket server.
 - [ ] Render the fixed dungeon map and local player.
@@ -121,3 +121,13 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Resolved opinion checkpoint: visual style set to pixel art.
 - Resolved opinion checkpoint: movement model set to slow free-roam.
 - Resolved opinion checkpoints: combat model set to hybrid (Pokémon Legends: Z-A style), voice behavior set to always-connected with distance-based volume, target party size for v1 set to 4. All five opinion checkpoints are now resolved.
+- Created the `backend-development` branch for Backend Dev work.
+- Completed Backend Dev step 1 (Project Foundation):
+  - Recorded runtime, module, validation, and renderer choices in `docs/decisions/0001-runtime-and-tooling.md`.
+  - Added `package.json`, `tsconfig.json`, `tsconfig.build.json`, `eslint.config.js`, `vitest.config.ts`, and `.gitignore`.
+  - Added shared constants in `src/shared/constants/game.ts` and core types in `src/shared/types/core.ts`.
+  - Defined the protocol in `src/shared/protocol/` covering session lifecycle, movement intent, attacks, interaction, item use, voice signaling, proximity updates, and errors.
+  - Added a minimal HTTP + WebSocket server entry point at `src/server/index.ts` that validates inbound messages and answers with `notImplemented` until session handling lands.
+  - Added protocol tests in `tests/shared/protocol.test.ts` covering valid messages, malformed JSON, unknown types, missing fields, out-of-range values, and oversized payloads.
+  - Documented commands in `README.md` and environment variables in `config/.env.example`.
+- Blocked on verification: Node.js is not installed on the development machine, so `npm install`, `npm run lint`, `npm run typecheck`, and `npm test` have not been run.
