@@ -4,10 +4,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 1 (Project Foundation) implemented, pending verification.
-- Last completed work: Added project tooling (`package.json`, `tsconfig`, ESLint, Vitest), shared constants and core types, the shared protocol message definitions, a minimal WebSocket server entry point, and protocol tests. Work is on the `backend-development` branch.
-- Next recommended step: Install Node.js, run `npm install`, then `npm run lint`, `npm run typecheck`, and `npm test` to verify the foundation. Afterwards begin Backend Dev step 2 (Session and Player Management).
-- Current blocker: Node.js is not installed on the development machine, so no command in `README.md` has been executed yet. Everything in step 1 is unverified.
+- Overall phase: Backend Dev step 1 (Project Foundation) complete and verified.
+- Last completed work: Verified the foundation on Node.js 24.21.0 / npm 11.19.0. `npm install`, `npm run typecheck`, `npm run lint`, `npm test` (15/15), and `npm run build` all pass, and the built server runs under plain `node` with a working `/health` endpoint and WebSocket validation. Work is on the `backend-development` branch.
+- Next recommended step: Backend Dev step 2 (Session and Player Management).
+- Current blocker: None.
 
 ## Opinion Checkpoints
 
@@ -131,3 +131,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   - Added protocol tests in `tests/shared/protocol.test.ts` covering valid messages, malformed JSON, unknown types, missing fields, out-of-range values, and oversized payloads.
   - Documented commands in `README.md` and environment variables in `config/.env.example`.
 - Blocked on verification: Node.js is not installed on the development machine, so `npm install`, `npm run lint`, `npm run typecheck`, and `npm test` have not been run.
+- Unblocked and verified Backend Dev step 1 after installing Node.js 24.21.0 (npm 11.19.0):
+  - `npm install` succeeded; committed `package-lock.json` so the dependency set is reproducible.
+  - `npm run typecheck`, `npm run lint`, and `npm test` (15/15 passing) are all clean.
+  - `npm run build` emits `dist/` and the built server starts under plain `node`, confirming the ESM/NodeNext choice in `docs/decisions/0001-runtime-and-tooling.md` works without a loader.
+  - Smoke-tested the running server: `/health` returns 200 with the protocol version, unknown routes return 404, and the WebSocket layer rejects malformed JSON and unknown message types while answering a valid `joinSession` with `notImplemented`.
+  - Known issue: `npm audit` reports 5 advisories, all in the `vitest`/`vite`/`esbuild` dev dependency chain. None ship in the server build. Clearing them means upgrading Vitest 2.x to 3.x, deferred so it does not ride along with step 2.
