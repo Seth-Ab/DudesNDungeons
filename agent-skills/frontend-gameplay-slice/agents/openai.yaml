@@ -1,0 +1,3 @@
+interface:
+  display_name: "Frontend Gameplay Slice"
+  short_description: "Build browser gameplay slices without drifting from server state"

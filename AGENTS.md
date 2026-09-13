@@ -4,6 +4,8 @@
 
 Use `AGENTS.md` for contributor and agent instructions. Use `STEPS.md` as the project roadmap, including frontend/backend work groups and opinion checkpoints that need owner input. Use `PROGRESS.md` as the working ledger; update it whenever a step or substep is completed, changed, blocked, or skipped, and check it before starting new work.
 
+Repo-local shared skills live in `agent-skills/`. Use them when their descriptions match the task, especially for progress syncing, protocol changes, frontend gameplay slices, and backend authoritative state work. These skills are tool-agnostic guidance for Codex, Claude, and human contributors.
+
 ## Project Structure & Module Organization
 
 This repository is currently at planning/scaffold stage. Keep new source code organized by responsibility:
@@ -17,6 +19,7 @@ This repository is currently at planning/scaffold stage. Keep new source code or
 - `docs/` for architecture notes and decision records.
 - `scripts/` for local automation and one-off project scripts.
 - `config/` for checked-in, non-secret configuration templates.
+- `agent-skills/` for repo-local shared skills used by AI agents and contributors.
 
 Avoid mixing client-only browser code with server logic. Shared protocol definitions should live in one place so clients and the server cannot drift.
 

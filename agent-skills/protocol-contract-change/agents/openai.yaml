@@ -1,0 +1,3 @@
+interface:
+  display_name: "Protocol Contract Change"
+  short_description: "Change shared client/server protocol messages safely"
