@@ -193,3 +193,11 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Recorded the contract and state ownership decision in `docs/decisions/0003-authoritative-dungeon-state.md`.
   - Fixed `GameServer.listen()` so local bind failures reject instead of hanging test hooks.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (94/94 passing), and `npm run build`.
+- Fast-forwarded `backend-development` to `main` after PR #4 merged.
+- Fixed two Backend step 3 movement bugs found in review:
+  - Players could be permanently stuck together. Spawns were chosen by party size, so after a player left, the next arrival landed on a player who stayed, and every step either took was blocked. `findSpawnPoint` now picks the first unoccupied spawn point (falling back to free floor), and player collision only blocks moves that close the gap.
+  - Speed hack: every `playerMoveIntent` applied a full step, so sending intents faster moved a player faster and triggered a party broadcast each time. Moves are now paced per player with a leaky bucket on a monotonic clock: one move per `MOVE_INTERVAL_MS`, with one interval of burst tolerance so network jitter does not drop legitimate moves. Early intents get `actionRejected` / `onCooldown`. Recorded in `docs/decisions/0003-authoritative-dungeon-state.md`.
+  - Client prediction disagreed with the server: the client stepped whole tiles and looked up tiles by fractional positions, so prediction froze once the server moved a player off a tile boundary. Step, collision, and pacing rules now live in `src/shared/game/movement.ts`, used by both the server and the client's `predictMove`. The client sends one intent per `MOVE_INTERVAL_MS` while keys are held instead of on key repeat, and `reconcile` keeps the prediction while intents are in flight, adopting the snapshot once they settle or drift more than one unit.
+  - Movement keys no longer fire while typing in the lobby's name and room code fields, and the HUD shows positions to two decimals.
+  - No protocol change: `onCooldown` already existed in `rejectionReasonSchema`.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (115/115 passing, stable across repeated runs), and `npm run build`. Not yet exercised in a browser.

@@ -81,7 +81,7 @@ export function createHud(options: HudOptions) {
     },
 
     setPosition(position: Vector2) {
-      positionStatus.value.textContent = `${position.x}, ${position.y}`;
+      positionStatus.value.textContent = `${position.x.toFixed(2)}, ${position.y.toFixed(2)}`;
     },
 
     syncTo(view: SessionView) {

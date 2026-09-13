@@ -1,8 +1,9 @@
-import type { Vector2 } from "../../shared/types/core.js";
+import { isOpen, stepFrom } from "../../shared/game/movement.js";
+import type { DungeonState, PlayerState, Vector2 } from "../../shared/types/core.js";
 
 export type MoveDirection = "north" | "south" | "east" | "west";
 
-/** Unit headings the server expects on `playerMoveIntent`. It normalizes and applies its own speed. */
+/** Unit headings for each movement key. The server normalizes whatever sum it receives. */
 export const MOVE_VECTORS: Record<MoveDirection, Vector2> = {
   north: { x: 0, y: -1 },
   south: { x: 0, y: 1 },
@@ -15,10 +16,7 @@ export interface DungeonMap {
   monsters: Vector2[];
 }
 
-/**
- * A placeholder map owned by the client. Backend step 3 makes the dungeon server-authoritative, at
- * which point this is replaced by map data that arrives over the socket.
- */
+/** Drawn before the first snapshot arrives. Movement never runs against it. */
 export function createPlaceholderDungeon(): DungeonMap {
   return {
     tiles: [
@@ -38,28 +36,52 @@ export function createPlaceholderDungeon(): DungeonMap {
   };
 }
 
-export const LOCAL_SPAWN: Vector2 = { x: 2, y: 2 };
-
-export function stepPosition(position: Vector2, direction: MoveDirection): Vector2 {
-  const delta = MOVE_VECTORS[direction];
-  return { x: position.x + delta.x, y: position.y + delta.y };
-}
-
-export function isWalkable(dungeon: DungeonMap, position: Vector2): boolean {
-  const row = dungeon.tiles[position.y];
-  if (row === undefined) return false;
-  return row[position.x] === ".";
+/** Sums the held movement keys into one heading. Null when nothing is held or opposites cancel. */
+export function headingFrom(held: Iterable<MoveDirection>): Vector2 | null {
+  let x = 0;
+  let y = 0;
+  for (const direction of new Set(held)) {
+    x += MOVE_VECTORS[direction].x;
+    y += MOVE_VECTORS[direction].y;
+  }
+  return x === 0 && y === 0 ? null : { x, y };
 }
 
 /**
- * Local prediction so the game stays responsive. The server does not resolve movement until Backend
- * step 3; once it does, snapshot positions become the source of truth and this only smooths input.
+ * Predicts one step using the server's own movement rules from `src/shared/game/movement.ts`, so a
+ * move the server will accept shows up immediately and one it will refuse never shows up at all.
  */
 export function predictMove(
-  dungeon: DungeonMap,
-  position: Vector2,
-  direction: MoveDirection,
+  dungeon: DungeonState,
+  others: readonly PlayerState[],
+  from: Vector2,
+  direction: Vector2,
 ): Vector2 {
-  const next = stepPosition(position, direction);
-  return isWalkable(dungeon, next) ? next : position;
+  const step = stepFrom(from, direction);
+  if (!step) return from;
+
+  const positions = others.map((player) => player.position);
+  return isOpen(dungeon, positions, step.next, from) ? step.next : from;
+}
+
+/** Once no intent has been sent for this long, every in-flight move has been answered. */
+export const PREDICTION_SETTLE_MS = 250;
+
+/** Beyond this distance a prediction is wrong rather than merely ahead, e.g. a refused move. */
+export const MAX_PREDICTION_ERROR = 1;
+
+/**
+ * Where to draw the local player when a snapshot arrives. Snapshots trail the prediction by the
+ * round trip, so adopting each one while moving would pull the player backwards every tick. The
+ * prediction is kept while intents are in flight and close to the server; otherwise the server wins.
+ */
+export function reconcile(
+  predicted: Vector2,
+  authoritative: Vector2,
+  msSinceLastIntent: number,
+): Vector2 {
+  if (msSinceLastIntent >= PREDICTION_SETTLE_MS) return { ...authoritative };
+
+  const error = Math.hypot(predicted.x - authoritative.x, predicted.y - authoritative.y);
+  return error > MAX_PREDICTION_ERROR ? { ...authoritative } : predicted;
 }

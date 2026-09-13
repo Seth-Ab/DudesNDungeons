@@ -1,7 +1,9 @@
 import {
-  PLAYER_MOVE_SPEED,
-  SERVER_TICK_RATE_HZ,
-} from "../../shared/constants/game.js";
+  MOVE_BURST_TOLERANCE_MS,
+  MOVE_INTERVAL_MS,
+  isOpen,
+  stepFrom,
+} from "../../shared/game/movement.js";
 import type {
   DungeonState,
   LootState,
@@ -11,10 +13,6 @@ import type {
   Vector2,
 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
-
-const PLAYER_RADIUS = 0.35;
-const PLAYER_STEP_DISTANCE = PLAYER_MOVE_SPEED / SERVER_TICK_RATE_HZ;
-const MIN_DIRECTION_MAGNITUDE = 0.001;
 
 const SPAWN_POINTS: Vector2[] = [
   { x: 2, y: 2 },
@@ -89,7 +87,7 @@ const FIXED_DUNGEON: DungeonState = {
 
 export type MoveResult =
   | { ok: true; player: SessionPlayer }
-  | { ok: false; reason: "blocked" | "outOfRange" };
+  | { ok: false; reason: "blocked" | "outOfRange" | "onCooldown" };
 
 function copyVector(vector: Vector2): Vector2 {
   return { x: vector.x, y: vector.y };
@@ -147,81 +145,69 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
   };
 }
 
-export function spawnPointForIndex(index: number): Vector2 {
-  const fallback = SPAWN_POINTS[0];
-  if (!fallback) throw new Error("Dungeon has no spawn points");
+/**
+ * The first spawn point nobody is standing on. Choosing by party size is not enough: after someone
+ * leaves, the next arrival would land on top of a player who stayed.
+ */
+export function findSpawnPoint(session: Session): Vector2 {
+  const open = SPAWN_POINTS.find((point) => canOccupy(session, point));
+  if (open) return copyVector(open);
 
-  return copyVector(SPAWN_POINTS[index % SPAWN_POINTS.length] ?? fallback);
-}
-
-export function isFloor(dungeon: DungeonState, position: Vector2): boolean {
-  const x = Math.floor(position.x);
-  const y = Math.floor(position.y);
-  if (x < 0 || y < 0 || x >= dungeon.map.width || y >= dungeon.map.height) return false;
-
-  return dungeon.map.tiles[y]?.[x] === ".";
-}
-
-function distanceSquared(a: Vector2, b: Vector2): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
-}
-
-function collidesWithPlayer(
-  session: Session,
-  playerId: PlayerId,
-  position: Vector2,
-): boolean {
-  for (const player of session.players.values()) {
-    if (player.id === playerId) continue;
-    if (distanceSquared(player.position, position) < (PLAYER_RADIUS * 2) ** 2) return true;
+  // Players can be standing on every spawn point, so any free floor tile will do.
+  const { map } = session.dungeon;
+  for (let y = 0; y < map.height; y += 1) {
+    for (let x = 0; x < map.width; x += 1) {
+      const tile = { x, y };
+      if (canOccupy(session, tile)) return tile;
+    }
   }
 
-  return false;
+  throw new Error("Dungeon has no free floor to spawn on");
 }
 
-function collidesWithMonster(dungeon: DungeonState, position: Vector2): boolean {
-  return dungeon.monsters.some(
-    (monster) => monster.alive && distanceSquared(monster.position, position) < (PLAYER_RADIUS * 2) ** 2,
-  );
+function otherPositions(session: Session, mover?: SessionPlayer): Vector2[] {
+  return [...session.players.values()]
+    .filter((player) => player.id !== mover?.id)
+    .map((player) => player.position);
 }
 
-function collidesWithClosedDoor(dungeon: DungeonState, position: Vector2): boolean {
-  return dungeon.doors.some(
-    (door) => !door.open && distanceSquared(door.position, position) < (PLAYER_RADIUS * 2) ** 2,
-  );
+/** `mover` is the player moving there; omit it when placing a player who is not in the dungeon yet. */
+export function canOccupy(session: Session, position: Vector2, mover?: SessionPlayer): boolean {
+  return isOpen(session.dungeon, otherPositions(session, mover), position, mover?.position);
 }
 
-export function canOccupy(session: Session, playerId: PlayerId, position: Vector2): boolean {
-  return (
-    isFloor(session.dungeon, position) &&
-    !collidesWithPlayer(session, playerId, position) &&
-    !collidesWithMonster(session.dungeon, position) &&
-    !collidesWithClosedDoor(session.dungeon, position)
-  );
-}
-
-export function movePlayer(session: Session, playerId: PlayerId, direction: Vector2): MoveResult {
+/**
+ * Resolves one movement intent. `now` is the server's monotonic clock in ms.
+ *
+ * Pacing is a leaky bucket: each accepted move books one `MOVE_INTERVAL_MS`, and a move may arrive
+ * up to `MOVE_BURST_TOLERANCE_MS` ahead of that schedule. Jittered intents still land, but the
+ * long-run speed never exceeds `PLAYER_MOVE_SPEED`. Blocked moves book nothing.
+ */
+export function movePlayer(
+  session: Session,
+  playerId: PlayerId,
+  direction: Vector2,
+  now: number,
+): MoveResult {
   const player = session.players.get(playerId);
   if (!player) return { ok: false, reason: "outOfRange" };
 
-  const magnitude = Math.hypot(direction.x, direction.y);
-  if (magnitude < MIN_DIRECTION_MAGNITUDE) return { ok: false, reason: "outOfRange" };
+  const step = stepFrom(player.position, direction);
+  if (!step) return { ok: false, reason: "outOfRange" };
 
-  const normalized = { x: direction.x / magnitude, y: direction.y / magnitude };
-  const next = {
-    x: player.position.x + normalized.x * PLAYER_STEP_DISTANCE,
-    y: player.position.y + normalized.y * PLAYER_STEP_DISTANCE,
-  };
+  const due = player.nextMoveAt ?? now;
+  if (now < due - MOVE_BURST_TOLERANCE_MS) {
+    return { ok: false, reason: "onCooldown" };
+  }
 
-  player.facing = normalized;
+  player.facing = step.heading;
 
-  if (!canOccupy(session, player.id, next)) {
+  if (!canOccupy(session, step.next, player)) {
     return { ok: false, reason: "blocked" };
   }
 
-  player.position = next;
+  player.position = step.next;
+  player.nextMoveAt = Math.max(due, now) + MOVE_INTERVAL_MS;
   return { ok: true, player };
 }
 
