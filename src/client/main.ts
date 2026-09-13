@@ -40,7 +40,7 @@ function tokenStore() {
   }
 }
 
-const dungeon = createPlaceholderDungeon();
+let renderedDungeon = createPlaceholderDungeon();
 let localPosition = { ...LOCAL_SPAWN };
 let view: SessionView = initialSessionView;
 
@@ -51,7 +51,7 @@ const client = createSessionClient({
 });
 
 const renderer = createCanvasRenderer(() => ({
-  dungeon,
+  dungeon: renderedDungeon,
   localPosition,
   self: selfOf(view),
   others: othersOf(view),
@@ -90,9 +90,9 @@ const input = createInputController({
   onMove: (direction) => {
     if (view.phase !== "inSession") return;
 
-    localPosition = predictMove(dungeon, localPosition, direction);
+    localPosition = predictMove(renderedDungeon, localPosition, direction);
     hud.setPosition(localPosition);
-    // Intent only. The server owns placement and will correct this once Backend step 3 lands.
+    // Intent only. The server owns placement; local prediction is corrected by snapshots.
     client.sendMoveIntent(MOVE_VECTORS[direction]);
     renderer.render();
   },
@@ -104,6 +104,21 @@ client.subscribe((next) => {
 
   if (joinedNow) {
     localPosition = { ...LOCAL_SPAWN };
+    hud.setPosition(localPosition);
+  }
+
+  if (view.dungeon) {
+    renderedDungeon = {
+      tiles: view.dungeon.map.tiles,
+      monsters: view.dungeon.monsters
+        .filter((monster) => monster.alive)
+        .map((monster) => monster.position),
+    };
+  }
+
+  const self = selfOf(view);
+  if (self) {
+    localPosition = self.position;
     hud.setPosition(localPosition);
   }
 

@@ -182,6 +182,7 @@ describe("snapshots", () => {
 
     const view = await until(client, (v) => v.tick > 0);
     expect(view.players).toHaveLength(1);
+    expect(view.dungeon?.map.id).toBe("ember-vault");
   });
 
   it("never exposes a resume token through the session view", async () => {
@@ -195,17 +196,17 @@ describe("snapshots", () => {
 });
 
 describe("movement intent", () => {
-  it("sends a well-formed intent that the server accepts but has not implemented", async () => {
+  it("sends a well-formed intent and applies the authoritative snapshot", async () => {
     const client = newClient();
     const roomCode = await client.createRoom();
     client.join(roomCode, "Alpha");
-    await until(client, inSession);
+    const joined = await until(client, inSession);
+    const start = joined.players[0]?.position.x ?? 0;
 
     expect(client.sendMoveIntent({ x: 1, y: 0 })).toBe(true);
 
-    // notImplemented proves the frame passed validation; invalidMessage would mean protocol drift.
-    const view = await until(client, (v) => v.lastError !== null);
-    expect(view.lastError?.code).toBe("notImplemented");
+    const view = await until(client, (v) => (v.players[0]?.position.x ?? 0) > start);
+    expect(view.lastError).toBeNull();
   });
 
   it("refuses to send before a socket exists", () => {

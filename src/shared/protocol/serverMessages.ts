@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  dungeonStateSchema,
   entityIdSchema,
   playerIdSchema,
   playerStateSchema,
@@ -84,6 +85,7 @@ export const stateSnapshotSchema = z.object({
   type: z.literal("stateSnapshot"),
   tick: z.number().int().nonnegative(),
   players: z.array(playerStateSchema),
+  dungeon: dungeonStateSchema,
 });
 
 export const attackResolvedSchema = z.object({

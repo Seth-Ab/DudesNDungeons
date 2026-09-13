@@ -231,13 +231,16 @@ describe("joining a dungeon", () => {
     await expect(client.next("playerReadyChanged")).resolves.toBeDefined();
   });
 
-  it("accepts protocol messages that have no handler yet", async () => {
+  it("accepts movement intent and broadcasts the authoritative position", async () => {
     const roomCode = await createRoom();
-    const { client } = await joinRoom(roomCode, "Alpha");
+    const { client, joined } = await joinRoom(roomCode, "Alpha");
+    const start = joined.players[0]?.position.x ?? 0;
 
     client.send({ type: "playerMoveIntent", sequence: 1, direction: { x: 1, y: 0 } });
 
-    expect((await client.next("sessionError")).code).toBe("notImplemented");
+    const snapshot = await client.next("stateSnapshot");
+    expect(snapshot.players[0]?.position.x).toBeGreaterThan(start);
+    expect(snapshot.dungeon.map.id).toBe("ember-vault");
   });
 });
 
@@ -261,6 +264,7 @@ describe("resume tokens stay private", () => {
 
     expect(JSON.stringify(snapshot)).not.toContain(alpha.joined.resumeToken);
     expect(snapshot.players[0]).not.toHaveProperty("resumeToken");
+    expect(snapshot.dungeon.loot.map((loot) => loot.name)).toContain("Copper Key");
   });
 });
 

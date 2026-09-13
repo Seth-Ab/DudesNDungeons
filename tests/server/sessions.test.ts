@@ -318,7 +318,7 @@ describe("public player state", () => {
     const state = toPlayerState(player);
     state.position.x = 999;
 
-    expect(player.position.x).toBe(0);
+    expect(player.position.x).toBe(2);
   });
 
   it("lists every player in the session roster", () => {

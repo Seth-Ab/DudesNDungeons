@@ -4,7 +4,6 @@ import {
   MAX_PARTY_SIZE,
   PLAYER_MAX_HEALTH,
   PLAYER_SPAWN_FACING,
-  PLAYER_SPAWN_POSITION,
   RECONNECT_GRACE_MS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -17,8 +16,10 @@ import type {
   ResumeToken,
   RoomCode,
   SessionId,
+  DungeonState,
   Vector2,
 } from "../../shared/types/core.js";
+import { createDungeonState, spawnPointForIndex } from "../game/dungeonState.js";
 
 export interface SessionPlayer {
   id: PlayerId;
@@ -38,6 +39,7 @@ export interface Session {
   id: SessionId;
   roomCode: RoomCode;
   createdAt: number;
+  dungeon: DungeonState;
   /** Monotonic simulation tick, stamped onto each snapshot so clients can order what they receive. */
   tick: number;
   players: Map<PlayerId, SessionPlayer>;
@@ -122,6 +124,7 @@ export class SessionStore {
       id: this.#createSessionId(),
       roomCode,
       createdAt: this.#now(),
+      dungeon: createDungeonState(),
       tick: 0,
       players: new Map(),
     };
@@ -188,7 +191,7 @@ export class SessionStore {
     const player: SessionPlayer = {
       id: this.#createPlayerId(),
       name: request.playerName,
-      position: { ...PLAYER_SPAWN_POSITION },
+      position: spawnPointForIndex(session.players.size),
       facing: { ...PLAYER_SPAWN_FACING },
       health: PLAYER_MAX_HEALTH,
       ready: false,
