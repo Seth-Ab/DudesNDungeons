@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Planning and project setup.
-- Last completed work: Resolved all five opinion checkpoints from `STEPS.md` (visual style, movement model, combat model, voice behavior, target party size).
-- Next recommended step: Choose runtime/tooling (likely Node.js + TypeScript) and renderer (Canvas or Phaser), then begin Backend Dev step 1 (Project Foundation).
+- Overall phase: Frontend foundation.
+- Last completed work: Created the frontend development branch and added the Vite/TypeScript Canvas client shell.
+- Next recommended step: Coordinate backend message contracts, then wire real server snapshots into the frontend renderer.
 - Current blocker: None.
 
 ## Opinion Checkpoints
@@ -65,10 +65,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [ ] Choose renderer.
+- [x] Choose renderer.
 - [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - [ ] Connect to the backend WebSocket server.
-- [ ] Render the fixed dungeon map and local player.
+- [x] Render the fixed dungeon map and local player.
 
 ### 2. Multiplayer Movement
 
@@ -121,3 +121,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Resolved opinion checkpoint: visual style set to pixel art.
 - Resolved opinion checkpoint: movement model set to slow free-roam.
 - Resolved opinion checkpoints: combat model set to hybrid (Pokémon Legends: Z-A style), voice behavior set to always-connected with distance-based volume, target party size for v1 set to 4. All five opinion checkpoints are now resolved.
+- Created and pushed `feature/frontend-development`.
+- Added Vite, TypeScript, and a vanilla Canvas frontend shell.
+- Added keyboard movement preview, HUD status, microphone permission flow, and backend WebSocket connection scaffolding.
+- Verified the frontend with `npm run build`.

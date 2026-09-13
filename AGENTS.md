@@ -22,12 +22,13 @@ Avoid mixing client-only browser code with server logic. Shared protocol definit
 
 ## Build, Test, and Development Commands
 
-No package manager or build scripts are committed yet. Once tooling is added, document the exact commands in `README.md`, `STEPS.md`, and `PROGRESS.md` as appropriate. Expected examples for a Node/browser prototype:
+Frontend tooling uses Vite and TypeScript. Keep backend work scoped separately if another contributor is working there.
 
 - `npm install` installs dependencies.
-- `npm run dev` starts the local client and server development workflow.
-- `npm test` runs automated tests.
-- `npm run lint` checks formatting and static quality.
+- `npm run dev` starts the frontend dev server.
+- `npm run build` typechecks and builds the frontend.
+- `npm run typecheck` runs TypeScript without emitting files.
+- `npm test` currently aliases the typecheck command.
 
 Do not introduce new commands without adding them to project documentation.
 
