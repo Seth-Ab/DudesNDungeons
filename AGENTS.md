@@ -22,12 +22,15 @@ Avoid mixing client-only browser code with server logic. Shared protocol definit
 
 ## Build, Test, and Development Commands
 
-No package manager or build scripts are committed yet. Once tooling is added, document the exact commands in `README.md`, `STEPS.md`, and `PROGRESS.md` as appropriate. Expected examples for a Node/browser prototype:
+Frontend tooling uses Vite and TypeScript. Keep backend work scoped separately if another contributor is working there.
 
 - `npm install` installs dependencies.
-- `npm run dev` starts the local client and server development workflow.
-- `npm test` runs automated tests.
-- `npm run lint` checks formatting and static quality.
+- `npm run dev` starts the frontend dev server.
+- `npm run build` typechecks and builds the frontend.
+- `npm run typecheck` runs TypeScript without emitting files.
+- `npm test` currently aliases the typecheck command.
+
+GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
 
 Do not introduce new commands without adding them to project documentation.
 
@@ -47,7 +50,7 @@ For multiplayer features, include tests for invalid input, disconnected players,
 
 The current Git history only shows an initial commit (`First`), so no detailed convention exists yet. Use short, imperative commit messages such as `Add session manager` or `Validate movement bounds`.
 
-Pull requests should include a concise summary, test results, and screenshots or short recordings for visible gameplay changes. Link related issues and call out networking or security-sensitive changes.
+Use `.github/pull_request_template.md` for every pull request. Keep reports concise and reviewer-friendly: summarize the change, list test results, include screenshots or recordings for visible gameplay changes, and call out backend/frontend contract changes, networking assumptions, or security-sensitive areas.
 
 ## Security & Configuration Tips
 
