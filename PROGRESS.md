@@ -5,8 +5,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Frontend foundation.
-- Last completed work: Added a concise GitHub pull request template for AI- and human-reviewed reports.
-- Next recommended step: Coordinate backend message contracts, then wire real server snapshots into the frontend renderer.
+- Last completed work: Added GitHub Actions CI for pull requests to `main`.
+- Next recommended step: Require the CI check in GitHub branch protection, then coordinate backend message contracts.
 - Current blocker: None.
 
 ## Opinion Checkpoints
@@ -126,3 +126,4 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Added keyboard movement preview, HUD status, microphone permission flow, and backend WebSocket connection scaffolding.
 - Verified the frontend with `npm run build`.
 - Added `.github/pull_request_template.md` and updated `AGENTS.md` to require it for pull requests.
+- Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.

@@ -25,4 +25,8 @@ The frontend currently uses Vite, TypeScript, and a vanilla Canvas renderer.
 
 Set `VITE_WS_URL` to point the client at a backend WebSocket server. If it is not set, the client tries `ws://localhost:8787`.
 
+## Pull Request Checks
+
+GitHub Actions runs CI on pull requests to `main`. The workflow installs dependencies with `npm ci`, runs `npm test`, and builds the frontend with `npm run build`.
+
 See `AGENTS.md` for contributor guidance, `STEPS.md` for the roadmap, and `PROGRESS.md` for the current project checkpoint.

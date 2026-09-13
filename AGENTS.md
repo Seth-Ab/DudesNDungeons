@@ -30,6 +30,8 @@ Frontend tooling uses Vite and TypeScript. Keep backend work scoped separately i
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm test` currently aliases the typecheck command.
 
+GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
+
 Do not introduce new commands without adding them to project documentation.
 
 ## Coding Style & Naming Conventions
