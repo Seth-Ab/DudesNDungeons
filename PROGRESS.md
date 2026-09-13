@@ -5,17 +5,17 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Planning and project setup.
-- Last completed work: Created the initial project folder skeleton and updated documentation.
-- Next recommended step: Resolve the opinion checkpoints in `STEPS.md`, then choose runtime/tooling and renderer.
-- Current blocker: Core design choices need owner input before implementation starts.
+- Last completed work: Resolved all five opinion checkpoints from `STEPS.md` (visual style, movement model, combat model, voice behavior, target party size).
+- Next recommended step: Choose runtime/tooling (likely Node.js + TypeScript) and renderer (Canvas or Phaser), then begin Backend Dev step 1 (Project Foundation).
+- Current blocker: None.
 
 ## Opinion Checkpoints
 
-- Visual style: Pending.
-- Movement model: Pending.
-- Combat model: Pending.
-- Voice behavior: Pending.
-- Target party size for v1: Pending.
+- Visual style: Pixel art.
+- Movement model: Slow free-roam.
+- Combat model: Hybrid (real-time free-roam with a turn-based/tactical exchange when engaging enemies, inspired by Pokémon Legends: Z-A).
+- Voice behavior: Always connected with distance-based volume.
+- Target party size for v1: 4.
 
 ## Backend Dev Progress
 
@@ -118,3 +118,6 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Created `CLAUDE.md` pointing to `AGENTS.md`.
 - Created initial tracked folders for source, assets, content, tests, docs, scripts, and config.
 - Updated `AGENTS.md`, `STEPS.md`, `PROGRESS.md`, and `README.md` to reflect the project skeleton.
+- Resolved opinion checkpoint: visual style set to pixel art.
+- Resolved opinion checkpoint: movement model set to slow free-roam.
+- Resolved opinion checkpoints: combat model set to hybrid (Pokémon Legends: Z-A style), voice behavior set to always-connected with distance-based volume, target party size for v1 set to 4. All five opinion checkpoints are now resolved.
