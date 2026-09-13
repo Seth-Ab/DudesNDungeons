@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 4 complete; the server resolves melee combat, monster behavior, downed/respawn, item pickup and use, doors, and the exit.
-- Last completed work: Combat and Game Rules on `backend-development` (protocol v3). See `docs/decisions/0004-combat-and-items.md`.
-- Next recommended step: Frontend Dev steps 3-4 (Core Game UI, Combat and Dungeon Interaction). The server accepts every gameplay action, but the client does not yet send attack, pickup, use, or interact, and does not draw loot, doors, exits, monster health, downed players, or the cleared state. That is the remaining gap to a playable demo.
+- Overall phase: Backend Dev steps 1-4 and most of Frontend Dev steps 3-4 complete. The Ember Vault should be playable end to end in the browser: fight, take the key, unlock the vault, and clear the dungeon.
+- Last completed work: gameplay UI on `backend-development`. The client renders loot, doors, the exit, health bars, swings, and damage numbers, sends attack, pickup, use, and interact, and shows a menu plus downed and cleared banners.
+- Next recommended step: a two-tab browser playtest of the full loop, which has not been done. After that, remote-player interpolation (Frontend 2), then deployment (Backend 6) so friends can play without being on the same network, then proximity voice (Backend 5 and Frontend 5).
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -94,17 +94,17 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 3. Core Game UI
 
-- [ ] Add party join flow with invite code or room ID.
-- [ ] Show health, inventory, combat feedback, and player names.
-- [ ] Add monster and loot rendering.
-- [ ] Add minimal menus for start, pause, settings, and exit.
+- [x] Add party join flow with invite code or room ID. The lobby from Client Networking.
+- [x] Show health, inventory, combat feedback, and player names. HUD health bar and numbered inventory; health bars, names, swing arcs, and damage numbers on the canvas.
+- [x] Add monster and loot rendering. Monsters with health bars, keys and tonics, doors (locked, closed, open), and the exit.
+- [ ] Add minimal menus for start, pause, settings, and exit. Partial: the lobby starts a game, and the Esc menu lists controls and leaves the dungeon. It cannot pause, because the server keeps running, and there are no settings yet.
 
 ### 4. Combat and Dungeon Interaction
 
-- [ ] Add controls for attack, interact, pickup, and use item.
-- [ ] Display server-confirmed combat results.
-- [ ] Add feedback for invalid moves or blocked actions.
-- [ ] Show win, loss, and dungeon exit states.
+- [x] Add controls for attack, interact, pickup, and use item. Space or J attacks, E picks up, opens doors, and takes the exit, Q drinks a tonic, and 1-8 use a slot.
+- [x] Display server-confirmed combat results. Damage numbers and swings come only from `attackResolved`, never from local guesses.
+- [x] Add feedback for invalid moves or blocked actions. Refused pickups, uses, and interactions show a notice, and refusals the client can predict (locked door, full pack, full health) are explained without sending. Blocked movement is shown by prediction stopping at the obstacle rather than by a message.
+- [ ] Show win, loss, and dungeon exit states. Partial: clearing the dungeon shows a banner with a way back to the lobby, and being downed shows a respawn countdown. There is no loss state because the server has none.
 
 ### 5. Proximity Voice Chat
 
@@ -214,3 +214,14 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Client kept compatible: downed players do not move, do not block prediction, and show as "down" in the roster. No new gameplay controls or rendering yet.
   - Tests grew from 115 to 146. A scripted fight against the live dev server walked to the Ash Imp, took its hit and one from the Cinder Slime, killed the imp in two swings, and picked up the Copper Key.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (146/146 passing, stable across repeated runs), and `npm run build`.
+- Fast-forwarded `backend-development` to `main` after PR #6 merged.
+- Built the gameplay UI (most of Frontend Dev steps 3-4):
+  - `sessionClient` gained `sendAttack`, `pickUp`, `useItem`, `interact`, and an `onMessage` listener for one-off events. Moves and swings share one sequence counter.
+  - `src/client/state/effects.ts` turns `attackResolved` into swing arcs and damage numbers, and refused one-off actions into notices. It is kept apart from the session view because these are events rather than state. Refused moves and swings stay silent, since they bounce constantly while holding a key or mashing attack.
+  - `nearestInteraction` in `src/client/state/gameState.ts` picks what E would do within the server's reach, and explains refusals the client can already predict (locked door without a key, full pack) instead of sending. `planUse` does the same for tonics at full health and keys.
+  - The renderer draws every frame and centers the map scaled to fit, with loot, doors, the exit, monster and player health bars, downed players lying down, swings, damage numbers, and the interaction prompt.
+  - The HUD shows health and a numbered inventory. `src/client/ui/overlay.ts` adds notices, a downed countdown, a cleared banner with a way back to the lobby, and an Esc menu with the controls.
+  - Clicked buttons now drop focus, so Space attacks instead of pressing the last button again.
+  - No protocol or server changes.
+  - Tests grew from 146 to 170: effects, interactions and use planning, and client actions against a real server.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (170/170 passing, stable across repeated runs), `npm run build`, and the dev servers serving the new modules. Not yet played in a browser.

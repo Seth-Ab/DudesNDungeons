@@ -86,6 +86,11 @@ The frontend currently uses Vite, TypeScript, and a vanilla Canvas renderer.
 Run `npm run dev:server` and `npm run dev:client` together: the client is served from port 5173 and
 talks to the backend on port 8080.
 
+Controls: WASD or arrow keys move, Space or J attacks in the direction you last moved, E picks up
+loot, opens doors, and takes the exit, Q drinks a tonic, 1-8 use an inventory slot, and Esc opens
+the menu. The goal in the Ember Vault is to take the Copper Key from the Ash Imp, unlock the vault
+door, and reach the exit.
+
 Set `VITE_WS_URL` to point the client at a different backend, for example
 `VITE_WS_URL=ws://192.168.1.20:8080`. It defaults to `ws://localhost:8080`, and the HTTP origin for
 `POST /sessions` is derived from it, so the two can never disagree.

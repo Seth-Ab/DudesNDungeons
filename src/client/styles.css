@@ -187,3 +187,175 @@ button:disabled {
 .hud__error[hidden] {
   display: none;
 }
+
+.hud__health {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #d8ceb1;
+  font-size: 0.88rem;
+}
+
+.hud__bar {
+  width: 6rem;
+  height: 0.55rem;
+  border: 1px solid #3c3630;
+  border-radius: 3px;
+  background: #2b0f0f;
+  overflow: hidden;
+}
+
+.hud__bar-fill {
+  height: 100%;
+  background: #6fbf6a;
+  transition: width 120ms linear;
+}
+
+.hud__bar-fill--low {
+  background: #d9784c;
+}
+
+.hud__inventory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.hud__inventory-item {
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #3c3630;
+  border-radius: 4px;
+  background: #23262b;
+  color: #d8ceb1;
+  white-space: nowrap;
+}
+
+.hud__inventory-item kbd {
+  margin-right: 0.35rem;
+  color: #caa85a;
+  font: inherit;
+  font-weight: 700;
+}
+
+.hud__inventory-empty {
+  color: #8a826e;
+  font-style: italic;
+}
+
+.hud__health[hidden],
+.hud__inventory[hidden] {
+  display: none;
+}
+
+/* Feedback and menus sit over the canvas without swallowing clicks meant for the page. */
+.overlay {
+  position: fixed;
+  inset: 58px 0 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.overlay__notice {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #5f5132;
+  border-radius: 6px;
+  background: rgba(27, 28, 31, 0.95);
+  color: #f7f0da;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.overlay__banner {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  padding: 1rem 1.5rem;
+  border: 1px solid #5f5132;
+  border-radius: 10px;
+  background: rgba(27, 28, 31, 0.95);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.overlay__banner h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.overlay__banner p {
+  margin: 0;
+  color: #d8ceb1;
+}
+
+.overlay__menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 17, 20, 0.7);
+  pointer-events: auto;
+}
+
+.overlay__panel {
+  width: min(26rem, calc(100% - 2rem));
+  padding: 1.5rem;
+  border: 1px solid #3c3630;
+  border-radius: 10px;
+  background: #1b1c1f;
+}
+
+.overlay__panel h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.overlay__hint {
+  margin: 0 0 1rem;
+  color: #8a826e;
+  font-size: 0.82rem;
+}
+
+.overlay__controls {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.88rem;
+}
+
+.overlay__controls dt {
+  color: #caa85a;
+  font-weight: 700;
+}
+
+.overlay__controls dd {
+  margin: 0;
+  color: #d8ceb1;
+}
+
+.overlay__actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+/* Class-level `display` outranks the user agent's [hidden] rule, so restate it here. */
+.overlay__notice[hidden],
+.overlay__banner[hidden],
+.overlay__menu[hidden],
+.overlay button[hidden] {
+  display: none;
+}

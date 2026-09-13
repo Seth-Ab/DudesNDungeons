@@ -3,8 +3,9 @@ import {
   parseServerMessage,
   serializeClientMessage,
   type ClientMessage,
+  type ServerMessage,
 } from "../../shared/protocol/index.js";
-import type { Vector2 } from "../../shared/types/core.js";
+import type { EntityId, Vector2 } from "../../shared/types/core.js";
 import {
   applyServerMessage,
   initialSessionView,
@@ -43,6 +44,8 @@ export interface SessionClientOptions {
   scheduleRetry?: (callback: () => void, delayMs: number) => void;
 }
 
+type MessageListener = (message: ServerMessage) => void;
+
 const DEFAULT_RETRY_DELAYS_MS = [500, 1000, 2000, 4000, 8000, 15000];
 
 const OPEN = 1;
@@ -63,7 +66,9 @@ export function createSessionClient(options: SessionClientOptions) {
   let view: SessionView = initialSessionView;
   let socket: SocketLike | null = null;
   let listeners: ((view: SessionView) => void)[] = [];
-  let moveSequence = 0;
+  let messageListeners: MessageListener[] = [];
+  /** Shared by moves and swings, so a rejection's sequence names exactly one input. */
+  let sequence = 0;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -113,6 +118,7 @@ export function createSessionClient(options: SessionClientOptions) {
     }
 
     update(applyServerMessage(view, parsed.message));
+    for (const listener of messageListeners) listener(parsed.message);
   }
 
   function openSocket(): void {
@@ -183,6 +189,17 @@ export function createSessionClient(options: SessionClientOptions) {
       };
     },
 
+    /**
+     * Every server message, after it has been folded into the view. For one-off feedback such as
+     * damage numbers and refusals, which are events rather than state.
+     */
+    onMessage(listener: MessageListener): () => void {
+      messageListeners.push(listener);
+      return () => {
+        messageListeners = messageListeners.filter((candidate) => candidate !== listener);
+      };
+    },
+
     /** Creates a dungeon and returns its room code, without joining it. */
     async createRoom(): Promise<string> {
       const response = await fetchFn(`${httpUrl}/sessions`, { method: "POST" });
@@ -226,8 +243,27 @@ export function createSessionClient(options: SessionClientOptions) {
      * answering. The server paces moves to `MOVE_INTERVAL_MS`, so callers should send at that rate.
      */
     sendMoveIntent(direction: Vector2): boolean {
-      moveSequence += 1;
-      return send({ type: "playerMoveIntent", sequence: moveSequence, direction });
+      sequence += 1;
+      return send({ type: "playerMoveIntent", sequence, direction });
+    },
+
+    /** A swing along `direction`. The server picks whatever monster is in front of the player. */
+    sendAttack(direction: Vector2): boolean {
+      sequence += 1;
+      return send({ type: "playerAttack", sequence, direction, targetId: null });
+    },
+
+    pickUp(itemId: EntityId): boolean {
+      return send({ type: "pickupItem", itemId });
+    },
+
+    useItem(itemId: EntityId): boolean {
+      return send({ type: "useItem", itemId });
+    },
+
+    /** Opens a door or takes an exit. */
+    interact(targetId: EntityId): boolean {
+      return send({ type: "playerInteract", targetId });
     },
 
     disconnect(): void {

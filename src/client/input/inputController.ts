@@ -1,5 +1,13 @@
+import { MAX_INVENTORY_SIZE } from "../../shared/constants/game.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { headingFrom, type MoveDirection } from "../state/gameState.js";
+
+export type GameAction =
+  | { type: "attack" }
+  | { type: "interact" }
+  | { type: "drinkTonic" }
+  | { type: "useSlot"; slot: number }
+  | { type: "toggleMenu" };
 
 const movementKeys = new Map<string, MoveDirection>([
   ["arrowup", "north"],
@@ -12,6 +20,23 @@ const movementKeys = new Map<string, MoveDirection>([
   ["d", "east"],
 ]);
 
+const actionKeys = new Map<string, GameAction>([
+  [" ", { type: "attack" }],
+  ["j", { type: "attack" }],
+  ["e", { type: "interact" }],
+  ["q", { type: "drinkTonic" }],
+  ["escape", { type: "toggleMenu" }],
+]);
+
+/** Number keys 1 through the inventory size use that slot. */
+function actionFor(key: string): GameAction | undefined {
+  const slot = Number(key);
+  if (key.trim() !== "" && Number.isInteger(slot) && slot >= 1 && slot <= MAX_INVENTORY_SIZE) {
+    return { type: "useSlot", slot: slot - 1 };
+  }
+  return actionKeys.get(key.toLowerCase());
+}
+
 /** Keys typed into a form field belong to that field, such as a player name containing "w". */
 function isTypingTarget(target: EventTarget | null): boolean {
   return (
@@ -20,20 +45,34 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
+interface InputControllerOptions {
+  onAction: (action: GameAction) => void;
+}
+
 /**
- * Tracks which movement keys are held. The game polls `heading()` on the server's move interval
- * instead of moving on keydown, because key repeat starts after a pause and fires at a rate that
- * has nothing to do with the server's.
+ * Tracks held movement keys and reports one-shot actions. The game polls `heading()` on the server's
+ * move interval instead of moving on keydown, because key repeat starts after a pause and fires at a
+ * rate that has nothing to do with the server's.
  */
-export function createInputController() {
+export function createInputController(options: InputControllerOptions) {
   const held = new Set<MoveDirection>();
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (isTypingTarget(event.target)) return;
+
     const direction = movementKeys.get(event.key.toLowerCase());
-    if (!direction || isTypingTarget(event.target)) return;
+    if (direction) {
+      event.preventDefault();
+      held.add(direction);
+      return;
+    }
+
+    const action = actionFor(event.key);
+    if (!action) return;
 
     event.preventDefault();
-    held.add(direction);
+    // Holding an action key would otherwise fire it on every auto-repeat.
+    if (!event.repeat) options.onAction(action);
   };
 
   const onKeyUp = (event: KeyboardEvent) => {

@@ -7,6 +7,7 @@ import {
   type SessionClient,
 } from "../../src/client/network/sessionClient.js";
 import type { SessionView } from "../../src/client/network/sessionState.js";
+import type { ServerMessage } from "../../src/shared/protocol/index.js";
 
 /**
  * Drives the real client against the real server. Node supplies global `WebSocket` and `fetch`, so
@@ -212,7 +213,58 @@ describe("movement intent", () => {
   it("refuses to send before a socket exists", () => {
     const client = newClient();
     expect(client.sendMoveIntent({ x: 1, y: 0 })).toBe(false);
+    expect(client.sendAttack({ x: 1, y: 0 })).toBe(false);
     expect(client.setReady(true)).toBe(false);
+  });
+});
+
+/** Resolves with the next server message of `type` the client reports through `onMessage`. */
+function nextMessage<T extends ServerMessage["type"]>(
+  client: SessionClient,
+  type: T,
+  timeoutMs = 4000,
+): Promise<Extract<ServerMessage, { type: T }>> {
+  return new Promise((resolve, reject) => {
+    const stop = client.onMessage((message) => {
+      if (message.type !== type) return;
+      stop();
+      resolve(message as Extract<ServerMessage, { type: T }>);
+    });
+    setTimeout(() => {
+      stop();
+      reject(new Error(`timed out waiting for ${type}`));
+    }, timeoutMs);
+  });
+}
+
+describe("gameplay actions", () => {
+  it("reports a resolved swing through onMessage", async () => {
+    const client = newClient();
+    const roomCode = await client.createRoom();
+    client.join(roomCode, "Alpha");
+    const joined = await until(client, inSession);
+
+    const swing = nextMessage(client, "attackResolved");
+    expect(client.sendAttack({ x: 1, y: 0 })).toBe(true);
+
+    const event = await swing;
+    expect(event.attackerId).toBe(joined.selfId);
+    expect(event.targetId).toBeNull();
+  });
+
+  it("reports a refused pickup, which carries no sequence", async () => {
+    const client = newClient();
+    const roomCode = await client.createRoom();
+    client.join(roomCode, "Alpha");
+    await until(client, (view) => view.dungeon !== null);
+
+    const copperKey = client.view.dungeon?.loot.find((loot) => loot.kind === "key");
+    if (!copperKey) throw new Error("Ember Vault has a key");
+
+    const refusal = nextMessage(client, "actionRejected");
+    expect(client.pickUp(copperKey.id)).toBe(true);
+
+    expect(await refusal).toEqual({ type: "actionRejected", sequence: null, reason: "outOfRange" });
   });
 });
 
