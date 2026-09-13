@@ -16,6 +16,56 @@ export type Vector2 = z.infer<typeof vector2Schema>;
 export const entityIdSchema = z.string().uuid();
 export type EntityId = z.infer<typeof entityIdSchema>;
 
+export const dungeonMapSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  tiles: z.array(z.string().min(1)).min(1),
+});
+export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
+
+export const monsterStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  position: vector2Schema,
+  health: z.number().int().nonnegative(),
+  alive: z.boolean(),
+});
+export type MonsterState = z.infer<typeof monsterStateSchema>;
+
+export const lootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+export type LootState = z.infer<typeof lootStateSchema>;
+
+export const doorStateSchema = z.object({
+  id: entityIdSchema,
+  position: vector2Schema,
+  open: z.boolean(),
+  locked: z.boolean(),
+});
+export type DoorState = z.infer<typeof doorStateSchema>;
+
+export const exitStateSchema = z.object({
+  id: entityIdSchema,
+  position: vector2Schema,
+  destination: z.string().min(1),
+});
+export type ExitState = z.infer<typeof exitStateSchema>;
+
+export const dungeonStateSchema = z.object({
+  map: dungeonMapSchema,
+  monsters: z.array(monsterStateSchema),
+  loot: z.array(lootStateSchema),
+  doors: z.array(doorStateSchema),
+  exits: z.array(exitStateSchema),
+});
+export type DungeonState = z.infer<typeof dungeonStateSchema>;
+
 export const playerIdSchema = z.string().uuid();
 export type PlayerId = z.infer<typeof playerIdSchema>;
 

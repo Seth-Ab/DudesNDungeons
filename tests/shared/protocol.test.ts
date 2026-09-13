@@ -251,6 +251,42 @@ describe("parseServerMessage", () => {
     }
   });
 
+  it("round-trips a snapshot with server-owned dungeon state", () => {
+    const message: ServerMessage = {
+      type: "stateSnapshot",
+      tick: 3,
+      players: [],
+      dungeon: {
+        map: {
+          id: "ember-vault",
+          name: "Ember Vault",
+          width: 3,
+          height: 3,
+          tiles: ["###", "#.#", "###"],
+        },
+        monsters: [
+          {
+            id: TARGET_ID,
+            name: "Ash Imp",
+            position: { x: 1, y: 1 },
+            health: 12,
+            alive: true,
+          },
+        ],
+        loot: [],
+        doors: [],
+        exits: [],
+      },
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
+
   it("rejects 'disconnected' as a leave reason, since a drop holds the slot", () => {
     const result = parseServerMessage(
       JSON.stringify({ type: "playerLeft", playerId: PLAYER_ID, reason: "disconnected" }),

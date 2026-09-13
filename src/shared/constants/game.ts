@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -22,7 +22,7 @@ export const ROOM_CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789";
 
 export const MAX_PLAYER_NAME_LENGTH = 24;
 
-/** Where a newly joined player appears until step 3 gives the dungeon real spawn points. */
+/** Legacy fallback spawn for UI preview code before the first server snapshot arrives. */
 export const PLAYER_SPAWN_POSITION = { x: 0, y: 0 } as const;
 export const PLAYER_SPAWN_FACING = { x: 0, y: 1 } as const;
 

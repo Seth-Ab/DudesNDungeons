@@ -14,6 +14,7 @@ import {
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId } from "../shared/types/core.js";
+import { cloneDungeonState, movePlayer } from "./game/dungeonState.js";
 import { SessionStore, rosterOf, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -64,6 +65,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
   function sendError(socket: WebSocket, code: ErrorCode, message: string): void {
     send(socket, { type: "sessionError", code, message });
+  }
+
+  function snapshotOf(session: Session): ServerMessage {
+    return {
+      type: "stateSnapshot",
+      tick: session.tick,
+      players: rosterOf(session),
+      dungeon: cloneDungeonState(session.dungeon),
+    };
   }
 
   /** Fans a message out to the party. `exceptPlayerId` skips the player who caused the change. */
@@ -216,6 +226,28 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         return;
       }
 
+      if (message.type === "playerMoveIntent") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const moved = movePlayer(member.session, playerId, message.direction);
+        if (!moved.ok) {
+          send(socket, {
+            type: "actionRejected",
+            sequence: message.sequence,
+            reason: moved.reason,
+          });
+          return;
+        }
+
+        member.session.tick += 1;
+        broadcast(member.session, snapshotOf(member.session));
+        return;
+      }
+
       sendError(
         socket,
         "notImplemented",
@@ -253,9 +285,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (!hasAudience) continue;
 
       broadcast(session, {
-        type: "stateSnapshot",
-        tick: session.tick,
-        players: rosterOf(session),
+        ...snapshotOf(session),
       });
     }
   }, tickIntervalMs);
@@ -276,8 +306,19 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     httpServer,
     store,
     listen(port, host) {
-      return new Promise((resolve) => {
-        httpServer.listen(port, host, () => resolve(httpServer.address() as AddressInfo));
+      return new Promise((resolve, reject) => {
+        const onError = (error: Error): void => {
+          httpServer.off("listening", onListening);
+          reject(error);
+        };
+        const onListening = (): void => {
+          httpServer.off("error", onError);
+          resolve(httpServer.address() as AddressInfo);
+        };
+
+        httpServer.once("error", onError);
+        httpServer.once("listening", onListening);
+        httpServer.listen(port, host);
       });
     },
     close() {

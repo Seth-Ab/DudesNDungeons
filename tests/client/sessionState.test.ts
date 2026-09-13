@@ -6,7 +6,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
-import type { PlayerState } from "../../src/shared/types/core.js";
+import type { DungeonState, PlayerState } from "../../src/shared/types/core.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const ALLY_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
@@ -20,6 +20,23 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     health: 100,
     ready: false,
     connected: true,
+    ...overrides,
+  };
+}
+
+function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
+  return {
+    map: {
+      id: "ember-vault",
+      name: "Ember Vault",
+      width: 3,
+      height: 3,
+      tiles: ["###", "#.#", "###"],
+    },
+    monsters: [],
+    loot: [],
+    doors: [],
+    exits: [],
     ...overrides,
   };
 }
@@ -119,10 +136,12 @@ describe("snapshots", () => {
       type: "stateSnapshot",
       tick: 7,
       players: [player(SELF_ID, { health: 42 }), player(ALLY_ID)],
+      dungeon: dungeon(),
     });
 
     expect(view.tick).toBe(7);
     expect(selfOf(view)?.health).toBe(42);
+    expect(view.dungeon?.map.id).toBe("ember-vault");
   });
 
   it("discards a snapshot older than the one already applied", () => {
@@ -131,11 +150,13 @@ describe("snapshots", () => {
       type: "stateSnapshot",
       tick: 7,
       players: [player(SELF_ID, { health: 42 })],
+      dungeon: dungeon(),
     });
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 6,
       players: [player(SELF_ID, { health: 100 })],
+      dungeon: dungeon({ map: { id: "old", name: "Old", width: 1, height: 1, tiles: ["."] } }),
     });
 
     expect(view.tick).toBe(7);

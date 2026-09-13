@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 2 complete; the client now talks to the server end to end.
-- Last completed work: Client networking. The browser client now speaks the shared protocol, creates and joins rooms, renders the party from server snapshots, reconnects with a resume token, and sends real movement intent. Verified in Chrome with two players, and merged with the shared agent-skills updates from `main`.
-- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State). It is now the only thing standing between the client and real multiplayer movement: the client already sends `playerMoveIntent` and renders from snapshots, but the server answers `notImplemented` and spawns everyone at {0, 0}.
+- Overall phase: Backend Dev step 3 complete; the server now owns the fixed dungeon and authoritative player movement.
+- Last completed work: Authoritative Dungeon State on `backend-development`. Each session gets a cloned Ember Vault dungeon with map metadata, monsters, loot, doors, and exits; players spawn on walkable points; `playerMoveIntent` is validated against walls, bounds, players, monsters, and closed doors; valid movement broadcasts an updated `stateSnapshot`.
+- Next recommended step: Backend Dev step 4 (Combat and Game Rules). Movement, entity placement, and dungeon snapshots are in place, so attacks, item pickup, inventory basics, and monster behavior can now resolve on server-owned state.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -35,10 +35,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 3. Authoritative Dungeon State
 
-- [ ] Start with one fixed dungeon map.
-- [ ] Validate player movement against walls, bounds, and occupied tiles.
-- [ ] Store monsters, loot, doors, exits, and room metadata server-side.
-- [ ] Broadcast state changes after validated actions.
+- [x] Start with one fixed dungeon map. Each session clones the Ember Vault map from `src/server/game/dungeonState.ts`.
+- [x] Validate player movement against walls, bounds, and occupied tiles. `movePlayer` handles zero intent, map collision, player occupancy, monsters, and closed doors.
+- [x] Store monsters, loot, doors, exits, and room metadata server-side. The dungeon instance hangs off `Session.dungeon`.
+- [x] Broadcast state changes after validated actions. Valid `playerMoveIntent` messages increment the session tick and fan out a `stateSnapshot`.
 
 ### 4. Combat and Game Rules
 
@@ -72,7 +72,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 2. Multiplayer Movement
 
-- [x] Send movement intent messages instead of direct position changes. The server answers `notImplemented` until Backend step 3.
+- [x] Send movement intent messages instead of direct position changes. Backend step 3 now resolves them authoritatively.
 - [x] Render remote players from server broadcasts.
 - [ ] Add simple interpolation or step animation. Deferred: there is nothing to interpolate until the server moves players.
 - [x] Show connection, join, leave, and disconnect states.
@@ -184,3 +184,12 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - Resolved PR #2 conflicts by keeping backend session code, frontend Canvas code, the PR template, and CI together.
 - Added repo-local shared skills under `agent-skills/`: `project-progress-sync`, `protocol-contract-change`, `frontend-gameplay-slice`, and `backend-authoritative-state`.
 - Moved shared skills from `.codex/skills/` to tool-neutral `agent-skills/` so Codex, Claude, and contributors can use the same guidance.
+- Fast-forwarded `backend-development` to current `main` before starting Backend Dev step 3.
+- Completed Backend Dev step 3 (Authoritative Dungeon State):
+  - Added `src/server/game/dungeonState.ts` with the fixed Ember Vault map, per-session dungeon cloning, spawn points, movement stepping, and collision checks against walls, bounds, other players, living monsters, and closed doors.
+  - Added server-owned dungeon state to `Session`, including map metadata, monsters, loot, doors, and exits.
+  - Changed `stateSnapshot` to include the dungeon payload, bumped `PROTOCOL_VERSION` to 2, and updated the client session reducer/render bridge to use server map and monster positions once snapshots arrive.
+  - Implemented `playerMoveIntent` handling in `src/server/gameServer.ts`; invalid moves send `actionRejected`, valid moves immediately broadcast the authoritative snapshot.
+  - Recorded the contract and state ownership decision in `docs/decisions/0003-authoritative-dungeon-state.md`.
+  - Fixed `GameServer.listen()` so local bind failures reject instead of hanging test hooks.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (94/94 passing), and `npm run build`.

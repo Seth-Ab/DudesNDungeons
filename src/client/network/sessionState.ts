@@ -1,5 +1,5 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
-import type { PlayerId, PlayerState } from "../../shared/types/core.js";
+import type { DungeonState, PlayerId, PlayerState } from "../../shared/types/core.js";
 
 /**
  * Distinct enough to tell "no socket" apart from "socket open but not in a dungeon". The UI needs
@@ -26,6 +26,7 @@ export interface SessionView {
   tickRate: number | null;
   tick: number;
   players: PlayerState[];
+  dungeon: DungeonState | null;
   lastError: SessionError | null;
 }
 
@@ -36,6 +37,7 @@ export const initialSessionView: SessionView = {
   tickRate: null,
   tick: 0,
   players: [],
+  dungeon: null,
   lastError: null,
 };
 
@@ -107,7 +109,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
     case "stateSnapshot":
       // Snapshots can overtake each other; an older one must never undo a newer one.
       if (message.tick <= view.tick) return view;
-      return { ...view, tick: message.tick, players: message.players };
+      return { ...view, tick: message.tick, players: message.players, dungeon: message.dungeon };
 
     case "sessionError":
       return {
