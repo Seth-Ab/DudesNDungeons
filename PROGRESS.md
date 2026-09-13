@@ -4,10 +4,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 2 (Session and Player Management) complete and verified.
-- Last completed work: Implemented dungeon sessions end to end. `POST /sessions` creates a room, `joinSession` admits players, and the server tracks identity, position, health, ready, and connection state, broadcasting each change plus a 20Hz `stateSnapshot`. A dropped socket holds the player's slot for 60 seconds and can be reclaimed with a resume token. See `docs/decisions/0002-session-lifecycle.md`. Work is on the `backend-development` branch.
-- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State), which fills the tick loop with real movement.
-- Current blocker: None.
+- Overall phase: Backend Dev step 2 complete; frontend foundation and CI are in place.
+- Last completed work: Resolved PR #2 merge conflicts by combining backend session work with the frontend Canvas shell and CI setup.
+- Next recommended step: Backend Dev step 3 (Authoritative Dungeon State), then wire real server snapshots into the frontend renderer.
+- Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
 
@@ -65,10 +65,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ### 1. Project Foundation
 
-- [x] Choose renderer. Phaser 3, recorded in `docs/decisions/0001-runtime-and-tooling.md`. Not installed yet; it lands with the rest of Frontend Dev step 1.
+- [x] Choose renderer. Vanilla Canvas with Vite, recorded in `docs/decisions/0001-runtime-and-tooling.md`.
 - [x] Add `src/client/` structure for rendering, input, UI, state, networking, and audio.
 - [ ] Connect to the backend WebSocket server.
-- [ ] Render the fixed dungeon map and local player.
+- [x] Render the fixed dungeon map and local player.
 
 ### 2. Multiplayer Movement
 
@@ -147,3 +147,11 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   - Added a 20Hz `stateSnapshot` broadcast. Nothing moves between ticks yet; the loop exists so step 3 has somewhere to put movement and clients read from snapshots from the start.
   - Tests grew from 15 to 63: `tests/server/sessions.test.ts` covers the store's lifecycle and `tests/e2e/session.test.ts` drives real sockets through joins, duplicate joins, party limits, disconnect, reconnect, timeout, leave, and session isolation, including assertions that resume tokens never reach another player.
   - Verified: typecheck, lint, 63/63 tests (stable across repeated runs), `npm run build`, and the compiled entry point serving a live join.
+- Created and pushed `feature/frontend-development`.
+- Added Vite, TypeScript, and a vanilla Canvas frontend shell.
+- Added keyboard movement preview, HUD status, microphone permission flow, and backend WebSocket connection scaffolding.
+- Verified the frontend with `npm run build`.
+- Added `.github/pull_request_template.md` and updated `AGENTS.md` to require it for pull requests.
+- Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.
+- Verified PR #1 CI passed. Attempted to require CI before merge, but GitHub returned a branch protection plan limit for this private repository.
+- Resolved PR #2 conflicts by keeping backend session code, frontend Canvas code, the PR template, and CI together.

@@ -17,14 +17,14 @@ disconnect, and reconnect behavior is recorded in `docs/decisions/0002-session-l
 
 ## Requirements
 
-- Node.js 20.11 or newer.
+- Node.js 20.19 or newer.
 
 ## Getting Started
 
 ```bash
 npm install
 cp config/.env.example .env   # optional; defaults work as-is
-npm run dev
+npm run dev:server
 ```
 
 The server listens on `http://localhost:8080` and serves both HTTP and WebSocket traffic on that
@@ -47,15 +47,17 @@ logged or shared.
 
 ## Commands
 
-- `npm run dev` - run the server with reload on change.
-- `npm run build` - compile the server and shared code to `dist/`.
+- `npm run dev` - start the frontend dev server.
+- `npm run dev:client` - start the frontend dev server.
+- `npm run dev:server` - run the server with reload on change.
+- `npm run build` - compile the server and build the frontend.
+- `npm run build:server` - compile server and shared code to `dist/`.
+- `npm run build:client` - typecheck the client and build it to `dist/client/`.
 - `npm start` - run the compiled server from `dist/`.
 - `npm test` - run the test suite once.
 - `npm run test:watch` - run tests in watch mode.
 - `npm run lint` - lint the project.
-- `npm run typecheck` - type-check without emitting.
-
-The client dev and build commands arrive with Frontend Dev step 1.
+- `npm run typecheck` - type-check server, shared, tests, and client code without emitting.
 
 ## Project Layout
 
@@ -68,5 +70,20 @@ The client dev and build commands arrive with Frontend Dev step 1.
 - `docs/` - architecture notes and decision records.
 - `scripts/` - local automation scripts.
 - `config/` - non-secret configuration templates.
+
+## Frontend Development
+
+The frontend currently uses Vite, TypeScript, and a vanilla Canvas renderer.
+
+- `npm install` - install dependencies.
+- `npm run dev:client` - start the frontend dev server.
+- `npm run build:client` - typecheck and build the frontend.
+- `npm run typecheck:client` - run frontend TypeScript checks only.
+
+Set `VITE_WS_URL` to point the client at a backend WebSocket server. If it is not set, the client tries `ws://localhost:8787`.
+
+## Pull Request Checks
+
+GitHub Actions runs CI on pull requests to `main`. The workflow installs dependencies with `npm ci`, runs `npm test`, and builds the server and frontend with `npm run build`.
 
 See `AGENTS.md` for contributor guidance, `STEPS.md` for the roadmap, and `PROGRESS.md` for the current project checkpoint.

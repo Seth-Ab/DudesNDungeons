@@ -40,15 +40,12 @@ untrusted client input. Hand-written type guards would duplicate every field and
 
 ### Renderer
 
-Phaser 3 for the client, chosen over raw Canvas.
+Vanilla Canvas with Vite for the first client slice.
 
-The locked-in checkpoints need sprite sheet and tilemap support (pixel art), continuous collision
-against dungeon geometry (slow free-roam), and animation state handling for positioning and dodging
-(hybrid combat). Phaser provides these; raw Canvas would mean hand-rolling them. The tradeoff is an
-added framework with its own conventions.
-
-Phaser and its build tooling are **not** installed yet. They land in Frontend Dev step 1 so the
-backend branch does not carry unused dependencies.
+The initial frontend branch already provides a lightweight Canvas dungeon preview, keyboard input,
+HUD state, and WebSocket scaffolding. Staying on Canvas keeps the first playable loop small while
+the backend protocol is still settling. Phaser remains a possible upgrade if sprite sheets,
+tilemaps, animation states, or collision tooling start to dominate the client code.
 
 ### Supporting tools
 
@@ -61,5 +58,5 @@ backend branch does not carry unused dependencies.
 
 - Relative imports in `src/` must carry `.js` extensions.
 - Protocol changes are made by editing a zod schema; the TypeScript type follows automatically.
-- The client build (Vite + Phaser) is deferred to Frontend Dev step 1 and will need its own
-  `tsconfig` because it targets the DOM rather than Node.
+- The client build uses Vite and its own `tsconfig.client.json` because it targets the DOM rather
+  than Node.

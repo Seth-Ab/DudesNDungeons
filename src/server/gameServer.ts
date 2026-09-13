@@ -275,6 +275,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       clearInterval(tickTimer);
       clearInterval(sweepTimer);
       for (const socket of socketsByPlayer.values()) socket.terminate();
+      for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();
       return new Promise((resolve) => {
         wss.close(() => httpServer.close(() => resolve()));
