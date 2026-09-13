@@ -5,7 +5,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Frontend foundation.
-- Last completed work: Created the frontend development branch and added the Vite/TypeScript Canvas client shell.
+- Last completed work: Added a concise GitHub pull request template for AI- and human-reviewed reports.
 - Next recommended step: Coordinate backend message contracts, then wire real server snapshots into the frontend renderer.
 - Current blocker: None.
 
@@ -125,3 +125,4 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Added Vite, TypeScript, and a vanilla Canvas frontend shell.
 - Added keyboard movement preview, HUD status, microphone permission flow, and backend WebSocket connection scaffolding.
 - Verified the frontend with `npm run build`.
+- Added `.github/pull_request_template.md` and updated `AGENTS.md` to require it for pull requests.

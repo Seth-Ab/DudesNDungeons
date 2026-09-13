@@ -48,7 +48,7 @@ For multiplayer features, include tests for invalid input, disconnected players,
 
 The current Git history only shows an initial commit (`First`), so no detailed convention exists yet. Use short, imperative commit messages such as `Add session manager` or `Validate movement bounds`.
 
-Pull requests should include a concise summary, test results, and screenshots or short recordings for visible gameplay changes. Link related issues and call out networking or security-sensitive changes.
+Use `.github/pull_request_template.md` for every pull request. Keep reports concise and reviewer-friendly: summarize the change, list test results, include screenshots or recordings for visible gameplay changes, and call out backend/frontend contract changes, networking assumptions, or security-sensitive areas.
 
 ## Security & Configuration Tips
 
