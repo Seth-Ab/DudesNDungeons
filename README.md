@@ -98,4 +98,4 @@ to restrict it. WebSocket connections are not subject to CORS and need no such s
 
 GitHub Actions runs CI on pull requests to `main`. The workflow installs dependencies with `npm ci`, runs `npm test`, and builds the server and frontend with `npm run build`.
 
-See `AGENTS.md` for contributor guidance, `STEPS.md` for the roadmap, and `PROGRESS.md` for the current project checkpoint.
+See `AGENTS.md` for contributor guidance, `STEPS.md` for the roadmap, `PROGRESS.md` for the current project checkpoint, and `GAMEDESCRIPTION.md` for the owner-authored game vision (read-only for agents).
