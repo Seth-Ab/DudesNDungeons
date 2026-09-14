@@ -4,18 +4,56 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 4 complete; the server resolves melee combat, monster behavior, downed/respawn, item pickup and use, doors, and the exit.
+- Overall phase: Backend Dev step 4 complete; the server resolves melee combat, monster behavior, downed/respawn, item pickup and use, doors, and the exit. `GAMEDESCRIPTION.md` has since set the game's direction, and `STEPS.md` gained Backend steps 7-12 and Frontend steps 7-10 to cover it. None of that new work has started.
 - Last completed work: Combat and Game Rules on `backend-development` (protocol v3). See `docs/decisions/0004-combat-and-items.md`.
-- Next recommended step: Frontend Dev steps 3-4 (Core Game UI, Combat and Dungeon Interaction). The server accepts every gameplay action, but the client does not yet send attack, pickup, use, or interact, and does not draw loot, doors, exits, monster health, downed players, or the cleared state. That is the remaining gap to a playable demo.
+- Next recommended step: Frontend Dev step 7 (Camera and Darkness) together with the outstanding Frontend 3-4 gameplay controls and rendering. The camera is small, and every later visual feature is drawn through it; the 3-4 gap is the only thing standing between the current server and a party that can finish a dungeon. Then Backend step 8 (Server-Authoritative Visibility and Lighting) before the map grows, because it changes the snapshot contract and everything built on the current party-wide snapshot would have to be revisited.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
 
+Resolved:
+
 - Visual style: Pixel art.
 - Movement model: Slow free-roam.
-- Combat model: Hybrid (real-time free-roam with a turn-based/tactical exchange when engaging enemies, inspired by Pokémon Legends: Z-A).
+- Combat model: Hybrid (real-time free-roam with a turn-based/tactical exchange when engaging enemies, inspired by Pokémon Legends: Z-A). Under review: `GAMEDESCRIPTION.md` describes stamina-gated real-time fighting and never mentions a turn exchange.
 - Voice behavior: Always connected with distance-based volume.
 - Target party size for v1: 4.
+
+Open, raised by `GAMEDESCRIPTION.md` and detailed in `STEPS.md`:
+
+- [ ] Death and loss: what dying mid-run costs, given the server currently respawns downed players at full health.
+- [ ] Whether the hybrid tactical exchange is still wanted or dropped.
+- [ ] Carry capacity: three slots per the description, against `MAX_INVENTORY_SIZE` of 8.
+- [ ] Identity for progression that outlives a session.
+- [ ] Target length of one dungeon run.
+
+## Direction Alignment
+
+How the code stands against `GAMEDESCRIPTION.md` as of 2026-09-14. Owner-authored direction is the target; this is the gap, not a complaint about the code, which was written before the description existed.
+
+Already aligned:
+
+- Four-player parties, proximity voice as the social core, and slow free-roam movement in any direction with walls, monsters, and other players all blocking.
+- Server-authoritative everything: positions, combat, loot, and doors are decided on the server and clients send intent.
+- Real-time melee with stamina-shaped pacing (cooldowns today, stamina later) matches the description better than the recorded hybrid checkpoint does.
+
+Missing entirely, and now covered by new steps:
+
+- Darkness, light sources, and limited sight. Nothing in the code models light; the client draws the whole map fully lit.
+- Procedural generation. One hardcoded 16x8 map, `Ember Vault`, lives as a literal in `src/server/game/dungeonState.ts`. `content/dungeons/`, `content/monsters/`, `content/items/`, and `content/skills/` are all empty.
+- Rooms. The map is a flat tile grid with no notion of a room, which visibility, boss gating, and template stitching all need.
+- The hub world, and with it the run lifecycle, the torch supply, and storage.
+- Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
+- Resistance and stamina, and the decay that punishes a slow run. Players have health and nothing else.
+- Skills, traps, cooperative puzzles, and bosses.
+- Carrying objects and downed players.
+- A camera. The renderer draws from the world origin, so the player does not hold the center of the screen.
+
+Conflicts to resolve before building further:
+
+- Downed players stand back up at full health after `PLAYER_RESPAWN_MS`, which contradicts losing items on death and makes carrying a friend pointless.
+- `MAX_INVENTORY_SIZE` is 8; the description says three slots.
+- The exit sets `cleared` and names a `destination` of "deeper vault"; the description ends a run by escaping to the hub.
 
 ## Backend Dev Progress
 
@@ -60,6 +98,54 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - [ ] Add production build and start commands.
 - [ ] Add basic logging for sessions, disconnects, and server errors.
 - [ ] Verify one deployed server can host multiple dungeon instances.
+
+### 7. Player Vitals: Resistance, Stamina, and the Run Timer
+
+- [ ] Add resistance and stamina to the server player record and to `playerState`.
+- [ ] Apply resistance as damage reduction in one place when a hit resolves.
+- [ ] Regenerate stamina over time; spend it on attacking, lifting, and carrying.
+- [ ] Decay resistance over time spent in the dungeon and warn the client.
+- [ ] Keep consumables and skills the only ways to raise resistance.
+
+### 8. Server-Authoritative Visibility and Lighting
+
+- [ ] Model carried torches, fixed map lights, and lit monsters.
+- [ ] Compute per-player visibility each tick from light radius and line of sight.
+- [ ] Replace the party-wide snapshot with a per-player one.
+- [ ] Track discovered tiles per player and keep sending them as unlit geometry.
+- [ ] Gate proximity voice distances on the same visibility rules.
+- [ ] Test that an unseen player is absent from the frame, not merely dimmed.
+
+### 9. Procedural Dungeon Generation from Room Templates
+
+- [ ] Move room templates, monster stats, and item definitions into `content/`.
+- [ ] Make rooms first-class: id, bounds, template, lighting, contents.
+- [ ] Key monsters by type id instead of display name.
+- [ ] Stitch templates into a dungeon: halls, mazes, traps, puzzles, bosses, exit.
+- [ ] Place loot, monsters, and lights from a seeded random source.
+
+### 10. Hub World and Run Lifecycle
+
+- [ ] Add the hub as a lit, monster-free place with a dungeon entrance.
+- [ ] Start players in the hub and generate the dungeon on entry.
+- [ ] Add the torch supply and between-run storage.
+- [ ] Make the exit room end the run and return survivors to the hub.
+- [ ] Handle a player who dies mid-run and a party that escapes without them.
+
+### 11. Roguelite Progression and Persistence
+
+- [ ] Add a player profile holding banked items and unlocked skills.
+- [ ] Persist profiles across server restarts.
+- [ ] Bank a survivor's carry; take a dead player's.
+- [ ] Add skills with server-resolved effects.
+- [ ] Reject client-sent profile, inventory, or unlock state.
+
+### 12. Traps, Puzzles, Bosses, and Carrying
+
+- [ ] Add traps as server-resolved triggers.
+- [ ] Add puzzle objects that need two or more players at once.
+- [ ] Add boss monsters and rooms that gate on them.
+- [ ] Add lifting and carrying for objects and downed players.
 
 ## Frontend Dev Progress
 
@@ -119,6 +205,33 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
 - [ ] Capture screenshots or short recordings for pull requests.
+
+### 7. Camera and Darkness
+
+- [ ] Draw through a camera centered on the local player.
+- [ ] Draw only what the server sent; leave undiscovered space black.
+- [ ] Add a light mask for the player, torches, map lights, and lit monsters.
+- [ ] Draw discovered-but-unlit geometry dim rather than absent.
+- [ ] Replace flat rectangles with pixel-art dungeon tiles and props.
+
+### 8. Vitals, Inventory, and Gameplay Controls
+
+- [ ] Show health, resistance, and stamina bars and three inventory slots.
+- [ ] Add attack, interact, pickup, use, drop, and carry controls.
+- [ ] Render loot, doors, exits, monster health, downed players, and cleared state.
+- [ ] Show combat results, refusals, and the resistance decay warning.
+
+### 9. Hub World and Run Flow
+
+- [ ] Render the hub, entrance, torch supply, and storage.
+- [ ] Add run start, escape, and death flows.
+- [ ] Show what a player carries and what they banked.
+
+### 10. Skills and Progression UI
+
+- [ ] Show unlocked skills and their effects.
+- [ ] Show locked skills and their unlock cost.
+- [ ] Drive unlocks from server-owned profile state.
 
 ## Activity Log
 
@@ -214,3 +327,21 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Client kept compatible: downed players do not move, do not block prediction, and show as "down" in the roster. No new gameplay controls or rendering yet.
   - Tests grew from 115 to 146. A scripted fight against the live dev server walked to the Ash Imp, took its hit and one from the Cinder Slime, killed the imp in two swings, and picked up the Copper Key.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (146/146 passing, stable across repeated runs), and `npm run build`.
+
+### 2026-09-14
+
+- Added `GAMEDESCRIPTION.md` as the owner-authored source of truth for game direction, referenced from `AGENTS.md` and `README.md`. Agents read it and never write to it.
+- Merged `main` into `feature/client-networking`.
+- Rewrote the roadmap against that direction:
+  - `STEPS.md` gained Backend steps 7-12 (vitals and the run timer, server-authoritative visibility and lighting, procedural generation from room templates, hub world and run lifecycle, roguelite persistence, and traps/puzzles/bosses/carrying) and Frontend steps 7-10 (camera and darkness, vitals and gameplay controls, hub flow, skills UI). Steps 1-6 keep their numbers because `PROGRESS.md`, the decision records, and `agent-skills/` reference them.
+  - Added five open opinion checkpoints the description raises: what death costs, whether the hybrid tactical exchange survives, three inventory slots against the current eight, how identity outlives a session, and target run length.
+  - Added the Direction Alignment section above, recording what already matches, what is missing, and the three places the code and the description now contradict each other.
+- Recommended code changes, none applied yet, ordered by how much more expensive they get if deferred:
+  1. Per-player snapshots. `snapshotOf(session)` in `src/server/gameServer.ts` builds one frame for the whole party, so every client holds the full map, roster, and monster list. Darkness cannot be a client-side effect on top of that: anyone can read the unlit world straight out of the socket, which defeats the pillar. Needed before anything else is built on the current shared-snapshot assumption.
+  2. Stop sending the map in every snapshot. `cloneDungeonState` copies `map.tiles` into each frame, broadcast on every tick and again on every accepted move. Invisible on a 16x8 map; ruinous on the large generated maps the description calls for. Send the map once on join, then only mutable state, and later only newly discovered tiles.
+  3. Decouple broadcast rate from action rate. `publish()` fans out a full snapshot on every accepted move, so four players moving at 20Hz produce roughly a hundred snapshots a second per session on top of the tick's twenty. Mark the session dirty and let the tick flush it. Visibility work then computes once per tick instead of once per action.
+  4. Make dungeon content data-driven before it grows. `FIXED_DUNGEON` is a literal with hand-written UUIDs, and `MONSTER_STATS` is keyed by display name, which breaks as soon as two monsters share one. Move both into `content/` and key monsters by type id.
+  5. Introduce rooms into the data model. Everything the description wants from level design (unseen players in other rooms, per-room templates, boss gating) needs a room to exist; today there is only a tile grid.
+  6. Widen player vitals once. Health is a bare number on `SessionPlayer` and `playerStateSchema`; adding resistance, stamina, and decay across three separate changes will cost more than one vitals module and one protocol bump.
+  7. Collide with the player's body, not their center point. `isFloor` tests only `tileOf(position)` while `PLAYER_RADIUS` is 0.35, so a player's body overlaps walls and clips corners, even though player-versus-player and player-versus-monster collision do respect the radius. The inconsistency will be felt most in dark corridors.
+  8. Add the camera before more rendering lands. Everything drawn from here on is drawn through it.
