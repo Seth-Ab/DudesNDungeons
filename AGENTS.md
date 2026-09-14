@@ -4,6 +4,8 @@
 
 Use `AGENTS.md` for contributor and agent instructions. Use `STEPS.md` as the project roadmap, including frontend/backend work groups and opinion checkpoints that need owner input. Use `PROGRESS.md` as the working ledger; update it whenever a step or substep is completed, changed, blocked, or skipped, and check it before starting new work.
 
+Use `GAMEDESCRIPTION.md` as the source of truth for overall game direction (vision, pillars, level design, movement, gameplay). It is owner-authored only: read it before design-adjacent work, but agents must never write or propose edits to it.
+
 Repo-local shared skills live in `agent-skills/`. Use them when their descriptions match the task, especially for progress syncing, protocol changes, frontend gameplay slices, and backend authoritative state work. These skills are tool-agnostic guidance for Codex, Claude, and human contributors.
 
 ## Project Structure & Module Organization
