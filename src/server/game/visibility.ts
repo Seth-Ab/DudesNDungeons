@@ -9,6 +9,7 @@ import type {
   LightSourceState,
   PlayerId,
   PlayerState,
+  RoomState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { ServerMessage } from "../../shared/protocol/index.js";
@@ -19,7 +20,7 @@ const UNKNOWN_TILE = " ";
 const DISCOVERED_FLOOR_TILE = ",";
 const DISCOVERED_WALL_TILE = "+";
 
-interface VisibilityFrame {
+export interface VisibilityFrame {
   dungeon: DungeonState;
   players: PlayerState[];
   visiblePlayerIds: Set<PlayerId>;
@@ -114,22 +115,39 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
   return sources;
 }
 
-export function visibleTilesForPlayer(session: Session, viewer: SessionPlayer): Set<string> {
+/**
+ * Tiles this player can currently see, from their light sources and line of sight.
+ *
+ * Scanned per light rather than per tile. Sweeping the whole map for every source is fine on a
+ * hand-authored 16x8 room and ruinous on a generated 96x64 one: it made this the most expensive
+ * thing the server did, at several milliseconds per player per tick. A light can only ever reach
+ * inside its own radius, so only that box is worth testing.
+ */
+export function visibleTilesForPlayer(
+  session: Session,
+  viewer: SessionPlayer,
+  sources = activeLightSourcesForPlayer(session, viewer),
+): Set<string> {
   const visible = new Set<string>();
   const { map } = session.dungeon;
-  const sources = activeLightSourcesForPlayer(session, viewer);
 
-  for (let y = 0; y < map.height; y += 1) {
-    for (let x = 0; x < map.width; x += 1) {
-      const center = { x, y };
-      if (
-        sources.some(
-          (source) =>
-            distance(source.origin, center) <= source.radius &&
-            hasLineOfSight(session.dungeon, source.origin, center),
-        )
-      ) {
-        visible.add(tileKey(x, y));
+  for (const source of sources) {
+    const minX = Math.max(0, Math.floor(source.origin.x - source.radius));
+    const maxX = Math.min(map.width - 1, Math.ceil(source.origin.x + source.radius));
+    const minY = Math.max(0, Math.floor(source.origin.y - source.radius));
+    const maxY = Math.min(map.height - 1, Math.ceil(source.origin.y + source.radius));
+
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const key = tileKey(x, y);
+        // Another source already lit it, and the raycast is the expensive part.
+        if (visible.has(key)) continue;
+
+        const center = { x, y };
+        if (distance(source.origin, center) > source.radius) continue;
+        if (!hasLineOfSight(session.dungeon, source.origin, center)) continue;
+
+        visible.add(key);
       }
     }
   }
@@ -146,7 +164,22 @@ function discoveredTile(original: string): string {
   return original === "#" ? DISCOVERED_WALL_TILE : DISCOVERED_FLOOR_TILE;
 }
 
-function visibleDungeon(session: Session, viewer: SessionPlayer, visible: Set<string>): DungeonState {
+/** Whether the viewer has stepped into, or lit, any tile of this room. */
+function hasDiscoveredPartOf(viewer: SessionPlayer, room: RoomState): boolean {
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      if (viewer.discoveredTiles.has(tileKey(x, y))) return true;
+    }
+  }
+  return false;
+}
+
+function visibleDungeon(
+  session: Session,
+  viewer: SessionPlayer,
+  visible: Set<string>,
+  sources: readonly ActiveLightSource[],
+): DungeonState {
   for (const key of visible) viewer.discoveredTiles.add(key);
 
   const tiles = session.dungeon.map.tiles.map((row, y) =>
@@ -166,6 +199,11 @@ function visibleDungeon(session: Session, viewer: SessionPlayer, visible: Set<st
       ...session.dungeon.map,
       tiles,
     },
+    // A room appears once the player has seen any part of it. Sending the full room list would hand
+    // a client the shape of the dungeon - how many rooms, where the boss is - before they explore it.
+    rooms: session.dungeon.rooms
+      .filter((room) => hasDiscoveredPartOf(viewer, room))
+      .map((room) => ({ ...room })),
     monsters: session.dungeon.monsters
       .filter((monster) => monster.alive && tileVisible(visible, monster.position))
       .map((monster) => ({ ...monster, position: { ...monster.position } })),
@@ -178,7 +216,7 @@ function visibleDungeon(session: Session, viewer: SessionPlayer, visible: Set<st
     exits: session.dungeon.exits
       .filter((exit) => tileVisible(visible, exit.position))
       .map((exit) => ({ ...exit, position: { ...exit.position } })),
-    lightSources: activeLightSourcesForPlayer(session, viewer)
+    lightSources: sources
       .filter((light) => tileVisible(visible, light.position))
       .map(({ origin: _origin, ...light }) => ({
         ...light,
@@ -189,13 +227,16 @@ function visibleDungeon(session: Session, viewer: SessionPlayer, visible: Set<st
 }
 
 export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer): VisibilityFrame {
-  const visible = visibleTilesForPlayer(session, viewer);
+  // Computed once and threaded through: gathering sources walks every light, player, and monster in
+  // the dungeon, and the frame needs the same answer three times.
+  const sources = activeLightSourcesForPlayer(session, viewer);
+  const visible = visibleTilesForPlayer(session, viewer, sources);
   const visiblePlayers = rosterOf(session).filter(
     (player) => player.id === viewer.id || tileVisible(visible, player.position),
   );
 
   return {
-    dungeon: visibleDungeon(session, viewer, visible),
+    dungeon: visibleDungeon(session, viewer, visible, sources),
     players: visiblePlayers,
     visiblePlayerIds: new Set(visiblePlayers.map((player) => player.id)),
   };
@@ -210,11 +251,15 @@ function voiceVolume(gap: number): number {
   return Math.max(0, Math.min(1, 1 - falloff));
 }
 
+/**
+ * Voice falloff for the peers this player can see. Takes the frame rather than recomputing it: it is
+ * sent alongside the same tick's snapshot, and visibility is the most expensive thing on the tick.
+ */
 export function voiceRangeForPlayer(
   session: Session,
   viewer: SessionPlayer,
+  frame: VisibilityFrame = visibilityFrameForPlayer(session, viewer),
 ): Extract<ServerMessage, { type: "voiceRangeUpdated" }> {
-  const frame = visibilityFrameForPlayer(session, viewer);
   const peers = [...session.players.values()]
     .filter((player) => player.id !== viewer.id && frame.visiblePlayerIds.has(player.id))
     .map((player) => {

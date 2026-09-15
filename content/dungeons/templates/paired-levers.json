@@ -1,0 +1,24 @@
+{
+  "id": "paired-levers",
+  "name": "Hall of Paired Levers",
+  "kind": "puzzle",
+  "tiles": [
+    "#############",
+    "#...#####...#",
+    "#...#####...#",
+    "#...........#",
+    "#...#####...#",
+    "#...#####...#",
+    "#############"
+  ],
+  "doorways": [
+    { "x": 0, "y": 3, "side": "west" },
+    { "x": 12, "y": 3, "side": "east" }
+  ],
+  "lights": [
+    { "x": 2, "y": 3, "name": "Lever Sconce", "radius": 2.6 },
+    { "x": 10, "y": 3, "name": "Lever Sconce", "radius": 2.6 }
+  ],
+  "monsters": [],
+  "loot": [{ "itemId": "copper-key", "min": 1, "max": 1 }]
+}

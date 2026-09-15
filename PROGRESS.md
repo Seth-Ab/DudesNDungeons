@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7 and 8 complete. Players now carry health, resistance, and stamina; resistance reduces every hit in one place, stamina prices swings, and a per-player run clock wears resistance down once the grace period passes. The server still sends each connected player a tailored snapshot based on server-owned light sources and line of sight. On the frontend, the Controls menu has landed alongside the new vitals bars.
-- Last completed work: Player vitals, resistance decay, and the run timer on protocol v5. See `docs/decisions/0006-player-vitals.md`.
-- Next recommended step: Backend step 9 (Procedural Dungeon Generation from Room Templates), because `content/` is still empty, `MONSTER_STATS` is still keyed by display name, and nothing in the model knows what a room is - which visibility, boss gating, and the hub all need. Backend step 5 (voice signaling) and step 6 (deployment readiness) remain open and are independent of it. Frontend polish that stays off shared protocol - exit/cleared feedback and pixel-art renderer work - can continue in parallel.
+- Overall phase: Backend Dev steps 7, 8, and 9 complete. Dungeons are now generated from room templates held in `content/`, seeded so a run replays exactly; rooms are first-class; monsters are keyed by type id; and players carry health, resistance, and stamina with a run clock that wears resistance down.
+- Last completed work: Content files and procedural generation on protocol v6. See `docs/decisions/0007-content-and-generation.md`.
+- Next recommended step: Backend step 10 (Hub World and Run Lifecycle). The hub is another authored dungeon, which the content layer already supports, and step 10 is what resolves the two standing conflicts below: respawn-at-full-health, and an exit that sets `cleared` instead of ending the run. Backend step 5 (voice signaling, half done) and step 6 (deployment readiness) remain open and are independent of it.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -36,8 +36,8 @@ Already aligned:
 Missing entirely, and now covered by new steps:
 
 - Darkness, light sources, and limited sight. Nothing in the code models light; the client draws the whole map fully lit.
-- Procedural generation. One hardcoded 16x8 map, `Ember Vault`, lives as a literal in `src/server/game/dungeonState.ts`. `content/dungeons/`, `content/monsters/`, `content/items/`, and `content/skills/` are all empty.
-- Rooms. The map is a flat tile grid with no notion of a room, which visibility, boss gating, and template stitching all need.
+- ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. `content/skills/` is still empty, which Backend step 11 fills.
+- ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
 - The hub world, and with it the run lifecycle, the torch supply, and storage.
 - Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
 - ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
@@ -82,10 +82,12 @@ Conflicts to resolve before building further:
 
 ### 5. Voice Signaling and Proximity Data
 
-- [ ] Use the WebSocket server for WebRTC signaling.
-- [ ] Track pairwise player distances inside each dungeon instance.
-- [ ] Send proximity updates to clients for audio volume attenuation.
-- [ ] Add limits and validation for signaling messages.
+Half done: the proximity half landed with Backend step 8, the signaling relay has not been built.
+
+- [ ] Use the WebSocket server for WebRTC signaling. `voiceSignal` is still answered with `notImplemented`.
+- [x] Track pairwise player distances inside each dungeon instance. `voiceRangeForPlayer` in `src/server/game/visibility.ts`.
+- [x] Send proximity updates to clients for audio volume attenuation. `voiceRangeUpdated`, gated on visibility, sent with each snapshot.
+- [ ] Add limits and validation for signaling messages. The schema and `MAX_VOICE_SIGNAL_LENGTH` exist; no rate limiting yet.
 
 ### 6. Deployment Readiness
 
@@ -113,11 +115,11 @@ Conflicts to resolve before building further:
 
 ### 9. Procedural Dungeon Generation from Room Templates
 
-- [ ] Move room templates, monster stats, and item definitions into `content/`.
-- [ ] Make rooms first-class: id, bounds, template, lighting, contents.
-- [ ] Key monsters by type id instead of display name.
-- [ ] Stitch templates into a dungeon: halls, mazes, traps, puzzles, bosses, exit.
-- [ ] Place loot, monsters, and lights from a seeded random source.
+- [x] Move room templates, monster stats, and item definitions into `content/`. JSON validated at startup by `src/server/content/`; the Ember Vault moved across verbatim as an authored dungeon.
+- [x] Make rooms first-class: id, bounds, template, lighting, contents. `dungeonState.rooms`, filtered per player to what they have discovered.
+- [x] Key monsters by type id instead of display name. `monsterState.typeId`; `MONSTER_STATS` is gone.
+- [x] Stitch templates into a dungeon: halls, mazes, traps, puzzles, bosses, exit. Seven templates covering every kind; rooms chained entrance to exit with BFS-routed corridors.
+- [x] Place loot, monsters, and lights from a seeded random source. `src/server/game/random.ts`; the seed is stored on the session so a run replays exactly.
 
 ### 10. Hub World and Run Lifecycle
 
@@ -333,7 +335,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Added the Direction Alignment section above, recording what already matches, what is missing, and the three places the code and the description now contradict each other.
 - Recommended code changes, none applied yet, ordered by how much more expensive they get if deferred:
   1. Per-player snapshots. `snapshotOf(session)` in `src/server/gameServer.ts` builds one frame for the whole party, so every client holds the full map, roster, and monster list. Darkness cannot be a client-side effect on top of that: anyone can read the unlit world straight out of the socket, which defeats the pillar. Needed before anything else is built on the current shared-snapshot assumption.
-  2. Stop sending the map in every snapshot. `cloneDungeonState` copies `map.tiles` into each frame, broadcast on every tick and again on every accepted move. Invisible on a 16x8 map; ruinous on the large generated maps the description calls for. Send the map once on join, then only mutable state, and later only newly discovered tiles.
+  2. Stop sending the map in every snapshot. Still open, and now measured rather than predicted: a generated 96x64 map is about 115 kB/s per player of uncompressed JSON, or 600 kB/s for a four-player party. Backend step 9 mitigated it by enabling WebSocket permessage-deflate, which takes it to 1.6 kB/s on the wire because the withheld tiles are nearly all blanks, but the real fix is unchanged: send the map once on join, then only newly discovered tiles.
   3. Decouple broadcast rate from action rate. `publish()` fans out a full snapshot on every accepted move, so four players moving at 20Hz produce roughly a hundred snapshots a second per session on top of the tick's twenty. Mark the session dirty and let the tick flush it. Visibility work then computes once per tick instead of once per action.
   4. Make dungeon content data-driven before it grows. `FIXED_DUNGEON` is a literal with hand-written UUIDs, and `MONSTER_STATS` is keyed by display name, which breaks as soon as two monsters share one. Move both into `content/` and key monsters by type id.
   5. Introduce rooms into the data model. Everything the description wants from level design (unseen players in other rooms, per-room templates, boss gating) needs a room to exist; today there is only a tile grid.
@@ -392,3 +394,24 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (175/175 passing, stable across nine consecutive runs), and `npm run build`. Not yet exercised in a browser.
   - Known flake, pre-existing and unrelated: one full-suite run failed `tests/e2e/session.test.ts > accepts movement intent and broadcasts the authoritative position`, which races a tick snapshot against the move-driven one. It did not recur in nine further runs.
   - Merged the Controls menu from `main` (PR #10). The only overlap was the HUD and its stylesheet; the controls overlay and the vitals bars are independent.
+- Completed Backend step 9, Procedural Dungeon Generation from Room Templates, on `feature/procedural-generation`:
+  - Moved game data out of code into `content/`: monsters, items, room templates, and dungeon definitions as JSON, validated at startup by `src/server/content/`. `FIXED_DUNGEON` and `MONSTER_STATS` are gone.
+  - Kept the Ember Vault verbatim as an authored dungeon with its entity ids pinned, which is what lets the existing tests keep asserting on known positions. Sessions get the generated `vault-run` by default; tests that need a known world ask for `ember-vault`.
+  - Added `src/server/game/random.ts`, a seeded mulberry32 stream. Generation never calls `Math.random`: entity ids are drawn from the seed too, so the same seed builds an identical dungeon, and the seed is stored on the session so a run can be replayed from a bug report.
+  - Added `rooms` to `dungeonState`, filtered per player to rooms they have discovered part of. Sending the full list would hand a client the shape of the dungeon, including where the boss is, before they explore it.
+  - Keyed monsters by `typeId` rather than display name, so two monsters may share a name.
+  - Wrote seven room templates covering every kind the description names: entrance, hall, maze, trap, puzzle, boss, and exit.
+  - Chained rooms entrance to exit, joining them with corridors routed by BFS through the gaps between rooms. A straight L was tried first and abandoned: an L that crosses a room has to either breach its wall, which silently un-gates the locked door that makes the key worth finding, or be dropped, which disconnects the run.
+  - Used the `side` field on doorways to skip doorways whose outward tile is unusable. A west doorway on a room against the world's edge opens onto nothing, and picking it stranded the corridor before it started, which is what drove the breaching fallback.
+  - Swept three invariants across 120 seeds: every spawn point is on open floor, the exit is sealed while its door is locked and reachable once open, and a key is reachable without passing that door. A generator that only usually holds these ships an unplayable dungeon to somebody.
+  - Added a content check that every template's doorways connect through its own floor. Not hypothetical: the first `sunken-maze` had its east doorway opening into a walled-off pocket, and the generator happily built dungeons that could not be finished.
+  - Protocol v6, breaking: `dungeonState` gained `rooms`, `monsterState` gained `typeId`. Recorded in `docs/decisions/0007-content-and-generation.md`.
+  - Fixed two regressions the bigger map would otherwise have introduced, both measured rather than guessed:
+    - Visibility scanned every tile against every light, which cost about 4ms per player per tick on a 96x64 map and ran twice per player, once for the snapshot and once for voice. It now scans only the tiles inside each light's radius, and the frame is computed once and shared: 4.1ms to 1.9ms per call, at half the calls.
+    - Snapshots carried the whole map every tick, about 115 kB/s per player or 600 kB/s for a four-player party. Enabled WebSocket permessage-deflate, which takes it to 1.6 kB/s on the wire because withheld tiles are nearly all blanks. This is a mitigation; sending the map once on join and then only new tiles is still the right fix and is still open.
+  - Fixed the e2e movement flake carried over from Backend step 7. It was a real test bug: `next("stateSnapshot")` took the first snapshot after the intent, which can be a tick snapshot from before the move was applied. Added `nextWhere`, which waits on content rather than arrival.
+  - Corrected two Backend step 5 checkboxes that were done by step 8 but never ticked: pairwise distances and proximity updates. The signaling relay is still `notImplemented`.
+  - Tests grew from 175 to 201, including `tests/server/generation.test.ts`, `tests/server/content.test.ts`, and `tests/server/random.test.ts`.
+  - Smoke-tested a generated run against a live server built from `dist/`: a 96x64 map with 99.2% of tiles withheld from a player at the entrance, one room known, and the map opening up as they walked.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (201/201 passing, stable across three consecutive runs), and `npm run build`. Not yet exercised in a browser.
+  - Known gap: trap, puzzle, and boss rooms exist as kinds with templates and content, but traps, puzzle objects, and boss gating do nothing yet. That is Backend step 12; this step gives it rooms to put them in.

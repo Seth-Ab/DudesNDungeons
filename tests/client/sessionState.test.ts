@@ -41,6 +41,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
       height: 3,
       tiles: ["###", "#.#", "###"],
     },
+    rooms: [],
     monsters: [],
     loot: [],
     doors: [],

@@ -22,6 +22,8 @@ function createStore(overrides: Partial<ConstructorParameters<typeof SessionStor
     createRoomCode: () => `ROOM${(counter += 1)}`,
     reconnectGraceMs: GRACE_MS,
     emptySessionTtlMs: EMPTY_TTL_MS,
+    // The authored dungeon: this file asserts on known spawn positions, which a generated run moves.
+    dungeon: { dungeonId: "ember-vault" },
     ...overrides,
   });
 }

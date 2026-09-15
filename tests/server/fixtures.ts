@@ -2,10 +2,17 @@ import {
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_STAMINA,
 } from "../../src/shared/constants/game.js";
-import { createDungeonState } from "../../src/server/game/dungeonState.js";
+import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import type { Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
 
-/** Fixed Ember Vault entity ids, from `src/server/game/dungeonState.ts`. */
+/**
+ * The Ember Vault is authored content, not a generated run, so its entity ids and positions are
+ * fixed. That is what lets these tests assert on a known world; generated dungeons are covered
+ * separately in `generation.test.ts` by seed instead.
+ */
+export const TEST_DUNGEON_ID = "ember-vault";
+
+/** Pinned Ember Vault entity ids, from `content/dungeons/ember-vault.json`. */
 export const ASH_IMP_ID = "11111111-1111-4111-8111-111111111111";
 export const CINDER_SLIME_ID = "22222222-2222-4222-8222-222222222222";
 export const COPPER_KEY_ID = "33333333-3333-4333-8333-333333333333";
@@ -39,11 +46,15 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
 }
 
 export function testSession(players: SessionPlayer[]): Session {
+  const built = buildDungeon({ dungeonId: TEST_DUNGEON_ID });
+
   return {
     id: "session-1",
     roomCode: "ROOM01",
     createdAt: 0,
-    dungeon: createDungeonState(),
+    dungeon: built.dungeon,
+    spawnPoints: built.spawnPoints,
+    seed: built.seed,
     tick: 0,
     players: new Map(players.map((member) => [member.id, member])),
     simulatedAt: null,

@@ -58,7 +58,8 @@ const inSession = (view: SessionView): boolean => view.phase === "inSession";
 
 beforeEach(async () => {
   server = createGameServer({
-    store: new SessionStore({ reconnectGraceMs: GRACE_MS }),
+    // The authored dungeon, so the assertions below can name a map and known entity positions.
+    store: new SessionStore({ reconnectGraceMs: GRACE_MS, dungeon: { dungeonId: "ember-vault" } }),
     tickIntervalMs: 20,
     sweepIntervalMs: 20,
     log: false,

@@ -65,12 +65,32 @@ class TestClient {
     type: T,
     timeoutMs = 2000,
   ): Promise<Extract<ServerMessage, { type: T }>> {
+    return this.nextWhere(type, () => true, timeoutMs);
+  }
+
+  /**
+   * Resolves with the next message of `type` that satisfies `matches`.
+   *
+   * The server broadcasts a snapshot every tick as well as after an action, so "the next snapshot"
+   * after sending an intent is not necessarily the snapshot that carries its result. Waiting on the
+   * content rather than on the arrival is what makes an assertion about an action deterministic.
+   */
+  nextWhere<T extends ServerMessage["type"]>(
+    type: T,
+    matches: (message: Extract<ServerMessage, { type: T }>) => boolean,
+    timeoutMs = 2000,
+  ): Promise<Extract<ServerMessage, { type: T }>> {
     const from = this.inbox.length;
     const deadline = Date.now() + timeoutMs;
 
     return new Promise((resolve, reject) => {
       const poll = (): void => {
-        const found = this.inbox.slice(from).find((message) => message.type === type);
+        const found = this.inbox
+          .slice(from)
+          .find(
+            (message) =>
+              message.type === type && matches(message as Extract<ServerMessage, { type: T }>),
+          );
         if (found) {
           resolve(found as Extract<ServerMessage, { type: T }>);
           return;
@@ -114,7 +134,8 @@ async function joinRoom(roomCode: string, name: string, resumeToken?: string) {
 
 beforeEach(async () => {
   server = createGameServer({
-    store: new SessionStore({ reconnectGraceMs: GRACE_MS }),
+    // The authored dungeon, so the assertions below can name a map and known entity positions.
+    store: new SessionStore({ reconnectGraceMs: GRACE_MS, dungeon: { dungeonId: "ember-vault" } }),
     tickIntervalMs: TICK_MS,
     sweepIntervalMs: SWEEP_MS,
     log: false,
@@ -245,7 +266,11 @@ describe("joining a dungeon", () => {
 
     client.send({ type: "playerMoveIntent", sequence: 1, direction: { x: 1, y: 0 } });
 
-    const snapshot = await client.next("stateSnapshot");
+    // The snapshot carrying the move, not merely the next tick's, which may still show the old spot.
+    const snapshot = await client.nextWhere(
+      "stateSnapshot",
+      (message) => (message.players[0]?.position.x ?? start) > start,
+    );
     expect(snapshot.players[0]?.position.x).toBeGreaterThan(start);
     expect(snapshot.dungeon.map.id).toBe("ember-vault");
   });
