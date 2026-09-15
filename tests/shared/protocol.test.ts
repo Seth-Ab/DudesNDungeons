@@ -285,6 +285,15 @@ describe("parseServerMessage", () => {
         ],
         doors: [],
         exits: [],
+        lightSources: [
+          {
+            id: "77777777-7777-4777-8777-777777777777",
+            name: "Torch Pillar",
+            kind: "fixed",
+            position: { x: 1, y: 1 },
+            radius: 3.2,
+          },
+        ],
         cleared: false,
       },
     };

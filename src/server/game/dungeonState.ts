@@ -1,3 +1,4 @@
+import { FIXED_LIGHT_RADIUS, MONSTER_GLOW_LIGHT_RADIUS } from "../../shared/constants/game.js";
 import {
   MOVE_BURST_TOLERANCE_MS,
   MOVE_INTERVAL_MS,
@@ -17,10 +18,19 @@ export interface MonsterStats {
   attackRange: number;
   damage: number;
   attackCooldownMs: number;
+  /** Optional light emitted by a living monster, in world units. */
+  glowRadius?: number;
 }
 
 const MONSTER_STATS: Record<string, MonsterStats> = {
-  "Ash Imp": { speed: 1.8, aggroRange: 5, attackRange: 1, damage: 8, attackCooldownMs: 1_000 },
+  "Ash Imp": {
+    speed: 1.8,
+    aggroRange: 5,
+    attackRange: 1,
+    damage: 8,
+    attackCooldownMs: 1_000,
+    glowRadius: MONSTER_GLOW_LIGHT_RADIUS,
+  },
   "Cinder Slime": { speed: 1, aggroRange: 4, attackRange: 1, damage: 12, attackCooldownMs: 1_400 },
 };
 
@@ -108,6 +118,22 @@ const FIXED_DUNGEON: DungeonState = {
       destination: "deeper vault",
     },
   ],
+  lightSources: [
+    {
+      id: "77777777-7777-4777-8777-777777777777",
+      name: "West Torch Pillar",
+      kind: "fixed",
+      position: { x: 3, y: 5 },
+      radius: FIXED_LIGHT_RADIUS,
+    },
+    {
+      id: "88888888-8888-4888-8888-888888888888",
+      name: "Vault Brazier",
+      kind: "fixed",
+      position: { x: 13, y: 5 },
+      radius: FIXED_LIGHT_RADIUS,
+    },
+  ],
   cleared: false,
 };
 
@@ -132,6 +158,10 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
     loot: dungeon.loot.map((loot) => ({ ...loot, position: copyVector(loot.position) })),
     doors: dungeon.doors.map((door) => ({ ...door, position: copyVector(door.position) })),
     exits: dungeon.exits.map((exit) => ({ ...exit, position: copyVector(exit.position) })),
+    lightSources: dungeon.lightSources.map((light) => ({
+      ...light,
+      position: copyVector(light.position),
+    })),
     cleared: dungeon.cleared,
   };
 }

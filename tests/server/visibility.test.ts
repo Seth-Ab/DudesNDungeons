@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { visibilityFrameForPlayer, visibleTilesForPlayer } from "../../src/server/game/visibility.js";
+import {
+  visibilityFrameForPlayer,
+  visibleTilesForPlayer,
+  voiceRangeForPlayer,
+} from "../../src/server/game/visibility.js";
 import { testPlayer, testSession } from "./fixtures.js";
 
 describe("visibility frames", () => {
@@ -30,6 +34,35 @@ describe("visibility frames", () => {
     expect(secondFrame.dungeon.map.tiles[2]?.[1]).toBe(",");
     expect(secondFrame.dungeon.loot.some((loot) => loot.name === "Minor Tonic")).toBe(false);
   });
+
+  it("uses fixed lights to reveal geometry beyond a player's carried torch", () => {
+    const viewer = testPlayer("viewer", {
+      position: { x: 1, y: 1 },
+      carryingTorch: false,
+    });
+    const session = testSession([viewer]);
+    session.dungeon.map = {
+      id: "test",
+      name: "Test",
+      width: 8,
+      height: 3,
+      tiles: ["########", "#......#", "########"],
+    };
+    session.dungeon.lightSources = [
+      {
+        id: "77777777-7777-4777-8777-777777777777",
+        name: "Torch Pillar",
+        kind: "fixed",
+        position: { x: 5, y: 1 },
+        radius: 2,
+      },
+    ];
+
+    const frame = visibilityFrameForPlayer(session, viewer);
+
+    expect(frame.dungeon.map.tiles[1]?.[6]).toBe(".");
+    expect(frame.dungeon.lightSources.map((light) => light.name)).toEqual(["Torch Pillar"]);
+  });
 });
 
 describe("line of sight", () => {
@@ -47,5 +80,20 @@ describe("line of sight", () => {
     const visible = visibleTilesForPlayer(session, viewer);
 
     expect(visible.has("3,1")).toBe(false);
+  });
+});
+
+describe("voice range", () => {
+  it("includes visible peers with attenuation and omits unseen peers", () => {
+    const viewer = testPlayer("viewer", { position: { x: 2, y: 2 } });
+    const visible = testPlayer("visible", { position: { x: 3, y: 2 } });
+    const hidden = testPlayer("hidden", { position: { x: 14, y: 6 } });
+    const session = testSession([viewer, visible, hidden]);
+
+    const range = voiceRangeForPlayer(session, viewer);
+
+    expect(range.peers.map((peer) => peer.playerId)).toEqual(["visible"]);
+    expect(range.peers[0]?.distance).toBe(1);
+    expect(range.peers[0]?.volume).toBe(1);
   });
 });

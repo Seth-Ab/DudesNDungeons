@@ -1,7 +1,19 @@
-import { PLAYER_LIGHT_RADIUS } from "../../shared/constants/game.js";
-import { tileOf } from "../../shared/game/movement.js";
-import type { DungeonState, PlayerState, Vector2 } from "../../shared/types/core.js";
+import {
+  PLAYER_TORCH_LIGHT_RADIUS,
+  VOICE_FULL_VOLUME_DISTANCE,
+  VOICE_SILENCE_DISTANCE,
+} from "../../shared/constants/game.js";
+import { distance, tileOf } from "../../shared/game/movement.js";
+import type {
+  DungeonState,
+  LightSourceState,
+  PlayerId,
+  PlayerState,
+  Vector2,
+} from "../../shared/types/core.js";
+import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
+import { monsterStatsFor } from "./dungeonState.js";
 
 const UNKNOWN_TILE = " ";
 const DISCOVERED_FLOOR_TILE = ",";
@@ -10,6 +22,11 @@ const DISCOVERED_WALL_TILE = "+";
 interface VisibilityFrame {
   dungeon: DungeonState;
   players: PlayerState[];
+  visiblePlayerIds: Set<PlayerId>;
+}
+
+interface ActiveLightSource extends LightSourceState {
+  origin: Vector2;
 }
 
 function tileKey(x: number, y: number): string {
@@ -46,19 +63,74 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
   return true;
 }
 
+function carriedTorchFor(player: SessionPlayer): ActiveLightSource | null {
+  if (!player.carryingTorch) return null;
+
+  return {
+    id: player.id,
+    name: `${player.name}'s Torch`,
+    kind: "carriedTorch",
+    position: { ...player.position },
+    origin: player.position,
+    radius: PLAYER_TORCH_LIGHT_RADIUS,
+  };
+}
+
+function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): ActiveLightSource[] {
+  const sources: ActiveLightSource[] = [];
+  const ownTorch = carriedTorchFor(viewer);
+  if (ownTorch) sources.push(ownTorch);
+
+  for (const light of session.dungeon.lightSources) {
+    if (!hasLineOfSight(session.dungeon, viewer.position, light.position)) continue;
+    sources.push({ ...light, position: { ...light.position }, origin: light.position });
+  }
+
+  for (const player of session.players.values()) {
+    if (player.id === viewer.id || !player.connected || player.health <= 0) continue;
+
+    const torch = carriedTorchFor(player);
+    if (!torch || !hasLineOfSight(session.dungeon, viewer.position, player.position)) continue;
+    sources.push(torch);
+  }
+
+  for (const monster of session.dungeon.monsters) {
+    if (!monster.alive) continue;
+
+    const glowRadius = monsterStatsFor(monster).glowRadius;
+    if (glowRadius === undefined) continue;
+    if (!hasLineOfSight(session.dungeon, viewer.position, monster.position)) continue;
+
+    sources.push({
+      id: monster.id,
+      name: `${monster.name} Glow`,
+      kind: "monsterGlow",
+      position: { ...monster.position },
+      origin: monster.position,
+      radius: glowRadius,
+    });
+  }
+
+  return sources;
+}
+
 export function visibleTilesForPlayer(session: Session, viewer: SessionPlayer): Set<string> {
   const visible = new Set<string>();
   const { map } = session.dungeon;
+  const sources = activeLightSourcesForPlayer(session, viewer);
 
   for (let y = 0; y < map.height; y += 1) {
     for (let x = 0; x < map.width; x += 1) {
       const center = { x, y };
-      if (Math.hypot(center.x - viewer.position.x, center.y - viewer.position.y) > PLAYER_LIGHT_RADIUS) {
-        continue;
+      if (
+        sources.some(
+          (source) =>
+            distance(source.origin, center) <= source.radius &&
+            hasLineOfSight(session.dungeon, source.origin, center),
+        )
+      ) {
+        visible.add(tileKey(x, y));
       }
-      if (!hasLineOfSight(session.dungeon, viewer.position, center)) continue;
-
-      visible.add(tileKey(x, y));
     }
   }
 
@@ -106,6 +178,12 @@ function visibleDungeon(session: Session, viewer: SessionPlayer, visible: Set<st
     exits: session.dungeon.exits
       .filter((exit) => tileVisible(visible, exit.position))
       .map((exit) => ({ ...exit, position: { ...exit.position } })),
+    lightSources: activeLightSourcesForPlayer(session, viewer)
+      .filter((light) => tileVisible(visible, light.position))
+      .map(({ origin: _origin, ...light }) => ({
+        ...light,
+        position: { ...light.position },
+      })),
     cleared: session.dungeon.cleared,
   };
 }
@@ -119,5 +197,34 @@ export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer
   return {
     dungeon: visibleDungeon(session, viewer, visible),
     players: visiblePlayers,
+    visiblePlayerIds: new Set(visiblePlayers.map((player) => player.id)),
   };
+}
+
+function voiceVolume(gap: number): number {
+  if (gap <= VOICE_FULL_VOLUME_DISTANCE) return 1;
+  if (gap >= VOICE_SILENCE_DISTANCE) return 0;
+
+  const falloff =
+    (gap - VOICE_FULL_VOLUME_DISTANCE) / (VOICE_SILENCE_DISTANCE - VOICE_FULL_VOLUME_DISTANCE);
+  return Math.max(0, Math.min(1, 1 - falloff));
+}
+
+export function voiceRangeForPlayer(
+  session: Session,
+  viewer: SessionPlayer,
+): Extract<ServerMessage, { type: "voiceRangeUpdated" }> {
+  const frame = visibilityFrameForPlayer(session, viewer);
+  const peers = [...session.players.values()]
+    .filter((player) => player.id !== viewer.id && frame.visiblePlayerIds.has(player.id))
+    .map((player) => {
+      const gap = distance(viewer.position, player.position);
+      return {
+        playerId: player.id,
+        distance: gap,
+        volume: voiceVolume(gap),
+      };
+    });
+
+  return { type: "voiceRangeUpdated", peers };
 }

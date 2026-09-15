@@ -48,6 +48,15 @@ export function createPlaceholderDungeon(): DungeonState {
         alive: true,
       },
     ],
+    lightSources: [
+      {
+        id: "77777777-7777-4777-8777-777777777777",
+        name: "Preview Torch",
+        kind: "fixed",
+        position: { x: 3, y: 5 },
+        radius: 3.2,
+      },
+    ],
     loot: [],
     doors: [],
     exits: [],

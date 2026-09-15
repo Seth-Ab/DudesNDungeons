@@ -72,12 +72,25 @@ export const exitStateSchema = z.object({
 });
 export type ExitState = z.infer<typeof exitStateSchema>;
 
+export const lightSourceKindSchema = z.enum(["fixed", "carriedTorch", "monsterGlow"]);
+export type LightSourceKind = z.infer<typeof lightSourceKindSchema>;
+
+export const lightSourceStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  kind: lightSourceKindSchema,
+  position: vector2Schema,
+  radius: z.number().positive(),
+});
+export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
+
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
   monsters: z.array(monsterStateSchema),
   loot: z.array(lootStateSchema),
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),
+  lightSources: z.array(lightSourceStateSchema),
   /** True once a player has used an exit. */
   cleared: z.boolean(),
 });

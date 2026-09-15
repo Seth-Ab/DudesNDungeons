@@ -17,7 +17,7 @@ import type { PlayerId } from "../shared/types/core.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
-import { visibilityFrameForPlayer } from "./game/visibility.js";
+import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -102,6 +102,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
     const snapshot = snapshotOf(session, playerId);
     if (snapshot) send(socket, snapshot);
+    const player = session.players.get(playerId);
+    if (player) send(socket, voiceRangeForPlayer(session, player));
   }
 
   function broadcastSnapshots(session: Session): void {
