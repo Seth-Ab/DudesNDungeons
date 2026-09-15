@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7 and 8 complete. Players now carry health, resistance, and stamina; resistance reduces every hit in one place, stamina prices swings, and a per-player run clock wears resistance down once the grace period passes. The server still sends each connected player a tailored snapshot based on server-owned light sources and line of sight.
+- Overall phase: Backend Dev steps 7 and 8 complete. Players now carry health, resistance, and stamina; resistance reduces every hit in one place, stamina prices swings, and a per-player run clock wears resistance down once the grace period passes. The server still sends each connected player a tailored snapshot based on server-owned light sources and line of sight. On the frontend, the Controls menu has landed alongside the new vitals bars.
 - Last completed work: Player vitals, resistance decay, and the run timer on protocol v5. See `docs/decisions/0006-player-vitals.md`.
-- Next recommended step: Backend step 9 (Procedural Dungeon Generation from Room Templates), because `content/` is still empty, `MONSTER_STATS` is still keyed by display name, and nothing in the model knows what a room is - which visibility, boss gating, and the hub all need. Backend step 5 (voice signaling) and step 6 (deployment readiness) remain open and are independent of it.
+- Next recommended step: Backend step 9 (Procedural Dungeon Generation from Room Templates), because `content/` is still empty, `MONSTER_STATS` is still keyed by display name, and nothing in the model knows what a room is - which visibility, boss gating, and the hub all need. Backend step 5 (voice signaling) and step 6 (deployment readiness) remain open and are independent of it. Frontend polish that stays off shared protocol - exit/cleared feedback and pixel-art renderer work - can continue in parallel.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -178,7 +178,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add party join flow with invite code or room ID.
 - [x] Show health, inventory, combat feedback, and player names.
 - [x] Add monster and loot rendering.
-- [ ] Add minimal menus for start, pause, settings, and exit.
+- [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
 
 ### 4. Combat and Dungeon Interaction
 
@@ -371,6 +371,11 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Sent `voiceRangeUpdated` from the same visible-player frame, so unseen peers are omitted and visible peers get distance falloff.
   - Recorded the contract in `docs/decisions/0005-visibility-lighting-and-voice.md`.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (152/152 passing; required local server permission outside the sandbox), and `npm run build`.
+- Updated `feature/frontend-development` to current `main` and added a low-conflict frontend Controls menu:
+  - Added `src/client/ui/controlsMenu.ts` with grouped movement, dungeon action, inventory, party, and voice controls.
+  - Added a HUD `Controls` button and overlay styling.
+  - Kept Backend step 7 surfaces untouched while that work happens separately.
+  - Verified: `npm run typecheck:client`, `npm run build:client`, and `npm run lint`.
 - Completed Backend step 7, Player Vitals: Resistance, Stamina, and the Run Timer, on `feature/player-vitals`:
   - Added `src/server/game/vitals.ts`, which owns health, resistance, and stamina. `damagePlayer` is now the only function that lowers a player's health, and it applies resistance itself, so a trap or a boss added later cannot forget the reduction.
   - Chose `scale / (scale + resistance)` for the reduction rather than a linear percentage: diminishing returns, 100 resistance halves a hit, and no value reaches immunity. A hit scaled below one point still costs one.
@@ -386,3 +391,4 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Smoke-tested against a live server built from `dist/`: joined with resistance 40 and stamina 100, had the 11th consecutive swing refused as `exhausted`, and landed a swing again after the bar recovered.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (175/175 passing, stable across nine consecutive runs), and `npm run build`. Not yet exercised in a browser.
   - Known flake, pre-existing and unrelated: one full-suite run failed `tests/e2e/session.test.ts > accepts movement intent and broadcasts the authoritative position`, which races a tick snapshot against the move-driven one. It did not recur in nine further runs.
+  - Merged the Controls menu from `main` (PR #10). The only overlap was the HUD and its stylesheet; the controls overlay and the vitals bars are independent.
