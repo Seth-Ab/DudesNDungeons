@@ -197,8 +197,8 @@ describe("errors", () => {
   });
 });
 
-describe("messages for later steps", () => {
-  it("ignores combat and voice traffic without corrupting the view", () => {
+describe("action feedback", () => {
+  it("records combat and action feedback without inventing state", () => {
     const view = joinedView();
 
     const afterAttack = applyServerMessage(view, {
@@ -209,11 +209,27 @@ describe("messages for later steps", () => {
       targetHealth: 97,
       targetDefeated: false,
     });
-    const afterVoice = applyServerMessage(afterAttack, {
+    const afterRejection = applyServerMessage(afterAttack, {
+      type: "actionRejected",
+      sequence: null,
+      reason: "outOfRange",
+    });
+
+    expect(afterAttack.lastAction).toBe("Hit target for 3");
+    expect(afterRejection.lastAction).toBe("Action refused: outOfRange");
+    expect(afterRejection.players).toEqual(view.players);
+  });
+});
+
+describe("messages for later steps", () => {
+  it("ignores voice traffic without corrupting the view", () => {
+    const view = joinedView();
+
+    const afterVoice = applyServerMessage(view, {
       type: "voiceRangeUpdated",
       peers: [{ playerId: ALLY_ID, distance: 2, volume: 0.9 }],
     });
 
-    expect(afterVoice).toEqual(view);
+    expect(afterVoice).toBe(view);
   });
 });

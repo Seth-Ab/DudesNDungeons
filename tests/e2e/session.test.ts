@@ -308,7 +308,8 @@ describe("resume tokens stay private", () => {
 
     expect(JSON.stringify(snapshot)).not.toContain(alpha.joined.resumeToken);
     expect(snapshot.players[0]).not.toHaveProperty("resumeToken");
-    expect(snapshot.dungeon.loot.map((loot) => loot.name)).toContain("Copper Key");
+    expect(snapshot.dungeon.map.id).toBe("ember-vault");
+    expect(snapshot.dungeon.loot.map((loot) => loot.name)).not.toContain("Copper Key");
   });
 });
 

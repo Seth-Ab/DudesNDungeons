@@ -11,28 +11,47 @@ export const MOVE_VECTORS: Record<MoveDirection, Vector2> = {
   west: { x: -1, y: 0 },
 };
 
-export interface DungeonMap {
-  tiles: string[];
-  monsters: Vector2[];
-}
-
 /** Drawn before the first snapshot arrives. Movement never runs against it. */
-export function createPlaceholderDungeon(): DungeonMap {
+export function createPlaceholderDungeon(): DungeonState {
   return {
-    tiles: [
-      "################",
-      "#..............#",
-      "#..####........#",
-      "#.......##.....#",
-      "#..............#",
-      "#.....###......#",
-      "#..............#",
-      "################",
-    ],
+    map: {
+      id: "preview",
+      name: "Preview",
+      width: 16,
+      height: 8,
+      tiles: [
+        "################",
+        "#..............#",
+        "#..####........#",
+        "#.......##.....#",
+        "#..............#",
+        "#.....###......#",
+        "#..............#",
+        "################",
+      ],
+    },
     monsters: [
-      { x: 11, y: 2 },
-      { x: 5, y: 5 },
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Preview Imp",
+        position: { x: 11, y: 2 },
+        health: 10,
+        maxHealth: 10,
+        alive: true,
+      },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Preview Slime",
+        position: { x: 5, y: 5 },
+        health: 14,
+        maxHealth: 14,
+        alive: true,
+      },
     ],
+    loot: [],
+    doors: [],
+    exits: [],
+    cleared: false,
   };
 }
 

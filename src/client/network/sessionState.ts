@@ -26,8 +26,10 @@ export interface SessionView {
   tickRate: number | null;
   tick: number;
   players: PlayerState[];
+  visiblePlayerIds: PlayerId[];
   dungeon: DungeonState | null;
   lastError: SessionError | null;
+  lastAction: string | null;
 }
 
 export const initialSessionView: SessionView = {
@@ -37,8 +39,10 @@ export const initialSessionView: SessionView = {
   tickRate: null,
   tick: 0,
   players: [],
+  visiblePlayerIds: [],
   dungeon: null,
   lastError: null,
+  lastAction: null,
 };
 
 /**
@@ -60,6 +64,12 @@ function replacePlayer(
   return players.map((player) => (player.id === playerId ? update(player) : player));
 }
 
+function mergePlayers(known: PlayerState[], visible: PlayerState[]): PlayerState[] {
+  const merged = new Map(known.map((player) => [player.id, player]));
+  for (const player of visible) merged.set(player.id, player);
+  return [...merged.values()];
+}
+
 /**
  * Folds one server message into the client's view of the dungeon. Pure, so the whole session
  * lifecycle can be tested without a socket.
@@ -74,6 +84,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         roomCode: message.roomCode,
         tickRate: message.tickRate,
         players: message.players,
+        visiblePlayerIds: message.players.map((player) => player.id),
         lastError: null,
       };
 
@@ -109,7 +120,13 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
     case "stateSnapshot":
       // Snapshots can overtake each other; an older one must never undo a newer one.
       if (message.tick <= view.tick) return view;
-      return { ...view, tick: message.tick, players: message.players, dungeon: message.dungeon };
+      return {
+        ...view,
+        tick: message.tick,
+        players: mergePlayers(view.players, message.players),
+        visiblePlayerIds: message.players.map((player) => player.id),
+        dungeon: message.dungeon,
+      };
 
     case "sessionError":
       return {
@@ -118,12 +135,22 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         lastError: { code: message.code, message: message.message },
       };
 
-    // Combat, voice, and action feedback land in later steps; ignoring them keeps the view honest
-    // rather than inventing state the client cannot yet act on.
     case "attackResolved":
+      return {
+        ...view,
+        lastAction:
+          message.damage > 0
+            ? `${message.targetDefeated ? "Defeated target" : "Hit target"} for ${message.damage}`
+            : "Swing missed",
+      };
+
+    case "actionRejected":
+      return { ...view, lastAction: `Action refused: ${message.reason}` };
+
+    // Voice feedback lands in later steps; ignoring it keeps the view honest rather than inventing
+    // state the client cannot yet act on.
     case "voiceRangeUpdated":
     case "voiceSignalRelay":
-    case "actionRejected":
       return view;
   }
 }
@@ -135,4 +162,9 @@ export function selfOf(view: SessionView): PlayerState | null {
 
 export function othersOf(view: SessionView): PlayerState[] {
   return view.players.filter((player) => player.id !== view.selfId);
+}
+
+export function visibleOthersOf(view: SessionView): PlayerState[] {
+  const visible = new Set(view.visiblePlayerIds);
+  return othersOf(view).filter((player) => visible.has(player.id));
 }

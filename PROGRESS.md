@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 4 complete; the server resolves melee combat, monster behavior, downed/respawn, item pickup and use, doors, and the exit. `GAMEDESCRIPTION.md` has since set the game's direction, and `STEPS.md` gained Backend steps 7-12 and Frontend steps 7-10 to cover it. None of that new work has started.
-- Last completed work: Combat and Game Rules on `backend-development` (protocol v3). See `docs/decisions/0004-combat-and-items.md`.
-- Next recommended step: Frontend Dev step 7 (Camera and Darkness) together with the outstanding Frontend 3-4 gameplay controls and rendering. The camera is small, and every later visual feature is drawn through it; the 3-4 gap is the only thing standing between the current server and a party that can finish a dungeon. Then Backend step 8 (Server-Authoritative Visibility and Lighting) before the map grows, because it changes the snapshot contract and everything built on the current party-wide snapshot would have to be revisited.
+- Overall phase: Backend server-authoritative visibility slice in progress. The server now sends each connected player a tailored snapshot based on their light radius and line of sight, remembers discovered tiles, and filters unseen monsters, loot, exits, and player positions out of that player's frame.
+- Last completed work: Per-player visibility snapshots, discovered geometry, and client rendering support for unknown/discovered tiles on top of protocol v3.
+- Next recommended step: Finish Backend step 8's remaining light-source and voice work: model carried torches, fixed map lights, and lit monsters explicitly, then gate proximity voice distances on the same visibility/room rules. After that, continue Frontend step 8 with resistance/stamina bars, drop/carry controls, and run outcome UI after the server owns those concepts.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -15,17 +15,13 @@ Resolved:
 
 - Visual style: Pixel art.
 - Movement model: Slow free-roam.
-- Combat model: Hybrid (real-time free-roam with a turn-based/tactical exchange when engaging enemies, inspired by Pokémon Legends: Z-A). Under review: `GAMEDESCRIPTION.md` describes stamina-gated real-time fighting and never mentions a turn exchange.
+- Combat model: Stamina-gated real-time combat. The earlier hybrid tactical exchange is dropped for now so combat matches `GAMEDESCRIPTION.md`.
 - Voice behavior: Always connected with distance-based volume.
 - Target party size for v1: 4.
-
-Open, raised by `GAMEDESCRIPTION.md` and detailed in `STEPS.md`:
-
-- [ ] Death and loss: what dying mid-run costs, given the server currently respawns downed players at full health.
-- [ ] Whether the hybrid tactical exchange is still wanted or dropped.
-- [ ] Carry capacity: three slots per the description, against `MAX_INVENTORY_SIZE` of 8.
-- [ ] Identity for progression that outlives a session.
-- [ ] Target length of one dungeon run.
+- Death and loss: Downed players stay down until revived or carried out. If the party escapes without them, they lose carried items and return to the hub.
+- Carry capacity: Three inventory slots. Keys and normal items use slots; torches are carried/equipped separately and do not spend inventory slots.
+- Identity for progression: Device-local profile first, backed by a local profile secret. Real accounts are deferred.
+- Target run length: 15-20 minutes for a full dungeon run.
 
 ## Direction Alignment
 
@@ -51,8 +47,7 @@ Missing entirely, and now covered by new steps:
 
 Conflicts to resolve before building further:
 
-- Downed players stand back up at full health after `PLAYER_RESPAWN_MS`, which contradicts losing items on death and makes carrying a friend pointless.
-- `MAX_INVENTORY_SIZE` is 8; the description says three slots.
+- Downed players stand back up at full health after `PLAYER_RESPAWN_MS`, which contradicts the resolved downed/revive/carry direction and makes carrying a friend pointless.
 - The exit sets `cleared` and names a `destination` of "deeper vault"; the description ends a run by escaping to the hub.
 
 ## Backend Dev Progress
@@ -109,12 +104,12 @@ Conflicts to resolve before building further:
 
 ### 8. Server-Authoritative Visibility and Lighting
 
-- [ ] Model carried torches, fixed map lights, and lit monsters.
-- [ ] Compute per-player visibility each tick from light radius and line of sight.
-- [ ] Replace the party-wide snapshot with a per-player one.
-- [ ] Track discovered tiles per player and keep sending them as unlit geometry.
+- [ ] Model carried torches, fixed map lights, and lit monsters. Current pass models only the player's innate light radius.
+- [x] Compute per-player visibility each tick from light radius and line of sight.
+- [x] Replace the party-wide snapshot with a per-player one.
+- [x] Track discovered tiles per player and keep sending them as unlit geometry.
 - [ ] Gate proximity voice distances on the same visibility rules.
-- [ ] Test that an unseen player is absent from the frame, not merely dimmed.
+- [x] Test that an unseen player is absent from the frame, not merely dimmed.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 
@@ -180,16 +175,16 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 3. Core Game UI
 
-- [ ] Add party join flow with invite code or room ID.
-- [ ] Show health, inventory, combat feedback, and player names.
-- [ ] Add monster and loot rendering.
+- [x] Add party join flow with invite code or room ID.
+- [x] Show health, inventory, combat feedback, and player names.
+- [x] Add monster and loot rendering.
 - [ ] Add minimal menus for start, pause, settings, and exit.
 
 ### 4. Combat and Dungeon Interaction
 
-- [ ] Add controls for attack, interact, pickup, and use item.
-- [ ] Display server-confirmed combat results.
-- [ ] Add feedback for invalid moves or blocked actions.
+- [x] Add controls for attack, interact, pickup, and use item.
+- [x] Display server-confirmed combat results.
+- [x] Add feedback for invalid moves or blocked actions.
 - [ ] Show win, loss, and dungeon exit states.
 
 ### 5. Proximity Voice Chat
@@ -208,18 +203,18 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 7. Camera and Darkness
 
-- [ ] Draw through a camera centered on the local player.
-- [ ] Draw only what the server sent; leave undiscovered space black.
-- [ ] Add a light mask for the player, torches, map lights, and lit monsters.
-- [ ] Draw discovered-but-unlit geometry dim rather than absent.
+- [x] Draw through a camera centered on the local player.
+- [x] Draw only what the server sent; leave undiscovered space black.
+- [x] Add a local light mask for the player. Torches, map lights, and lit monsters still need explicit server light-source data.
+- [x] Draw discovered-but-unlit geometry dim rather than absent.
 - [ ] Replace flat rectangles with pixel-art dungeon tiles and props.
 
 ### 8. Vitals, Inventory, and Gameplay Controls
 
-- [ ] Show health, resistance, and stamina bars and three inventory slots.
-- [ ] Add attack, interact, pickup, use, drop, and carry controls.
-- [ ] Render loot, doors, exits, monster health, downed players, and cleared state.
-- [ ] Show combat results, refusals, and the resistance decay warning.
+- [ ] Show health, resistance, and stamina bars and three inventory slots. Three inventory slots are visible; resistance and stamina do not exist server-side yet.
+- [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on server support.
+- [ ] Render loot, doors, exits, monster health, downed players, and cleared state. Loot, doors, exits, monster health, and downed players are done; cleared/run outcome UI remains.
+- [ ] Show combat results, refusals, and the resistance decay warning. Combat results and refusals are shown; resistance decay does not exist server-side yet.
 
 ### 9. Hub World and Run Flow
 
@@ -345,3 +340,27 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   6. Widen player vitals once. Health is a bare number on `SessionPlayer` and `playerStateSchema`; adding resistance, stamina, and decay across three separate changes will cost more than one vitals module and one protocol bump.
   7. Collide with the player's body, not their center point. `isFloor` tests only `tileOf(position)` while `PLAYER_RADIUS` is 0.35, so a player's body overlaps walls and clips corners, even though player-versus-player and player-versus-monster collision do respect the radius. The inconsistency will be felt most in dark corridors.
   8. Add the camera before more rendering lands. Everything drawn from here on is drawn through it.
+
+### 2026-09-15
+
+- Resolved the five open owner opinion checkpoints raised by `GAMEDESCRIPTION.md`:
+  - Death is downed/revivable or carryable; a player left behind on escape loses carried items and returns to the hub.
+  - The hybrid tactical exchange is dropped for now in favor of stamina-gated real-time combat.
+  - Inventory capacity is three slots; keys/items spend slots, torches do not.
+  - Progression identity starts as a device-local profile secret, with real accounts deferred.
+  - Target run length is 15-20 minutes.
+- Continued the frontend gameplay slice:
+  - Set `MAX_INVENTORY_SIZE` to 3 to match the resolved carry-capacity checkpoint.
+  - Switched the Canvas renderer to draw from server `DungeonState` through a camera centered on the local player.
+  - Added rendering for loot, doors, exits, monster health, downed players, inventory slots, and a local player light mask.
+  - Added HUD buttons and keyboard handling for attack, pickup, interact, and item-slot use; the client sends the existing server protocol messages instead of inventing local results.
+  - Added combat/refusal feedback to the client session view and HUD.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (147/147 passing; required local server permission outside the sandbox), and `npm run build`.
+- Continued Backend step 8, Server-Authoritative Visibility and Lighting:
+  - Added `src/server/game/visibility.ts` to compute per-player visible tiles from light radius and line of sight through walls and closed doors.
+  - Added per-player discovered tile memory and filtered dungeon frames that send unknown space as black, discovered-but-unlit geometry as dim tiles, and visible geometry at full brightness.
+  - Changed server snapshot fanout from one party-wide `stateSnapshot` to one tailored snapshot per connected player. Unseen monsters, loot, exits, and player positions are filtered out of that player's frame.
+  - Updated the client session reducer so snapshots merge visible player state into the roster while rendering only players present in the latest visible frame.
+  - Added renderer support for unknown and discovered tile markers.
+  - Added visibility tests and updated the e2e token-privacy assertion now that snapshots no longer include far-away loot by default.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (150/150 passing; required local server permission outside the sandbox), and `npm run build`.

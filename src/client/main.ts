@@ -1,7 +1,8 @@
-import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
-import type { Vector2 } from "../shared/types/core.js";
+import { INTERACT_RANGE } from "../shared/constants/game.js";
+import { distance, MOVE_INTERVAL_MS } from "../shared/game/movement.js";
+import type { EntityId, Vector2 } from "../shared/types/core.js";
 import { requestMicrophonePreview } from "./audio/proximityAudio.js";
-import { createInputController } from "./input/inputController.js";
+import { createInputController, type GameplayAction } from "./input/inputController.js";
 import {
   createMemoryTokenStore,
   createSessionStorageTokenStore,
@@ -12,6 +13,7 @@ import {
   initialSessionView,
   othersOf,
   selfOf,
+  visibleOthersOf,
   type SessionView,
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
@@ -53,7 +55,7 @@ const renderer = createCanvasRenderer(() => ({
   dungeon: renderedDungeon,
   localPosition,
   self: selfOf(view),
-  others: othersOf(view),
+  others: visibleOthersOf(view),
 }));
 
 const hud = createHud({
@@ -67,6 +69,10 @@ const hud = createHud({
     lobby.setMessage("You left the dungeon.");
     lobby.focus();
   },
+  onAttack: () => performAction("attack"),
+  onPickup: () => performAction("pickup"),
+  onInteract: () => performAction("interact"),
+  onUseSlot: (slot) => useInventorySlot(slot),
 });
 
 const lobby = createLobby({
@@ -83,8 +89,9 @@ const lobby = createLobby({
 });
 
 app.append(hud.element, lobby.element, renderer.canvas);
+renderer.resize();
 
-const input = createInputController();
+const input = createInputController({ onAction: performAction });
 
 // Paced to the server's move interval, so the client sends intents at the rate the server accepts
 // them and predicts exactly the steps the server will take.
@@ -108,12 +115,7 @@ client.subscribe((next) => {
   view = next;
 
   if (view.dungeon) {
-    renderedDungeon = {
-      tiles: view.dungeon.map.tiles,
-      monsters: view.dungeon.monsters
-        .filter((monster) => monster.alive)
-        .map((monster) => monster.position),
-    };
+    renderedDungeon = view.dungeon;
   }
 
   const self = selfOf(view);
@@ -133,3 +135,86 @@ client.subscribe((next) => {
 
 input.start();
 lobby.focus();
+
+function performAction(action: GameplayAction): void {
+  const self = selfOf(view);
+  if (view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return;
+
+  switch (action) {
+    case "attack": {
+      const direction = input.heading() ?? self.facing;
+      if (!client.sendAttack(direction)) hud.setActionStatus("No connection");
+      return;
+    }
+    case "pickup": {
+      const itemId = nearestLootId();
+      if (!itemId) {
+        hud.setActionStatus("No loot nearby");
+        return;
+      }
+      client.pickupItem(itemId);
+      return;
+    }
+    case "interact": {
+      const targetId = nearestInteractionTargetId();
+      if (!targetId) {
+        hud.setActionStatus("Nothing nearby");
+        return;
+      }
+      client.interact(targetId);
+      return;
+    }
+    case "useSlot1":
+      useInventorySlot(0);
+      return;
+    case "useSlot2":
+      useInventorySlot(1);
+      return;
+    case "useSlot3":
+      useInventorySlot(2);
+      return;
+  }
+}
+
+function useInventorySlot(slot: number): void {
+  const self = selfOf(view);
+  const item = self?.inventory[slot];
+  if (!item) {
+    hud.setActionStatus("Empty slot");
+    return;
+  }
+  client.useItem(item.id);
+}
+
+function nearestLootId(): EntityId | null {
+  if (!view.dungeon) return null;
+
+  return nearest(
+    view.dungeon.loot
+      .filter((loot) => !loot.pickedUp)
+      .map((loot) => ({ id: loot.id, position: loot.position })),
+  );
+}
+
+function nearestInteractionTargetId(): EntityId | null {
+  if (!view.dungeon) return null;
+
+  return nearest([
+    ...view.dungeon.doors
+      .filter((door) => !door.open)
+      .map((door) => ({ id: door.id, position: door.position })),
+    ...view.dungeon.exits.map((exit) => ({ id: exit.id, position: exit.position })),
+  ]);
+}
+
+function nearest(targets: { id: EntityId; position: Vector2 }[]): EntityId | null {
+  const self = selfOf(view);
+  if (!self) return null;
+
+  const reachable = targets
+    .map((target) => ({ ...target, gap: distance(localPosition, target.position) }))
+    .filter((target) => target.gap <= INTERACT_RANGE)
+    .sort((a, b) => a.gap - b.gap);
+
+  return reachable[0]?.id ?? null;
+}
