@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 8 complete. The server sends each connected player a tailored snapshot based on server-owned light sources and line of sight, remembers discovered tiles, filters unseen monsters, loot, exits, and player positions out of that player's frame, and gates voice range updates on the same visibility rules.
-- Last completed work: Server-authoritative visibility, lighting, and voice range on protocol v4. See `docs/decisions/0005-visibility-lighting-and-voice.md`.
-- Next recommended step: Backend step 7 (Player Vitals: Resistance, Stamina, and the Run Timer), because combat pacing, carrying, death, and target run length now need server-owned stamina/resistance before the frontend can honestly show those bars.
+- Overall phase: Backend Dev step 8 complete; frontend UI polish is in progress while Backend step 7 is being handled separately. The current frontend slice adds a Controls menu without changing shared protocol or server vitals work.
+- Last completed work: Frontend branch fast-forwarded to current `main`, then a controls overlay was added to list movement, dungeon action, inventory, party, and voice controls.
+- Next recommended step: Continue low-conflict frontend polish while Backend step 7 lands: exit/cleared feedback, action feedback cleanup, and pixel-art-style renderer polish.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -178,7 +178,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add party join flow with invite code or room ID.
 - [x] Show health, inventory, combat feedback, and player names.
 - [x] Add monster and loot rendering.
-- [ ] Add minimal menus for start, pause, settings, and exit.
+- [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
 
 ### 4. Combat and Dungeon Interaction
 
@@ -371,3 +371,8 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Sent `voiceRangeUpdated` from the same visible-player frame, so unseen peers are omitted and visible peers get distance falloff.
   - Recorded the contract in `docs/decisions/0005-visibility-lighting-and-voice.md`.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (152/152 passing; required local server permission outside the sandbox), and `npm run build`.
+- Updated `feature/frontend-development` to current `main` and added a low-conflict frontend Controls menu:
+  - Added `src/client/ui/controlsMenu.ts` with grouped movement, dungeon action, inventory, party, and voice controls.
+  - Added a HUD `Controls` button and overlay styling.
+  - Kept Backend step 7 surfaces untouched while that work happens separately.
+  - Verified: `npm run typecheck:client`, `npm run build:client`, and `npm run lint`.

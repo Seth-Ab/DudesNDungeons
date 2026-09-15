@@ -18,6 +18,7 @@ import {
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
 import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
+import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createHud } from "./ui/hud.js";
 import { createLobby } from "./ui/lobby.js";
 import "./styles.css";
@@ -58,6 +59,8 @@ const renderer = createCanvasRenderer(() => ({
   others: visibleOthersOf(view),
 }));
 
+const controlsMenu = createControlsMenu();
+
 const hud = createHud({
   onEnableVoice: async () => {
     hud.setVoiceStatus("requesting microphone");
@@ -73,6 +76,7 @@ const hud = createHud({
   onPickup: () => performAction("pickup"),
   onInteract: () => performAction("interact"),
   onUseSlot: (slot) => useInventorySlot(slot),
+  onOpenControls: () => controlsMenu.open(),
 });
 
 const lobby = createLobby({
@@ -88,7 +92,7 @@ const lobby = createLobby({
   onJoinRoom: (roomCode, playerName) => client.join(roomCode, playerName),
 });
 
-app.append(hud.element, lobby.element, renderer.canvas);
+app.append(hud.element, lobby.element, controlsMenu.element, renderer.canvas);
 renderer.resize();
 
 const input = createInputController({ onAction: performAction });

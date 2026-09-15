@@ -10,6 +10,7 @@ interface HudOptions {
   onPickup: () => void;
   onInteract: () => void;
   onUseSlot: (slot: number) => void;
+  onOpenControls: () => void;
 }
 
 const PHASE_LABELS: Record<SessionView["phase"], string> = {
@@ -62,6 +63,11 @@ export function createHud(options: HudOptions) {
   voiceButton.textContent = "Enable Voice";
   voiceButton.addEventListener("click", options.onEnableVoice);
 
+  const controlsButton = document.createElement("button");
+  controlsButton.type = "button";
+  controlsButton.textContent = "Controls";
+  controlsButton.addEventListener("click", options.onOpenControls);
+
   const attackButton = createActionButton("Attack", options.onAttack);
   const pickupButton = createActionButton("Pickup", options.onPickup);
   const interactButton = createActionButton("Interact", options.onInteract);
@@ -94,6 +100,7 @@ export function createHud(options: HudOptions) {
     ...useButtons,
     readyButton,
     leaveButton,
+    controlsButton,
     voiceStatus.element,
     voiceButton,
   );
