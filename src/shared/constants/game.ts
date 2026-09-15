@@ -21,10 +21,13 @@ export const PLAYER_ATTACK_ARC_COS = 0.5;
 /** Reach for picking up loot, opening doors, and using exits. */
 export const INTERACT_RANGE = 1.2;
 
+/** Radius, in world units, visible around a player before carried torches exist as items. */
+export const PLAYER_LIGHT_RADIUS = 4.2;
+
 /** How long a downed player waits before returning at a spawn point with full health. */
 export const PLAYER_RESPAWN_MS = 5_000;
 
-export const MAX_INVENTORY_SIZE = 8;
+export const MAX_INVENTORY_SIZE = 3;
 
 export const TONIC_HEAL_AMOUNT = 35;
 

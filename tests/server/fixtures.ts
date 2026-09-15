@@ -19,6 +19,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     ready: false,
     connected: true,
     inventory: [],
+    discoveredTiles: new Set(),
     resumeToken: id.padEnd(32, "0"),
     disconnectedAt: null,
     nextMoveAt: null,

@@ -64,6 +64,7 @@ export function createSessionClient(options: SessionClientOptions) {
   let socket: SocketLike | null = null;
   let listeners: ((view: SessionView) => void)[] = [];
   let moveSequence = 0;
+  let attackSequence = 0;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -228,6 +229,28 @@ export function createSessionClient(options: SessionClientOptions) {
     sendMoveIntent(direction: Vector2): boolean {
       moveSequence += 1;
       return send({ type: "playerMoveIntent", sequence: moveSequence, direction });
+    },
+
+    sendAttack(direction: Vector2): boolean {
+      attackSequence += 1;
+      return send({
+        type: "playerAttack",
+        sequence: attackSequence,
+        direction,
+        targetId: null,
+      });
+    },
+
+    pickupItem(itemId: string): boolean {
+      return send({ type: "pickupItem", itemId });
+    },
+
+    interact(targetId: string): boolean {
+      return send({ type: "playerInteract", targetId });
+    },
+
+    useItem(itemId: string): boolean {
+      return send({ type: "useItem", itemId });
     },
 
     disconnect(): void {

@@ -33,6 +33,8 @@ export interface SessionPlayer {
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
+  /** Server-side memory of map tiles this player has seen at least once. */
+  discoveredTiles: Set<string>;
   /** Server-side only. Leaves the process solely in this player's own `sessionJoined`. */
   resumeToken: ResumeToken;
   /** When the socket dropped, or null while connected. Drives the reconnect grace window. */
@@ -213,6 +215,7 @@ export class SessionStore {
       ready: false,
       connected: true,
       inventory: [],
+      discoveredTiles: new Set(),
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
       nextMoveAt: null,

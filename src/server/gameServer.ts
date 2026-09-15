@@ -15,9 +15,10 @@ import {
 } from "../shared/protocol/index.js";
 import type { PlayerId } from "../shared/types/core.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
-import { cloneDungeonState, movePlayer } from "./game/dungeonState.js";
+import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
-import { SessionStore, rosterOf, toPlayerState, type Session } from "./sessions/sessionStore.js";
+import { visibilityFrameForPlayer } from "./game/visibility.js";
+import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
 
@@ -72,12 +73,16 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, { type: "sessionError", code, message });
   }
 
-  function snapshotOf(session: Session): ServerMessage {
+  function snapshotOf(session: Session, viewer: PlayerId): ServerMessage | null {
+    const player = session.players.get(viewer);
+    if (!player) return null;
+    const frame = visibilityFrameForPlayer(session, player);
+
     return {
       type: "stateSnapshot",
       tick: session.tick,
-      players: rosterOf(session),
-      dungeon: cloneDungeonState(session.dungeon),
+      players: frame.players,
+      dungeon: frame.dungeon,
     };
   }
 
@@ -91,10 +96,24 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     }
   }
 
+  function sendSnapshot(session: Session, playerId: PlayerId): void {
+    const socket = socketsByPlayer.get(playerId);
+    if (!socket) return;
+
+    const snapshot = snapshotOf(session, playerId);
+    if (snapshot) send(socket, snapshot);
+  }
+
+  function broadcastSnapshots(session: Session): void {
+    for (const player of session.players.values()) {
+      sendSnapshot(session, player.id);
+    }
+  }
+
   /** After an action changes the dungeon, advance the tick and send everyone the new state now. */
   function publish(session: Session): void {
     session.tick += 1;
-    broadcast(session, snapshotOf(session));
+    broadcastSnapshots(session);
   }
 
   const httpServer = createServer((request, response) => {
@@ -183,7 +202,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           resumeToken: player.resumeToken,
           resumed,
           tickRate: SERVER_TICK_RATE_HZ,
-          players: rosterOf(session),
+          players: visibilityFrameForPlayer(session, player).players,
         });
 
         broadcast(
@@ -351,7 +370,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (!hasAudience) continue;
 
       for (const attack of monsterAttacks) broadcast(session, attack);
-      broadcast(session, snapshotOf(session));
+      broadcastSnapshots(session);
     }
   }, tickIntervalMs);
 

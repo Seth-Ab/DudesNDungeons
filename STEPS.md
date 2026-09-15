@@ -10,15 +10,9 @@ Steps 1-6 in each track predate `GAMEDESCRIPTION.md` and are kept at their origi
 
 Ask before moving past these points.
 
-Resolved, with answers recorded in `PROGRESS.md`: visual style, movement model, combat model, voice behavior, and party size.
-
-Open, raised by `GAMEDESCRIPTION.md`:
-
-- Death and loss. The description says players keep items and skills between runs and lose only items on death, while the server currently stands a downed player back up at full health after five seconds. Decide what death means inside a run: downed and revivable by a teammate, dead and spectating until the party escapes, or sent back to the hub without what they carried.
-- The hybrid combat exchange. The resolved combat checkpoint asks for a turn-like tactical exchange, which the description never mentions; it describes stamina-gated real-time fighting instead, which is what the server already does. Confirm whether the exchange is still wanted or dropped.
-- Carry capacity. The description specifies three inventory slots; `MAX_INVENTORY_SIZE` is 8. Confirm three, and decide whether torches and keys spend a slot.
-- Identity for progression. Progression has to outlive a session, but players are currently anonymous names holding a per-session resume token. Decide between device-local profiles, a claimed name plus a secret, or real accounts.
-- Run length. How long one dungeon run should take. That number sets the resistance decay rate, the dungeon size, and how many rooms the generator stitches together.
+Resolved, with answers recorded in `PROGRESS.md`: visual style, movement model, combat model,
+voice behavior, party size, death and loss, hybrid combat direction, carry capacity, identity for
+progression, and target run length.
 
 ## Backend Dev
 
