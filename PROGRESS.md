@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev step 8 complete; frontend UI polish is in progress while Backend step 7 is being handled separately. The current frontend slice adds a Controls menu without changing shared protocol or server vitals work.
-- Last completed work: Frontend branch fast-forwarded to current `main`, then a controls overlay was added to list movement, dungeon action, inventory, party, and voice controls.
-- Next recommended step: Continue low-conflict frontend polish while Backend step 7 lands: exit/cleared feedback, action feedback cleanup, and pixel-art-style renderer polish.
+- Overall phase: Backend Dev steps 7 and 8 complete. Players now carry health, resistance, and stamina; resistance reduces every hit in one place, stamina prices swings, and a per-player run clock wears resistance down once the grace period passes. The server still sends each connected player a tailored snapshot based on server-owned light sources and line of sight. On the frontend, the Controls menu has landed alongside the new vitals bars.
+- Last completed work: Player vitals, resistance decay, and the run timer on protocol v5. See `docs/decisions/0006-player-vitals.md`.
+- Next recommended step: Backend step 9 (Procedural Dungeon Generation from Room Templates), because `content/` is still empty, `MONSTER_STATS` is still keyed by display name, and nothing in the model knows what a room is - which visibility, boss gating, and the hub all need. Backend step 5 (voice signaling) and step 6 (deployment readiness) remain open and are independent of it. Frontend polish that stays off shared protocol - exit/cleared feedback and pixel-art renderer work - can continue in parallel.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -40,7 +40,7 @@ Missing entirely, and now covered by new steps:
 - Rooms. The map is a flat tile grid with no notion of a room, which visibility, boss gating, and template stitching all need.
 - The hub world, and with it the run lifecycle, the torch supply, and storage.
 - Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
-- Resistance and stamina, and the decay that punishes a slow run. Players have health and nothing else.
+- ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
 - Skills, traps, cooperative puzzles, and bosses.
 - Carrying objects and downed players.
 - A camera. The renderer draws from the world origin, so the player does not hold the center of the screen.
@@ -96,11 +96,11 @@ Conflicts to resolve before building further:
 
 ### 7. Player Vitals: Resistance, Stamina, and the Run Timer
 
-- [ ] Add resistance and stamina to the server player record and to `playerState`.
-- [ ] Apply resistance as damage reduction in one place when a hit resolves.
-- [ ] Regenerate stamina over time; spend it on attacking, lifting, and carrying.
-- [ ] Decay resistance over time spent in the dungeon and warn the client.
-- [ ] Keep consumables and skills the only ways to raise resistance.
+- [x] Add resistance and stamina to the server player record and to `playerState`. Stored unrounded on `SessionPlayer`, rounded in `toPlayerState`.
+- [x] Apply resistance as damage reduction in one place when a hit resolves. `damagePlayer` in `src/server/game/vitals.ts` is the only thing that lowers a player's health.
+- [x] Regenerate stamina over time; spend it on attacking, lifting, and carrying. Regen and the attack cost are live. Lifting and carrying have their prices and their spend/drain API here but nothing to spend them on until Backend step 12, which has no carried-object state yet.
+- [x] Decay resistance over time spent in the dungeon and warn the client. Per-player clock, 10 minute grace, then 0.1/s; `stateSnapshot.run` carries the countdown.
+- [x] Keep consumables and skills the only ways to raise resistance. Added the `ward` item kind and a Warding Salve; nothing else raises it, including respawning.
 
 ### 8. Server-Authoritative Visibility and Lighting
 
@@ -211,10 +211,10 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 8. Vitals, Inventory, and Gameplay Controls
 
-- [ ] Show health, resistance, and stamina bars and three inventory slots. Three inventory slots are visible; resistance and stamina do not exist server-side yet.
-- [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on server support.
+- [x] Show health, resistance, and stamina bars and three inventory slots. All three bars render from server `playerState`; three inventory slots were already visible.
+- [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on Backend step 12.
 - [ ] Render loot, doors, exits, monster health, downed players, and cleared state. Loot, doors, exits, monster health, and downed players are done; cleared/run outcome UI remains.
-- [ ] Show combat results, refusals, and the resistance decay warning. Combat results and refusals are shown; resistance decay does not exist server-side yet.
+- [x] Show combat results, refusals, and the resistance decay warning. The HUD warns from `stateSnapshot.run` a minute before decay starts, then while it is falling.
 
 ### 9. Hub World and Run Flow
 
@@ -376,3 +376,19 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Added a HUD `Controls` button and overlay styling.
   - Kept Backend step 7 surfaces untouched while that work happens separately.
   - Verified: `npm run typecheck:client`, `npm run build:client`, and `npm run lint`.
+- Completed Backend step 7, Player Vitals: Resistance, Stamina, and the Run Timer, on `feature/player-vitals`:
+  - Added `src/server/game/vitals.ts`, which owns health, resistance, and stamina. `damagePlayer` is now the only function that lowers a player's health, and it applies resistance itself, so a trap or a boss added later cannot forget the reduction.
+  - Chose `scale / (scale + resistance)` for the reduction rather than a linear percentage: diminishing returns, 100 resistance halves a hit, and no value reaches immunity. A hit scaled below one point still costs one.
+  - Added resistance and stamina to `SessionPlayer` and `playerState`. They are stored unrounded, because decay moves resistance by fractions of a point per tick, and rounded in `toPlayerState` for broadcast.
+  - Made resistance decay a per-player clock rather than a party-wide one, since `GAMEDESCRIPTION.md` says "if you stay in the duengon too long" and a player who joined late has not. `enteredDungeonAt` is stamped by the first simulation step, because the session store runs on wall time while the simulation runs on a monotonic clock. Backend step 10 resets it on leaving the hub.
+  - Tuned decay against the 15-20 minute target run length: 10 minutes of grace, then 0.1 resistance per second, so base resistance is gone around minute 17. A step straddling the boundary decays only the part of itself past it.
+  - Priced a swing at 15 stamina against 12/s regen and the 500ms cooldown, which is about eleven back-to-back swings before stamina paces combat instead of the cooldown. A swing refused for any other reason is charged nothing.
+  - Kept consumables the only way resistance goes up: added the `ward` item kind and a Warding Salve to the Ember Vault. Respawning restores health and stamina but not resistance, so dying is not a way to undo the run clock.
+  - Protocol v5, breaking: `playerState` gained `resistance` and `stamina`, `stateSnapshot` gained a per-viewer `run` clock, `rejectionReason` gained `exhausted`, and `itemKind` gained `ward`. Recorded in `docs/decisions/0006-player-vitals.md`.
+  - Partial by design: stamina costs for lifting and carrying are defined here with `spendStamina`/`drainStamina` to pay them, but nothing spends them. Carried objects and downed-player carrying have no model or protocol yet; that is Backend step 12, and building it here would have duplicated that step. `STEPS.md` now says so on both steps.
+  - Closed two Frontend step 8 items along the way: the HUD draws health, resistance, and stamina bars from server state, and warns from `stateSnapshot.run` a minute before decay starts and again while it is falling.
+  - Tests grew from 152 to 175, including a new `tests/server/vitals.test.ts` (20 cases) and an e2e assertion that vitals and the run clock reach a real socket. `tests/server/combat.test.ts` now pins resistance to 0 where it is measuring monster cooldowns, and gained a case asserting the reduction itself.
+  - Smoke-tested against a live server built from `dist/`: joined with resistance 40 and stamina 100, had the 11th consecutive swing refused as `exhausted`, and landed a swing again after the bar recovered.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (175/175 passing, stable across nine consecutive runs), and `npm run build`. Not yet exercised in a browser.
+  - Known flake, pre-existing and unrelated: one full-suite run failed `tests/e2e/session.test.ts > accepts movement intent and broadcasts the authoritative position`, which races a tick snapshot against the move-driven one. It did not recur in nine further runs.
+  - Merged the Controls menu from `main` (PR #10). The only overlap was the HUD and its stylesheet; the controls overlay and the vitals bars are independent.

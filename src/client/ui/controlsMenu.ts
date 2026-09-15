@@ -14,7 +14,7 @@ const CONTROL_GROUPS: ControlGroup[] = [
   {
     title: "Dungeon",
     controls: [
-      { input: "Space", action: "Attack" },
+      { input: "Space", action: "Attack (costs stamina)" },
       { input: "F", action: "Pick up nearby loot" },
       { input: "E", action: "Interact with doors and exits" },
       { input: "1 / 2 / 3", action: "Use inventory slot" },

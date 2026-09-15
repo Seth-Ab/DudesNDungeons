@@ -35,6 +35,8 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     position,
     facing: { x: 0, y: 1 },
     health: 100,
+    resistance: 40,
+    stamina: 100,
     ready: false,
     connected: true,
     inventory: [],

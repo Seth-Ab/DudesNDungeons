@@ -3,6 +3,8 @@ import {
   MAX_INVENTORY_SIZE,
   MAX_PLAYER_NAME_LENGTH,
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_RESISTANCE,
+  PLAYER_MAX_STAMINA,
   RESUME_TOKEN_LENGTH,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -36,8 +38,8 @@ export const monsterStateSchema = z.object({
 });
 export type MonsterState = z.infer<typeof monsterStateSchema>;
 
-/** What an item does. Keys open locked doors; tonics restore health. */
-export const itemKindSchema = z.enum(["key", "tonic"]);
+/** What an item does. Keys open locked doors; tonics restore health; wards restore resistance. */
+export const itemKindSchema = z.enum(["key", "tonic", "ward"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const lootStateSchema = z.object({
@@ -132,8 +134,31 @@ export const playerStateSchema = z.object({
   facing: vector2Schema,
   /** Zero means downed: the player cannot act until the server respawns them. */
   health: z.number().int().min(0).max(PLAYER_MAX_HEALTH),
+  /**
+   * General damage reduction. Raised only by consumables and unlocked skills, never by resting or
+   * respawning, and worn down by time spent in the dungeon.
+   */
+  resistance: z.number().int().min(0).max(PLAYER_MAX_RESISTANCE),
+  /** Spent on attacking, lifting, and carrying; regenerates on its own. */
+  stamina: z.number().int().min(0).max(PLAYER_MAX_STAMINA),
   ready: z.boolean(),
   connected: z.boolean(),
   inventory: z.array(inventoryItemSchema).max(MAX_INVENTORY_SIZE),
 });
 export type PlayerState = z.infer<typeof playerStateSchema>;
+
+/**
+ * The run clock for the receiving player, carried on every snapshot. Snapshots are already
+ * per-player, so this is that player's own time in the dungeon rather than a party-wide number.
+ * It exists so a client can warn before resistance decay starts instead of only after it bites.
+ */
+export const runStateSchema = z.object({
+  /** How long this player has been in the dungeon. */
+  elapsedMs: z.number().nonnegative(),
+  /** Time left before resistance starts falling. Zero once it has. */
+  decayStartsInMs: z.number().nonnegative(),
+  decaying: z.boolean(),
+  /** Resistance lost per second while decaying. Zero before decay starts. */
+  decayPerSecond: z.number().nonnegative(),
+});
+export type RunState = z.infer<typeof runStateSchema>;

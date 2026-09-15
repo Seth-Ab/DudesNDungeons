@@ -18,6 +18,7 @@ import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
 import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
+import { runStateFor } from "./game/vitals.js";
 import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -83,6 +84,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       tick: session.tick,
       players: frame.players,
       dungeon: frame.dungeon,
+      // The run clock belongs to the viewer, not the party: a player who joined late has been in
+      // the dungeon for less time and their resistance reflects that.
+      run: runStateFor(player, now()),
     };
   }
 

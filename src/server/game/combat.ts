@@ -1,9 +1,11 @@
 import {
+  ATTACK_STAMINA_COST,
   PLAYER_ATTACK_ARC_COS,
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_STAMINA,
   PLAYER_RESPAWN_MS,
 } from "../../shared/constants/game.js";
 import { distance, isOpen, normalizeDirection } from "../../shared/game/movement.js";
@@ -11,6 +13,7 @@ import type { RejectionReason, ServerMessage } from "../../shared/protocol/index
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { findSpawnPoint, isDown, monsterStatsFor } from "./dungeonState.js";
+import { advanceVitals, damagePlayer, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
 
@@ -27,7 +30,11 @@ const POINT_BLANK_DISTANCE = 1e-6;
 /**
  * Resolves a melee swing. With `targetId`, that monster must be alive and in reach; without one, the
  * swing hits the nearest living monster in front of the player. A swing that hits nothing still
- * resolves and still costs the cooldown, so swinging in every direction at once gains nothing.
+ * resolves and still costs the cooldown and the stamina, so swinging in every direction at once
+ * gains nothing.
+ *
+ * Stamina is checked after reach and cooldown but charged only once the swing is going to happen,
+ * so a refused swing never costs anything.
  */
 export function resolvePlayerAttack(
   session: Session,
@@ -65,6 +72,10 @@ export function resolvePlayerAttack(
     target = session.dungeon.monsters.find((monster) => monster.id === targetId && monster.alive);
     if (!target) return { ok: false, reason: "targetMissing" };
     if (!inReach(target)) return { ok: false, reason: "outOfRange" };
+  }
+
+  if (!spendStamina(player, ATTACK_STAMINA_COST)) {
+    return { ok: false, reason: "exhausted" };
   }
 
   player.facing = heading;
@@ -113,6 +124,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
       : Math.min(Math.max(now - session.simulatedAt, 0), MAX_SIMULATION_STEP_MS);
   session.simulatedAt = now;
 
+  advanceVitals(session, now, elapsedMs);
   respawnPlayers(session, now);
 
   const events: AttackEvent[] = [];
@@ -133,6 +145,9 @@ function respawnPlayers(session: Session, now: number): void {
     // Still downed while the spawn point is chosen, so this player does not block their own spawn.
     player.position = findSpawnPoint(session);
     player.health = PLAYER_MAX_HEALTH;
+    player.stamina = PLAYER_MAX_STAMINA;
+    // Resistance is deliberately not restored. Dying must not reset the run clock's pressure, or
+    // a worn-down party would have a free way to undo it.
     player.respawnAt = null;
     player.nextMoveAt = null;
     player.nextAttackAt = null;
@@ -158,8 +173,8 @@ function actMonster(
   if (now < readyAt) return null;
 
   session.monsterCooldowns.set(monster.id, now + stats.attackCooldownMs);
-  const dealt = Math.min(stats.damage, target.health);
-  target.health -= dealt;
+  // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
+  const dealt = damagePlayer(target, stats.damage);
   if (isDown(target)) target.respawnAt = now + PLAYER_RESPAWN_MS;
 
   return {

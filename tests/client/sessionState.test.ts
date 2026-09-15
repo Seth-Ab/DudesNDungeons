@@ -6,7 +6,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
-import type { DungeonState, PlayerState } from "../../src/shared/types/core.js";
+import type { DungeonState, PlayerState, RunState } from "../../src/shared/types/core.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const ALLY_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
@@ -18,11 +18,18 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     position: { x: 0, y: 0 },
     facing: { x: 0, y: 1 },
     health: 100,
+    resistance: 40,
+    stamina: 100,
     ready: false,
     connected: true,
     inventory: [],
     ...overrides,
   };
+}
+
+/** A run clock a minute into an untimed dungeon: nothing decaying yet. */
+function run(): RunState {
+  return { elapsedMs: 60_000, decayStartsInMs: 540_000, decaying: false, decayPerSecond: 0 };
 }
 
 function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
@@ -140,11 +147,33 @@ describe("snapshots", () => {
       tick: 7,
       players: [player(SELF_ID, { health: 42 }), player(ALLY_ID)],
       dungeon: dungeon(),
+      run: run(),
     });
 
     expect(view.tick).toBe(7);
     expect(selfOf(view)?.health).toBe(42);
     expect(view.dungeon?.map.id).toBe("ember-vault");
+  });
+
+  it("adopts the run clock, which the HUD needs to warn before resistance falls", () => {
+    let view = joinedView();
+    expect(view.run).toBeNull();
+
+    view = applyServerMessage(view, {
+      type: "stateSnapshot",
+      tick: 1,
+      players: [player(SELF_ID, { resistance: 12, stamina: 30 })],
+      dungeon: dungeon(),
+      run: { elapsedMs: 601_000, decayStartsInMs: 0, decaying: true, decayPerSecond: 0.1 },
+    });
+
+    expect(view.run).toEqual({
+      elapsedMs: 601_000,
+      decayStartsInMs: 0,
+      decaying: true,
+      decayPerSecond: 0.1,
+    });
+    expect(selfOf(view)).toMatchObject({ resistance: 12, stamina: 30 });
   });
 
   it("discards a snapshot older than the one already applied", () => {
@@ -154,12 +183,14 @@ describe("snapshots", () => {
       tick: 7,
       players: [player(SELF_ID, { health: 42 })],
       dungeon: dungeon(),
+      run: run(),
     });
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 6,
       players: [player(SELF_ID, { health: 100 })],
       dungeon: dungeon({ map: { id: "old", name: "Old", width: 1, height: 1, tiles: ["."] } }),
+      run: run(),
     });
 
     expect(view.tick).toBe(7);

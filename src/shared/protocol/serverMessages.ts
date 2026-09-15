@@ -6,6 +6,7 @@ import {
   playerStateSchema,
   resumeTokenSchema,
   roomCodeSchema,
+  runStateSchema,
   sessionIdSchema,
 } from "../types/core.js";
 import { voiceSignalSchema } from "./voice.js";
@@ -29,6 +30,8 @@ export const rejectionReasonSchema = z.enum([
   "onCooldown",
   "notPermitted",
   "targetMissing",
+  /** The action costs more stamina than the player has. Distinct from a cooldown: waiting is longer. */
+  "exhausted",
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 
@@ -80,12 +83,18 @@ export const playerReadyChangedSchema = z.object({
   ready: z.boolean(),
 });
 
-/** Authoritative world state. Clients render from this rather than from their own predictions. */
+/**
+ * Authoritative world state. Clients render from this rather than from their own predictions.
+ *
+ * Per-player since protocol v4: this is the receiving player's visible frame, and `run` is that
+ * player's own run clock.
+ */
 export const stateSnapshotSchema = z.object({
   type: z.literal("stateSnapshot"),
   tick: z.number().int().nonnegative(),
   players: z.array(playerStateSchema),
   dungeon: dungeonStateSchema,
+  run: runStateSchema,
 });
 
 export const attackResolvedSchema = z.object({

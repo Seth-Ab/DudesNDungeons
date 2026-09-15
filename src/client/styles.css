@@ -214,6 +214,66 @@ button:disabled {
   display: none;
 }
 
+.hud__vitals {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.hud__bar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #d8ceb1;
+}
+
+.hud__bar-label {
+  min-width: 5rem;
+}
+
+.hud__bar-track {
+  width: 7rem;
+  height: 0.55rem;
+  border: 1px solid #332f2b;
+  background: #101114;
+}
+
+.hud__bar-fill {
+  height: 100%;
+  transition: width 120ms linear;
+}
+
+.hud__bar-fill--health {
+  background: #b5514c;
+}
+
+.hud__bar-fill--resistance {
+  background: #4c7fb5;
+}
+
+.hud__bar-fill--stamina {
+  background: #a9b54c;
+}
+
+.hud__bar-value {
+  min-width: 2rem;
+  text-align: right;
+}
+
+/* Louder than .hud__error: this one is a countdown the player can still act on. */
+.hud__warning {
+  flex-basis: 100%;
+  margin: 0;
+  color: #e0b64f;
+  font-size: 0.82rem;
+}
+
+.hud__warning[hidden] {
+  display: none;
+}
 .controls-menu {
   position: fixed;
   inset: 0;

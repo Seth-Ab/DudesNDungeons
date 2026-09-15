@@ -3,12 +3,14 @@ import {
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
   TONIC_HEAL_AMOUNT,
+  WARD_RESISTANCE_AMOUNT,
 } from "../../shared/constants/game.js";
 import { distance } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { DoorState, EntityId, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { restoreResistance } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
 
@@ -54,6 +56,11 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
       // Refused at full health, so a misclick cannot waste the only tonic.
       if (player.health >= PLAYER_MAX_HEALTH) return reject("notPermitted");
       player.health = Math.min(PLAYER_MAX_HEALTH, player.health + TONIC_HEAL_AMOUNT);
+      break;
+    case "ward":
+      // Consumables are one of only two ways resistance ever goes up; the other is unlocked skills.
+      // Refused at the cap for the same reason a tonic is refused at full health.
+      if (!restoreResistance(player, WARD_RESISTANCE_AMOUNT)) return reject("notPermitted");
       break;
     case "key":
       // Keys are spent by interacting with a locked door, not used on their own.
