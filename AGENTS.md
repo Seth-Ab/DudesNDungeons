@@ -55,7 +55,14 @@ For multiplayer features, include tests for invalid input, disconnected players,
 
 ## Commit & Pull Request Guidelines
 
-The current Git history only shows an initial commit (`First`), so no detailed convention exists yet. Use short, imperative commit messages such as `Add session manager` or `Validate movement bounds`.
+Git history now favors short, imperative subject lines such as `Add session and player management`, `Fix movement pacing, spawn stacking, and client prediction`, and `Implement authoritative dungeon state`. Keep that style as the project convention:
+
+- Start with an imperative verb such as `Add`, `Fix`, `Implement`, `Document`, `Update`, `Align`, or `Verify`.
+- Describe the changed behavior or artifact in plain language; avoid vague subjects such as `Changes`, `Updates`, or `WIP`.
+- Keep the subject line concise, generally 72 characters or fewer, with no trailing period.
+- Use an optional body when context, tradeoffs, protocol changes, or follow-up work would help reviewers.
+- Let GitHub generate merge commit subjects for pull requests, such as `Merge pull request #7 from contributor/feature-client-networking`.
+- Use `Revert "<original subject>"` when reverting a prior change.
 
 Use `.github/pull_request_template.md` for every pull request. Keep reports concise and reviewer-friendly: summarize the change, list test results, include screenshots or recordings for visible gameplay changes, and call out backend/frontend contract changes, networking assumptions, or security-sensitive areas.
 
