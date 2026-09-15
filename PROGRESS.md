@@ -4,9 +4,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend server-authoritative visibility slice in progress. The server now sends each connected player a tailored snapshot based on their light radius and line of sight, remembers discovered tiles, and filters unseen monsters, loot, exits, and player positions out of that player's frame.
-- Last completed work: Per-player visibility snapshots, discovered geometry, and client rendering support for unknown/discovered tiles on top of protocol v3.
-- Next recommended step: Finish Backend step 8's remaining light-source and voice work: model carried torches, fixed map lights, and lit monsters explicitly, then gate proximity voice distances on the same visibility/room rules. After that, continue Frontend step 8 with resistance/stamina bars, drop/carry controls, and run outcome UI after the server owns those concepts.
+- Overall phase: Backend Dev step 8 complete. The server sends each connected player a tailored snapshot based on server-owned light sources and line of sight, remembers discovered tiles, filters unseen monsters, loot, exits, and player positions out of that player's frame, and gates voice range updates on the same visibility rules.
+- Last completed work: Server-authoritative visibility, lighting, and voice range on protocol v4. See `docs/decisions/0005-visibility-lighting-and-voice.md`.
+- Next recommended step: Backend step 7 (Player Vitals: Resistance, Stamina, and the Run Timer), because combat pacing, carrying, death, and target run length now need server-owned stamina/resistance before the frontend can honestly show those bars.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -104,11 +104,11 @@ Conflicts to resolve before building further:
 
 ### 8. Server-Authoritative Visibility and Lighting
 
-- [ ] Model carried torches, fixed map lights, and lit monsters. Current pass models only the player's innate light radius.
+- [x] Model carried torches, fixed map lights, and lit monsters.
 - [x] Compute per-player visibility each tick from light radius and line of sight.
 - [x] Replace the party-wide snapshot with a per-player one.
 - [x] Track discovered tiles per player and keep sending them as unlit geometry.
-- [ ] Gate proximity voice distances on the same visibility rules.
+- [x] Gate proximity voice distances on the same visibility rules.
 - [x] Test that an unseen player is absent from the frame, not merely dimmed.
 
 ### 9. Procedural Dungeon Generation from Room Templates
@@ -364,3 +364,10 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Added renderer support for unknown and discovered tile markers.
   - Added visibility tests and updated the e2e token-privacy assertion now that snapshots no longer include far-away loot by default.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (150/150 passing; required local server permission outside the sandbox), and `npm run build`.
+- Finished Backend step 8:
+  - Added protocol v4 light source state to `dungeonState`.
+  - Modeled server-owned carried torches, fixed dungeon lights, and monster glow for visibility.
+  - Sent visible light sources to the client and rendered them as small light markers.
+  - Sent `voiceRangeUpdated` from the same visible-player frame, so unseen peers are omitted and visible peers get distance falloff.
+  - Recorded the contract in `docs/decisions/0005-visibility-lighting-and-voice.md`.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (152/152 passing; required local server permission outside the sandbox), and `npm run build`.

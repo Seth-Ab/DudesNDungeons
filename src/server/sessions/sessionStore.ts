@@ -33,6 +33,8 @@ export interface SessionPlayer {
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
+  /** Current prototype starts each player with the hub torch equipped. */
+  carryingTorch: boolean;
   /** Server-side memory of map tiles this player has seen at least once. */
   discoveredTiles: Set<string>;
   /** Server-side only. Leaves the process solely in this player's own `sessionJoined`. */
@@ -215,6 +217,7 @@ export class SessionStore {
       ready: false,
       connected: true,
       inventory: [],
+      carryingTorch: true,
       discoveredTiles: new Set(),
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,

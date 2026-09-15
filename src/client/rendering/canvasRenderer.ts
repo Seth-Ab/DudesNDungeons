@@ -18,6 +18,7 @@ const colors = {
   loot: "#d6a84c",
   door: "#8f6335",
   exit: "#6aa36f",
+  light: "#f0c66a",
   label: "#f7f0da",
   shadow: "#06070a",
 };
@@ -150,6 +151,10 @@ export function createCanvasRenderer(getScene: () => Scene) {
     scene.dungeon.doors.forEach((door) =>
       drawMarker(door.position, door.open ? "#3d3a2d" : colors.door, 34, camera),
     );
+    scene.dungeon.lightSources.forEach((light) => {
+      const size = light.kind === "fixed" ? 14 : 10;
+      drawMarker(light.position, colors.light, size, camera);
+    });
     scene.dungeon.exits.forEach((exit) => drawMarker(exit.position, colors.exit, 28, camera));
     scene.dungeon.loot
       .filter((loot) => !loot.pickedUp)
