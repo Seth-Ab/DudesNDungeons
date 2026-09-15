@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import { PROTOCOL_VERSION } from "../../src/shared/constants/game.js";
+import {
+  ATTACK_STAMINA_COST,
+  PLAYER_BASE_RESISTANCE,
+  PLAYER_MAX_STAMINA,
+  PROTOCOL_VERSION,
+  RESISTANCE_DECAY_GRACE_MS,
+} from "../../src/shared/constants/game.js";
 import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
@@ -285,6 +291,26 @@ describe("joining a dungeon", () => {
     const snapshot = await client.next("stateSnapshot");
     expect(snapshot.players[0]?.inventory).toEqual([]);
     expect(snapshot.dungeon.cleared).toBe(false);
+  });
+
+  it("sends vitals and the run clock to a real client", async () => {
+    const roomCode = await createRoom();
+    const { client, joined } = await joinRoom(roomCode, "Alpha");
+
+    expect(joined.players[0]).toMatchObject({
+      resistance: PLAYER_BASE_RESISTANCE,
+      stamina: PLAYER_MAX_STAMINA,
+    });
+
+    client.send({ type: "playerAttack", sequence: 1, direction: { x: 1, y: 0 }, targetId: null });
+    await client.next("attackResolved");
+
+    const snapshot = await client.next("stateSnapshot");
+    expect(snapshot.players[0]?.stamina).toBeLessThanOrEqual(
+      PLAYER_MAX_STAMINA - ATTACK_STAMINA_COST + 1,
+    );
+    expect(snapshot.run.decaying).toBe(false);
+    expect(snapshot.run.decayStartsInMs).toBeGreaterThan(RESISTANCE_DECAY_GRACE_MS - 5_000);
   });
 });
 

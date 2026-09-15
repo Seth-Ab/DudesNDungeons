@@ -102,6 +102,13 @@ const FIXED_DUNGEON: DungeonState = {
       position: { x: 4, y: 6 },
       pickedUp: false,
     },
+    {
+      id: "99999999-9999-4999-8999-999999999999",
+      name: "Warding Salve",
+      kind: "ward",
+      position: { x: 7, y: 1 },
+      pickedUp: false,
+    },
   ],
   doors: [
     {

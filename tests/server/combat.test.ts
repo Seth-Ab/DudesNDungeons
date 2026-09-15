@@ -127,7 +127,8 @@ describe("monster behavior", () => {
   });
 
   it("attacks a player in reach, no faster than its cooldown", () => {
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 } });
+    // Zero resistance, so this test measures the monster's cooldown rather than damage reduction.
+    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, resistance: 0 });
     const session = testSession([player]);
     const { damage, attackCooldownMs } = impStats();
     const impHits = (now: number) =>
@@ -148,6 +149,18 @@ describe("monster behavior", () => {
     expect(player.health).toBe(PLAYER_MAX_HEALTH - 2 * damage);
   });
 
+  it("reports the damage resistance actually let through", () => {
+    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, resistance: 100 });
+    const session = testSession([player]);
+    const { damage } = impStats();
+
+    const [hit] = simulate(session, 0).filter((event) => event.attackerId === ASH_IMP_ID);
+
+    // 100 resistance halves the hit, and the event reports what landed, not what was swung.
+    expect(hit).toMatchObject({ damage: damage / 2, targetHealth: PLAYER_MAX_HEALTH - damage / 2 });
+    expect(player.health).toBe(PLAYER_MAX_HEALTH - damage / 2);
+  });
+
   it("closes to attack range without walking into the player", () => {
     const player = testPlayer("alpha", { position: { x: 8, y: 1 } });
     const session = testSession([player]);
@@ -162,7 +175,7 @@ describe("monster behavior", () => {
   });
 
   it("downs a player, leaves them alone, and respawns them with full health", () => {
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, health: 1 });
+    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, health: 1, resistance: 0 });
     const session = testSession([player]);
 
     const [hit] = simulate(session, 0);

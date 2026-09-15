@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -10,6 +10,44 @@ export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;
 export const PLAYER_MOVE_SPEED = 2.5;
 
 export const PLAYER_MAX_HEALTH = 100;
+
+/**
+ * Resistance is the general defensive stat from `GAMEDESCRIPTION.md`. It never regenerates: only
+ * consumables and, later, unlocked skills raise it, and time in the dungeon takes it away.
+ */
+export const PLAYER_MAX_RESISTANCE = 100;
+export const PLAYER_BASE_RESISTANCE = 40;
+/**
+ * A hit is scaled by `scale / (scale + resistance)`. Diminishing returns, so stacking resistance is
+ * always worth something and no amount of it makes a player immune.
+ */
+export const RESISTANCE_DAMAGE_SCALE = 100;
+
+/**
+ * How long a player may stay in the dungeon before resistance starts falling. Chosen against the
+ * 15-20 minute target run length: a party moving at pace escapes before decay ever bites.
+ */
+export const RESISTANCE_DECAY_GRACE_MS = 10 * 60_000;
+/** Resistance lost per second once the grace period is over. Base resistance is gone in ~6.7 min. */
+export const RESISTANCE_DECAY_PER_SECOND = 0.1;
+/** How far ahead of the grace period the client warns the player. Shared so both sides agree. */
+export const RESISTANCE_DECAY_WARNING_MS = 60_000;
+
+/** Resistance restored by a warding consumable. */
+export const WARD_RESISTANCE_AMOUNT = 25;
+
+export const PLAYER_MAX_STAMINA = 100;
+/** Stamina restored per second. Refills an empty bar in a little over eight seconds. */
+export const STAMINA_REGEN_PER_SECOND = 12;
+/**
+ * Cost of one swing. Against `PLAYER_ATTACK_COOLDOWN_MS` and the regen rate, a full bar buys about
+ * eleven back-to-back swings before combat is paced by stamina rather than by the cooldown.
+ */
+export const ATTACK_STAMINA_COST = 15;
+/** Cost of lifting an object or a downed player. Spent by Backend step 12. */
+export const LIFT_STAMINA_COST = 20;
+/** Drain per second while carrying something. Spent by Backend step 12. */
+export const CARRY_STAMINA_DRAIN_PER_SECOND = 6;
 
 export const PLAYER_ATTACK_DAMAGE = 6;
 /** Center-to-center reach of a swing, in world units. */

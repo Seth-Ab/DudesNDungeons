@@ -2,7 +2,9 @@ import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import {
   EMPTY_SESSION_TTL_MS,
   MAX_PARTY_SIZE,
+  PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_STAMINA,
   PLAYER_SPAWN_FACING,
   RECONNECT_GRACE_MS,
   ROOM_CODE_ALPHABET,
@@ -30,6 +32,13 @@ export interface SessionPlayer {
   facing: Vector2;
   /** Zero means downed: the player cannot act, blocks nobody, and waits for `respawnAt`. */
   health: number;
+  /**
+   * Damage reduction, stored unrounded because decay moves it by fractions of a point per tick.
+   * Only `src/server/game/vitals.ts` writes it.
+   */
+  resistance: number;
+  /** Action budget, stored unrounded for the same reason. */
+  stamina: number;
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
@@ -47,6 +56,12 @@ export interface SessionPlayer {
   nextAttackAt: number | null;
   /** Server clock time a downed player returns, or null while standing. */
   respawnAt: number | null;
+  /**
+   * Server clock time this player entered the dungeon, which is when their resistance clock starts.
+   * Set on join today; Backend step 10 resets it when a party leaves the hub. Null until the first
+   * simulation step gives the store a monotonic reading to use.
+   */
+  enteredDungeonAt: number | null;
 }
 
 export interface Session {
@@ -214,6 +229,8 @@ export class SessionStore {
       position: findSpawnPoint(session),
       facing: { ...PLAYER_SPAWN_FACING },
       health: PLAYER_MAX_HEALTH,
+      resistance: PLAYER_BASE_RESISTANCE,
+      stamina: PLAYER_MAX_STAMINA,
       ready: false,
       connected: true,
       inventory: [],
@@ -224,6 +241,7 @@ export class SessionStore {
       nextMoveAt: null,
       nextAttackAt: null,
       respawnAt: null,
+      enteredDungeonAt: null,
     };
 
     session.players.set(player.id, player);
@@ -301,7 +319,8 @@ export class SessionStore {
 
 /**
  * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and the pacing and respawn timers,
- * which are never broadcast.
+ * which are never broadcast. Resistance and stamina are rounded here: they move by fractions of a
+ * point per tick on the server, and a HUD bar has no use for that precision.
  */
 export function toPlayerState(player: SessionPlayer): PlayerState {
   return {
@@ -310,6 +329,8 @@ export function toPlayerState(player: SessionPlayer): PlayerState {
     position: { ...player.position },
     facing: { ...player.facing },
     health: player.health,
+    resistance: Math.round(player.resistance),
+    stamina: Math.round(player.stamina),
     ready: player.ready,
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),

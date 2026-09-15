@@ -296,6 +296,7 @@ describe("parseServerMessage", () => {
         ],
         cleared: false,
       },
+      run: { elapsedMs: 1_000, decayStartsInMs: 599_000, decaying: false, decayPerSecond: 0 },
     };
 
     const result = parseServerMessage(serializeServerMessage(message));
@@ -315,6 +316,8 @@ describe("parseServerMessage", () => {
         position: { x: 2, y: 2 },
         facing: { x: 0, y: 1 },
         health: 0,
+        resistance: 40,
+        stamina: 100,
         ready: true,
         connected: true,
         inventory: [{ id: TARGET_ID, name: "Minor Tonic", kind: "tonic" }],

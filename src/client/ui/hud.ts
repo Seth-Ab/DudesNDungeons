@@ -1,6 +1,12 @@
 import type { VoiceStatus } from "../audio/proximityAudio.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
-import type { InventoryItem, Vector2 } from "../../shared/types/core.js";
+import {
+  PLAYER_MAX_HEALTH,
+  PLAYER_MAX_RESISTANCE,
+  PLAYER_MAX_STAMINA,
+  RESISTANCE_DECAY_WARNING_MS,
+} from "../../shared/constants/game.js";
+import type { InventoryItem, RunState, Vector2 } from "../../shared/types/core.js";
 
 interface HudOptions {
   onEnableVoice: () => void;
@@ -35,6 +41,19 @@ export function createHud(options: HudOptions) {
   const positionStatus = createStat("Position", "-");
   const voiceStatus = createStat("Voice", "voice disabled");
   const actionStatus = createStat("Action", "-");
+
+  const healthBar = createBar("Health", "health");
+  const resistanceBar = createBar("Resistance", "resistance");
+  const staminaBar = createBar("Stamina", "stamina");
+
+  const vitals = document.createElement("div");
+  vitals.className = "hud__vitals";
+  vitals.append(healthBar.element, resistanceBar.element, staminaBar.element);
+
+  // Its own line, not folded into the error box: decay is a timer running out, not a failed action.
+  const decayWarning = document.createElement("p");
+  decayWarning.className = "hud__warning";
+  decayWarning.hidden = true;
 
   const errorBox = document.createElement("p");
   errorBox.className = "hud__error";
@@ -80,6 +99,8 @@ export function createHud(options: HudOptions) {
     roomStatus.element,
     positionStatus.element,
     actionStatus.element,
+    vitals,
+    decayWarning,
     errorBox,
   );
 
@@ -131,6 +152,14 @@ export function createHud(options: HudOptions) {
       leaveButton.disabled = !inSession;
 
       const self = selfOf(view);
+      healthBar.set(self?.health ?? 0, PLAYER_MAX_HEALTH);
+      resistanceBar.set(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE);
+      staminaBar.set(self?.stamina ?? 0, PLAYER_MAX_STAMINA);
+
+      const warning = inSession ? decayMessage(view.run) : "";
+      decayWarning.textContent = warning;
+      decayWarning.hidden = warning === "";
+
       const canAct = inSession && (self?.health ?? 0) > 0;
       attackButton.disabled = !canAct;
       pickupButton.disabled = !canAct;
@@ -159,6 +188,49 @@ export function createHud(options: HudOptions) {
           return item;
         }),
       );
+    },
+  };
+}
+
+/**
+ * What to say about resistance decay. Silent until the server says decay is close, so the warning
+ * means something when it does appear.
+ */
+function decayMessage(run: RunState | null): string {
+  if (!run) return "";
+  if (run.decaying) return "Resistance is falling. Get out of the dungeon.";
+  if (run.decayStartsInMs > RESISTANCE_DECAY_WARNING_MS) return "";
+
+  return `Resistance starts falling in ${Math.ceil(run.decayStartsInMs / 1000)}s.`;
+}
+
+/** A labelled fill bar. The server owns the numbers; this only draws them. */
+function createBar(label: string, modifier: string) {
+  const element = document.createElement("div");
+  element.className = "hud__bar";
+
+  const name = document.createElement("span");
+  name.className = "hud__bar-label";
+  name.textContent = label;
+
+  const track = document.createElement("div");
+  track.className = "hud__bar-track";
+
+  const fill = document.createElement("div");
+  fill.className = `hud__bar-fill hud__bar-fill--${modifier}`;
+  track.append(fill);
+
+  const value = document.createElement("span");
+  value.className = "hud__bar-value";
+
+  element.append(name, track, value);
+
+  return {
+    element,
+    set(current: number, max: number) {
+      const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
+      fill.style.width = `${ratio * 100}%`;
+      value.textContent = `${Math.round(current)}`;
     },
   };
 }

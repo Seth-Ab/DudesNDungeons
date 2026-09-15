@@ -62,7 +62,7 @@ progression, and target run length.
 
 - Add resistance and stamina to the server's player record and to the broadcast `playerState`, next to health.
 - Apply resistance as damage reduction in one place, when a hit resolves, so no caller can forget it.
-- Regenerate stamina over time and spend it on attacking, lifting objects, and carrying another player.
+- Regenerate stamina over time and spend it on attacking, lifting objects, and carrying another player. Lifting and carrying have no representation in the model yet, so step 7 sets their prices and step 12 spends them.
 - Decay resistance the longer the party stays in the dungeon, so a slow run gets progressively more dangerous, and send the client enough to warn the player before it bites.
 - Keep consumables and unlocked skills the only ways to raise resistance.
 
@@ -107,7 +107,7 @@ Lighting is a core pillar, so it belongs on the server. A client that receives t
 - Add traps as server-resolved triggers with effects on health, resistance, or stamina.
 - Add puzzle objects that need two or more players at once, such as paired levers and held pressure plates. These are what make a dark room worth talking through on voice.
 - Add boss monsters with their own stats and rooms that gate on defeating them.
-- Add lifting and carrying for objects and for downed players, priced in stamina and paid for with a movement penalty.
+- Add lifting and carrying for objects and for downed players, spending the stamina costs step 7 defined and paying a movement penalty.
 
 ## Frontend Dev
 
