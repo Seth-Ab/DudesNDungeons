@@ -5,9 +5,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Backend Dev steps 7, 8, 9, and 13 complete, with Frontend step 11. Dungeons are generated from room templates held in `content/`, seeded so a run replays exactly, and are now built at four times the authored scale on each axis: a corridor is wide enough for a party of four to walk abreast, and a torch lights rather less of a room than it used to.
-- Last completed work: Added validated skill and upgrade authoring infrastructure alongside the
-  existing live item content. Profile persistence, unlocking, and effect application remain Backend
-  step 11 work.
+- Last completed work: Closed the last open item of Frontend step 7. The dungeon draws from a pixel-art tilesheet baked from reviewable text art: autotiled walls, weighted flagstone variants, torch pillars, doors, loot, and exit stairs. Two bugs left over from the scale change were fixed along the way, both of which made doors unusable: no closed door was ever sent to a client, and no locked door could be opened from the UI.
 - Next recommended step: Backend step 10 (Hub World and Run Lifecycle). The hub is another authored dungeon, which the content layer already supports, and step 10 is what resolves the two standing conflicts below: respawn-at-full-health, and an exit that sets `cleared` instead of ending the run. Backend step 5 (voice signaling, half done) and step 6 (deployment readiness) remain open and are independent of it.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
@@ -163,6 +161,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 - [x] Scale only coordinates. Light radii, monster speeds, and reach stay in world units and are authored as they are used; the schema says which is which.
 - [x] Grow speed and light by less than the map. Speed 2.5 to 6, light and voice by `LIGHT_SCALE` of 3, so the dungeon is larger and darker rather than merely further away.
 - [x] Give a doorway the width of its opening. `doorState.size`, honoured by collision, line of sight, and reach.
+  - Two bugs in that width surfaced on 2026-09-18 while drawing the door art, both from the one-tile assumptions the block replaced. Line of sight exempted only a door's centre tile, so a closed door hid behind itself and was never sent to any client; and the client still measured interact reach to the centre while the server measured to the face, so no locked door could be opened from the UI. Fixed with `distanceToDoor` in `src/shared/game/movement.ts`, now shared by both sides.
 - [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`.
 
 ## Frontend Dev Progress
@@ -230,7 +229,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Draw only what the server sent; leave undiscovered space black.
 - [x] Add a local light mask for the player. Torches, map lights, and lit monsters still need explicit server light-source data.
 - [x] Draw discovered-but-unlit geometry dim rather than absent.
-- [ ] Replace flat rectangles with pixel-art dungeon tiles and props.
+- [x] Replace flat rectangles with pixel-art dungeon tiles and props. Done on `feature/pixel-art-tiles`; players and monsters stay flat figures for Frontend step 6.
 
 ### 8. Vitals, Inventory, and Gameplay Controls
 
@@ -471,3 +470,23 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Struck through two Direction Alignment entries that Backend step 8 and Frontend step 7 had already closed but that were never updated: darkness and limited sight, and the camera.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (209/209 passing), and `npm run build`. Not yet exercised in a browser.
   - Known gap, and the thing most likely to want tuning after the next playtest: reach is now small relative to a tile. Loot sits at the centre of a 4x4 block, so a player walks to it rather than near it.
+
+### 2026-09-18
+
+- Completed the last open item of Frontend step 7, pixel-art dungeon tiles and props, on `feature/pixel-art-tiles`:
+  - Authored the art as text under `assets/sprites/source/dungeon.tiles.json` and baked it to `assets/sprites/dungeon.png` with `npm run build:sprites`. A pull request that moves a flagstone now shows which pixels moved, the same way `content/` shows which monster got faster, and an artist can still overwrite the PNG directly because nothing in the client reads the source.
+  - Put the sheet's contents and layout in `src/client/rendering/tiles.ts`, which is free of the DOM so the baker, the renderer, and the node test environment all read one declaration. `tests/client/spriteSheet.test.ts` re-bakes and compares bytes, so the PNG cannot drift from the art it came from.
+  - Composed the sixteen wall cells from one fill and four edge strips rather than authoring them. Hand-drawn, the corner cells would have drifted a pixel from the straight cells beside them, and it would only have shown up on a stretch of wall nobody had walked yet. The south face is painted over the side lips, which is why there are no corner sprites at all.
+  - Autotiled walls against their neighbours, counting unknown and off-window tiles as wall. Treating undiscovered space as floor would cut a lit lip into the wall wherever the viewer's knowledge stops, which both looks wrong and draws the shape of what they have not explored onto their screen.
+  - Weighted floor variants 24:3:3:2 toward plain after the first look in a browser. An even split put a crack or a chip on every other world tile, because a world tile is a quarter of an authored one, and the floor read as rubble under a hailstorm. Variants are picked from a hash of the coordinates, so a cracked flagstone stays put across frames, clients, and reconnects.
+  - Kept a flat-colour fallback for the frames before the sheet decodes and for a sheet that never arrives, so a failed load is a plain dungeon rather than a black screen.
+  - Read door orientation off the map, since `doorState` carries a span but no orientation. Closed doors tile their leaf over the whole opening; open ones are two jambs so the floor shows through.
+  - Left players and monsters as flat figures. `STEPS.md` Frontend step 6 already owns sprites, and directional character art is a larger job than this step's wording covers.
+  - Fixed two bugs found by looking at the result in a browser, both fallout from Backend step 13 making single-tile things into 4x4 blocks:
+    - A closed door made every tile it covered opaque, including its own, so line of sight to the door's centre tile was blocked by the door itself. `discoveredTiles` never gained that tile and **no closed door was ever sent to any client**. The exemption in `hasLineOfSight` covered one tile, which was right while a door was one tile. It now covers the whole door being looked at, and still does not let anyone see past it.
+    - The client picked its interact target by distance to a door's **centre** while the server judged reach to the nearest point of its span, which Backend step 13 had already fixed server-side. Standing at the face of a locked door, the client refused to send the interact the server would have accepted, so **no locked door could be opened from the UI**. The geometry is now `distanceToDoor` in `src/shared/game/movement.ts`, used by both sides, which is what `AGENTS.md` asks for and what would have prevented the drift.
+  - Tests grew from 212 to 251: `tests/client/tiles.test.ts` (22), `tests/client/spriteSheet.test.ts` (10), `tests/shared/doorReach.test.ts` (5), and two visibility cases pinning that a closed door is visible and still opaque. The closed-door case was checked to fail without the fix rather than assumed to cover it.
+  - Verified every sprite in a browser against a live server: flagstones with sparse damage, autotiled wall lips and south faces, the torch pillar with its glow, a carried flame above the head, the copper key and the minor tonic, the sealed vault door drawn across its whole opening with the lock plate at its centre, the same door open as two jambs with floor showing between them, and the exit stairs filling their authored tile.
+  - Recorded the choices in `docs/decisions/0009-pixel-art-tiles.md`.
+  - No protocol change. The sheet is 1.4 kB and lands under Vite's inline limit, so it ships as a data URI in the bundle rather than a second request.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (251/251), and `npm run build`.

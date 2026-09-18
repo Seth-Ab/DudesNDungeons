@@ -5,7 +5,7 @@ import {
   TONIC_HEAL_AMOUNT,
   WARD_RESISTANCE_AMOUNT,
 } from "../../shared/constants/game.js";
-import { distance } from "../../shared/game/movement.js";
+import { distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { DoorState, EntityId, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
@@ -27,19 +27,11 @@ function withinReach(player: SessionPlayer, position: Vector2): boolean {
 /**
  * Whether a player standing at the face of a doorway can reach it.
  *
- * Measured to the nearest point of the door's span rather than to its centre. A doorway is a
- * `TILE_SCALE` block, so its centre is two world units from its face while `INTERACT_RANGE` is a
- * body's reach - a party would walk up to a locked door, be refused, and have to step into the
- * doorway they cannot enter to open it.
+ * The geometry is `distanceToDoor` in `src/shared/game/movement.ts`, so the client picks its
+ * interact target by the same rule the server judges it against.
  */
 function withinReachOfDoor(player: SessionPlayer, door: DoorState): boolean {
-  const half = door.size / 2;
-  const nearest = {
-    x: Math.min(Math.max(player.position.x, door.position.x - half), door.position.x + half),
-    y: Math.min(Math.max(player.position.y, door.position.y - half), door.position.y + half),
-  };
-
-  return distance(player.position, nearest) <= INTERACT_RANGE;
+  return distanceToDoor(player.position, door) <= INTERACT_RANGE;
 }
 
 /** The acting player, or null when they are missing or downed and so cannot act at all. */

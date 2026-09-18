@@ -14,6 +14,7 @@
     "build": "npm run build:server && npm run build:client",
     "build:server": "tsc -p tsconfig.build.json",
     "build:client": "tsc -p tsconfig.client.json --noEmit && vite build",
+    "build:sprites": "tsx scripts/buildSprites.ts",
     "start": "node dist/server/index.js",
     "preview": "vite preview",
     "test": "vitest run",

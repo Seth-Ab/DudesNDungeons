@@ -210,7 +210,7 @@ Out of scope here: real movement and collision (Backend step 3), combat (step 4)
 - Draw only what the server sent, and leave undiscovered space black.
 - Add a light mask: a small radius around the local player, plus carried torches, map lights, and lit monsters.
 - Draw discovered-but-unlit geometry dim rather than absent, so a player can navigate back through a room they have already crossed.
-- Replace the flat colored rectangles with pixel-art dungeon tiles and props, matching the resolved visual style.
+- Replace the flat colored rectangles with pixel-art dungeon tiles and props, matching the resolved visual style. Tiles and static props only; player and monster sprites are Frontend step 6.
 
 ### 8. Vitals, Inventory, and Gameplay Controls
 

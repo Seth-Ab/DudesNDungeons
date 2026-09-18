@@ -46,6 +46,12 @@ function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
  * Whether nothing solid stands between two points. The target's own tile is never in the way, so a
  * wall you are looking at is lit rather than hidden behind itself.
  *
+ * A closed door is one object spread over `TILE_SCALE` squared tiles, so the exemption has to cover
+ * the whole of it rather than the single tile the ray was aimed at. Exempting one tile was correct
+ * while a door was one tile; once `TILE_SCALE` made it a 4x4 block, the fifteen other tiles of a
+ * door sat between the viewer and its centre and blocked sight of it. The door hid behind itself,
+ * so `discoveredTiles` never gained its centre tile, and no closed door was ever sent to anyone.
+ *
  * Walks the grid one tile boundary at a time rather than sampling the ray at a fixed interval.
  * Sampling was fine when a torch reached four tiles; at `TILE_SCALE` it reaches thirteen, every
  * light covers sixteen times the tiles, and a fixed-interval walk costs five samples per tile
@@ -54,9 +60,17 @@ function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
  */
 function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): boolean {
   const target = tileOf(to);
+  // The closed door the ray is aimed at, if any. Every tile of that one door is the target.
+  const targetDoor = dungeon.doors.find(
+    (door) => !door.open && coversTile(door, target.x, target.y),
+  );
+  const reachedTarget = (tileX: number, tileY: number): boolean =>
+    (tileX === target.x && tileY === target.y) ||
+    (targetDoor !== undefined && coversTile(targetDoor, tileX, tileY));
+
   let x = Math.round(from.x);
   let y = Math.round(from.y);
-  if (x === target.x && y === target.y) return true;
+  if (reachedTarget(x, y)) return true;
 
   // A light buried in a wall lights nothing, which is how a fixed-interval walk behaved too.
   if (isOpaque(dungeon, x, y)) return false;
@@ -85,7 +99,7 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
       nextY += deltaY;
     }
 
-    if (x === target.x && y === target.y) return true;
+    if (reachedTarget(x, y)) return true;
     if (isOpaque(dungeon, x, y)) return false;
   }
 

@@ -111,6 +111,27 @@ export function coversTile(door: DoorState, tileX: number, tileY: number): boole
   return Math.abs(tileX - door.position.x) < half && Math.abs(tileY - door.position.y) < half;
 }
 
+/**
+ * How far a point is from the nearest part of a doorway, rather than from its centre.
+ *
+ * A door is authored as one tile and becomes a `TILE_SCALE` block, so its centre sits two world
+ * units inside it while `INTERACT_RANGE` is a body's reach. Measured to the centre, a party walks
+ * up to a locked door, is refused, and has to step into the doorway they cannot enter to open it.
+ *
+ * Shared because it was not: the server measured to the nearest point and the client measured to
+ * the centre, so the client silently refused to send an interact the server would have accepted,
+ * and no locked door could be opened from the UI at all. One definition, per `AGENTS.md`.
+ */
+export function distanceToDoor(position: Vector2, door: DoorState): number {
+  const half = door.size / 2;
+  const nearest = {
+    x: Math.min(Math.max(position.x, door.position.x - half), door.position.x + half),
+    y: Math.min(Math.max(position.y, door.position.y - half), door.position.y + half),
+  };
+
+  return distance(position, nearest);
+}
+
 /** A closed door fills its whole doorway, like a wall, so nothing can slip past its corners. */
 function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
   const tile = tileOf(position);
