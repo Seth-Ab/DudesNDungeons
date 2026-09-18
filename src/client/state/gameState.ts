@@ -83,7 +83,6 @@ export function createPlaceholderDungeon(): DungeonState {
     loot: [],
     doors: [],
     exits: [],
-    cleared: false,
   };
 }
 

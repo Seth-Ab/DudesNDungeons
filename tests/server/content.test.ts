@@ -44,6 +44,8 @@ describe("the shipped content", () => {
     expect(content.skills.has("iron-will")).toBe(true);
     expect(content.upgrades.has("iron-will-steeled")).toBe(true);
     expect(content.templates.size).toBeGreaterThan(0);
+    expect(content.items.get("travelers-torch")?.kind).toBe("torch");
+    expect(content.dungeons.has("hub")).toBe(true);
     expect(content.dungeons.has("ember-vault")).toBe(true);
     expect(content.dungeons.has("vault-run")).toBe(true);
   });

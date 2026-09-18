@@ -26,7 +26,6 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     doors: [],
     exits: [],
     lightSources: [],
-    cleared: false,
     ...overrides,
   };
 }
@@ -43,6 +42,8 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     ready: false,
     connected: true,
     inventory: [],
+    carryingTorch: false,
+    bankedItems: [],
     ...overrides,
   };
 }

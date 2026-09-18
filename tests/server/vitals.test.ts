@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePlayerAttack, simulate } from "../../src/server/game/combat.js";
+import { resolvePlayerAttack } from "../../src/server/game/combat.js";
 import { pickupItem, useItem } from "../../src/server/game/items.js";
 import {
   advanceVitals,
@@ -17,7 +17,6 @@ import {
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
-  PLAYER_RESPAWN_MS,
   RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_PER_SECOND,
   STAMINA_REGEN_PER_SECOND,
@@ -163,23 +162,6 @@ describe("stamina gates attacking", () => {
     expect(player.stamina).toBe(afterOneSwing);
   });
 
-  it("comes back with a full bar on respawn, but not with resistance restored", () => {
-    const player = testPlayer("alpha", {
-      position: at(11, 2, -0.9),
-      health: 1,
-      stamina: 0,
-      resistance: 3,
-    });
-    const session = testSession([player]);
-
-    simulate(session, 0);
-    expect(player.health).toBe(0);
-
-    simulate(session, PLAYER_RESPAWN_MS);
-
-    expect(player.stamina).toBe(PLAYER_MAX_STAMINA);
-    expect(player.resistance).toBe(3);
-  });
 });
 
 describe("the run timer", () => {

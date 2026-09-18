@@ -49,7 +49,7 @@ export type MonsterType = z.infer<typeof monsterTypeSchema>;
 export const itemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "tonic", "ward"]),
+  kind: z.enum(["key", "tonic", "ward", "torch"]),
 });
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 

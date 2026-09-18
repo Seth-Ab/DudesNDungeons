@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Superseded in part: Decision 0009 removes timed respawn; downed players now remain down until the
+  run ends or future revive/carry mechanics resolve them.
 
 ## Context
 

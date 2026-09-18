@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -92,7 +92,7 @@ export const PLAYER_ATTACK_ARC_COS = 0.5;
 /** Reach for picking up loot, opening doors, and using exits. */
 export const INTERACT_RANGE = 1.2;
 
-/** Radius, in world units, visible around a player carrying the default hub torch. */
+/** Radius, in world units, visible around a player carrying a deliberately picked-up torch. */
 export const PLAYER_TORCH_LIGHT_RADIUS = 12.6;
 
 /** Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. */
@@ -114,9 +114,6 @@ export const MONSTER_GLOW_LIGHT_RADIUS = 7.2;
  * its edge within one snapshot.
  */
 export const SNAPSHOT_VIEW_RADIUS_TILES = 64;
-
-/** How long a downed player waits before returning at a spawn point with full health. */
-export const PLAYER_RESPAWN_MS = 5_000;
 
 export const MAX_INVENTORY_SIZE = 3;
 

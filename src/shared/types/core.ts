@@ -67,8 +67,10 @@ export const monsterStateSchema = z.object({
 });
 export type MonsterState = z.infer<typeof monsterStateSchema>;
 
-/** What an item does. Keys open locked doors; tonics restore health; wards restore resistance. */
-export const itemKindSchema = z.enum(["key", "tonic", "ward"]);
+/**
+ * What an item does. Torches equip separately and never consume one of the three inventory slots.
+ */
+export const itemKindSchema = z.enum(["key", "tonic", "ward", "torch"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const lootStateSchema = z.object({
@@ -165,10 +167,12 @@ export const dungeonStateSchema = z.object({
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),
   lightSources: z.array(lightSourceStateSchema),
-  /** True once a player has used an exit. */
-  cleared: z.boolean(),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;
+
+/** The whole party shares one place; fresh players may only join while it is the hub. */
+export const sessionLocationSchema = z.enum(["hub", "dungeon"]);
+export type SessionLocation = z.infer<typeof sessionLocationSchema>;
 
 export const playerIdSchema = z.string().uuid();
 export type PlayerId = z.infer<typeof playerIdSchema>;
@@ -204,11 +208,11 @@ export const playerStateSchema = z.object({
   name: playerNameSchema,
   position: vector2Schema,
   facing: vector2Schema,
-  /** Zero means downed: the player cannot act until the server respawns them. */
+  /** Zero means downed: the player cannot act until revived or returned to the hub. */
   health: z.number().int().min(0).max(PLAYER_MAX_HEALTH),
   /**
    * General damage reduction. Raised only by consumables and unlocked skills, never by resting or
-   * respawning, and worn down by time spent in the dungeon.
+   * returning to the hub, and worn down by time spent in the dungeon.
    */
   resistance: z.number().int().min(0).max(PLAYER_MAX_RESISTANCE),
   /** Spent on attacking, lifting, and carrying; regenerates on its own. */
@@ -216,6 +220,10 @@ export const playerStateSchema = z.object({
   ready: z.boolean(),
   connected: z.boolean(),
   inventory: z.array(inventoryItemSchema).max(MAX_INVENTORY_SIZE),
+  /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
+  carryingTorch: z.boolean(),
+  /** Session-local until Backend step 11 persists a device profile. */
+  bankedItems: z.array(inventoryItemSchema),
 });
 export type PlayerState = z.infer<typeof playerStateSchema>;
 

@@ -28,6 +28,7 @@
   ],
   "loot": [
     { "itemId": "minor-tonic", "min": 0, "max": 2 },
-    { "itemId": "warding-salve", "min": 0, "max": 1 }
+    { "itemId": "warding-salve", "min": 0, "max": 1 },
+    { "itemId": "travelers-torch", "min": 0, "max": 1 }
   ]
 }

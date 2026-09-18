@@ -132,6 +132,22 @@ async function joinRoom(roomCode: string, name: string, resumeToken?: string) {
   return { client, joined };
 }
 
+/** Ready one-player tests and use the authored hub entrance through the real socket contract. */
+async function enterDungeon(roomCode: string, client: TestClient) {
+  client.send({ type: "setReady", ready: true });
+  await client.next("playerReadyChanged");
+
+  const session = server.store.getSession(roomCode);
+  if (!session) throw new Error("expected session");
+  const entrance = session.dungeon.exits[0];
+  const player = [...session.players.values()][0];
+  if (!entrance || !player) throw new Error("expected hub entrance and player");
+
+  player.position = { ...entrance.position };
+  client.send({ type: "playerInteract", targetId: entrance.id });
+  return client.nextWhere("stateSnapshot", (snapshot) => snapshot.location === "dungeon");
+}
+
 beforeEach(async () => {
   server = createGameServer({
     // The authored dungeon, so the assertions below can name a map and known entity positions.
@@ -272,7 +288,8 @@ describe("joining a dungeon", () => {
       (message) => (message.players[0]?.position.x ?? start) > start,
     );
     expect(snapshot.players[0]?.position.x).toBeGreaterThan(start);
-    expect(snapshot.dungeon.map.id).toBe("ember-vault");
+    expect(snapshot.location).toBe("hub");
+    expect(snapshot.dungeon.map.id).toBe("hub");
   });
 
   it("caps movement speed no matter how fast intents arrive", async () => {
@@ -304,6 +321,7 @@ describe("joining a dungeon", () => {
   it("resolves a swing at nothing and refuses loot out of reach", async () => {
     const roomCode = await createRoom();
     const { client } = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, client);
 
     client.send({ type: "playerAttack", sequence: 1, direction: { x: 1, y: 0 }, targetId: null });
     const swing = await client.next("attackResolved");
@@ -315,7 +333,7 @@ describe("joining a dungeon", () => {
 
     const snapshot = await client.next("stateSnapshot");
     expect(snapshot.players[0]?.inventory).toEqual([]);
-    expect(snapshot.dungeon.cleared).toBe(false);
+    expect(snapshot.location).toBe("dungeon");
   });
 
   it("sends vitals and the run clock to a real client", async () => {
@@ -326,6 +344,8 @@ describe("joining a dungeon", () => {
       resistance: PLAYER_BASE_RESISTANCE,
       stamina: PLAYER_MAX_STAMINA,
     });
+
+    await enterDungeon(roomCode, client);
 
     client.send({ type: "playerAttack", sequence: 1, direction: { x: 1, y: 0 }, targetId: null });
     await client.next("attackResolved");
@@ -359,8 +379,9 @@ describe("resume tokens stay private", () => {
 
     expect(JSON.stringify(snapshot)).not.toContain(alpha.joined.resumeToken);
     expect(snapshot.players[0]).not.toHaveProperty("resumeToken");
-    expect(snapshot.dungeon.map.id).toBe("ember-vault");
-    expect(snapshot.dungeon.loot.map((loot) => loot.name)).not.toContain("Copper Key");
+    expect(snapshot.location).toBe("hub");
+    expect(snapshot.dungeon.map.id).toBe("hub");
+    expect(snapshot.dungeon.loot.map((loot) => loot.name)).toContain("Traveler's Torch");
   });
 });
 
@@ -376,6 +397,87 @@ describe("ready state", () => {
     const event = await seen;
     expect(event.playerId).toBe(alpha.joined.playerId);
     expect(event.ready).toBe(true);
+  });
+});
+
+describe("hub and run lifecycle", () => {
+  it("starts only when the whole connected party is ready", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode);
+    if (!session) throw new Error("expected session");
+    const entrance = session.dungeon.exits[0]!;
+    session.players.get(alpha.joined.playerId)!.position = { ...entrance.position };
+
+    alpha.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    alpha.client.send({ type: "playerInteract", targetId: entrance.id });
+    expect((await alpha.client.next("actionRejected")).reason).toBe("notPermitted");
+
+    beta.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    alpha.client.send({ type: "playerInteract", targetId: entrance.id });
+
+    const snapshot = await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.location === "dungeon",
+    );
+    expect(snapshot.dungeon.map.id).toBe("ember-vault");
+    expect(snapshot.players.every((player) => !player.ready)).toBe(true);
+  });
+
+  it("equips a deliberately picked-up hub torch without spending an inventory slot", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const session = server.store.getSession(roomCode);
+    if (!session) throw new Error("expected session");
+    const player = session.players.get(alpha.joined.playerId)!;
+    const torch = session.dungeon.loot.find((loot) => loot.kind === "torch")!;
+    player.position = { ...torch.position };
+
+    alpha.client.send({ type: "pickupItem", itemId: torch.id });
+    const equipped = await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.players[0]?.carryingTorch === true,
+    );
+
+    expect(equipped.players[0]?.inventory).toEqual([]);
+    expect(equipped.players[0]?.carryingTorch).toBe(true);
+  });
+
+  it("refuses a fresh join during a run while leaving reconnect available", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, alpha.client);
+
+    const late = await TestClient.connect();
+    late.join(roomCode, "Late");
+
+    expect((await late.next("sessionError")).code).toBe("runInProgress");
+  });
+
+  it("wipes an all-downed party to the hub and takes carried items", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, alpha.client);
+
+    const session = server.store.getSession(roomCode)!;
+    const player = session.players.get(alpha.joined.playerId)!;
+    player.inventory = [
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        name: "Minor Tonic",
+        kind: "tonic",
+      },
+    ];
+    player.health = 0;
+
+    const hub = await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.location === "hub",
+    );
+    expect(hub.players[0]).toMatchObject({ health: 100, inventory: [], bankedItems: [] });
   });
 });
 

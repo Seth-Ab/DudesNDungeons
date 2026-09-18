@@ -5,8 +5,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 
 ## Directories
 
-- `items/`: live item definitions. Items can already spawn as loot, enter a three-slot inventory,
-  and be used by the authoritative server. Supported kinds are `key`, `tonic`, and `ward`.
+- `items/`: live item definitions. Keys, tonics, and wards use the three-slot inventory. Torches
+  equip separately and must be deliberately picked up in the hub or dungeon.
 - `monsters/`: monster stats used by authored and generated dungeons.
 - `dungeons/templates/`: reusable rooms for procedural generation.
 - `dungeons/`: authored dungeons and generated-dungeon profiles.

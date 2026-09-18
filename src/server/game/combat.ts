@@ -4,15 +4,12 @@ import {
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
-  PLAYER_MAX_HEALTH,
-  PLAYER_MAX_STAMINA,
-  PLAYER_RESPAWN_MS,
 } from "../../shared/constants/game.js";
 import { distance, isOpen, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
-import { findSpawnPoint, isDown, monsterStatsFor } from "./dungeonState.js";
+import { isDown, monsterStatsFor } from "./dungeonState.js";
 import { advanceVitals, damagePlayer, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
@@ -44,7 +41,9 @@ export function resolvePlayerAttack(
   now: number,
 ): AttackResult {
   const player = session.players.get(playerId);
-  if (!player || isDown(player)) return { ok: false, reason: "notPermitted" };
+  if (session.location !== "dungeon" || !player || isDown(player)) {
+    return { ok: false, reason: "notPermitted" };
+  }
 
   const heading = normalizeDirection(direction);
   if (!heading) return { ok: false, reason: "outOfRange" };
@@ -113,11 +112,12 @@ export function resolvePlayerAttack(
 }
 
 /**
- * Advances everything that happens without player input: respawns, monsters chasing, and monsters
- * attacking. `now` is the server's monotonic clock in ms. Returns the monster attacks that landed,
- * for broadcast.
+ * Advances dungeon-only simulation: vitals, monsters chasing, and monsters attacking. Downed
+ * players stay down until Backend step 12 adds revival/carrying or the run returns to the hub.
  */
 export function simulate(session: Session, now: number): AttackEvent[] {
+  if (session.location !== "dungeon") return [];
+
   const elapsedMs =
     session.simulatedAt === null
       ? 0
@@ -125,7 +125,6 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   session.simulatedAt = now;
 
   advanceVitals(session, now, elapsedMs);
-  respawnPlayers(session, now);
 
   const events: AttackEvent[] = [];
   for (const monster of session.dungeon.monsters) {
@@ -136,22 +135,6 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   }
 
   return events;
-}
-
-function respawnPlayers(session: Session, now: number): void {
-  for (const player of session.players.values()) {
-    if (player.respawnAt === null || now < player.respawnAt) continue;
-
-    // Still downed while the spawn point is chosen, so this player does not block their own spawn.
-    player.position = findSpawnPoint(session);
-    player.health = PLAYER_MAX_HEALTH;
-    player.stamina = PLAYER_MAX_STAMINA;
-    // Resistance is deliberately not restored. Dying must not reset the run clock's pressure, or
-    // a worn-down party would have a free way to undo it.
-    player.respawnAt = null;
-    player.nextMoveAt = null;
-    player.nextAttackAt = null;
-  }
 }
 
 function actMonster(
@@ -175,7 +158,6 @@ function actMonster(
   session.monsterCooldowns.set(monster.id, now + stats.attackCooldownMs);
   // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
   const dealt = damagePlayer(target, stats.damage);
-  if (isDown(target)) target.respawnAt = now + PLAYER_RESPAWN_MS;
 
   return {
     type: "attackResolved",

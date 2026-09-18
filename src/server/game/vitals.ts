@@ -86,9 +86,11 @@ export function timeInDungeon(player: SessionPlayer, now: number): number {
  * so being downed is not also a second, invisible punishment.
  */
 export function advanceVitals(session: Session, now: number, elapsedMs: number): void {
+  if (session.location !== "dungeon") return;
+
+  // Normal runs set this at the hub transition. Keep the fallback for deterministic unit fixtures
+  // and imported sessions that begin directly in a dungeon.
   for (const player of session.players.values()) {
-    // The store mints players without a clock reading, because its clock is wall time and this one
-    // is monotonic. The first simulation step that sees a player starts their run clock.
     if (player.enteredDungeonAt === null) player.enteredDungeonAt = now;
   }
 
