@@ -88,11 +88,22 @@ Lighting is a core pillar, so it belongs on the server. A client that receives t
 
 ### 10. Hub World and Run Lifecycle
 
-- Add the hub as its own place: lit, monster-free, with an entrance to the dungeon.
-- Start players in the hub instead of in the dungeon, and generate a fresh dungeon when the party enters.
-- Give the hub a torch supply and storage that holds items between runs.
-- Make the exit room end the run and return survivors to the hub.
-- Decide and implement what happens to a player who dies mid-run, and to a party that escapes without them.
+Owner decisions: the hub is the party's shared social and planning space, including room for later
+quest surfaces. The party moves as one: a standing player may use the entrance only when every
+reserved member is connected and ready. A fresh join waits until the party returns; reconnecting to
+an existing slot still works during a run.
+
+- Add the hub as its own lit, monster-free authored place with a dungeon entrance, using the existing
+  `#`/`.` alphabet so visual tile work remains independent.
+- Start players in the hub and generate a fresh dungeon only when the unanimously ready party uses
+  the entrance. Reset readiness for the next planning phase.
+- Give the hub four deliberate torch pickups and put torches sparsely in generated dungeons. Torches
+  are separate from the three inventory slots; a player who forgets one enters without one.
+- Keep a session-local item bank between runs. Persistence across sessions belongs to step 11.
+- Make the dungeon exit bank standing survivors' carried items and return the entire party to a
+  rebuilt hub. Downed or abandoned players lose their carried items.
+- Remove timed auto-respawn. Downed players remain down for later revive/carry mechanics; an
+  all-downed party wipes to the hub and everyone loses their current carry.
 
 ### 11. Roguelite Progression and Persistence
 
@@ -216,7 +227,7 @@ Out of scope here: real movement and collision (Backend step 3), combat (step 4)
 
 - Show health, resistance, and stamina bars, and three inventory slots.
 - Add controls for attack, interact, pickup, use, drop, and carry. None of these exist yet, which is why the party cannot finish a dungeon the server is fully able to run.
-- Render loot, doors, exits, monster health, downed players, and the cleared state.
+- Render loot, doors, exits, monster health, downed players, and hub/run outcome state.
 - Show server-confirmed combat results, refusals, and a warning as resistance decays.
 
 ### 9. Hub World and Run Flow

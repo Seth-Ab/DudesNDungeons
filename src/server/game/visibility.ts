@@ -301,7 +301,6 @@ function visibleDungeon(
         ...light,
         position: { ...light.position },
       })),
-    cleared: session.dungeon.cleared,
   };
 }
 

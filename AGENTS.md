@@ -25,6 +25,16 @@ This repository is currently at planning/scaffold stage. Keep new source code or
 
 Avoid mixing client-only browser code with server logic. Shared protocol definitions should live in one place so clients and the server cannot drift.
 
+## World State & Rendering Boundary
+
+The server owns whether a party is in the hub or a dungeon, unanimous-ready checks, run generation,
+escape/wipe outcomes, torch ownership, and banked items. Clients send interaction intent and render
+the authoritative snapshot; they must not locally advance the run lifecycle.
+
+Authored maps currently use only `#` and `.`. Adding a tile character is a coordinated content,
+collision, protocol, and renderer change. Backend lifecycle work should keep that alphabet and avoid
+`src/client/rendering/` and `assets/`, so renderer and pixel-art work can proceed independently.
+
 ## Build, Test, and Development Commands
 
 Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint for backend and shared code.

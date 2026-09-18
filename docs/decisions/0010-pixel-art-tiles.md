@@ -1,4 +1,4 @@
-# 0009 - Pixel-Art Tiles and Props
+# 0010 - Pixel-Art Tiles and Props
 
 Date: 2026-09-18
 Status: Accepted
@@ -53,6 +53,7 @@ already owns sprites, and directional character art is a larger job than this st
   than as a second request.
 - The renderer keeps its flat-colour path for the frames before the sheet decodes and for a sheet
   that never arrives, so a failed load is a plain dungeon rather than a black screen.
+- Loot sprites are an exhaustive `Record<ItemKind, SpriteName>` rather than a lookup with a default. Backend step 10 added a `torch` kind while this was in flight and the client build refused it until the art existed, which is the intent: a new item should fail loudly, not spawn on the floor wearing something else.
 - Adding a tile character is a one-line change in `tileLook`. Until then an unrecognised character
   draws as lit floor, which is the forgiving direction: drawing a wall where there is none would
   tell a player they cannot walk somewhere the server will let them walk.

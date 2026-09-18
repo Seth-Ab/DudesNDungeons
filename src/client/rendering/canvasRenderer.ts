@@ -75,6 +75,7 @@ const lootSprites: Record<ItemKind, SpriteName> = {
   key: "loot-key",
   tonic: "loot-tonic",
   ward: "loot-ward",
+  torch: "loot-torch",
 };
 
 export interface Scene {

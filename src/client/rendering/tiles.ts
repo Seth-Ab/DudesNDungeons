@@ -77,6 +77,9 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["loot-key", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
+  // Unlit, because this is a torch lying on the floor. The flame is `torch-flame`, drawn over the
+  // player once they are carrying it and it is an active light source.
+  ["loot-torch", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
 ];
 

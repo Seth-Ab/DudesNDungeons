@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-12
+- Superseded in part: Decision 0009 replaces timed respawn and the `cleared` exit flag with the hub
+  lifecycle, survivor banking, and downed-player loss.
 
 ## Context
 

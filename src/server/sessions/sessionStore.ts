@@ -20,17 +20,23 @@ import type {
   PlayerState,
   ResumeToken,
   RoomCode,
+  SessionLocation,
   SessionId,
   Vector2,
 } from "../../shared/types/core.js";
-import { buildDungeon, findSpawnPoint, type DungeonRequest } from "../game/dungeonState.js";
+import {
+  buildDungeon,
+  findSpawnPoint,
+  HUB_DUNGEON_ID,
+  type DungeonRequest,
+} from "../game/dungeonState.js";
 
 export interface SessionPlayer {
   id: PlayerId;
   name: PlayerName;
   position: Vector2;
   facing: Vector2;
-  /** Zero means downed: the player cannot act, blocks nobody, and waits for `respawnAt`. */
+  /** Zero means downed: the player cannot act and blocks nobody until the run ends or they revive. */
   health: number;
   /**
    * Damage reduction, stored unrounded because decay moves it by fractions of a point per tick.
@@ -42,8 +48,10 @@ export interface SessionPlayer {
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
-  /** Current prototype starts each player with the hub torch equipped. */
+  /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
+  /** Items carried out alive. Session-local until Backend step 11 adds persistent profiles. */
+  bankedItems: InventoryItem[];
   /** Server-side memory of map tiles this player has seen at least once. */
   discoveredTiles: Set<string>;
   /**
@@ -60,12 +68,9 @@ export interface SessionPlayer {
   nextMoveAt: number | null;
   /** Server clock time the next attack is allowed, or null before the first. */
   nextAttackAt: number | null;
-  /** Server clock time a downed player returns, or null while standing. */
-  respawnAt: number | null;
   /**
    * Server clock time this player entered the dungeon, which is when their resistance clock starts.
-   * Set on join today; Backend step 10 resets it when a party leaves the hub. Null until the first
-   * simulation step gives the store a monotonic reading to use.
+   * Set when a ready party leaves the hub. Null in the hub.
    */
   enteredDungeonAt: number | null;
 }
@@ -75,6 +80,10 @@ export interface Session {
   roomCode: RoomCode;
   createdAt: number;
   dungeon: DungeonState;
+  /** The party always shares one place, which keeps voice, visibility, and snapshots coherent. */
+  location: SessionLocation;
+  /** What to generate when the ready party uses the hub entrance. */
+  runDungeon: DungeonRequest;
   /**
    * Where players enter. Owned by the dungeon rather than by a module constant, because a generated
    * dungeon puts its entrance somewhere different every run.
@@ -173,12 +182,14 @@ export class SessionStore {
       roomCode = this.#createRoomCode();
     }
 
-    const built = buildDungeon(this.#dungeon);
+    const built = buildDungeon({ dungeonId: HUB_DUNGEON_ID, content: this.#dungeon.content });
     const session: Session = {
       id: this.#createSessionId(),
       roomCode,
       createdAt: this.#now(),
       dungeon: built.dungeon,
+      location: "hub",
+      runDungeon: { ...this.#dungeon },
       spawnPoints: built.spawnPoints,
       seed: built.seed,
       tick: 0,
@@ -239,7 +250,15 @@ export class SessionStore {
         return { ok: true, resumed: true, session, player: existing };
       }
       // An unknown token means the slot already timed out. Fall through to a fresh join rather than
-      // erroring, so a client returning from a long outage still lands in the dungeon.
+      // erroring. The location check below decides whether a fresh join is currently allowed.
+    }
+
+    if (session.location === "dungeon") {
+      return {
+        ok: false,
+        code: "runInProgress",
+        message: "This party is already in a dungeon run; wait for them to return to the hub",
+      };
     }
 
     if (session.players.size >= this.#maxPartySize) {
@@ -257,14 +276,14 @@ export class SessionStore {
       ready: false,
       connected: true,
       inventory: [],
-      carryingTorch: true,
+      carryingTorch: false,
+      bankedItems: [],
       discoveredTiles: new Set(),
       discoveredRoomIds: new Set(),
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
       nextMoveAt: null,
       nextAttackAt: null,
-      respawnAt: null,
       enteredDungeonAt: null,
     };
 
@@ -342,9 +361,9 @@ export class SessionStore {
 }
 
 /**
- * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and the pacing and respawn timers,
- * which are never broadcast. Resistance and stamina are rounded here: they move by fractions of a
- * point per tick on the server, and a HUD bar has no use for that precision.
+ * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and pacing timers, which are never
+ * broadcast. Resistance and stamina are rounded here: they move by fractions of a point per tick on
+ * the server, and a HUD bar has no use for that precision.
  */
 export function toPlayerState(player: SessionPlayer): PlayerState {
   return {
@@ -358,6 +377,8 @@ export function toPlayerState(player: SessionPlayer): PlayerState {
     ready: player.ready,
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),
+    carryingTorch: player.carryingTorch,
+    bankedItems: player.bankedItems.map((item) => ({ ...item })),
   };
 }
 

@@ -183,7 +183,8 @@ describe("snapshots", () => {
 
     const view = await until(client, (v) => v.tick > 0);
     expect(view.players).toHaveLength(1);
-    expect(view.dungeon?.map.id).toBe("ember-vault");
+    expect(view.location).toBe("hub");
+    expect(view.dungeon?.map.id).toBe("hub");
   });
 
   it("never exposes a resume token through the session view", async () => {

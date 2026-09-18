@@ -126,11 +126,15 @@ describe("doors and exits", () => {
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "outOfRange" });
   });
 
-  it("clears the dungeon from the exit", () => {
-    const session = testSession([testPlayer("alpha", { position: at(14, 6) })]);
+  it("returns the party to the hub from the exit", () => {
+    const player = testPlayer("alpha", { position: at(14, 6), inventory: [{ ...TONIC }] });
+    const session = testSession([player]);
 
     expect(interact(session, "alpha", VAULT_EXIT_ID)).toEqual({ ok: true });
-    expect(session.dungeon.cleared).toBe(true);
+    expect(session.location).toBe("hub");
+    expect(session.dungeon.map.id).toBe("hub");
+    expect(player.inventory).toEqual([]);
+    expect(player.bankedItems).toEqual([TONIC]);
   });
 
   it("refuses an unknown target", () => {

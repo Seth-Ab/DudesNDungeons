@@ -4,9 +4,17 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7, 8, 9, and 13 complete, with Frontend step 11. Dungeons are generated from room templates held in `content/`, seeded so a run replays exactly, and are now built at four times the authored scale on each axis: a corridor is wide enough for a party of four to walk abreast, and a torch lights rather less of a room than it used to.
-- Last completed work: Closed the last open item of Frontend step 7. The dungeon draws from a pixel-art tilesheet baked from reviewable text art: autotiled walls, weighted flagstone variants, torch pillars, doors, loot, and exit stairs. Two bugs left over from the scale change were fixed along the way, both of which made doors unusable: no closed door was ever sent to a client, and no locked door could be opened from the UI.
-- Next recommended step: Backend step 10 (Hub World and Run Lifecycle). The hub is another authored dungeon, which the content layer already supports, and step 10 is what resolves the two standing conflicts below: respawn-at-full-health, and an exit that sets `cleared` instead of ending the run. Backend step 5 (voice signaling, half done) and step 6 (deployment readiness) remain open and are independent of it.
+- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7 and 11. Sessions now begin
+  in a lit authored hub, unanimously ready parties generate a run, and escape or a total wipe returns
+  the party to the hub under protocol v8. The dungeon is drawn as pixel art rather than flat rectangles.
+- Last completed work: Frontend step 7 closed with pixel-art tiles and props, baked from reviewable
+  text art. Two bugs left over from the scale change were fixed along the way, both of which made
+  doors unusable: no closed door was ever sent to a client, and no locked door could be opened from
+  the UI. See `docs/decisions/0010-pixel-art-tiles.md`. Backend step 10 landed just before it; see
+  `docs/decisions/0009-hub-and-run-lifecycle.md`.
+- Next recommended step: Backend step 11 (persistent profiles and progression) can now build on the
+  session-local item bank. Backend step 5 (voice signaling, half done) and step 6 (deployment
+  readiness) remain open. Frontend step 9 must surface hub/run outcomes and stored items.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -25,6 +33,10 @@ Resolved:
 - World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
 - Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
 - Light reach at that scale: Light and voice grow by three rather than four, so a torch covers less of a room than it used to and a party that splits up loses each other sooner.
+- Hub/run lifecycle: The whole reserved party must be connected and ready before a standing player
+  can use the entrance. Fresh joins wait during a run; reconnects reclaim their slot.
+- Torch supply: Torches are deliberate, separate-from-inventory pickups in the hub and rare dungeon
+  loot. Forgetting one means entering the run without personal light.
 
 ## Direction Alignment
 
@@ -43,17 +55,20 @@ Missing entirely, and now covered by new steps:
 - ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. Validated skill and upgrade
   definitions now exist; Backend step 11 still needs profiles, unlocking, and effect application.
 - ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
-- The hub world, and with it the run lifecycle, the torch supply, and storage.
+- ~~The hub world, run lifecycle, torch supply, and session-local storage.~~ Closed by Backend step
+  10 on 2026-09-17. Persistent storage and its frontend remain open.
 - Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
 - ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
 - Skills, traps, cooperative puzzles, and bosses.
 - Carrying objects and downed players.
 - ~~A camera.~~ Closed by Frontend step 7. The renderer draws through a camera centred on the local player.
 
-Conflicts to resolve before building further:
+Conflicts resolved by Backend step 10:
 
-- Downed players stand back up at full health after `PLAYER_RESPAWN_MS`, which contradicts the resolved downed/revive/carry direction and makes carrying a friend pointless.
-- The exit sets `cleared` and names a `destination` of "deeper vault"; the description ends a run by escaping to the hub.
+- ~~Downed players auto-respawned at full health.~~ They now stay down until future revive/carry
+  mechanics or until the run ends; a total party down wipes to the hub.
+- ~~The exit only set `cleared` and pointed at "deeper vault".~~ Exits now resolve the run, bank only
+  standing survivors' carry, and rebuild the hub.
 
 ## Backend Dev Progress
 
@@ -80,7 +95,9 @@ Conflicts to resolve before building further:
 
 ### 4. Combat and Game Rules
 
-- [x] Implement attacks, damage, death, and simple monster behavior. Simple real-time melee in `src/server/game/combat.ts`; monsters chase and attack on the tick; downed players respawn after `PLAYER_RESPAWN_MS`. The hybrid tactical exchange is deferred.
+- [x] Implement attacks, damage, death, and simple monster behavior. Simple real-time melee in
+  `src/server/game/combat.ts`; monsters chase and attack on the tick; downed players stay down until
+  the run ends or future revive/carry mechanics resolve them.
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
@@ -107,7 +124,8 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 - [x] Apply resistance as damage reduction in one place when a hit resolves. `damagePlayer` in `src/server/game/vitals.ts` is the only thing that lowers a player's health.
 - [x] Regenerate stamina over time; spend it on attacking, lifting, and carrying. Regen and the attack cost are live. Lifting and carrying have their prices and their spend/drain API here but nothing to spend them on until Backend step 12, which has no carried-object state yet.
 - [x] Decay resistance over time spent in the dungeon and warn the client. Per-player clock, 10 minute grace, then 0.1/s; `stateSnapshot.run` carries the countdown.
-- [x] Keep consumables and skills the only ways to raise resistance. Added the `ward` item kind and a Warding Salve; nothing else raises it, including respawning.
+- [x] Keep consumables and skills the only ways to raise resistance. Added the `ward` item kind and
+  a Warding Salve; returning to the hub does not restore resistance.
 
 ### 8. Server-Authoritative Visibility and Lighting
 
@@ -130,17 +148,23 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 
 Note: dungeon sizes here are now authored tiles, which the world builds at four times on each axis. See step 13.
 
-- [ ] Add the hub as a lit, monster-free place with a dungeon entrance.
-- [ ] Start players in the hub and generate the dungeon on entry.
-- [ ] Add the torch supply and between-run storage.
-- [ ] Make the exit room end the run and return survivors to the hub.
-- [ ] Handle a player who dies mid-run and a party that escapes without them.
+- [x] Add the hub as a lit, monster-free place with a dungeon entrance. `content/dungeons/hub.json`
+  uses only `#`/`.` and includes named quest, strategy, supply, and gate areas.
+- [x] Start players in the hub and generate the dungeon on entry. Every reserved player must be
+  connected and ready; fresh joins are refused mid-run while reconnects remain available.
+- [x] Add the torch supply and between-run storage. Four hub torches are deliberate pickups, rare
+  torches can spawn in the dungeon, and `bankedItems` is session-local until step 11.
+- [x] Make the exit room end the run and return survivors to the hub. Standing players bank their
+  inventory; downed players lose it.
+- [x] Handle a player who dies mid-run and a party that escapes without them. Timed respawn is gone;
+  downed players remain until escape/revival, and an all-downed party wipes to the hub.
 
 ### 11. Roguelite Progression and Persistence
 
 - [ ] Add a player profile holding banked items and unlocked skills.
 - [ ] Persist profiles across server restarts.
-- [ ] Bank a survivor's carry; take a dead player's.
+- [ ] Persist survivor banking and dead-player loss across server restarts. The session-local rule
+  landed in Backend step 10.
 - [ ] Add skills with server-resolved effects.
 - [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
   definitions are not unlocked or applied until the profile/runtime work above exists.
@@ -235,7 +259,8 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [x] Show health, resistance, and stamina bars and three inventory slots. All three bars render from server `playerState`; three inventory slots were already visible.
 - [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on Backend step 12.
-- [ ] Render loot, doors, exits, monster health, downed players, and cleared state. Loot, doors, exits, monster health, and downed players are done; cleared/run outcome UI remains.
+- [ ] Render loot, doors, exits, monster health, downed players, and hub/run outcome state. Loot,
+  doors, exits, monster health, and downed players are done; location/outcome UI remains.
 - [x] Show combat results, refusals, and the resistance decay warning. The HUD warns from `stateSnapshot.run` a minute before decay starts, then while it is falling.
 
 ### 9. Hub World and Run Flow
@@ -261,6 +286,20 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 2026-09-17
 
+- Completed Backend step 10, Hub World and Run Lifecycle, on protocol v8:
+  - Added the lit, monster-free Ember Hearth hub with quest/planning areas, a dungeon gate, and four
+    deliberate torch pickups, while retaining the `#`/`.` tile alphabet for parallel art work.
+  - Made runs party-wide: every reserved player must be connected and ready, fresh joins wait while
+    a run is active, and reconnects still reclaim their existing slot.
+  - Added rare dungeon torch loot. Torches equip outside the three inventory slots and are never
+    automatically issued, so forgetting one means a dark run.
+  - Replaced `dungeon.cleared` with real escape and wipe transitions. Standing survivors bank their
+    carry in session-local storage; downed players lose theirs; an all-downed party wipes.
+  - Removed timed respawn. Downed players now remain available for Backend step 12's revive/carry
+    mechanics instead of standing up automatically.
+  - Added `stateSnapshot.location`, `playerState.carryingTorch`, and `playerState.bankedItems`; added
+    the `runInProgress` join error. Recorded in `docs/decisions/0009-hub-and-run-lifecycle.md`.
+  - Verified `npm run typecheck`, `npm run lint`, `npm test` (221/221 passing), and `npm run build`.
 - Added `content/skills/` and `content/upgrades/` with example progression definitions.
 - Extended startup content validation with typed progression effects and skill/upgrade reference,
   tier, and prerequisite checks.
@@ -485,8 +524,9 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Fixed two bugs found by looking at the result in a browser, both fallout from Backend step 13 making single-tile things into 4x4 blocks:
     - A closed door made every tile it covered opaque, including its own, so line of sight to the door's centre tile was blocked by the door itself. `discoveredTiles` never gained that tile and **no closed door was ever sent to any client**. The exemption in `hasLineOfSight` covered one tile, which was right while a door was one tile. It now covers the whole door being looked at, and still does not let anyone see past it.
     - The client picked its interact target by distance to a door's **centre** while the server judged reach to the nearest point of its span, which Backend step 13 had already fixed server-side. Standing at the face of a locked door, the client refused to send the interact the server would have accepted, so **no locked door could be opened from the UI**. The geometry is now `distanceToDoor` in `src/shared/game/movement.ts`, used by both sides, which is what `AGENTS.md` asks for and what would have prevented the drift.
-  - Tests grew from 212 to 251: `tests/client/tiles.test.ts` (22), `tests/client/spriteSheet.test.ts` (10), `tests/shared/doorReach.test.ts` (5), and two visibility cases pinning that a closed door is visible and still opaque. The closed-door case was checked to fail without the fix rather than assumed to cover it.
+  - Added 39 tests: `tests/client/tiles.test.ts` (22), `tests/client/spriteSheet.test.ts` (10), `tests/shared/doorReach.test.ts` (5), and two visibility cases pinning that a closed door is visible and still opaque. The closed-door case was checked to fail without the fix rather than assumed to cover it. The suite is 260 after merging Backend step 10.
   - Verified every sprite in a browser against a live server: flagstones with sparse damage, autotiled wall lips and south faces, the torch pillar with its glow, a carried flame above the head, the copper key and the minor tonic, the sealed vault door drawn across its whole opening with the lock plate at its centre, the same door open as two jambs with floor showing between them, and the exit stairs filling their authored tile.
-  - Recorded the choices in `docs/decisions/0009-pixel-art-tiles.md`.
+  - Recorded the choices in `docs/decisions/0010-pixel-art-tiles.md`.
   - No protocol change. The sheet is 1.4 kB and lands under Vite's inline limit, so it ships as a data URI in the bundle rather than a second request.
-  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (251/251), and `npm run build`.
+  - Merged Backend step 10 (hub and run lifecycle, PR #15) in after it landed mid-task. The tile alphabet seam held with nothing to coordinate: `content/dungeons/hub.json` uses the same `#` and `.` as every other authored map. The new `torch` item kind did exactly what the exhaustive `Record<ItemKind, SpriteName>` was there for and failed the client build until `loot-torch` was authored, rather than spawning on the floor wearing a key.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (260/260), and `npm run build`.

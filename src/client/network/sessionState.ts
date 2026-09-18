@@ -1,5 +1,11 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
-import type { DungeonState, PlayerId, PlayerState, RunState } from "../../shared/types/core.js";
+import type {
+  DungeonState,
+  PlayerId,
+  PlayerState,
+  RunState,
+  SessionLocation,
+} from "../../shared/types/core.js";
 
 /**
  * Distinct enough to tell "no socket" apart from "socket open but not in a dungeon". The UI needs
@@ -28,6 +34,7 @@ export interface SessionView {
   players: PlayerState[];
   visiblePlayerIds: PlayerId[];
   dungeon: DungeonState | null;
+  location: SessionLocation | null;
   /** The server's run clock for this player. Null until the first snapshot. */
   run: RunState | null;
   lastError: SessionError | null;
@@ -43,6 +50,7 @@ export const initialSessionView: SessionView = {
   players: [],
   visiblePlayerIds: [],
   dungeon: null,
+  location: null,
   run: null,
   lastError: null,
   lastAction: null,
@@ -57,6 +65,7 @@ const JOIN_REJECTIONS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   "sessionFull",
   "protocolVersionMismatch",
   "alreadyInSession",
+  "runInProgress",
 ]);
 
 function replacePlayer(
@@ -129,6 +138,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         players: mergePlayers(view.players, message.players),
         visiblePlayerIds: message.players.map((player) => player.id),
         dungeon: message.dungeon,
+        location: message.location,
         run: message.run,
       };
 

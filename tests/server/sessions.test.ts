@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PLAYER_MAX_HEALTH } from "../../src/shared/constants/game.js";
+import { startRun } from "../../src/server/game/runLifecycle.js";
 import {
   SessionStore,
   rosterOf,
   toPlayerState,
   type Session,
 } from "../../src/server/sessions/sessionStore.js";
-import { at } from "./fixtures.js";
 
 const GRACE_MS = 60_000;
 const EMPTY_TTL_MS = 600_000;
@@ -51,7 +51,23 @@ describe("session creation and joining", () => {
     expect(player.health).toBe(PLAYER_MAX_HEALTH);
     expect(player.ready).toBe(false);
     expect(player.connected).toBe(true);
+    expect(player.carryingTorch).toBe(false);
+    expect(session.location).toBe("hub");
+    expect(session.dungeon.map.id).toBe("hub");
     expect(session.players.size).toBe(1);
+  });
+
+  it("refuses a fresh player while the party is in a run", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "One");
+    player.ready = true;
+    expect(startRun(session, 0)).toEqual({ ok: true });
+
+    const result = store.join({ roomCode: session.roomCode, playerName: "Late" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("runInProgress");
   });
 
   it("does not spawn a new player on top of one who stayed", () => {
@@ -223,6 +239,24 @@ describe("disconnect and reconnect", () => {
     expect(result.player.id).toBe(player.id);
     expect(result.player.name).toBe("Fixed");
   });
+
+  it("allows a reserved player to reconnect during a run", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "Grix");
+    player.ready = true;
+    expect(startRun(session, 0)).toEqual({ ok: true });
+    store.markDisconnected(player.id);
+
+    const result = store.join({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      resumeToken: player.resumeToken,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.resumed).toBe(true);
+  });
 });
 
 describe("leaving and sweeping", () => {
@@ -329,11 +363,12 @@ describe("public player state", () => {
     const store = createStore();
     const session = store.createSession();
     const { player } = joinOrThrow(store, session, "Grix");
+    const originalX = player.position.x;
 
     const state = toPlayerState(player);
     state.position.x = 999;
 
-    expect(player.position.x).toBe(at(2, 2).x);
+    expect(player.position.x).toBe(originalX);
   });
 
   it("lists every player in the session roster", () => {

@@ -145,7 +145,6 @@ export function buildAuthoredDungeon(
       doors,
       exits,
       lightSources,
-      cleared: false,
     },
     spawnPoints: definition.spawnPoints.map((point) => ({ x: point.x, y: point.y })),
     seed: null,
