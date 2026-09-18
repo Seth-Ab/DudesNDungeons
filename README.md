@@ -81,6 +81,8 @@ monster's damage or adding a room template is a file change and a server restart
 
 - `content/monsters/` - one file per monster type, keyed by a kebab-case id such as `ash-imp`.
 - `content/items/` - keys, tonics, and wards.
+- `content/skills/` - validated skill definitions for persistent player progression.
+- `content/upgrades/` - validated, tiered improvements linked to skills.
 - `content/dungeons/templates/` - room templates, each with tiles, doorways, lights, and spawn rules.
 - `content/dungeons/` - dungeon definitions. `authored` places every entity by hand; `generated`
   stitches templates together at run time.
@@ -92,6 +94,11 @@ becoming a dungeon nobody can finish. `CONTENT_DIR` overrides where content is r
 
 Generated dungeons are a pure function of their seed, which is recorded on the session, so a run can
 be reproduced exactly from a bug report.
+
+Items are already active gameplay content: dungeon definitions spawn them and the server owns pickup,
+inventory, and use. Skills and upgrades currently provide the validated authoring layer for Backend
+Step 11; persistent profiles, unlock decisions, and applying their effects are still to be built.
+See `content/README.md` for the supported shapes and relationships.
 
 ## Frontend Development
 

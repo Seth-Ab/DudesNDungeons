@@ -1,0 +1,9 @@
+{
+  "id": "iron-will-unbroken",
+  "skillId": "iron-will",
+  "name": "Unbroken",
+  "description": "Reach the final tier of Iron Will.",
+  "tier": 2,
+  "requires": ["iron-will-steeled"],
+  "effects": [{ "type": "resistanceBonus", "amount": 5 }]
+}

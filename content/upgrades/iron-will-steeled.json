@@ -1,0 +1,8 @@
+{
+  "id": "iron-will-steeled",
+  "skillId": "iron-will",
+  "name": "Steeled",
+  "description": "Strengthen Iron Will with more starting resistance.",
+  "tier": 1,
+  "effects": [{ "type": "resistanceBonus", "amount": 5 }]
+}

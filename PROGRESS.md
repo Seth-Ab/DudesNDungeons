@@ -5,7 +5,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Backend Dev steps 7, 8, 9, and 13 complete, with Frontend step 11. Dungeons are generated from room templates held in `content/`, seeded so a run replays exactly, and are now built at four times the authored scale on each axis: a corridor is wide enough for a party of four to walk abreast, and a torch lights rather less of a room than it used to.
-- Last completed work: World tile scale on protocol v7. See `docs/decisions/0008-world-tile-scale.md`.
+- Last completed work: Added validated skill and upgrade authoring infrastructure alongside the
+  existing live item content. Profile persistence, unlocking, and effect application remain Backend
+  step 11 work.
 - Next recommended step: Backend step 10 (Hub World and Run Lifecycle). The hub is another authored dungeon, which the content layer already supports, and step 10 is what resolves the two standing conflicts below: respawn-at-full-health, and an exit that sets `cleared` instead of ending the run. Backend step 5 (voice signaling, half done) and step 6 (deployment readiness) remain open and are independent of it.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
@@ -40,7 +42,8 @@ Already aligned:
 Missing entirely, and now covered by new steps:
 
 - ~~Darkness, light sources, and limited sight.~~ Closed by Backend step 8 and Frontend step 7. Reach was retuned against the map by Backend step 13 on 2026-09-17.
-- ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. `content/skills/` is still empty, which Backend step 11 fills.
+- ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. Validated skill and upgrade
+  definitions now exist; Backend step 11 still needs profiles, unlocking, and effect application.
 - ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
 - The hub world, and with it the run lifecycle, the torch supply, and storage.
 - Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
@@ -141,6 +144,8 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 - [ ] Persist profiles across server restarts.
 - [ ] Bank a survivor's carry; take a dead player's.
 - [ ] Add skills with server-resolved effects.
+- [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
+  definitions are not unlocked or applied until the profile/runtime work above exists.
 - [ ] Reject client-sent profile, inventory, or unlock state.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
@@ -254,6 +259,13 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Draw a doorway across its whole opening, matching what the server collides against.
 
 ## Activity Log
+
+### 2026-09-17
+
+- Added `content/skills/` and `content/upgrades/` with example progression definitions.
+- Extended startup content validation with typed progression effects and skill/upgrade reference,
+  tier, and prerequisite checks.
+- Documented what is already live for items and what remains before skills/upgrades affect gameplay.
 
 ### 2026-09-11
 

@@ -41,6 +41,8 @@ describe("the shipped content", () => {
 
     expect(content.monsters.size).toBeGreaterThan(0);
     expect(content.items.size).toBeGreaterThan(0);
+    expect(content.skills.has("iron-will")).toBe(true);
+    expect(content.upgrades.has("iron-will-steeled")).toBe(true);
     expect(content.templates.size).toBeGreaterThan(0);
     expect(content.dungeons.has("ember-vault")).toBe(true);
     expect(content.dungeons.has("vault-run")).toBe(true);
@@ -81,6 +83,82 @@ describe("rejecting bad content", () => {
     });
 
     expect(() => loadContent(root)).toThrow(/reuses the content id "ash-imp"/);
+  });
+
+  it("refuses an upgrade for a skill that does not exist", () => {
+    const root = contentRoot({
+      "upgrades/ghost-training.json": {
+        id: "ghost-training",
+        skillId: "missing-skill",
+        name: "Ghost Training",
+        description: "This should never load.",
+        tier: 1,
+        effects: [{ type: "attackDamageBonus", amount: 1 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/belongs to unknown skill "missing-skill"/);
+  });
+
+  it("refuses upgrade prerequisites from another skill", () => {
+    const skill = (id: string) => ({
+      id,
+      name: id,
+      description: id,
+      effects: [{ type: "resistanceBonus", amount: 1 }],
+    });
+    const root = contentRoot({
+      "skills/first.json": skill("first"),
+      "skills/second.json": skill("second"),
+      "upgrades/first-tier.json": {
+        id: "first-tier",
+        skillId: "first",
+        name: "First Tier",
+        description: "First.",
+        tier: 1,
+        effects: [{ type: "resistanceBonus", amount: 1 }],
+      },
+      "upgrades/wrong-tree.json": {
+        id: "wrong-tree",
+        skillId: "second",
+        name: "Wrong Tree",
+        description: "Wrong.",
+        tier: 2,
+        requires: ["first-tier"],
+        effects: [{ type: "resistanceBonus", amount: 1 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/requires an upgrade from a different skill/);
+  });
+
+  it("refuses duplicate upgrade tiers for one skill", () => {
+    const root = contentRoot({
+      "skills/iron-will.json": {
+        id: "iron-will",
+        name: "Iron Will",
+        description: "Resist.",
+        effects: [{ type: "resistanceBonus", amount: 1 }],
+      },
+      "upgrades/a.json": {
+        id: "upgrade-a",
+        skillId: "iron-will",
+        name: "A",
+        description: "A.",
+        tier: 1,
+        effects: [{ type: "resistanceBonus", amount: 1 }],
+      },
+      "upgrades/b.json": {
+        id: "upgrade-b",
+        skillId: "iron-will",
+        name: "B",
+        description: "B.",
+        tier: 1,
+        effects: [{ type: "resistanceBonus", amount: 1 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/more than one tier 1 upgrade/);
   });
 
   it("refuses a template spawning a monster that does not exist", () => {
