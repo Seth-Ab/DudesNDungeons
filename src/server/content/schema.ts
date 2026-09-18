@@ -47,6 +47,46 @@ export const itemDefinitionSchema = z.object({
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 
 /**
+ * Passive effects that an unlocked skill or one of its upgrades may grant.
+ *
+ * These line up with the four skill areas called out in Backend step 11. Keeping the variants
+ * explicit means the eventual gameplay implementation must handle every supported effect instead
+ * of accepting an arbitrary stat name that silently does nothing.
+ */
+export const progressionEffectSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("attackDamageBonus"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("sightRadiusBonus"), amount: z.number().positive() }),
+  z.object({ type: z.literal("resistanceBonus"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("puzzlePowerBonus"), amount: z.number().int().positive() }),
+]);
+export type ProgressionEffect = z.infer<typeof progressionEffectSchema>;
+
+/** A permanent ability that may be unlocked on a player profile in Backend step 11. */
+export const skillDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  effects: z.array(progressionEffectSchema).min(1),
+});
+export type SkillDefinition = z.infer<typeof skillDefinitionSchema>;
+
+/**
+ * One ordered improvement to a skill. Unlock cost is deliberately absent until the progression
+ * currency is designed; prerequisites still let authors express an upgrade path without inventing
+ * an economy in content.
+ */
+export const upgradeDefinitionSchema = z.object({
+  id: contentIdSchema,
+  skillId: contentIdSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  tier: z.number().int().positive(),
+  requires: z.array(contentIdSchema).default([]),
+  effects: z.array(progressionEffectSchema).min(1),
+});
+export type UpgradeDefinition = z.infer<typeof upgradeDefinitionSchema>;
+
+/**
  * What a room is for. Drives which templates a generator may pick for a slot, and later which
  * rules apply inside it: bosses gate, exits end the run, entrances hold the party spawn.
  */

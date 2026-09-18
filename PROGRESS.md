@@ -5,7 +5,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Backend Dev steps 7, 8, and 9 complete. Dungeons are now generated from room templates held in `content/`, seeded so a run replays exactly; rooms are first-class; monsters are keyed by type id; and players carry health, resistance, and stamina with a run clock that wears resistance down.
-- Last completed work: Content files and procedural generation on protocol v6. See `docs/decisions/0007-content-and-generation.md`.
+- Last completed work: Added validated skill and upgrade authoring infrastructure alongside the
+  existing live item content. Profile persistence, unlocking, and effect application remain Backend
+  step 11 work.
 - Next recommended step: Backend step 10 (Hub World and Run Lifecycle). The hub is another authored dungeon, which the content layer already supports, and step 10 is what resolves the two standing conflicts below: respawn-at-full-health, and an exit that sets `cleared` instead of ending the run. Backend step 5 (voice signaling, half done) and step 6 (deployment readiness) remain open and are independent of it.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
@@ -135,6 +137,8 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 - [ ] Persist profiles across server restarts.
 - [ ] Bank a survivor's carry; take a dead player's.
 - [ ] Add skills with server-resolved effects.
+- [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
+  definitions are not unlocked or applied until the profile/runtime work above exists.
 - [ ] Reject client-sent profile, inventory, or unlock state.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
@@ -231,6 +235,13 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [ ] Drive unlocks from server-owned profile state.
 
 ## Activity Log
+
+### 2026-09-17
+
+- Added `content/skills/` and `content/upgrades/` with example progression definitions.
+- Extended startup content validation with typed progression effects and skill/upgrade reference,
+  tier, and prerequisite checks.
+- Documented what is already live for items and what remains before skills/upgrades affect gameplay.
 
 ### 2026-09-11
 

@@ -7,10 +7,14 @@ import {
   itemDefinitionSchema,
   monsterTypeSchema,
   roomTemplateSchema,
+  skillDefinitionSchema,
+  upgradeDefinitionSchema,
   type DungeonDefinition,
   type ItemDefinition,
   type MonsterType,
   type RoomTemplate,
+  type SkillDefinition,
+  type UpgradeDefinition,
 } from "./schema.js";
 
 /**
@@ -26,6 +30,8 @@ import {
 export interface GameContent {
   monsters: ReadonlyMap<string, MonsterType>;
   items: ReadonlyMap<string, ItemDefinition>;
+  skills: ReadonlyMap<string, SkillDefinition>;
+  upgrades: ReadonlyMap<string, UpgradeDefinition>;
   templates: ReadonlyMap<string, RoomTemplate>;
   dungeons: ReadonlyMap<string, DungeonDefinition>;
 }
@@ -175,6 +181,33 @@ function assertRectangular(label: string, tiles: readonly string[]): void {
  * later, as a crash mid-run or a dungeon nobody can finish.
  */
 function validateReferences(content: GameContent): void {
+  const skillTiers = new Set<string>();
+  for (const upgrade of content.upgrades.values()) {
+    const label = `Upgrade "${upgrade.id}"`;
+    if (!content.skills.has(upgrade.skillId)) {
+      throw new Error(`${label} belongs to unknown skill "${upgrade.skillId}"`);
+    }
+
+    const skillTier = `${upgrade.skillId}:${upgrade.tier}`;
+    if (skillTiers.has(skillTier)) {
+      throw new Error(`Skill "${upgrade.skillId}" has more than one tier ${upgrade.tier} upgrade`);
+    }
+    skillTiers.add(skillTier);
+
+    for (const prerequisiteId of upgrade.requires) {
+      const prerequisite = content.upgrades.get(prerequisiteId);
+      if (!prerequisite) {
+        throw new Error(`${label} requires unknown upgrade "${prerequisiteId}"`);
+      }
+      if (prerequisite.skillId !== upgrade.skillId) {
+        throw new Error(`${label} requires an upgrade from a different skill`);
+      }
+      if (prerequisite.tier >= upgrade.tier) {
+        throw new Error(`${label} must require only lower-tier upgrades`);
+      }
+    }
+  }
+
   for (const template of content.templates.values()) {
     const label = `Room template "${template.id}"`;
     assertRectangular(label, template.tiles);
@@ -243,6 +276,8 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
   const content: GameContent = {
     monsters: loadCollection(join(contentRoot, "monsters"), monsterTypeSchema),
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
+    skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
+    upgrades: loadCollection(join(contentRoot, "upgrades"), upgradeDefinitionSchema),
     templates: loadCollection(join(contentRoot, "dungeons", "templates"), roomTemplateSchema),
     dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema),
   };
