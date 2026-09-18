@@ -1,13 +1,46 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 export const MAX_PARTY_SIZE = 4;
+
+/**
+ * World tiles per authored content tile.
+ *
+ * Content under `content/` is authored at a size a designer can read in a diff: a room template is
+ * a dozen characters across. The world is built four times finer on each axis, so an authored tile
+ * becomes a 4x4 block of world tiles and a dungeon covers sixteen times the area it reads as.
+ *
+ * That is what makes the dungeon expansive rather than cramped, per the level design in
+ * `GAMEDESCRIPTION.md`. A corridor authored one tile wide is four world units across - about five
+ * player widths - so four people can walk it abreast and slip past each other, instead of filing
+ * through one at a time.
+ *
+ * Only tile coordinates scale. Anything already measured in world units, such as a light radius or
+ * a monster's speed, is authored in world units and passes through untouched.
+ */
+export const TILE_SCALE = 4;
+
+/**
+ * How far sight and hearing grew alongside `TILE_SCALE`.
+ *
+ * Deliberately less than the tile scale. Scaling light by the full four would light the same
+ * fraction of the map as before and the dungeon would feel no darker at all; at three, a torch
+ * covers rather less of a room than it used to, so a party that splits up loses each other sooner.
+ * Lighting is a core pillar in `GAMEDESCRIPTION.md`, and this is the knob that tunes it.
+ */
+export const LIGHT_SCALE = 3;
 
 export const SERVER_TICK_RATE_HZ = 20;
 export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;
 
-/** World units per second. Deliberately low: the movement model is slow free-roam. */
-export const PLAYER_MOVE_SPEED = 2.5;
+/**
+ * World units per second. Deliberately low: the movement model is slow free-roam.
+ *
+ * Raised from 2.5 alongside `TILE_SCALE`, but by well under the full four. Crossing the dungeon
+ * now takes roughly 1.7 times as long as it did, so the map reads as large without a run
+ * overrunning the 15-20 minute target length.
+ */
+export const PLAYER_MOVE_SPEED = 6;
 
 export const PLAYER_MAX_HEALTH = 100;
 
@@ -60,13 +93,27 @@ export const PLAYER_ATTACK_ARC_COS = 0.5;
 export const INTERACT_RANGE = 1.2;
 
 /** Radius, in world units, visible around a player carrying the default hub torch. */
-export const PLAYER_TORCH_LIGHT_RADIUS = 4.2;
+export const PLAYER_TORCH_LIGHT_RADIUS = 12.6;
 
 /** Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. */
-export const FIXED_LIGHT_RADIUS = 3.2;
+export const FIXED_LIGHT_RADIUS = 9.6;
 
 /** Radius for monsters that glow enough to reveal nearby geometry. */
-export const MONSTER_GLOW_LIGHT_RADIUS = 2.4;
+export const MONSTER_GLOW_LIGHT_RADIUS = 7.2;
+
+/**
+ * How far either side of a player a snapshot carries map tiles.
+ *
+ * At `TILE_SCALE` a generated world is 384x256 tiles, and shipping all 98,304 of them to every
+ * player twenty times a second is neither affordable to serialize nor to compress. A snapshot
+ * therefore carries a window centred on the viewer, and `DungeonMapState` records where that
+ * window sits with `originX`/`originY`.
+ *
+ * Sized so the window always outruns both the screen and the light: 129 tiles across is over
+ * 4000px at the renderer's zoom, and ten times the torch radius, so no player can see or walk to
+ * its edge within one snapshot.
+ */
+export const SNAPSHOT_VIEW_RADIUS_TILES = 64;
 
 /** How long a downed player waits before returning at a spawn point with full health. */
 export const PLAYER_RESPAWN_MS = 5_000;
@@ -75,10 +122,15 @@ export const MAX_INVENTORY_SIZE = 3;
 
 export const TONIC_HEAL_AMOUNT = 35;
 
-/** Distance in world units. Peers closer than this play at full volume. */
-export const VOICE_FULL_VOLUME_DISTANCE = 3;
+/**
+ * Distance in world units. Peers closer than this play at full volume.
+ *
+ * Grown by `LIGHT_SCALE` rather than `TILE_SCALE`, so hearing keeps pace with sight. Voice is
+ * already gated on visibility, and someone lit at the edge of your torch should still be audible.
+ */
+export const VOICE_FULL_VOLUME_DISTANCE = 9;
 /** Distance in world units at which a peer is fully attenuated. */
-export const VOICE_SILENCE_DISTANCE = 14;
+export const VOICE_SILENCE_DISTANCE = 42;
 
 export const ROOM_CODE_LENGTH = 6;
 /** Excludes vowels (no accidental words) and 0/O/1/I (unambiguous when read aloud over voice). */

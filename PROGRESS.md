@@ -4,7 +4,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7, 8, and 9 complete. Dungeons are now generated from room templates held in `content/`, seeded so a run replays exactly; rooms are first-class; monsters are keyed by type id; and players carry health, resistance, and stamina with a run clock that wears resistance down.
+- Overall phase: Backend Dev steps 7, 8, 9, and 13 complete, with Frontend step 11. Dungeons are generated from room templates held in `content/`, seeded so a run replays exactly, and are now built at four times the authored scale on each axis: a corridor is wide enough for a party of four to walk abreast, and a torch lights rather less of a room than it used to.
 - Last completed work: Added validated skill and upgrade authoring infrastructure alongside the
   existing live item content. Profile persistence, unlocking, and effect application remain Backend
   step 11 work.
@@ -24,6 +24,9 @@ Resolved:
 - Carry capacity: Three inventory slots. Keys and normal items use slots; torches are carried/equipped separately and do not spend inventory slots.
 - Identity for progression: Device-local profile first, backed by a local profile secret. Real accounts are deferred.
 - Target run length: 15-20 minutes for a full dungeon run.
+- World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
+- Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
+- Light reach at that scale: Light and voice grow by three rather than four, so a torch covers less of a room than it used to and a party that splits up loses each other sooner.
 
 ## Direction Alignment
 
@@ -34,18 +37,20 @@ Already aligned:
 - Four-player parties, proximity voice as the social core, and slow free-roam movement in any direction with walls, monsters, and other players all blocking.
 - Server-authoritative everything: positions, combat, loot, and doors are decided on the server and clients send intent.
 - Real-time melee with stamina-shaped pacing (cooldowns today, stamina later) matches the description better than the recorded hybrid checkpoint does.
+- Levels large enough to lose each other in, since Backend step 13. A generated run is 384x256 world tiles, a corridor holds four abreast, and a torch reaches 12.6 of the roughly 48 units across a room.
 
 Missing entirely, and now covered by new steps:
 
-- Darkness, light sources, and limited sight. Nothing in the code models light; the client draws the whole map fully lit.
-- ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. `content/skills/` is still empty, which Backend step 11 fills.
+- ~~Darkness, light sources, and limited sight.~~ Closed by Backend step 8 and Frontend step 7. Reach was retuned against the map by Backend step 13 on 2026-09-17.
+- ~~Procedural generation.~~ Closed by Backend step 9 on 2026-09-15. Validated skill and upgrade
+  definitions now exist; Backend step 11 still needs profiles, unlocking, and effect application.
 - ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
 - The hub world, and with it the run lifecycle, the torch supply, and storage.
 - Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
 - ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
 - Skills, traps, cooperative puzzles, and bosses.
 - Carrying objects and downed players.
-- A camera. The renderer draws from the world origin, so the player does not hold the center of the screen.
+- ~~A camera.~~ Closed by Frontend step 7. The renderer draws through a camera centred on the local player.
 
 Conflicts to resolve before building further:
 
@@ -125,6 +130,8 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 
 ### 10. Hub World and Run Lifecycle
 
+Note: dungeon sizes here are now authored tiles, which the world builds at four times on each axis. See step 13.
+
 - [ ] Add the hub as a lit, monster-free place with a dungeon entrance.
 - [ ] Start players in the hub and generate the dungeon on entry.
 - [ ] Add the torch supply and between-run storage.
@@ -147,6 +154,16 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 - [ ] Add puzzle objects that need two or more players at once.
 - [ ] Add boss monsters and rooms that gate on them.
 - [ ] Add lifting and carrying for objects and downed players.
+
+### 13. World Tile Scale
+
+Taken before steps 10-12, on the demo's evidence that the map was too cramped for four players.
+
+- [x] Separate authored scale from world scale. `TILE_SCALE` is 4 and `src/server/game/scale.ts` is the only place that applies it; `content/` keeps the size a designer can read.
+- [x] Scale only coordinates. Light radii, monster speeds, and reach stay in world units and are authored as they are used; the schema says which is which.
+- [x] Grow speed and light by less than the map. Speed 2.5 to 6, light and voice by `LIGHT_SCALE` of 3, so the dungeon is larger and darker rather than merely further away.
+- [x] Give a doorway the width of its opening. `doorState.size`, honoured by collision, line of sight, and reach.
+- [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`.
 
 ## Frontend Dev Progress
 
@@ -233,6 +250,13 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [ ] Show unlocked skills and their effects.
 - [ ] Show locked skills and their unlock cost.
 - [ ] Drive unlocks from server-owned profile state.
+
+### 11. Drawing at World Scale
+
+- [x] Draw in world units at a zoom that keeps the player small against the room. 32 pixels per world unit, entities sized from `PLAYER_RADIUS`.
+- [x] Clip drawing to the viewport and to the window the snapshot carried.
+- [x] Rule the floor every `TILE_SCALE` units, so it reads as masonry rather than graph paper.
+- [x] Draw a doorway across its whole opening, matching what the server collides against.
 
 ## Activity Log
 
@@ -426,3 +450,24 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - Smoke-tested a generated run against a live server built from `dist/`: a 96x64 map with 99.2% of tiles withheld from a player at the entrance, one room known, and the map opening up as they walked.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (201/201 passing, stable across three consecutive runs), and `npm run build`. Not yet exercised in a browser.
   - Known gap: trap, puzzle, and boss rooms exist as kinds with templates and content, but traps, puzzle objects, and boss gating do nothing yet. That is Backend step 12; this step gives it rooms to put them in.
+
+### 2026-09-17
+
+- Completed Backend step 13, World Tile Scale, with Frontend step 11, on `feature/procedural-generation`:
+  - Acted on the first demo: the maps looked small and the corridors and rooms were cramped for four players. One authored tile was one world unit, so a corridor authored one tile wide fitted exactly one body with 0.15 units of clearance either side, and a torch reaching 4.2 units lit most of a twelve-unit room. The dungeon read as cramped rather than dark.
+  - Separated the scale content is authored at from the scale it is played at. `TILE_SCALE` is 4, so one authored tile becomes a 4x4 block and a generated run is 384x256 world tiles instead of 96x64. A corridor is now four units across, about five player widths, and a party of four walks it abreast.
+  - Put the whole transform in `src/server/game/scale.ts`, applied once to a built dungeon. Generation still lays rooms out, routes corridors, and scatters loot in authored tiles, where the BFS through the padding between rooms is small; nothing downstream of `buildDungeon` sees an authored coordinate.
+  - Left `content/` the size it was. A template is still a dozen characters a person can read in a diff. The rule, now in the schema's own docs, is that coordinates scale and world-unit distances do not.
+  - Chose the three feel numbers with the owner rather than deriving them: 4x per axis for tiles, speed 2.5 to 6 rather than to 10, and light and voice by 3 rather than 4. The last is what makes the dungeon darker rather than merely larger; scaling light by the full four would have lit the same fraction of the map as before.
+  - Rewrote the content numbers that are in world units: light radii by three, monster speeds by 2.4 to match the player, monster perception by three so it still notices you at about the edge of your light. Attack reach is a body's length and did not change.
+  - Fixed two things the scale change would otherwise have broken silently, both about the only gate in the game. A closed door plugged one world tile of the sixteen it used to fill, so a party could walk around it; and its centre sat two units inside a doorway that `INTERACT_RANGE` reaches 1.2 into, so a party standing at a locked door could not open it. `doorState.size` carries the opening's width, and reach is measured to the nearest point of it.
+  - Sent each player a window of the map rather than all of it. Sixteen times the tiles took a snapshot from 6,144 characters to 98,304, built and deflated per player per tick. `dungeonMapState` gained `originX`/`originY`; the window is 129 tiles across, over 4000px at the renderer's zoom and ten times the torch radius, so nobody can reach its edge between snapshots. This also closes the follow-up left open by step 9, which noted that permessage-deflate was a mitigation rather than the fix.
+  - Rewrote line of sight to walk the grid one tile boundary at a time instead of sampling every 0.2 units, which was five samples per tile crossed. At this scale a torch reaches thirteen tiles and every light covers sixteen times the area, so the old sampler would have been the tick's dominant cost again.
+  - Moved room discovery to the moment a tile is first lit. Rescanning every room's tiles each tick was fine when a room was a hundred tiles and is not now that it is two thousand; `SessionPlayer` gained `discoveredRoomIds`.
+  - Measured rather than assumed: a four-player tick on a generated run costs 9.4 ms against the 50 ms budget, and a snapshot is 9.6 kB before deflate.
+  - Redrew the client in world units at 32 pixels per unit, down from 48 per tile. An authored tile still draws at 128px while the player is a fifth of the width of the corridor they stand in. Tiles are clipped to the viewport, which a 384x256 map makes mandatory, and the floor is ruled every `TILE_SCALE` units so it reads as masonry rather than graph paper.
+  - Protocol v7, breaking: `dungeonMapState` gained `originX` and `originY`, `doorState` gained `size`. Recorded in `docs/decisions/0008-world-tile-scale.md`.
+  - Gave tests an `at(x, y)` helper that names the authored tile they mean, so another change of scale does not rewrite every assertion. Tests grew from 201 to 209 with `tests/server/scale.test.ts`, which covers the expansion itself, a party of four abreast in a corridor, a closed door across its whole width, and the snapshot window's anchoring.
+  - Struck through two Direction Alignment entries that Backend step 8 and Frontend step 7 had already closed but that were never updated: darkness and limited sight, and the camera.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (209/209 passing), and `npm run build`. Not yet exercised in a browser.
+  - Known gap, and the thing most likely to want tuning after the next playtest: reach is now small relative to a tile. Loot sits at the centre of a 4x4 block, so a player walks to it rather than near it.

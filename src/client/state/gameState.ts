@@ -1,3 +1,4 @@
+import { FIXED_LIGHT_RADIUS, TILE_SCALE } from "../../shared/constants/game.js";
 import { isOpen, stepFrom } from "../../shared/game/movement.js";
 import type { DungeonState, PlayerState, Vector2 } from "../../shared/types/core.js";
 
@@ -11,31 +12,50 @@ export const MOVE_VECTORS: Record<MoveDirection, Vector2> = {
   west: { x: -1, y: 0 },
 };
 
+/**
+ * Authored the same way a room template is, then blown up by `TILE_SCALE` exactly as the server
+ * blows up real content. The preview is meant to look like the dungeon a player is about to enter,
+ * and at world scale a hand-written 16x8 map would draw as a postage stamp in the middle of a black
+ * screen instead.
+ */
+const PREVIEW_TILES = [
+  "################",
+  "#..............#",
+  "#..####........#",
+  "#.......##.....#",
+  "#..............#",
+  "#.....###......#",
+  "#..............#",
+  "################",
+];
+
+/** Centre of an authored tile once scaled, matching `scalePoint` on the server. */
+function preview(x: number, y: number): Vector2 {
+  const offset = (TILE_SCALE - 1) / 2;
+  return { x: x * TILE_SCALE + offset, y: y * TILE_SCALE + offset };
+}
+
 /** Drawn before the first snapshot arrives. Movement never runs against it. */
 export function createPlaceholderDungeon(): DungeonState {
   return {
     map: {
       id: "preview",
       name: "Preview",
-      width: 16,
-      height: 8,
-      tiles: [
-        "################",
-        "#..............#",
-        "#..####........#",
-        "#.......##.....#",
-        "#..............#",
-        "#.....###......#",
-        "#..............#",
-        "################",
-      ],
+      width: 16 * TILE_SCALE,
+      height: 8 * TILE_SCALE,
+      originX: 0,
+      originY: 0,
+      tiles: PREVIEW_TILES.flatMap((row) => {
+        const wide = [...row].map((tile) => tile.repeat(TILE_SCALE)).join("");
+        return Array.from({ length: TILE_SCALE }, () => wide);
+      }),
     },
     monsters: [
       {
         id: "11111111-1111-4111-8111-111111111111",
         typeId: "ash-imp",
         name: "Preview Imp",
-        position: { x: 11, y: 2 },
+        position: preview(11, 2),
         health: 10,
         maxHealth: 10,
         alive: true,
@@ -44,7 +64,7 @@ export function createPlaceholderDungeon(): DungeonState {
         id: "22222222-2222-4222-8222-222222222222",
         typeId: "cinder-slime",
         name: "Preview Slime",
-        position: { x: 5, y: 5 },
+        position: preview(5, 5),
         health: 14,
         maxHealth: 14,
         alive: true,
@@ -55,8 +75,8 @@ export function createPlaceholderDungeon(): DungeonState {
         id: "77777777-7777-4777-8777-777777777777",
         name: "Preview Torch",
         kind: "fixed",
-        position: { x: 3, y: 5 },
-        radius: 3.2,
+        position: preview(3, 5),
+        radius: FIXED_LIGHT_RADIUS,
       },
     ],
     rooms: [],

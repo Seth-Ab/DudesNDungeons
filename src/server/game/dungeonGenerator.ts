@@ -22,6 +22,11 @@ import { createRng, type Rng } from "./random.js";
  * The shape of a run is a chain: entrance, then each slot from the profile in order, then the exit.
  * Consecutive rooms are joined by an L-shaped corridor between their facing doorways, so the chain
  * is connected by construction and the exit is always reachable.
+ *
+ * Everything here works in authored tiles, where a corridor is one tile wide and the search for a
+ * route between rooms is small enough to run per corridor. `scaleDungeon` blows the finished result
+ * up to world scale afterwards, which is what turns that one-tile corridor into one four players
+ * can walk abreast.
  */
 
 /** Empty tiles between placed rooms. Enough that corridors read as corridors rather than as seams. */
@@ -518,7 +523,7 @@ export function generateDungeon(
   // what ends a run. Without it the exit is just another room to walk into.
   const exitDoorTile = doorwayTowards(exitRoom, centerOf(rooms[rooms.length - 2] ?? entrance), grid, rooms);
   const doors: DoorState[] = [
-    { id: rng.uuid(), position: { ...exitDoorTile }, open: false, locked: true },
+    { id: rng.uuid(), position: { ...exitDoorTile }, size: 1, open: false, locked: true },
   ];
 
   const spawnPoints = rng
@@ -532,6 +537,8 @@ export function generateDungeon(
         name: definition.name,
         width: definition.width,
         height: definition.height,
+        originX: 0,
+        originY: 0,
         tiles: grid.toTiles(),
       },
       rooms: rooms.map((room) => room.state),

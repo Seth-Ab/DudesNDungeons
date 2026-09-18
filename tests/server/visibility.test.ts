@@ -4,13 +4,32 @@ import {
   visibleTilesForPlayer,
   voiceRangeForPlayer,
 } from "../../src/server/game/visibility.js";
-import { testPlayer, testSession } from "./fixtures.js";
+import { tileAt, tileOf } from "../../src/shared/game/movement.js";
+import { at, testPlayer, testSession } from "./fixtures.js";
+
+/**
+ * A one-room world to test a single rule against, written in world tiles rather than authored ones.
+ *
+ * Handing a session its own map is the point: the Ember Vault is a whole dungeon, and a test about
+ * what one light reveals wants a corridor it can read in the assertion.
+ */
+function flatMap(tiles: string[]) {
+  return {
+    id: "test",
+    name: "Test",
+    width: tiles[0]?.length ?? 0,
+    height: tiles.length,
+    originX: 0,
+    originY: 0,
+    tiles,
+  };
+}
 
 describe("visibility frames", () => {
   it("sends a player only the party members and entities visible from their light radius", () => {
-    const viewer = testPlayer("viewer", { position: { x: 2, y: 2 } });
-    const nearby = testPlayer("nearby", { position: { x: 3, y: 2 } });
-    const distant = testPlayer("distant", { position: { x: 14, y: 6 } });
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const nearby = testPlayer("nearby", { position: at(2, 2, 1) });
+    const distant = testPlayer("distant", { position: at(14, 6) });
     const session = testSession([viewer, nearby, distant]);
 
     const frame = visibilityFrameForPlayer(session, viewer);
@@ -22,16 +41,18 @@ describe("visibility frames", () => {
   });
 
   it("keeps discovered geometry after the player moves away, without leaking entities there", () => {
-    const viewer = testPlayer("viewer", { position: { x: 2, y: 2 } });
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
     const session = testSession([viewer]);
+    // A world tile inside the authored tile next to the spawn, lit from where the viewer starts.
+    const nearSpawn = tileOf(at(1, 2));
 
     const firstFrame = visibilityFrameForPlayer(session, viewer);
-    expect(firstFrame.dungeon.map.tiles[2]?.[1]).toBe(".");
+    expect(tileAt(firstFrame.dungeon.map, nearSpawn.x, nearSpawn.y)).toBe(".");
 
-    viewer.position = { x: 12, y: 6 };
+    viewer.position = at(12, 6);
     const secondFrame = visibilityFrameForPlayer(session, viewer);
 
-    expect(secondFrame.dungeon.map.tiles[2]?.[1]).toBe(",");
+    expect(tileAt(secondFrame.dungeon.map, nearSpawn.x, nearSpawn.y)).toBe(",");
     expect(secondFrame.dungeon.loot.some((loot) => loot.name === "Minor Tonic")).toBe(false);
   });
 
@@ -41,13 +62,8 @@ describe("visibility frames", () => {
       carryingTorch: false,
     });
     const session = testSession([viewer]);
-    session.dungeon.map = {
-      id: "test",
-      name: "Test",
-      width: 8,
-      height: 3,
-      tiles: ["########", "#......#", "########"],
-    };
+    session.dungeon.map = flatMap(["########", "#......#", "########"]);
+    session.dungeon.doors = [];
     session.dungeon.lightSources = [
       {
         id: "77777777-7777-4777-8777-777777777777",
@@ -60,23 +76,17 @@ describe("visibility frames", () => {
 
     const frame = visibilityFrameForPlayer(session, viewer);
 
-    expect(frame.dungeon.map.tiles[1]?.[6]).toBe(".");
+    expect(tileAt(frame.dungeon.map, 6, 1)).toBe(".");
     expect(frame.dungeon.lightSources.map((light) => light.name)).toEqual(["Torch Pillar"]);
   });
 });
 
 describe("line of sight", () => {
   it("does not mark tiles visible through walls", () => {
-    const viewer = testPlayer("viewer", { position: { x: 2, y: 2 } });
+    const viewer = testPlayer("viewer", { position: { x: 1, y: 1 } });
     const session = testSession([viewer]);
-    session.dungeon.map = {
-      id: "test",
-      name: "Test",
-      width: 5,
-      height: 3,
-      tiles: ["#####", "#.#.#", "#####"],
-    };
-    viewer.position = { x: 1, y: 1 };
+    session.dungeon.map = flatMap(["#####", "#.#.#", "#####"]);
+    session.dungeon.doors = [];
     const visible = visibleTilesForPlayer(session, viewer);
 
     expect(visible.has("3,1")).toBe(false);
@@ -85,9 +95,9 @@ describe("line of sight", () => {
 
 describe("voice range", () => {
   it("includes visible peers with attenuation and omits unseen peers", () => {
-    const viewer = testPlayer("viewer", { position: { x: 2, y: 2 } });
-    const visible = testPlayer("visible", { position: { x: 3, y: 2 } });
-    const hidden = testPlayer("hidden", { position: { x: 14, y: 6 } });
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const visible = testPlayer("visible", { position: at(2, 2, 1) });
+    const hidden = testPlayer("hidden", { position: at(14, 6) });
     const session = testSession([viewer, visible, hidden]);
 
     const range = voiceRangeForPlayer(session, viewer);

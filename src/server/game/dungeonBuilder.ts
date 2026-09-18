@@ -21,6 +21,10 @@ import { createRng, type Rng } from "./random.js";
  */
 
 export interface BuiltDungeon {
+  /**
+   * The live world. Built at authored tile scale and blown up to world scale by
+   * `src/server/game/scale.ts` before a session ever sees it.
+   */
   dungeon: DungeonState;
   /** Where players start. Authored dungeons list them; generated ones use the entrance room. */
   spawnPoints: Vector2[];
@@ -104,6 +108,8 @@ export function buildAuthoredDungeon(
   const doors: DoorState[] = definition.doors.map((placed) => ({
     id: authoredId(placed.entityId, rng),
     position: { x: placed.x, y: placed.y },
+    // One authored tile. Widened along with everything else when the dungeon is scaled.
+    size: 1,
     open: false,
     locked: placed.locked,
   }));
@@ -129,6 +135,8 @@ export function buildAuthoredDungeon(
         name: definition.name,
         width: definition.tiles[0]?.length ?? 0,
         height: definition.tiles.length,
+        originX: 0,
+        originY: 0,
         tiles: [...definition.tiles],
       },
       rooms,

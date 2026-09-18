@@ -46,6 +46,12 @@ export interface SessionPlayer {
   carryingTorch: boolean;
   /** Server-side memory of map tiles this player has seen at least once. */
   discoveredTiles: Set<string>;
+  /**
+   * Rooms this player has seen any part of. Kept alongside `discoveredTiles` rather than derived
+   * from it: a scaled room is a couple of thousand tiles, and re-deriving this every tick is work
+   * that grows with the map for an answer that only ever changes while exploring.
+   */
+  discoveredRoomIds: Set<string>;
   /** Server-side only. Leaves the process solely in this player's own `sessionJoined`. */
   resumeToken: ResumeToken;
   /** When the socket dropped, or null while connected. Drives the reconnect grace window. */
@@ -253,6 +259,7 @@ export class SessionStore {
       inventory: [],
       carryingTorch: true,
       discoveredTiles: new Set(),
+      discoveredRoomIds: new Set(),
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
       nextMoveAt: null,

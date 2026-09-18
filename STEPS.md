@@ -12,7 +12,7 @@ Ask before moving past these points.
 
 Resolved, with answers recorded in `PROGRESS.md`: visual style, movement model, combat model,
 voice behavior, party size, death and loss, hybrid combat direction, carry capacity, identity for
-progression, and target run length.
+progression, target run length, and world tile scale.
 
 ## Backend Dev
 
@@ -108,6 +108,17 @@ Lighting is a core pillar, so it belongs on the server. A client that receives t
 - Add puzzle objects that need two or more players at once, such as paired levers and held pressure plates. These are what make a dark room worth talking through on voice.
 - Add boss monsters with their own stats and rooms that gate on defeating them.
 - Add lifting and carrying for objects and for downed players, spending the stamina costs step 7 defined and paying a movement penalty.
+
+### 13. World Tile Scale
+
+Taken out of order, before steps 10-12, because the first playable demo showed the dungeon was cramped rather than expansive: a corridor authored one tile wide fitted exactly one of the four players it was meant to hold. `GAMEDESCRIPTION.md` asks for levels "large in scale to allow players to lose eachother", and nothing built on top of a cramped map would have fixed that.
+
+- Separate the scale a designer authors at from the scale the game is played at, so one authored tile becomes a block of world tiles and `content/` keeps the size a person can read in a diff.
+- Scale only coordinates. Light radii, monster speeds, and reach are already world units and must stay tunable against the map rather than with it.
+- Grow traversal speed and light reach by less than the map, so the dungeon reads as large and dark rather than merely drawn further away.
+- Give a doorway the width of its opening. A door authored as one tile has to keep filling the whole of it, for collision, for line of sight, and for how close a player must stand to open it.
+- Send each player a window of the map rather than all of it, now that the whole map is far more than anyone can see or walk to between snapshots.
+- Make the renderer draw in world units and clip to the viewport, so the player holds a small part of a large room instead of most of a small one.
 
 ## Frontend Dev
 
@@ -219,3 +230,12 @@ Out of scope here: real movement and collision (Backend step 3), combat (step 4)
 - Show unlocked skills and what each one does.
 - Show what is still locked and what unlocking it takes.
 - Drive the unlock flow from server-owned profile state, never from local state.
+
+### 11. Drawing at World Scale
+
+The client half of Backend step 13, done with it.
+
+- Draw in world units at a zoom that keeps the player small against the room, rather than at a fixed size per tile.
+- Clip drawing to the viewport and to the window the snapshot carried. A generated world is far too large to draw whole every frame.
+- Rule the floor at the scale the level was authored at, not at every world tile.
+- Draw a doorway across its whole opening, so what a player sees is what the server collides against.

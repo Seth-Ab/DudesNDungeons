@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadContent } from "../../src/server/content/loadContent.js";
 import { buildDungeon, DEFAULT_DUNGEON_ID } from "../../src/server/game/dungeonState.js";
-import { isFloor } from "../../src/shared/game/movement.js";
+import { coversTile, isFloor, tileOf } from "../../src/shared/game/movement.js";
 import type { DungeonState, Vector2 } from "../../src/shared/types/core.js";
 
 const content = loadContent();
@@ -10,10 +10,21 @@ function generate(seed: number) {
   return buildDungeon({ dungeonId: DEFAULT_DUNGEON_ID, seed, content });
 }
 
-/** Flood fills the floor from `start`, so a test can assert what a party can actually walk to. */
+const tileKey = (position: Vector2): string => {
+  const tile = tileOf(position);
+  return `${tile.x},${tile.y}`;
+};
+
+/**
+ * Flood fills the floor from `start`, so a test can assert what a party can actually walk to.
+ *
+ * Walks world tiles, not authored ones. Entities sit at the centre of their authored block, which is
+ * a half-integer in world coordinates, so every position is put on its tile before it is compared.
+ */
 function reachableFrom(dungeon: DungeonState, start: Vector2): Set<string> {
-  const seen = new Set<string>([`${start.x},${start.y}`]);
-  const queue: Vector2[] = [start];
+  const from = tileOf(start);
+  const seen = new Set<string>([tileKey(from)]);
+  const queue: Vector2[] = [from];
 
   while (queue.length > 0) {
     const { x, y } = queue.shift()!;
@@ -26,10 +37,8 @@ function reachableFrom(dungeon: DungeonState, start: Vector2): Set<string> {
       const key = `${step.x},${step.y}`;
       if (seen.has(key) || !isFloor(dungeon, step)) continue;
 
-      // A locked door blocks a walk the same way a wall does, so the flood stops at one.
-      const blocked = dungeon.doors.some(
-        (door) => !door.open && door.position.x === step.x && door.position.y === step.y,
-      );
+      // A closed door blocks a walk the same way a wall does, across its whole span.
+      const blocked = dungeon.doors.some((door) => !door.open && coversTile(door, step.x, step.y));
       if (blocked) continue;
 
       seen.add(key);
@@ -98,12 +107,12 @@ describe("generated dungeons", () => {
 
       // Locked shut, the exit is walled off: that is what makes the key worth finding.
       const sealed = reachableFrom(dungeon, spawnPoints[0]!);
-      expect(sealed.has(`${exit.position.x},${exit.position.y}`)).toBe(false);
+      expect(sealed.has(tileKey(exit.position))).toBe(false);
 
       // Opened, it is reachable on foot, so a party that finds the key can always finish the run.
       const opened = { ...dungeon, doors: dungeon.doors.map((door) => ({ ...door, open: true })) };
       const reachable = reachableFrom(opened, spawnPoints[0]!);
-      expect(reachable.has(`${exit.position.x},${exit.position.y}`)).toBe(true);
+      expect(reachable.has(tileKey(exit.position))).toBe(true);
     }
   });
 
@@ -115,7 +124,7 @@ describe("generated dungeons", () => {
 
       expect(keys.length).toBeGreaterThan(0);
       expect(
-        keys.some((key) => reachable.has(`${key.position.x},${key.position.y}`)),
+        keys.some((key) => reachable.has(tileKey(key.position))),
       ).toBe(true);
     }
   });

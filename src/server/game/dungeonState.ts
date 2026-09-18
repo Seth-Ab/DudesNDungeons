@@ -11,6 +11,7 @@ import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { buildAuthoredDungeon, type BuiltDungeon } from "./dungeonBuilder.js";
 import { generateDungeon } from "./dungeonGenerator.js";
 import { randomSeed } from "./random.js";
+import { scaleDungeon } from "./scale.js";
 
 /**
  * Tuning that stays on the server. Clients see a monster's position and health, never its stats.
@@ -45,9 +46,14 @@ export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
   const definition = content.dungeons.get(dungeonId);
   if (!definition) throw new Error(`No dungeon content with id "${dungeonId}"`);
 
-  return definition.layout === "authored"
-    ? buildAuthoredDungeon(definition, content)
-    : generateDungeon(definition, content, request.seed ?? randomSeed());
+  const built =
+    definition.layout === "authored"
+      ? buildAuthoredDungeon(definition, content)
+      : generateDungeon(definition, content, request.seed ?? randomSeed());
+
+  // Content is authored small and played large. Every session gets the scaled world; nothing
+  // downstream of here ever sees authored tile coordinates.
+  return scaleDungeon(built);
 }
 
 export type MoveResult =

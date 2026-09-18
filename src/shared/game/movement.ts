@@ -1,5 +1,5 @@
 import { PLAYER_MOVE_SPEED, SERVER_TICK_RATE_HZ } from "../constants/game.js";
-import type { DungeonState, Vector2 } from "../types/core.js";
+import type { DoorState, DungeonMapState, DungeonState, Vector2 } from "../types/core.js";
 
 /**
  * Movement rules shared by the server, which resolves moves, and the client, which predicts them.
@@ -64,11 +64,23 @@ export function tileOf(position: Vector2): Vector2 {
   return { x: Math.round(position.x), y: Math.round(position.y) };
 }
 
+/**
+ * The map character at a world tile, or null when the tile is outside the world or outside the
+ * window this map carries.
+ *
+ * The server holds the whole world, so its lookups never miss. A client holds only the window from
+ * its last snapshot, and a tile beyond it is unknown rather than known-empty. The window reaches
+ * far past both the screen and the light, so a player cannot reach its edge between snapshots.
+ */
+export function tileAt(map: DungeonMapState, x: number, y: number): string | null {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return null;
+
+  return map.tiles[y - map.originY]?.[x - map.originX] ?? null;
+}
+
 export function isFloor(dungeon: DungeonState, position: Vector2): boolean {
   const { x, y } = tileOf(position);
-  if (x < 0 || y < 0 || x >= dungeon.map.width || y >= dungeon.map.height) return false;
-
-  return dungeon.map.tiles[y]?.[x] === ".";
+  return tileAt(dungeon.map, x, y) === ".";
 }
 
 export function distance(a: Vector2, b: Vector2): number {
@@ -87,14 +99,22 @@ function overlaps(a: Vector2, b: Vector2): boolean {
   return distanceSquared(a, b) < MIN_SEPARATION_SQUARED;
 }
 
-/** A closed door fills its whole tile, like a wall, so nothing can slip past its corners. */
+/**
+ * Whether a tile falls inside a doorway's span.
+ *
+ * A doorway is authored as a single tile and becomes a `TILE_SCALE` block in the world, so it is
+ * tested as a square around its centre rather than as one tile. Testing the centre tile alone would
+ * leave a closed door filling a sixteenth of its own opening.
+ */
+export function coversTile(door: DoorState, tileX: number, tileY: number): boolean {
+  const half = door.size / 2;
+  return Math.abs(tileX - door.position.x) < half && Math.abs(tileY - door.position.y) < half;
+}
+
+/** A closed door fills its whole doorway, like a wall, so nothing can slip past its corners. */
 function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
   const tile = tileOf(position);
-  return dungeon.doors.some((door) => {
-    if (door.open) return false;
-    const doorTile = tileOf(door.position);
-    return doorTile.x === tile.x && doorTile.y === tile.y;
-  });
+  return dungeon.doors.some((door) => !door.open && coversTile(door, tile.x, tile.y));
 }
 
 /**

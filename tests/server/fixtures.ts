@@ -1,9 +1,12 @@
 import {
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_STAMINA,
+  TILE_SCALE,
 } from "../../src/shared/constants/game.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
+import { scalePoint } from "../../src/server/game/scale.js";
 import type { Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
+import type { Vector2 } from "../../src/shared/types/core.js";
 
 /**
  * The Ember Vault is authored content, not a generated run, so its entity ids and positions are
@@ -21,11 +24,26 @@ export const WARDING_SALVE_ID = "99999999-9999-4999-8999-999999999999";
 export const VAULT_DOOR_ID = "55555555-5555-4555-8555-555555555555";
 export const VAULT_EXIT_ID = "66666666-6666-4666-8666-666666666666";
 
+/**
+ * The world position of an Ember Vault tile.
+ *
+ * Content is authored at `1 / TILE_SCALE` of world scale, so the vault's `(2, 2)` spawn is nowhere
+ * near world `(2, 2)`. Tests name the tile they mean and let this do the conversion, the same way
+ * `scaleDungeon` does for the real thing, so a change of scale does not rewrite every assertion.
+ *
+ * `dx` and `dy` nudge the result by world units, for the cases that care about a body's width
+ * rather than about which tile it stands in.
+ */
+export function at(x: number, y: number, dx = 0, dy = 0): Vector2 {
+  const point = scalePoint({ x, y }, TILE_SCALE);
+  return { x: point.x + dx, y: point.y + dy };
+}
+
 export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): SessionPlayer {
   return {
     id,
     name: id,
-    position: { x: 2, y: 2 },
+    position: at(2, 2),
     facing: { x: 0, y: 1 },
     health: 100,
     resistance: PLAYER_BASE_RESISTANCE,
@@ -35,6 +53,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     inventory: [],
     carryingTorch: true,
     discoveredTiles: new Set(),
+    discoveredRoomIds: new Set(),
     resumeToken: id.padEnd(32, "0"),
     disconnectedAt: null,
     nextMoveAt: null,
@@ -45,8 +64,8 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
   };
 }
 
-export function testSession(players: SessionPlayer[]): Session {
-  const built = buildDungeon({ dungeonId: TEST_DUNGEON_ID });
+export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_ID): Session {
+  const built = buildDungeon({ dungeonId });
 
   return {
     id: "session-1",
