@@ -27,7 +27,7 @@ export function monsterStatsFor(monster: MonsterState, content = gameContent()):
   return stats;
 }
 
-/** Which dungeon a session gets. Backend step 10 will pick the hub here before a run starts. */
+/** Which dungeon to build. Sessions use the hub first and this request when the party starts a run. */
 export interface DungeonRequest {
   /** Content id of the dungeon definition. Defaults to the configured run. */
   dungeonId?: string;
@@ -38,6 +38,7 @@ export interface DungeonRequest {
 
 /** The generated run a new session gets when nothing asks for a specific dungeon. */
 export const DEFAULT_DUNGEON_ID = "vault-run";
+export const HUB_DUNGEON_ID = "hub";
 
 export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
   const content = request.content ?? gameContent();
@@ -82,11 +83,10 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
       ...light,
       position: copyVector(light.position),
     })),
-    cleared: dungeon.cleared,
   };
 }
 
-/** A downed player cannot act, blocks nobody, and is ignored by monsters until they respawn. */
+/** A downed player cannot act, blocks nobody, and is ignored until revival or the run ends. */
 export function isDown(player: SessionPlayer): boolean {
   return player.health <= 0;
 }

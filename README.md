@@ -16,6 +16,8 @@ Runtime and renderer choices are recorded in `docs/decisions/0001-runtime-and-to
 disconnect, and reconnect behavior is recorded in `docs/decisions/0002-session-lifecycle.md`.
 Server-owned movement and dungeon state are in `docs/decisions/0003-authoritative-dungeon-state.md`,
 and combat, monsters, and items are in `docs/decisions/0004-combat-and-items.md`.
+Hub/run transitions, downed-player loss, and deliberate torches are recorded in
+`docs/decisions/0009-hub-and-run-lifecycle.md`.
 
 ## Requirements
 
@@ -35,12 +37,13 @@ port.
 ## Server API
 
 - `GET /health` - liveness, protocol version, and the number of live sessions.
-- `POST /sessions` - create a dungeon. Returns `{ sessionId, roomCode }`; share the room code with
+- `POST /sessions` - create a party hub. Returns `{ sessionId, roomCode }`; share the room code with
   the party.
 - `ws://localhost:8080` - gameplay. Connect, then send `joinSession` with the room code.
 
-A dungeon must exist before anyone can join it, so the flow is: one player calls `POST /sessions`,
-then everyone connects over WebSocket and sends `joinSession` with the returned room code.
+A session must exist before anyone can join it. One player calls `POST /sessions`, then everyone
+joins its hub over WebSocket. A standing player can use the dungeon gate only when every reserved
+party member is connected and ready. Fresh joins wait during a run; reconnects remain available.
 
 `sessionJoined` returns a `resumeToken`. Keep it for the life of the tab and send it back in a later
 `joinSession` to reclaim the same player slot after a refresh or a dropped connection; a slot is
@@ -80,7 +83,7 @@ Monsters, items, room templates, and dungeons are JSON under `content/`, not cod
 monster's damage or adding a room template is a file change and a server restart, with no rebuild.
 
 - `content/monsters/` - one file per monster type, keyed by a kebab-case id such as `ash-imp`.
-- `content/items/` - keys, tonics, and wards.
+- `content/items/` - keys, tonics, wards, and separately equipped torches.
 - `content/skills/` - validated skill definitions for persistent player progression.
 - `content/upgrades/` - validated, tiered improvements linked to skills.
 - `content/dungeons/templates/` - room templates, each with tiles, doorways, lights, and spawn rules.
@@ -99,6 +102,11 @@ Items are already active gameplay content: dungeon definitions spawn them and th
 inventory, and use. Skills and upgrades currently provide the validated authoring layer for Backend
 Step 11; persistent profiles, unlock decisions, and applying their effects are still to be built.
 See `content/README.md` for the supported shapes and relationships.
+
+Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no
+torch is issued automatically. Escaping banks a standing player's inventory for later runs in that
+session, while a downed player or a full-party wipe loses current carried items. Persistent banking
+across server restarts remains Backend Step 11.
 
 ## Frontend Development
 

@@ -255,6 +255,7 @@ describe("parseServerMessage", () => {
     const message: ServerMessage = {
       type: "stateSnapshot",
       tick: 3,
+      location: "dungeon",
       players: [],
       dungeon: {
         map: {
@@ -308,7 +309,6 @@ describe("parseServerMessage", () => {
             radius: 3.2,
           },
         ],
-        cleared: false,
       },
       run: { elapsedMs: 1_000, decayStartsInMs: 599_000, decaying: false, decayPerSecond: 0 },
     };
@@ -335,6 +335,8 @@ describe("parseServerMessage", () => {
         ready: true,
         connected: true,
         inventory: [{ id: TARGET_ID, name: "Minor Tonic", kind: "tonic" }],
+        carryingTorch: true,
+        bankedItems: [],
       },
     };
 

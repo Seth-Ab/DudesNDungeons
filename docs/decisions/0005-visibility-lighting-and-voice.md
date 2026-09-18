@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Superseded in part: Decision 0009 makes carried torches deliberate pickups rather than default
+  equipment for every joined player.
 
 ## Context
 

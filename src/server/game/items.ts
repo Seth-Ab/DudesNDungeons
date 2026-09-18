@@ -10,6 +10,7 @@ import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { DoorState, EntityId, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { returnToHub, startRun } from "./runLifecycle.js";
 import { restoreResistance } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
@@ -55,6 +56,14 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
   const loot = session.dungeon.loot.find((candidate) => candidate.id === itemId && !candidate.pickedUp);
   if (!loot) return reject("targetMissing");
   if (!withinReach(player, loot.position)) return reject("outOfRange");
+  if (loot.kind === "torch") {
+    if (player.carryingTorch) return reject("notPermitted");
+
+    loot.pickedUp = true;
+    player.carryingTorch = true;
+    return OK;
+  }
+
   if (player.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
 
   loot.pickedUp = true;
@@ -81,7 +90,9 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
       if (!restoreResistance(player, WARD_RESISTANCE_AMOUNT)) return reject("notPermitted");
       break;
     case "key":
+    case "torch":
       // Keys are spent by interacting with a locked door, not used on their own.
+      // Torches equip directly when picked up and never enter inventory.
       return reject("notPermitted");
   }
 
@@ -89,8 +100,13 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
   return OK;
 }
 
-/** Opens a door, spending a key if it is locked, or uses an exit to clear the dungeon. */
-export function interact(session: Session, playerId: PlayerId, targetId: EntityId): ItemResult {
+/** Opens a door, or uses the current world's exit to transition the whole party. */
+export function interact(
+  session: Session,
+  playerId: PlayerId,
+  targetId: EntityId,
+  now = 0,
+): ItemResult {
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");
 
@@ -100,7 +116,9 @@ export function interact(session: Session, playerId: PlayerId, targetId: EntityI
   const exit = session.dungeon.exits.find((candidate) => candidate.id === targetId);
   if (exit) {
     if (!withinReach(player, exit.position)) return reject("outOfRange");
-    session.dungeon.cleared = true;
+    if (session.location === "hub") return startRun(session, now);
+
+    returnToHub(session, true);
     return OK;
   }
 

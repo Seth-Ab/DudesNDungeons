@@ -36,7 +36,7 @@
     { "entityId": "55555555-5555-4555-8555-555555555555", "x": 11, "y": 6, "locked": true }
   ],
   "exits": [
-    { "entityId": "66666666-6666-4666-8666-666666666666", "x": 14, "y": 6, "destination": "deeper vault" }
+    { "entityId": "66666666-6666-4666-8666-666666666666", "x": 14, "y": 6, "destination": "hub" }
   ],
   "lights": [
     { "entityId": "77777777-7777-4777-8777-777777777777", "name": "West Torch Pillar", "x": 3, "y": 5, "radius": 9.6 },

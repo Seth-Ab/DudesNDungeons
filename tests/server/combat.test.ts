@@ -5,7 +5,6 @@ import {
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_MAX_HEALTH,
-  PLAYER_RESPAWN_MS,
 } from "../../src/shared/constants/game.js";
 import { at, ASH_IMP_ID, monster, testPlayer, testSession } from "./fixtures.js";
 
@@ -186,22 +185,15 @@ describe("monster behavior", () => {
     expect(player.health).toBeLessThan(PLAYER_MAX_HEALTH);
   });
 
-  it("downs a player, leaves them alone, and respawns them with full health", () => {
+  it("downs a player and leaves them down until the run lifecycle resolves", () => {
     const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), health: 1, resistance: 0 });
     const session = testSession([player]);
 
     const [hit] = simulate(session, 0);
 
     expect(hit).toMatchObject({ targetId: "alpha", damage: 1, targetHealth: 0, targetDefeated: true });
-    expect(player.respawnAt).toBe(PLAYER_RESPAWN_MS);
-
-    expect(simulate(session, PLAYER_RESPAWN_MS - 1)).toEqual([]);
+    expect(simulate(session, 60_000)).toEqual([]);
     expect(player.health).toBe(0);
-
-    simulate(session, PLAYER_RESPAWN_MS);
-
-    expect(player.health).toBe(PLAYER_MAX_HEALTH);
-    expect(player.position).toEqual(at(2, 2));
-    expect(player.respawnAt).toBeNull();
+    expect(player.position).toEqual(at(11, 2, -IN_REACH));
   });
 });

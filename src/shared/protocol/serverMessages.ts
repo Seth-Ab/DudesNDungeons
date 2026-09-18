@@ -7,6 +7,7 @@ import {
   resumeTokenSchema,
   roomCodeSchema,
   runStateSchema,
+  sessionLocationSchema,
   sessionIdSchema,
 } from "../types/core.js";
 import { voiceSignalSchema } from "./voice.js";
@@ -18,6 +19,7 @@ export const errorCodeSchema = z.enum([
   "sessionFull",
   "notInSession",
   "alreadyInSession",
+  "runInProgress",
   "rateLimited",
   "notImplemented",
   "internalError",
@@ -92,6 +94,7 @@ export const playerReadyChangedSchema = z.object({
 export const stateSnapshotSchema = z.object({
   type: z.literal("stateSnapshot"),
   tick: z.number().int().nonnegative(),
+  location: sessionLocationSchema,
   players: z.array(playerStateSchema),
   dungeon: dungeonStateSchema,
   run: runStateSchema,

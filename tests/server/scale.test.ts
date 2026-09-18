@@ -43,7 +43,6 @@ function authoredCorridor(): BuiltDungeon {
       ],
       exits: [],
       lightSources: [],
-      cleared: false,
     },
     spawnPoints: [{ x: 1, y: 1 }],
     seed: null,

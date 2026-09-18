@@ -23,6 +23,8 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     ready: false,
     connected: true,
     inventory: [],
+    carryingTorch: false,
+    bankedItems: [],
     ...overrides,
   };
 }
@@ -49,7 +51,6 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     doors: [],
     exits: [],
     lightSources: [],
-    cleared: false,
     ...overrides,
   };
 }
@@ -148,6 +149,7 @@ describe("snapshots", () => {
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 7,
+      location: "dungeon",
       players: [player(SELF_ID, { health: 42 }), player(ALLY_ID)],
       dungeon: dungeon(),
       run: run(),
@@ -165,6 +167,7 @@ describe("snapshots", () => {
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 1,
+      location: "dungeon",
       players: [player(SELF_ID, { resistance: 12, stamina: 30 })],
       dungeon: dungeon(),
       run: { elapsedMs: 601_000, decayStartsInMs: 0, decaying: true, decayPerSecond: 0.1 },
@@ -184,6 +187,7 @@ describe("snapshots", () => {
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 7,
+      location: "dungeon",
       players: [player(SELF_ID, { health: 42 })],
       dungeon: dungeon(),
       run: run(),
@@ -191,6 +195,7 @@ describe("snapshots", () => {
     view = applyServerMessage(view, {
       type: "stateSnapshot",
       tick: 6,
+      location: "dungeon",
       players: [player(SELF_ID, { health: 100 })],
       dungeon: dungeon({
         map: { id: "old", name: "Old", width: 1, height: 1, originX: 0, originY: 0, tiles: ["."] },

@@ -547,7 +547,6 @@ export function generateDungeon(
       doors,
       exits,
       lightSources,
-      cleared: false,
     },
     spawnPoints: spawnPoints.length > 0 ? spawnPoints : [centerOf(entrance)],
     seed,

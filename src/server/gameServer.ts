@@ -17,6 +17,7 @@ import type { PlayerId } from "../shared/types/core.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
+import { partyWiped, returnToHub } from "./game/runLifecycle.js";
 import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
 import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
@@ -100,6 +101,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, {
       type: "stateSnapshot",
       tick: session.tick,
+      location: session.location,
       players: frame.players,
       dungeon: frame.dungeon,
       // The run clock belongs to the viewer, not the party: a player who joined late has been in
@@ -339,7 +341,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
             ? pickupItem(member.session, playerId, message.itemId)
             : message.type === "useItem"
               ? useItem(member.session, playerId, message.itemId)
-              : interact(member.session, playerId, message.targetId);
+              : interact(member.session, playerId, message.targetId, now());
         if (!result.ok) {
           // These messages carry no sequence number, so the rejection cannot name one.
           send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
@@ -383,9 +385,10 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     const at = now();
 
     for (const session of store.listSessions()) {
-      // Monsters and respawns advance even with nobody watching, so a reconnecting party returns to
+      // Dungeon simulation advances even with nobody watching, so a reconnecting party returns to
       // a world that kept its timers rather than one frozen mid-fight.
       const monsterAttacks = simulate(session, at);
+      if (partyWiped(session)) returnToHub(session, false);
       session.tick += 1;
 
       const hasAudience = [...session.players.values()].some((player) => player.connected);
