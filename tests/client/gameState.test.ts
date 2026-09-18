@@ -18,6 +18,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
       height: 4,
       tiles: ["######", "#....#", "#....#", "######"],
     },
+    rooms: [],
     monsters: [],
     loot: [],
     doors: [],
@@ -91,6 +92,7 @@ describe("predictMove", () => {
 
     const monster = {
       id: "11111111-1111-4111-8111-111111111111",
+      typeId: "ash-imp",
       name: "Imp",
       health: 5,
       maxHealth: 5,

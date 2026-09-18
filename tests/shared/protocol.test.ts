@@ -264,9 +264,21 @@ describe("parseServerMessage", () => {
           height: 3,
           tiles: ["###", "#.#", "###"],
         },
+        rooms: [
+          {
+            id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            name: "Ember Hall",
+            kind: "hall",
+            x: 0,
+            y: 0,
+            width: 3,
+            height: 3,
+          },
+        ],
         monsters: [
           {
             id: TARGET_ID,
+            typeId: "ash-imp",
             name: "Ash Imp",
             position: { x: 1, y: 1 },
             health: 12,

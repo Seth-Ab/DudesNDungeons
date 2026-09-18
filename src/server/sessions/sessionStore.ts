@@ -23,7 +23,7 @@ import type {
   SessionId,
   Vector2,
 } from "../../shared/types/core.js";
-import { createDungeonState, findSpawnPoint } from "../game/dungeonState.js";
+import { buildDungeon, findSpawnPoint, type DungeonRequest } from "../game/dungeonState.js";
 
 export interface SessionPlayer {
   id: PlayerId;
@@ -69,6 +69,16 @@ export interface Session {
   roomCode: RoomCode;
   createdAt: number;
   dungeon: DungeonState;
+  /**
+   * Where players enter. Owned by the dungeon rather than by a module constant, because a generated
+   * dungeon puts its entrance somewhere different every run.
+   */
+  spawnPoints: Vector2[];
+  /**
+   * The seed this dungeon was generated from, or null for an authored one. Kept so a run can be
+   * reproduced from a bug report, and logged when a session is created.
+   */
+  seed: number | null;
   /** Monotonic simulation tick, stamped onto each snapshot so clients can order what they receive. */
   tick: number;
   players: Map<PlayerId, SessionPlayer>;
@@ -102,6 +112,8 @@ export interface SessionStoreOptions {
   maxPartySize?: number;
   reconnectGraceMs?: number;
   emptySessionTtlMs?: number;
+  /** Which dungeon new sessions get. Tests pin a seed here to make a generated run repeatable. */
+  dungeon?: DungeonRequest;
 }
 
 function defaultRoomCode(): RoomCode {
@@ -132,6 +144,7 @@ export class SessionStore {
   readonly #maxPartySize: number;
   readonly #reconnectGraceMs: number;
   readonly #emptySessionTtlMs: number;
+  readonly #dungeon: DungeonRequest;
 
   constructor(options: SessionStoreOptions = {}) {
     this.#now = options.now ?? Date.now;
@@ -142,6 +155,7 @@ export class SessionStore {
     this.#maxPartySize = options.maxPartySize ?? MAX_PARTY_SIZE;
     this.#reconnectGraceMs = options.reconnectGraceMs ?? RECONNECT_GRACE_MS;
     this.#emptySessionTtlMs = options.emptySessionTtlMs ?? EMPTY_SESSION_TTL_MS;
+    this.#dungeon = options.dungeon ?? {};
   }
 
   createSession(): Session {
@@ -153,11 +167,14 @@ export class SessionStore {
       roomCode = this.#createRoomCode();
     }
 
+    const built = buildDungeon(this.#dungeon);
     const session: Session = {
       id: this.#createSessionId(),
       roomCode,
       createdAt: this.#now(),
-      dungeon: createDungeonState(),
+      dungeon: built.dungeon,
+      spawnPoints: built.spawnPoints,
+      seed: built.seed,
       tick: 0,
       players: new Map(),
       simulatedAt: null,

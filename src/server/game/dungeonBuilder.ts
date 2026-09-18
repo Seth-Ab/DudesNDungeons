@@ -1,0 +1,145 @@
+import type {
+  DoorState,
+  DungeonState,
+  ExitState,
+  LightSourceState,
+  LootState,
+  MonsterState,
+  RoomState,
+  Vector2,
+} from "../../shared/types/core.js";
+import type { GameContent } from "../content/loadContent.js";
+import type { AuthoredDungeon, ItemDefinition, MonsterType } from "../content/schema.js";
+import { createRng, type Rng } from "./random.js";
+
+/**
+ * Turns authored content into a live dungeon.
+ *
+ * Content is a description; `DungeonState` is an instance with entity ids, current health, and
+ * whether a door is open. Each session gets its own instance so one party opening a door does not
+ * open it for everyone, which is why this builds rather than shares.
+ */
+
+export interface BuiltDungeon {
+  dungeon: DungeonState;
+  /** Where players start. Authored dungeons list them; generated ones use the entrance room. */
+  spawnPoints: Vector2[];
+  /** The seed a generated dungeon came from, or null when it was laid out by hand. */
+  seed: number | null;
+}
+
+export function monsterInstance(type: MonsterType, position: Vector2, id: string): MonsterState {
+  return {
+    id,
+    typeId: type.id,
+    name: type.name,
+    position: { ...position },
+    health: type.maxHealth,
+    maxHealth: type.maxHealth,
+    alive: true,
+  };
+}
+
+export function lootInstance(item: ItemDefinition, position: Vector2, id: string): LootState {
+  return {
+    id,
+    name: item.name,
+    kind: item.kind,
+    position: { ...position },
+    pickedUp: false,
+  };
+}
+
+/**
+ * The id an authored placement gets. A pinned `entityId` wins; otherwise one is drawn from a stream
+ * seeded by the dungeon id, so an authored dungeon still builds the same ids every time without the
+ * author having to write a UUID for every torch.
+ */
+function authoredId(pinned: string | undefined, rng: Rng): string {
+  return pinned ?? rng.uuid();
+}
+
+/** A stable numeric seed for a string, so an authored dungeon id maps to one fixed stream. */
+export function seedFromString(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function buildAuthoredDungeon(
+  definition: AuthoredDungeon,
+  content: GameContent,
+): BuiltDungeon {
+  const rng = createRng(seedFromString(definition.id));
+
+  const rooms: RoomState[] = definition.rooms.map((room) => ({
+    id: rng.uuid(),
+    name: room.name,
+    kind: room.kind,
+    x: room.x,
+    y: room.y,
+    width: room.width,
+    height: room.height,
+  }));
+
+  const monsters: MonsterState[] = definition.monsters.map((placed) => {
+    const type = content.monsters.get(placed.typeId);
+    // Unreachable via loadContent, which checks every reference, but a hand-built catalog in a test
+    // could miss one and a monster with no stats crashes much later and much less clearly.
+    if (!type) throw new Error(`Dungeon "${definition.id}" places unknown monster "${placed.typeId}"`);
+
+    return monsterInstance(type, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
+  });
+
+  const loot: LootState[] = definition.loot.map((placed) => {
+    const item = content.items.get(placed.itemId);
+    if (!item) throw new Error(`Dungeon "${definition.id}" places unknown item "${placed.itemId}"`);
+
+    return lootInstance(item, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
+  });
+
+  const doors: DoorState[] = definition.doors.map((placed) => ({
+    id: authoredId(placed.entityId, rng),
+    position: { x: placed.x, y: placed.y },
+    open: false,
+    locked: placed.locked,
+  }));
+
+  const exits: ExitState[] = definition.exits.map((placed) => ({
+    id: authoredId(placed.entityId, rng),
+    position: { x: placed.x, y: placed.y },
+    destination: placed.destination,
+  }));
+
+  const lightSources: LightSourceState[] = definition.lights.map((placed) => ({
+    id: authoredId(placed.entityId, rng),
+    name: placed.name,
+    kind: "fixed" as const,
+    position: { x: placed.x, y: placed.y },
+    radius: placed.radius,
+  }));
+
+  return {
+    dungeon: {
+      map: {
+        id: definition.id,
+        name: definition.name,
+        width: definition.tiles[0]?.length ?? 0,
+        height: definition.tiles.length,
+        tiles: [...definition.tiles],
+      },
+      rooms,
+      monsters,
+      loot,
+      doors,
+      exits,
+      lightSources,
+      cleared: false,
+    },
+    spawnPoints: definition.spawnPoints.map((point) => ({ x: point.x, y: point.y })),
+    seed: null,
+  };
+}

@@ -28,8 +28,21 @@ export const dungeonMapSchema = z.object({
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
 
+/** A content id, such as `ash-imp`. Not a UUID: these name a kind of thing, not an instance. */
+export const contentIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Content ids are lowercase kebab-case");
+export type ContentId = z.infer<typeof contentIdSchema>;
+
 export const monsterStateSchema = z.object({
   id: entityIdSchema,
+  /**
+   * Which kind of monster this is. Stats hang off this on the server, so two monsters may share a
+   * display name without colliding - which keying by name could not survive.
+   */
+  typeId: contentIdSchema,
   name: z.string().min(1),
   position: vector2Schema,
   health: z.number().int().nonnegative(),
@@ -74,6 +87,38 @@ export const exitStateSchema = z.object({
 });
 export type ExitState = z.infer<typeof exitStateSchema>;
 
+/**
+ * What a room is for. The client may draw a boss room differently from a corridor junction, and the
+ * server gates on it: exits end a run, entrances hold the party spawn, bosses gate their room.
+ */
+export const roomKindSchema = z.enum([
+  "entrance",
+  "hall",
+  "maze",
+  "trap",
+  "puzzle",
+  "boss",
+  "exit",
+  "corridor",
+]);
+export type RoomKind = z.infer<typeof roomKindSchema>;
+
+/**
+ * A named region of the map. Nothing in the model knew what a room was before generation existed,
+ * and visibility, boss gating, and template stitching all need one. Bounds are the top-left tile
+ * plus a size in tiles, inclusive of the room's own walls.
+ */
+export const roomStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  kind: roomKindSchema,
+  x: z.number().int().nonnegative(),
+  y: z.number().int().nonnegative(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+export type RoomState = z.infer<typeof roomStateSchema>;
+
 export const lightSourceKindSchema = z.enum(["fixed", "carriedTorch", "monsterGlow"]);
 export type LightSourceKind = z.infer<typeof lightSourceKindSchema>;
 
@@ -88,6 +133,8 @@ export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
 
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
+  /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
+  rooms: z.array(roomStateSchema),
   monsters: z.array(monsterStateSchema),
   loot: z.array(lootStateSchema),
   doors: z.array(doorStateSchema),

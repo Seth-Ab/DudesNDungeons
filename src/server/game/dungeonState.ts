@@ -1,4 +1,3 @@
-import { FIXED_LIGHT_RADIUS, MONSTER_GLOW_LIGHT_RADIUS } from "../../shared/constants/game.js";
 import {
   MOVE_BURST_TOLERANCE_MS,
   MOVE_INTERVAL_MS,
@@ -6,143 +5,50 @@ import {
   stepFrom,
 } from "../../shared/game/movement.js";
 import type { DungeonState, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
+import { gameContent, type GameContent } from "../content/loadContent.js";
+import type { MonsterType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { buildAuthoredDungeon, type BuiltDungeon } from "./dungeonBuilder.js";
+import { generateDungeon } from "./dungeonGenerator.js";
+import { randomSeed } from "./random.js";
 
-/** Tuning that stays on the server. Clients see a monster's position and health, never its stats. */
-export interface MonsterStats {
-  /** World units per second while chasing. */
-  speed: number;
-  /** Distance at which the monster notices a player and starts chasing. */
-  aggroRange: number;
-  /** Center-to-center reach. Must exceed two player radii, or the monster could never land a hit. */
-  attackRange: number;
-  damage: number;
-  attackCooldownMs: number;
-  /** Optional light emitted by a living monster, in world units. */
-  glowRadius?: number;
-}
+/**
+ * Tuning that stays on the server. Clients see a monster's position and health, never its stats.
+ *
+ * Keyed by content type id rather than by display name, so two monsters may share a name without
+ * one silently inheriting the other's stats.
+ */
+export type MonsterStats = MonsterType;
 
-const MONSTER_STATS: Record<string, MonsterStats> = {
-  "Ash Imp": {
-    speed: 1.8,
-    aggroRange: 5,
-    attackRange: 1,
-    damage: 8,
-    attackCooldownMs: 1_000,
-    glowRadius: MONSTER_GLOW_LIGHT_RADIUS,
-  },
-  "Cinder Slime": { speed: 1, aggroRange: 4, attackRange: 1, damage: 12, attackCooldownMs: 1_400 },
-};
-
-export function monsterStatsFor(monster: MonsterState): MonsterStats {
-  const stats = MONSTER_STATS[monster.name];
-  if (!stats) throw new Error(`No stats for monster "${monster.name}"`);
+export function monsterStatsFor(monster: MonsterState, content = gameContent()): MonsterStats {
+  const stats = content.monsters.get(monster.typeId);
+  if (!stats) throw new Error(`No stats for monster type "${monster.typeId}"`);
   return stats;
 }
 
-/** West side of the map, outside both monsters' aggro range, so nobody is attacked on arrival. */
-const SPAWN_POINTS: Vector2[] = [
-  { x: 2, y: 2 },
-  { x: 2, y: 5 },
-  { x: 4, y: 1 },
-  { x: 2, y: 6 },
-];
+/** Which dungeon a session gets. Backend step 10 will pick the hub here before a run starts. */
+export interface DungeonRequest {
+  /** Content id of the dungeon definition. Defaults to the configured run. */
+  dungeonId?: string;
+  /** Seed for a generated dungeon. Omitted, a fresh one is drawn; pass one to replay a run. */
+  seed?: number;
+  content?: GameContent;
+}
 
-/**
- * The Ash Imp guards the Copper Key. The key opens the locked door at (11, 6), the only way into the
- * walled vault in the south-east corner, where the exit is.
- */
-const FIXED_DUNGEON: DungeonState = {
-  map: {
-    id: "ember-vault",
-    name: "Ember Vault",
-    width: 16,
-    height: 8,
-    tiles: [
-      "################",
-      "#..............#",
-      "#..####........#",
-      "#.......##.....#",
-      "#..........#####",
-      "#.....###..#...#",
-      "#..............#",
-      "################",
-    ],
-  },
-  monsters: [
-    {
-      id: "11111111-1111-4111-8111-111111111111",
-      name: "Ash Imp",
-      position: { x: 11, y: 2 },
-      health: 12,
-      maxHealth: 12,
-      alive: true,
-    },
-    {
-      id: "22222222-2222-4222-8222-222222222222",
-      name: "Cinder Slime",
-      position: { x: 8, y: 4 },
-      health: 18,
-      maxHealth: 18,
-      alive: true,
-    },
-  ],
-  loot: [
-    {
-      id: "33333333-3333-4333-8333-333333333333",
-      name: "Copper Key",
-      kind: "key",
-      position: { x: 12, y: 1 },
-      pickedUp: false,
-    },
-    {
-      id: "44444444-4444-4444-8444-444444444444",
-      name: "Minor Tonic",
-      kind: "tonic",
-      position: { x: 4, y: 6 },
-      pickedUp: false,
-    },
-    {
-      id: "99999999-9999-4999-8999-999999999999",
-      name: "Warding Salve",
-      kind: "ward",
-      position: { x: 7, y: 1 },
-      pickedUp: false,
-    },
-  ],
-  doors: [
-    {
-      id: "55555555-5555-4555-8555-555555555555",
-      position: { x: 11, y: 6 },
-      open: false,
-      locked: true,
-    },
-  ],
-  exits: [
-    {
-      id: "66666666-6666-4666-8666-666666666666",
-      position: { x: 14, y: 6 },
-      destination: "deeper vault",
-    },
-  ],
-  lightSources: [
-    {
-      id: "77777777-7777-4777-8777-777777777777",
-      name: "West Torch Pillar",
-      kind: "fixed",
-      position: { x: 3, y: 5 },
-      radius: FIXED_LIGHT_RADIUS,
-    },
-    {
-      id: "88888888-8888-4888-8888-888888888888",
-      name: "Vault Brazier",
-      kind: "fixed",
-      position: { x: 13, y: 5 },
-      radius: FIXED_LIGHT_RADIUS,
-    },
-  ],
-  cleared: false,
-};
+/** The generated run a new session gets when nothing asks for a specific dungeon. */
+export const DEFAULT_DUNGEON_ID = "vault-run";
+
+export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
+  const content = request.content ?? gameContent();
+  const dungeonId = request.dungeonId ?? DEFAULT_DUNGEON_ID;
+
+  const definition = content.dungeons.get(dungeonId);
+  if (!definition) throw new Error(`No dungeon content with id "${dungeonId}"`);
+
+  return definition.layout === "authored"
+    ? buildAuthoredDungeon(definition, content)
+    : generateDungeon(definition, content, request.seed ?? randomSeed());
+}
 
 export type MoveResult =
   | { ok: true; player: SessionPlayer }
@@ -158,6 +64,7 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
       ...dungeon.map,
       tiles: [...dungeon.map.tiles],
     },
+    rooms: dungeon.rooms.map((room) => ({ ...room })),
     monsters: dungeon.monsters.map((monster) => ({
       ...monster,
       position: copyVector(monster.position),
@@ -173,10 +80,6 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
   };
 }
 
-export function createDungeonState(): DungeonState {
-  return cloneDungeonState(FIXED_DUNGEON);
-}
-
 /** A downed player cannot act, blocks nobody, and is ignored by monsters until they respawn. */
 export function isDown(player: SessionPlayer): boolean {
   return player.health <= 0;
@@ -187,7 +90,7 @@ export function isDown(player: SessionPlayer): boolean {
  * leaves, the next arrival would land on top of a player who stayed.
  */
 export function findSpawnPoint(session: Session): Vector2 {
-  const open = SPAWN_POINTS.find((point) => canOccupy(session, point));
+  const open = session.spawnPoints.find((point) => canOccupy(session, point));
   if (open) return copyVector(open);
 
   // Players can be standing on every spawn point, so any free floor tile will do.

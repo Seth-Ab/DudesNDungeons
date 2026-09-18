@@ -1,0 +1,21 @@
+{
+  "id": "collapsing-span",
+  "name": "Collapsing Span",
+  "kind": "trap",
+  "tiles": [
+    "###########",
+    "#.........#",
+    "#.##...##.#",
+    "#.........#",
+    "#.##...##.#",
+    "#.........#",
+    "###########"
+  ],
+  "doorways": [
+    { "x": 0, "y": 3, "side": "west" },
+    { "x": 10, "y": 3, "side": "east" }
+  ],
+  "lights": [],
+  "monsters": [{ "typeId": "cinder-slime", "min": 0, "max": 2 }],
+  "loot": [{ "itemId": "warding-salve", "min": 1, "max": 1 }]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "warden-crucible",
+  "name": "Warden Crucible",
+  "kind": "boss",
+  "tiles": [
+    "#############",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#############"
+  ],
+  "doorways": [
+    { "x": 0, "y": 3, "side": "west" },
+    { "x": 12, "y": 3, "side": "east" }
+  ],
+  "lights": [{ "x": 6, "y": 3, "name": "Crucible Fire", "radius": 4.6 }],
+  "monsters": [{ "typeId": "ember-warden", "min": 1, "max": 1 }],
+  "loot": [{ "itemId": "copper-key", "min": 1, "max": 1 }]
+}

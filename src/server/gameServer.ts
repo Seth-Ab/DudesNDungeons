@@ -74,21 +74,6 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, { type: "sessionError", code, message });
   }
 
-  function snapshotOf(session: Session, viewer: PlayerId): ServerMessage | null {
-    const player = session.players.get(viewer);
-    if (!player) return null;
-    const frame = visibilityFrameForPlayer(session, player);
-
-    return {
-      type: "stateSnapshot",
-      tick: session.tick,
-      players: frame.players,
-      dungeon: frame.dungeon,
-      // The run clock belongs to the viewer, not the party: a player who joined late has been in
-      // the dungeon for less time and their resistance reflects that.
-      run: runStateFor(player, now()),
-    };
-  }
 
   /** Fans a message out to the party. `exceptPlayerId` skips the player who caused the change. */
   function broadcast(session: Session, message: ServerMessage, exceptPlayerId?: PlayerId): void {
@@ -100,14 +85,28 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     }
   }
 
+  /**
+   * One visibility pass per player per tick. The frame feeds both the snapshot and the voice
+   * ranges, which are gated on the same rules; computing it twice was the tick's dominant cost.
+   */
   function sendSnapshot(session: Session, playerId: PlayerId): void {
     const socket = socketsByPlayer.get(playerId);
     if (!socket) return;
 
-    const snapshot = snapshotOf(session, playerId);
-    if (snapshot) send(socket, snapshot);
     const player = session.players.get(playerId);
-    if (player) send(socket, voiceRangeForPlayer(session, player));
+    if (!player) return;
+
+    const frame = visibilityFrameForPlayer(session, player);
+    send(socket, {
+      type: "stateSnapshot",
+      tick: session.tick,
+      players: frame.players,
+      dungeon: frame.dungeon,
+      // The run clock belongs to the viewer, not the party: a player who joined late has been in
+      // the dungeon for less time and their resistance reflects that.
+      run: runStateFor(player, now()),
+    });
+    send(socket, voiceRangeForPlayer(session, player, frame));
   }
 
   function broadcastSnapshots(session: Session): void {
@@ -151,7 +150,24 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     response.end();
   });
 
-  const wss = new WebSocketServer({ server: httpServer });
+  /**
+   * Snapshots are mostly repetition - a generated map is 96x64 tiles and nearly all of them are
+   * withheld as blanks until a player explores - so they deflate by roughly sixty to one. Without
+   * this a four-player party costs about 600 kB/s of upstream, which no home server will carry.
+   *
+   * Context takeover is left on: the dictionary carries between frames, and consecutive snapshots
+   * differ by very little. That costs memory per connection, which a party capped at four is well
+   * within. Browsers negotiate this natively, so it needs nothing from the client.
+   */
+  const wss = new WebSocketServer({
+    server: httpServer,
+    perMessageDeflate: {
+      zlibDeflateOptions: { level: 6 },
+      // Small frames cost more in framing overhead than they save.
+      threshold: 512,
+      concurrencyLimit: 10,
+    },
+  });
 
   wss.on("connection", (socket) => {
     // Identity for this socket, assigned on a successful join. Null until then, which is what

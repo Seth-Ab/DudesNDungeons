@@ -1,0 +1,16 @@
+{
+  "id": "ember-stair",
+  "name": "Ember Stair",
+  "kind": "exit",
+  "tiles": [
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#########"
+  ],
+  "doorways": [{ "x": 0, "y": 2, "side": "west" }],
+  "lights": [{ "x": 4, "y": 2, "name": "Stair Beacon", "radius": 4.2 }],
+  "monsters": [],
+  "loot": []
+}

@@ -33,6 +33,7 @@ export function createPlaceholderDungeon(): DungeonState {
     monsters: [
       {
         id: "11111111-1111-4111-8111-111111111111",
+        typeId: "ash-imp",
         name: "Preview Imp",
         position: { x: 11, y: 2 },
         health: 10,
@@ -41,6 +42,7 @@ export function createPlaceholderDungeon(): DungeonState {
       },
       {
         id: "22222222-2222-4222-8222-222222222222",
+        typeId: "cinder-slime",
         name: "Preview Slime",
         position: { x: 5, y: 5 },
         health: 14,
@@ -57,6 +59,7 @@ export function createPlaceholderDungeon(): DungeonState {
         radius: 3.2,
       },
     ],
+    rooms: [],
     loot: [],
     doors: [],
     exits: [],

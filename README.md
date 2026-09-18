@@ -66,13 +66,32 @@ logged or shared.
 - `src/client/` - browser UI, rendering, input, local state, network client, and WebRTC audio.
 - `src/server/` - authoritative dungeon state, sessions, WebSocket networking, and voice signaling.
 - `src/shared/` - protocol definitions, shared game helpers, constants, and TypeScript types.
-- `content/` - editable game data for dungeons, items, monsters, and skills.
+- `content/` - editable game data for dungeons, items, monsters, and skills. See below.
 - `assets/` - sprites, maps, audio, and UI media.
 - `tests/` - client, server, shared, and end-to-end tests.
 - `docs/` - architecture notes and decision records.
 - `scripts/` - local automation scripts.
 - `config/` - non-secret configuration templates.
 - `agent-skills/` - repo-local shared skills for repeated AI-agent and contributor workflows.
+
+## Game Content
+
+Monsters, items, room templates, and dungeons are JSON under `content/`, not code. Editing a
+monster's damage or adding a room template is a file change and a server restart, with no rebuild.
+
+- `content/monsters/` - one file per monster type, keyed by a kebab-case id such as `ash-imp`.
+- `content/items/` - keys, tonics, and wards.
+- `content/dungeons/templates/` - room templates, each with tiles, doorways, lights, and spawn rules.
+- `content/dungeons/` - dungeon definitions. `authored` places every entity by hand; `generated`
+  stitches templates together at run time.
+
+The whole catalog is validated when the server starts, and a mistake names the file and the field.
+The checks go past shape: a template that spawns a monster which does not exist, a map with ragged
+rows, or a room whose doorways do not connect through its own floor are all refused rather than
+becoming a dungeon nobody can finish. `CONTENT_DIR` overrides where content is read from.
+
+Generated dungeons are a pure function of their seed, which is recorded on the session, so a run can
+be reproduced exactly from a bug report.
 
 ## Frontend Development
 
