@@ -39,6 +39,8 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
       name: "Ember Vault",
       width: 3,
       height: 3,
+      originX: 0,
+      originY: 0,
       tiles: ["###", "#.#", "###"],
     },
     rooms: [],
@@ -190,7 +192,9 @@ describe("snapshots", () => {
       type: "stateSnapshot",
       tick: 6,
       players: [player(SELF_ID, { health: 100 })],
-      dungeon: dungeon({ map: { id: "old", name: "Old", width: 1, height: 1, tiles: ["."] } }),
+      dungeon: dungeon({
+        map: { id: "old", name: "Old", width: 1, height: 1, originX: 0, originY: 0, tiles: ["."] },
+      }),
       run: run(),
     });
 

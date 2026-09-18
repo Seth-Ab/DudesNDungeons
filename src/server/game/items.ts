@@ -24,6 +24,24 @@ function withinReach(player: SessionPlayer, position: Vector2): boolean {
   return distance(player.position, position) <= INTERACT_RANGE;
 }
 
+/**
+ * Whether a player standing at the face of a doorway can reach it.
+ *
+ * Measured to the nearest point of the door's span rather than to its centre. A doorway is a
+ * `TILE_SCALE` block, so its centre is two world units from its face while `INTERACT_RANGE` is a
+ * body's reach - a party would walk up to a locked door, be refused, and have to step into the
+ * doorway they cannot enter to open it.
+ */
+function withinReachOfDoor(player: SessionPlayer, door: DoorState): boolean {
+  const half = door.size / 2;
+  const nearest = {
+    x: Math.min(Math.max(player.position.x, door.position.x - half), door.position.x + half),
+    y: Math.min(Math.max(player.position.y, door.position.y - half), door.position.y + half),
+  };
+
+  return distance(player.position, nearest) <= INTERACT_RANGE;
+}
+
 /** The acting player, or null when they are missing or downed and so cannot act at all. */
 function actor(session: Session, playerId: PlayerId): SessionPlayer | null {
   const player = session.players.get(playerId);
@@ -90,7 +108,7 @@ export function interact(session: Session, playerId: PlayerId, targetId: EntityI
 }
 
 function openDoor(player: SessionPlayer, door: DoorState): ItemResult {
-  if (!withinReach(player, door.position)) return reject("outOfRange");
+  if (!withinReachOfDoor(player, door)) return reject("outOfRange");
   if (door.open) return reject("notPermitted");
 
   if (door.locked) {

@@ -9,6 +9,13 @@ import { z } from "zod";
  *
  * These schemas describe authored content. They are not the wire protocol: `src/shared/types/core.ts`
  * owns what reaches a client, and generation is what turns one into the other.
+ *
+ * Two units appear here and mixing them up is the easy mistake. Every `x`, `y`, `width`, `height`,
+ * and tile row is in authored tiles, which `src/server/game/scale.ts` multiplies by `TILE_SCALE` on
+ * the way to the world - so a template stays a readable dozen characters wide while the room a party
+ * walks into is fifty. Every distance - a light's radius, a monster's speed, its reach - is already
+ * in world units and is used exactly as written. Halving a template's width halves the room; halving
+ * a torch's radius does not.
  */
 
 /** Content ids are slugs, not UUIDs: they are written by hand and read in diffs. */
@@ -25,7 +32,7 @@ export const monsterTypeSchema = z.object({
   maxHealth: z.number().int().positive(),
   /** World units per second while chasing. */
   speed: z.number().positive(),
-  /** Distance at which the monster notices a player and starts chasing. */
+  /** Distance, in world units, at which the monster notices a player and starts chasing. */
   aggroRange: z.number().positive(),
   /** Center-to-center reach. Must exceed two player radii or the monster could never land a hit. */
   attackRange: z.number().positive(),
@@ -62,7 +69,7 @@ export const roomKindSchema = z.enum([
 export type RoomKind = z.infer<typeof roomKindSchema>;
 
 export const localPointSchema = z.object({
-  /** Tile coordinates within the template, before it is placed in the world. */
+  /** Authored tile coordinates within the template, before it is placed and scaled. */
   x: z.number().int().nonnegative(),
   y: z.number().int().nonnegative(),
 });
@@ -78,6 +85,7 @@ export type Doorway = z.infer<typeof doorwaySchema>;
 
 export const templateLightSchema = localPointSchema.extend({
   name: z.string().min(1),
+  /** World units, not authored tiles. Compare against `FIXED_LIGHT_RADIUS`. */
   radius: z.number().positive(),
 });
 
@@ -107,7 +115,7 @@ export const roomTemplateSchema = z.object({
 export type RoomTemplate = z.infer<typeof roomTemplateSchema>;
 
 /**
- * An entity placed by hand in an authored dungeon, at world tile coordinates.
+ * An entity placed by hand in an authored dungeon, at authored tile coordinates.
  *
  * `entityId` pins the id this placement gets on the wire. Authored dungeons want stable ids - the
  * Ember Vault's are asserted on directly by tests - while a generated dungeon draws them from its
@@ -129,6 +137,7 @@ const placedExitSchema = placedEntitySchema.extend({ destination: z.string().min
 
 const placedLightSchema = placedEntitySchema.extend({
   name: z.string().min(1),
+  /** World units, not authored tiles. */
   radius: z.number().positive(),
 });
 
@@ -136,7 +145,7 @@ const authoredRoomSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   kind: roomKindSchema,
-  /** Top-left tile of the room, with its size in tiles. */
+  /** Top-left authored tile of the room, with its size in authored tiles. */
   x: z.number().int().nonnegative(),
   y: z.number().int().nonnegative(),
   width: z.number().int().positive(),
@@ -177,7 +186,10 @@ export const generatedDungeonSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   layout: z.literal("generated"),
-  /** Tile size of the world the rooms are placed into. */
+  /**
+   * Size of the world the rooms are placed into, in authored tiles. The world a party actually
+   * explores is `TILE_SCALE` times this on each axis.
+   */
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   slots: z.array(roomSlotSchema).min(1),
@@ -185,8 +197,9 @@ export const generatedDungeonSchema = z.object({
   corridorLight: z
     .object({
       name: z.string().min(1),
+      /** World units. */
       radius: z.number().positive(),
-      /** One light per this many corridor tiles. */
+      /** One light per this many authored corridor tiles, so the spacing scales with the map. */
       everyTiles: z.number().int().positive(),
     })
     .optional(),

@@ -23,7 +23,7 @@ import {
   STAMINA_REGEN_PER_SECOND,
   WARD_RESISTANCE_AMOUNT,
 } from "../../src/shared/constants/game.js";
-import { ASH_IMP_ID, WARDING_SALVE_ID, testPlayer, testSession } from "./fixtures.js";
+import { ASH_IMP_ID, WARDING_SALVE_ID, at, testPlayer, testSession } from "./fixtures.js";
 
 describe("resistance as damage reduction", () => {
   it("scales a hit with diminishing returns and never reaches immunity", () => {
@@ -69,7 +69,7 @@ describe("raising resistance", () => {
   });
 
   it("happens through a ward consumable, which is spent in doing it", () => {
-    const player = testPlayer("alpha", { position: { x: 7, y: 1 }, resistance: 10 });
+    const player = testPlayer("alpha", { position: at(7, 1), resistance: 10 });
     const session = testSession([player]);
 
     expect(pickupItem(session, "alpha", WARDING_SALVE_ID)).toEqual({ ok: true });
@@ -131,7 +131,7 @@ describe("stamina", () => {
 
 describe("stamina gates attacking", () => {
   it("costs stamina per swing and refuses one the player cannot pay for", () => {
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, stamina: ATTACK_STAMINA_COST });
+    const player = testPlayer("alpha", { position: at(11, 2, -0.9), stamina: ATTACK_STAMINA_COST });
     const session = testSession([player]);
     const swing = (now: number) =>
       resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, ASH_IMP_ID, now);
@@ -143,7 +143,7 @@ describe("stamina gates attacking", () => {
   });
 
   it("charges nothing for a swing refused for any other reason", () => {
-    const player = testPlayer("alpha", { position: { x: 2, y: 2 } });
+    const player = testPlayer("alpha", { position: at(2, 2) });
     const session = testSession([player]);
 
     // Far out of reach of the imp.
@@ -165,7 +165,7 @@ describe("stamina gates attacking", () => {
 
   it("comes back with a full bar on respawn, but not with resistance restored", () => {
     const player = testPlayer("alpha", {
-      position: { x: 10, y: 2 },
+      position: at(11, 2, -0.9),
       health: 1,
       stamina: 0,
       resistance: 3,

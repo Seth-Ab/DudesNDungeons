@@ -2,8 +2,8 @@
   "id": "cinder-slime",
   "name": "Cinder Slime",
   "maxHealth": 18,
-  "speed": 1,
-  "aggroRange": 4,
+  "speed": 2.4,
+  "aggroRange": 12,
   "attackRange": 1,
   "damage": 12,
   "attackCooldownMs": 1400

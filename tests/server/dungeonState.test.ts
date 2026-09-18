@@ -5,14 +5,20 @@ import {
   MOVE_INTERVAL_MS,
   PLAYER_STEP_DISTANCE,
 } from "../../src/shared/game/movement.js";
-import { testPlayer, testSession } from "./fixtures.js";
+import { TILE_SCALE } from "../../src/shared/constants/game.js";
+import { at, testPlayer, testSession } from "./fixtures.js";
 
-const SPAWN_POINTS = [
-  { x: 2, y: 2 },
-  { x: 2, y: 5 },
-  { x: 4, y: 1 },
-  { x: 2, y: 6 },
-];
+/** The Ember Vault's authored spawn tiles, in the world coordinates they are played at. */
+const SPAWN_POINTS = [at(2, 2), at(2, 5), at(4, 1), at(2, 6)];
+
+/**
+ * A world position just inside the vault's west wall.
+ *
+ * The wall is one authored tile, so it fills world columns 0 to `TILE_SCALE - 1` and the first
+ * floor column starts at `TILE_SCALE - 0.5`. Standing a little past that edge, one step west is
+ * into the wall.
+ */
+const AGAINST_WEST_WALL = { x: TILE_SCALE - 0.4, y: at(1, 1).y };
 
 describe("dungeon movement", () => {
   it("moves a player by a server-owned step and updates facing", () => {
@@ -22,8 +28,8 @@ describe("dungeon movement", () => {
     const result = movePlayer(session, actor.id, { x: 1, y: 0 }, 0);
 
     expect(result.ok).toBe(true);
-    expect(actor.position.x).toBeGreaterThan(2);
-    expect(actor.position.y).toBe(2);
+    expect(actor.position.x).toBeGreaterThan(at(2, 2).x);
+    expect(actor.position.y).toBe(at(2, 2).y);
     expect(actor.facing).toEqual({ x: 1, y: 0 });
   });
 
@@ -34,34 +40,34 @@ describe("dungeon movement", () => {
     const result = movePlayer(session, actor.id, { x: 0, y: 0 }, 0);
 
     expect(result).toEqual({ ok: false, reason: "outOfRange" });
-    expect(actor.position).toEqual({ x: 2, y: 2 });
+    expect(actor.position).toEqual(at(2, 2));
   });
 
-  // Integer positions are tile centers, so the wall tile at x = 0 starts at x = 0.5.
+  // Integer positions are tile centers, so a tile at x = n starts at x = n - 0.5.
   it("blocks movement into walls and map bounds", () => {
-    const actor = testPlayer("alpha", { position: { x: 0.6, y: 1 } });
+    const actor = testPlayer("alpha", { position: { ...AGAINST_WEST_WALL } });
     const session = testSession([actor]);
 
     const intoWall = movePlayer(session, actor.id, { x: -1, y: 0 }, 0);
 
     expect(intoWall).toEqual({ ok: false, reason: "blocked" });
-    expect(actor.position).toEqual({ x: 0.6, y: 1 });
+    expect(actor.position).toEqual(AGAINST_WEST_WALL);
   });
 
   it("blocks movement into another player's occupied space", () => {
-    const actor = testPlayer("alpha", { position: { x: 2, y: 2 } });
-    const blocker = testPlayer("beta", { position: { x: 2.6, y: 2 } });
+    const actor = testPlayer("alpha", { position: at(2, 2) });
+    const blocker = testPlayer("beta", { position: at(2, 2, 0.6) });
     const session = testSession([actor, blocker]);
 
     const result = movePlayer(session, actor.id, { x: 1, y: 0 }, 0);
 
     expect(result).toEqual({ ok: false, reason: "blocked" });
-    expect(actor.position).toEqual({ x: 2, y: 2 });
+    expect(actor.position).toEqual(at(2, 2));
   });
 
   it("lets players who already overlap step apart, but not closer", () => {
-    const actor = testPlayer("alpha", { position: { x: 2, y: 2 } });
-    const other = testPlayer("beta", { position: { x: 2.3, y: 2 } });
+    const actor = testPlayer("alpha", { position: at(2, 2) });
+    const other = testPlayer("beta", { position: at(2, 2, 0.3) });
     const session = testSession([actor, other]);
 
     expect(movePlayer(session, actor.id, { x: 1, y: 0 }, 0)).toEqual({
@@ -72,8 +78,8 @@ describe("dungeon movement", () => {
   });
 
   it("walks through a downed player", () => {
-    const actor = testPlayer("alpha", { position: { x: 2, y: 2 } });
-    const downed = testPlayer("beta", { position: { x: 2.6, y: 2 }, health: 0 });
+    const actor = testPlayer("alpha", { position: at(2, 2) });
+    const downed = testPlayer("beta", { position: at(2, 2, 0.6), health: 0 });
     const session = testSession([actor, downed]);
 
     expect(movePlayer(session, actor.id, { x: 1, y: 0 }, 0).ok).toBe(true);
@@ -90,7 +96,8 @@ describe("dungeon movement", () => {
   });
 
   it("blocks movement into monsters", () => {
-    const actor = testPlayer("alpha", { position: { x: 10.4, y: 2 } });
+    // The vault's ash imp stands on tile (11, 2); this is just short of its body.
+    const actor = testPlayer("alpha", { position: at(11, 2, -0.9) });
     const session = testSession([actor]);
 
     expect(movePlayer(session, actor.id, { x: 1, y: 0 }, 0)).toEqual({
@@ -99,8 +106,10 @@ describe("dungeon movement", () => {
     });
   });
 
+  // The locked door is authored on tile (11, 6), so closed it fills every world column of it. The
+  // player stands in the last world column of tile (10, 6), one step short of the doorway.
   it("treats a closed door's whole tile as solid, and an open one as floor", () => {
-    const actor = testPlayer("alpha", { position: { x: 10.45, y: 5.6 } });
+    const actor = testPlayer("alpha", { position: at(10, 6, 1.9) });
     const session = testSession([actor]);
 
     expect(movePlayer(session, actor.id, { x: 1, y: 0 }, 0)).toEqual({
@@ -128,7 +137,7 @@ describe("movement pacing", () => {
       ok: false,
       reason: "onCooldown",
     });
-    expect(actor.position.x).toBeCloseTo(2 + 2 * PLAYER_STEP_DISTANCE);
+    expect(actor.position.x).toBeCloseTo(at(2, 2).x + 2 * PLAYER_STEP_DISTANCE);
 
     expect(
       movePlayer(session, actor.id, { x: 1, y: 0 }, 2 * MOVE_INTERVAL_MS - MOVE_BURST_TOLERANCE_MS)
@@ -137,7 +146,7 @@ describe("movement pacing", () => {
   });
 
   it("accepts evenly sent intents that network jitter bunched together", () => {
-    const actor = testPlayer("alpha", { position: { x: 2, y: 1 } });
+    const actor = testPlayer("alpha", { position: at(2, 1) });
     const session = testSession([actor]);
 
     // Sent every 50ms, but the third arrived 30ms after the second.
@@ -147,7 +156,7 @@ describe("movement pacing", () => {
   });
 
   it("caps long-run speed however fast intents arrive", () => {
-    const actor = testPlayer("alpha", { position: { x: 2, y: 1 } });
+    const actor = testPlayer("alpha", { position: at(2, 1) });
     const session = testSession([actor]);
     const durationMs = 1000;
 
@@ -162,7 +171,7 @@ describe("movement pacing", () => {
   });
 
   it("does not book time for a blocked move", () => {
-    const actor = testPlayer("alpha", { position: { x: 0.6, y: 1 } });
+    const actor = testPlayer("alpha", { position: { ...AGAINST_WEST_WALL } });
     const session = testSession([actor]);
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -175,23 +184,23 @@ describe("movement pacing", () => {
 
 describe("spawning", () => {
   it("uses the first spawn point in an empty dungeon", () => {
-    expect(findSpawnPoint(testSession([]))).toEqual({ x: 2, y: 2 });
+    expect(findSpawnPoint(testSession([]))).toEqual(at(2, 2));
   });
 
   it("skips spawn points another player is standing on", () => {
     // Two players joined and the first left: the second still holds the second spawn point.
     const session = testSession([
-      testPlayer("beta", { position: { x: 2, y: 5 } }),
-      testPlayer("gamma", { position: { x: 2, y: 2 } }),
+      testPlayer("beta", { position: at(2, 5) }),
+      testPlayer("gamma", { position: at(2, 2) }),
     ]);
 
-    expect(findSpawnPoint(session)).toEqual({ x: 4, y: 1 });
+    expect(findSpawnPoint(session)).toEqual(at(4, 1));
   });
 
   it("reuses a spawn point a downed player is lying on", () => {
-    const session = testSession([testPlayer("beta", { position: { x: 2, y: 2 }, health: 0 })]);
+    const session = testSession([testPlayer("beta", { position: at(2, 2), health: 0 })]);
 
-    expect(findSpawnPoint(session)).toEqual({ x: 2, y: 2 });
+    expect(findSpawnPoint(session)).toEqual(at(2, 2));
   });
 
   it("falls back to free floor when every spawn point is taken", () => {

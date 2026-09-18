@@ -12,19 +12,22 @@ import {
   MINOR_TONIC_ID,
   VAULT_DOOR_ID,
   VAULT_EXIT_ID,
+  at,
   testPlayer,
   testSession,
 } from "./fixtures.js";
 
-// Copper Key at (12, 1), locked door at (11, 6), exit at (14, 6) inside the vault.
+// Copper Key on tile (12, 1), locked door on (11, 6), exit on (14, 6) inside the vault.
 
 const KEY: InventoryItem = { id: COPPER_KEY_ID, name: "Copper Key", kind: "key" };
 const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", kind: "tonic" };
-const BY_THE_DOOR = { x: 10.4, y: 6 };
+
+/** At the face of the doorway, on the tile before it: where a party walking up to it stops. */
+const BY_THE_DOOR = at(10, 6, 1.9);
 
 describe("pickup", () => {
   it("moves loot in reach from the floor into the inventory", () => {
-    const player = testPlayer("alpha", { position: { x: 12, y: 1 } });
+    const player = testPlayer("alpha", { position: at(12, 1) });
     const session = testSession([player]);
 
     expect(pickupItem(session, "alpha", COPPER_KEY_ID)).toEqual({ ok: true });
@@ -33,8 +36,8 @@ describe("pickup", () => {
   });
 
   it("refuses loot out of reach, and loot someone already took", () => {
-    const far = testPlayer("alpha", { position: { x: 2, y: 2 } });
-    const near = testPlayer("beta", { position: { x: 12, y: 1 } });
+    const far = testPlayer("alpha", { position: at(2, 2) });
+    const near = testPlayer("beta", { position: at(12, 1) });
     const session = testSession([far, near]);
 
     expect(pickupItem(session, "alpha", COPPER_KEY_ID)).toEqual({ ok: false, reason: "outOfRange" });
@@ -47,7 +50,7 @@ describe("pickup", () => {
 
   it("refuses when the inventory is full", () => {
     const player = testPlayer("alpha", {
-      position: { x: 12, y: 1 },
+      position: at(12, 1),
       inventory: Array.from({ length: MAX_INVENTORY_SIZE }, () => ({ ...TONIC })),
     });
     const session = testSession([player]);
@@ -112,8 +115,8 @@ describe("doors and exits", () => {
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: true });
     expect(door(session)).toMatchObject({ open: true, locked: false });
     expect(player.inventory).toEqual([]);
-    // A point inside the door's tile, far enough from the player that only the door could block it.
-    expect(canOccupy(session, { x: 11.4, y: 6 })).toBe(true);
+    // A point inside the doorway, far enough from the player that only the door could block it.
+    expect(canOccupy(session, at(11, 6))).toBe(true);
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
   });
 
@@ -124,7 +127,7 @@ describe("doors and exits", () => {
   });
 
   it("clears the dungeon from the exit", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 14, y: 6 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(14, 6) })]);
 
     expect(interact(session, "alpha", VAULT_EXIT_ID)).toEqual({ ok: true });
     expect(session.dungeon.cleared).toBe(true);
@@ -141,7 +144,7 @@ describe("downed players", () => {
   it("cannot pick up, use, or interact", () => {
     const session = testSession([
       testPlayer("alpha", {
-        position: { x: 12, y: 1 },
+        position: at(12, 1),
         health: 0,
         inventory: [{ ...TONIC }],
       }),
