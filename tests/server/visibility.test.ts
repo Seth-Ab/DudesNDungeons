@@ -91,6 +91,61 @@ describe("line of sight", () => {
 
     expect(visible.has("3,1")).toBe(false);
   });
+
+  /**
+   * A closed door standing in a corridor, four world tiles across, exactly as `TILE_SCALE` makes
+   * one authored doorway. The viewer stands two tiles west of its near edge.
+   */
+  function corridorWithClosedDoor() {
+    const viewer = testPlayer("viewer", { position: { x: 2, y: 3 } });
+    const session = testSession([viewer]);
+    // A corridor four world tiles tall, which is what one authored tile becomes at `TILE_SCALE`.
+    session.dungeon.map = flatMap([
+      "##########",
+      "##########",
+      "#........#",
+      "#........#",
+      "#........#",
+      "#........#",
+      "##########",
+    ]);
+    session.dungeon.lightSources = [];
+    // Centred so it fills world tiles 4-7 across and 2-5 down, the way `scaleDungeon` places one.
+    session.dungeon.doors = [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        position: { x: 5.5, y: 3.5 },
+        size: 4,
+        open: false,
+        locked: true,
+      },
+    ];
+
+    return { viewer, session };
+  }
+
+  it("shows a closed door to a player standing at it", () => {
+    // A door is one object across sixteen tiles. Exempting only the single tile the ray was aimed
+    // at left the other fifteen standing between the viewer and the door's own centre, so the
+    // centre tile was never discovered and `stateSnapshot` carried no doors at all.
+    const { viewer, session } = corridorWithClosedDoor();
+
+    const frame = visibilityFrameForPlayer(session, viewer);
+
+    expect(frame.dungeon.doors.map((door) => door.id)).toEqual([
+      "55555555-5555-4555-8555-555555555555",
+    ]);
+  });
+
+  it("still does not show what is behind a closed door", () => {
+    // The other half of the rule: the door is visible, the room beyond it is not.
+    const { viewer, session } = corridorWithClosedDoor();
+
+    const visible = visibleTilesForPlayer(session, viewer);
+
+    expect(visible.has("4,3")).toBe(true);
+    expect(visible.has("8,3")).toBe(false);
+  });
 });
 
 describe("voice range", () => {

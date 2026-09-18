@@ -1,5 +1,5 @@
 import { INTERACT_RANGE } from "../shared/constants/game.js";
-import { distance, MOVE_INTERVAL_MS } from "../shared/game/movement.js";
+import { distance, distanceToDoor, MOVE_INTERVAL_MS } from "../shared/game/movement.js";
 import type { EntityId, Vector2 } from "../shared/types/core.js";
 import { requestMicrophonePreview } from "./audio/proximityAudio.js";
 import { createInputController, type GameplayAction } from "./input/inputController.js";
@@ -196,27 +196,35 @@ function nearestLootId(): EntityId | null {
   return nearest(
     view.dungeon.loot
       .filter((loot) => !loot.pickedUp)
-      .map((loot) => ({ id: loot.id, position: loot.position })),
+      .map((loot) => ({ id: loot.id, gap: distance(localPosition, loot.position) })),
   );
 }
 
+/**
+ * A door is measured to the nearest point of its span, the way the server judges the reach it is
+ * about to be sent. Measured to the centre, the client refused to send an interact for any door at
+ * all: a doorway is a `TILE_SCALE` block, so its centre is two world units past the face a player
+ * stands at and `INTERACT_RANGE` is a body's reach. No locked door could be opened from the UI.
+ */
 function nearestInteractionTargetId(): EntityId | null {
   if (!view.dungeon) return null;
 
   return nearest([
     ...view.dungeon.doors
       .filter((door) => !door.open)
-      .map((door) => ({ id: door.id, position: door.position })),
-    ...view.dungeon.exits.map((exit) => ({ id: exit.id, position: exit.position })),
+      .map((door) => ({ id: door.id, gap: distanceToDoor(localPosition, door) })),
+    ...view.dungeon.exits.map((exit) => ({
+      id: exit.id,
+      gap: distance(localPosition, exit.position),
+    })),
   ]);
 }
 
-function nearest(targets: { id: EntityId; position: Vector2 }[]): EntityId | null {
+function nearest(targets: { id: EntityId; gap: number }[]): EntityId | null {
   const self = selfOf(view);
   if (!self) return null;
 
   const reachable = targets
-    .map((target) => ({ ...target, gap: distance(localPosition, target.position) }))
     .filter((target) => target.gap <= INTERACT_RANGE)
     .sort((a, b) => a.gap - b.gap);
 
