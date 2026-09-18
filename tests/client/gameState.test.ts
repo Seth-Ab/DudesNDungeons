@@ -16,6 +16,8 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
       name: "Test",
       width: 6,
       height: 4,
+      originX: 0,
+      originY: 0,
       tiles: ["######", "#....#", "#....#", "######"],
     },
     rooms: [],

@@ -1,9 +1,10 @@
 import {
   PLAYER_TORCH_LIGHT_RADIUS,
+  SNAPSHOT_VIEW_RADIUS_TILES,
   VOICE_FULL_VOLUME_DISTANCE,
   VOICE_SILENCE_DISTANCE,
 } from "../../shared/constants/game.js";
-import { distance, tileOf } from "../../shared/game/movement.js";
+import { coversTile, distance, tileAt, tileOf } from "../../shared/game/movement.js";
 import type {
   DungeonState,
   LightSourceState,
@@ -35,30 +36,57 @@ function tileKey(x: number, y: number): string {
 }
 
 function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
-  if (x < 0 || y < 0 || x >= dungeon.map.width || y >= dungeon.map.height) return true;
-  if (dungeon.map.tiles[y]?.[x] === "#") return true;
+  const tile = tileAt(dungeon.map, x, y);
+  if (tile === null || tile === "#") return true;
 
-  return dungeon.doors.some((door) => {
-    if (door.open) return false;
-    const tile = tileOf(door.position);
-    return tile.x === x && tile.y === y;
-  });
+  return dungeon.doors.some((door) => !door.open && coversTile(door, x, y));
 }
 
+/**
+ * Whether nothing solid stands between two points. The target's own tile is never in the way, so a
+ * wall you are looking at is lit rather than hidden behind itself.
+ *
+ * Walks the grid one tile boundary at a time rather than sampling the ray at a fixed interval.
+ * Sampling was fine when a torch reached four tiles; at `TILE_SCALE` it reaches thirteen, every
+ * light covers sixteen times the tiles, and a fixed-interval walk costs five samples per tile
+ * crossed for no extra accuracy. This visits each tile the ray actually passes through, exactly
+ * once, which is what keeps lighting affordable at the larger scale.
+ */
 function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): boolean {
   const target = tileOf(to);
-  const distance = Math.hypot(to.x - from.x, to.y - from.y);
-  const steps = Math.max(1, Math.ceil(distance / 0.2));
+  let x = Math.round(from.x);
+  let y = Math.round(from.y);
+  if (x === target.x && y === target.y) return true;
 
-  for (let step = 1; step <= steps; step += 1) {
-    const t = step / steps;
-    const position = {
-      x: from.x + (to.x - from.x) * t,
-      y: from.y + (to.y - from.y) * t,
-    };
-    const tile = tileOf(position);
-    if (tile.x === target.x && tile.y === target.y) continue;
-    if (isOpaque(dungeon, tile.x, tile.y)) return false;
+  // A light buried in a wall lights nothing, which is how a fixed-interval walk behaved too.
+  if (isOpaque(dungeon, x, y)) return false;
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const stepX = dx >= 0 ? 1 : -1;
+  const stepY = dy >= 0 ? 1 : -1;
+
+  // Tile centres sit on integers, so the boundary between tile n and n + 1 is at n + 0.5.
+  const deltaX = dx === 0 ? Number.POSITIVE_INFINITY : Math.abs(1 / dx);
+  const deltaY = dy === 0 ? Number.POSITIVE_INFINITY : Math.abs(1 / dy);
+  let nextX = dx === 0 ? Number.POSITIVE_INFINITY : (x + stepX * 0.5 - from.x) / dx;
+  let nextY = dy === 0 ? Number.POSITIVE_INFINITY : (y + stepY * 0.5 - from.y) / dy;
+
+  // One crossing per tile of the ray's bounding box, plus slack. A ray cannot need more, and the
+  // cap means a degenerate direction can never spin here forever.
+  const limit = Math.abs(target.x - x) + Math.abs(target.y - y) + 2;
+
+  for (let crossing = 0; crossing < limit; crossing += 1) {
+    if (nextX < nextY) {
+      x += stepX;
+      nextX += deltaX;
+    } else {
+      y += stepY;
+      nextY += deltaY;
+    }
+
+    if (x === target.x && y === target.y) return true;
+    if (isOpaque(dungeon, x, y)) return false;
   }
 
   return true;
@@ -164,14 +192,34 @@ function discoveredTile(original: string): string {
   return original === "#" ? DISCOVERED_WALL_TILE : DISCOVERED_FLOOR_TILE;
 }
 
-/** Whether the viewer has stepped into, or lit, any tile of this room. */
-function hasDiscoveredPartOf(viewer: SessionPlayer, room: RoomState): boolean {
-  for (let y = room.y; y < room.y + room.height; y += 1) {
-    for (let x = room.x; x < room.x + room.width; x += 1) {
-      if (viewer.discoveredTiles.has(tileKey(x, y))) return true;
+function contains(room: RoomState, x: number, y: number): boolean {
+  return x >= room.x && x < room.x + room.width && y >= room.y && y < room.y + room.height;
+}
+
+/**
+ * Files newly lit tiles into the viewer's memory, and notes any room they have now seen part of.
+ *
+ * Rooms are recorded as they are discovered rather than searched for afterwards. Rescanning every
+ * room's tiles each tick was affordable when a room was a hundred tiles; at `TILE_SCALE` one is
+ * closer to two thousand, and a party of four would pay for that twenty times a second forever
+ * after. A tile is only ever discovered once, so doing the work there costs nothing once a player
+ * has stopped exploring.
+ */
+function recordDiscovery(session: Session, viewer: SessionPlayer, visible: Set<string>): void {
+  const pending = session.dungeon.rooms.filter((room) => !viewer.discoveredRoomIds.has(room.id));
+
+  for (const key of visible) {
+    if (viewer.discoveredTiles.has(key)) continue;
+    viewer.discoveredTiles.add(key);
+    if (pending.length === 0) continue;
+
+    const comma = key.indexOf(",");
+    const x = Number(key.slice(0, comma));
+    const y = Number(key.slice(comma + 1));
+    for (const room of pending) {
+      if (contains(room, x, y)) viewer.discoveredRoomIds.add(room.id);
     }
   }
-  return false;
 }
 
 function visibleDungeon(
@@ -180,29 +228,46 @@ function visibleDungeon(
   visible: Set<string>,
   sources: readonly ActiveLightSource[],
 ): DungeonState {
-  for (const key of visible) viewer.discoveredTiles.add(key);
+  recordDiscovery(session, viewer, visible);
 
-  const tiles = session.dungeon.map.tiles.map((row, y) =>
-    row
-      .split("")
-      .map((tile, x) => {
-        const key = tileKey(x, y);
-        if (visible.has(key)) return tile;
-        if (viewer.discoveredTiles.has(key)) return discoveredTile(tile);
-        return UNKNOWN_TILE;
-      })
-      .join(""),
-  );
+  const { map } = session.dungeon;
+
+  // Only the window around the viewer travels. A scaled world is 384x256 tiles, and serializing and
+  // deflating all of it per player per tick costs far more than anyone can see or walk to before the
+  // next snapshot replaces it.
+  const anchor = tileOf(viewer.position);
+  const originX = Math.max(0, anchor.x - SNAPSHOT_VIEW_RADIUS_TILES);
+  const originY = Math.max(0, anchor.y - SNAPSHOT_VIEW_RADIUS_TILES);
+  const lastX = Math.min(map.width - 1, anchor.x + SNAPSHOT_VIEW_RADIUS_TILES);
+  const lastY = Math.min(map.height - 1, anchor.y + SNAPSHOT_VIEW_RADIUS_TILES);
+
+  const tiles: string[] = [];
+  for (let y = originY; y <= lastY; y += 1) {
+    const row = map.tiles[y] ?? "";
+    let out = "";
+    for (let x = originX; x <= lastX; x += 1) {
+      const key = tileKey(x, y);
+      const tile = row[x] ?? "#";
+      out += visible.has(key)
+        ? tile
+        : viewer.discoveredTiles.has(key)
+          ? discoveredTile(tile)
+          : UNKNOWN_TILE;
+    }
+    tiles.push(out);
+  }
 
   return {
     map: {
-      ...session.dungeon.map,
+      ...map,
+      originX,
+      originY,
       tiles,
     },
     // A room appears once the player has seen any part of it. Sending the full room list would hand
     // a client the shape of the dungeon - how many rooms, where the boss is - before they explore it.
     rooms: session.dungeon.rooms
-      .filter((room) => hasDiscoveredPartOf(viewer, room))
+      .filter((room) => viewer.discoveredRoomIds.has(room.id))
       .map((room) => ({ ...room })),
     monsters: session.dungeon.monsters
       .filter((monster) => monster.alive && tileVisible(visible, monster.position))

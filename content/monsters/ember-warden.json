@@ -2,11 +2,11 @@
   "id": "ember-warden",
   "name": "Ember Warden",
   "maxHealth": 90,
-  "speed": 1.4,
-  "aggroRange": 7,
+  "speed": 3.4,
+  "aggroRange": 21,
   "attackRange": 1.4,
   "damage": 22,
   "attackCooldownMs": 1800,
-  "glowRadius": 3.4,
+  "glowRadius": 10.2,
   "boss": true
 }

@@ -19,11 +19,27 @@ export type Vector2 = z.infer<typeof vector2Schema>;
 export const entityIdSchema = z.string().uuid();
 export type EntityId = z.infer<typeof entityIdSchema>;
 
+/**
+ * The map as one viewer sees it.
+ *
+ * `width` and `height` are the whole world, while `tiles` is only the window around that viewer
+ * that the snapshot carried, anchored at `originX`/`originY`. Row `r` of `tiles` is world row
+ * `originY + r`, and its character `c` is world column `originX + c`. A world of 384x256 tiles is
+ * far too much to ship twenty times a second, and nothing outside the window can be seen or reached
+ * before the next snapshot arrives.
+ *
+ * The server's own dungeon holds the full map with an origin of (0, 0), so the same shape describes
+ * both the authoritative world and a player's view of it.
+ */
 export const dungeonMapSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  /** Size of the whole world in tiles, not of `tiles`. */
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  /** World coordinates of `tiles[0][0]`. */
+  originX: z.number().int().nonnegative(),
+  originY: z.number().int().nonnegative(),
   tiles: z.array(z.string().min(1)).min(1),
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
@@ -74,7 +90,16 @@ export type InventoryItem = z.infer<typeof inventoryItemSchema>;
 
 export const doorStateSchema = z.object({
   id: entityIdSchema,
+  /** Centre of the doorway. */
   position: vector2Schema,
+  /**
+   * How many world tiles across the doorway is, centred on `position`.
+   *
+   * A door is authored as one tile and becomes a `TILE_SCALE` block in the world, and a closed one
+   * has to fill all of it. Storing the span rather than assuming a single tile is what stops a
+   * party walking around a locked door through the fifteen world tiles beside it.
+   */
+  size: z.number().positive(),
   open: z.boolean(),
   locked: z.boolean(),
 });

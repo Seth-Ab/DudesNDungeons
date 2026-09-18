@@ -2,10 +2,10 @@
   "id": "ash-imp",
   "name": "Ash Imp",
   "maxHealth": 12,
-  "speed": 1.8,
-  "aggroRange": 5,
+  "speed": 4.3,
+  "aggroRange": 15,
   "attackRange": 1,
   "damage": 8,
   "attackCooldownMs": 1000,
-  "glowRadius": 2.4
+  "glowRadius": 7.2
 }

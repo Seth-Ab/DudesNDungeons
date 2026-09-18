@@ -262,6 +262,8 @@ describe("parseServerMessage", () => {
           name: "Ember Vault",
           width: 3,
           height: 3,
+          originX: 0,
+          originY: 0,
           tiles: ["###", "#.#", "###"],
         },
         rooms: [

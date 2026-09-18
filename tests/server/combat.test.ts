@@ -7,13 +7,22 @@ import {
   PLAYER_MAX_HEALTH,
   PLAYER_RESPAWN_MS,
 } from "../../src/shared/constants/game.js";
-import { ASH_IMP_ID, monster, testPlayer, testSession } from "./fixtures.js";
+import { at, ASH_IMP_ID, monster, testPlayer, testSession } from "./fixtures.js";
 
-// The Ash Imp starts at (11, 2) with 12 health.
+// The Ash Imp starts on authored tile (11, 2) with 12 health.
+
+/**
+ * How far west of the imp a player stands to be able to hit it, and be hit back.
+ *
+ * Reach is a body's length and does not scale with the map, so it is written in world units rather
+ * than in tiles: inside `PLAYER_ATTACK_RANGE` and inside the imp's own shorter `attackRange`, but
+ * outside the radius where two bodies count as overlapping.
+ */
+const IN_REACH = 0.9;
 
 describe("player attacks", () => {
   it("hits the monster in front of the player", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 10, y: 2 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(11, 2, -IN_REACH) })]);
 
     const result = resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0);
 
@@ -32,7 +41,7 @@ describe("player attacks", () => {
   });
 
   it("swings at nothing when the monster is behind, which still costs the cooldown", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 10, y: 2 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(11, 2, -IN_REACH) })]);
 
     const swing = resolvePlayerAttack(session, "alpha", { x: -1, y: 0 }, null, 0);
 
@@ -45,7 +54,7 @@ describe("player attacks", () => {
   });
 
   it("refuses a second swing until the cooldown passes", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 10, y: 2 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(11, 2, -IN_REACH) })]);
 
     expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0).ok).toBe(true);
     expect(
@@ -57,7 +66,7 @@ describe("player attacks", () => {
   });
 
   it("refuses a named target that is out of reach or already dead", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 2, y: 2 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(2, 2) })]);
 
     expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, ASH_IMP_ID, 0)).toEqual({
       ok: false,
@@ -73,7 +82,7 @@ describe("player attacks", () => {
   });
 
   it("defeats a monster, which then stops blocking the way", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 10, y: 2 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(11, 2, -IN_REACH) })]);
     const imp = monster(session, ASH_IMP_ID);
     imp.health = PLAYER_ATTACK_DAMAGE - 1;
 
@@ -89,7 +98,9 @@ describe("player attacks", () => {
   });
 
   it("does not let a downed player attack", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 10, y: 2 }, health: 0 })]);
+    const session = testSession([
+      testPlayer("alpha", { position: at(11, 2, -IN_REACH), health: 0 }),
+    ]);
 
     expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0)).toEqual({
       ok: false,
@@ -102,33 +113,32 @@ describe("monster behavior", () => {
   const impStats = () => monsterStatsFor(monster(testSession([]), ASH_IMP_ID));
 
   it("chases a player inside its aggro range", () => {
-    const session = testSession([testPlayer("alpha", { position: { x: 8, y: 1 } })]);
+    const session = testSession([testPlayer("alpha", { position: at(8, 1) })]);
 
     simulate(session, 0);
     simulate(session, 100);
 
     const imp = monster(session, ASH_IMP_ID);
-    const travelled = Math.hypot(imp.position.x - 11, imp.position.y - 2);
+    const start = at(11, 2);
+    const travelled = Math.hypot(imp.position.x - start.x, imp.position.y - start.y);
     expect(travelled).toBeCloseTo(impStats().speed * 0.1);
-    expect(imp.position.x).toBeLessThan(11);
+    expect(imp.position.x).toBeLessThan(start.x);
   });
 
   it("ignores players out of range and players who are disconnected", () => {
-    const far = testSession([testPlayer("alpha", { position: { x: 2, y: 2 } })]);
-    const dropped = testSession([
-      testPlayer("alpha", { position: { x: 9, y: 2 }, connected: false }),
-    ]);
+    const far = testSession([testPlayer("alpha", { position: at(2, 2) })]);
+    const dropped = testSession([testPlayer("alpha", { position: at(9, 2), connected: false })]);
 
     for (const session of [far, dropped]) {
       simulate(session, 0);
       simulate(session, 100);
-      expect(monster(session, ASH_IMP_ID).position).toEqual({ x: 11, y: 2 });
+      expect(monster(session, ASH_IMP_ID).position).toEqual(at(11, 2));
     }
   });
 
   it("attacks a player in reach, no faster than its cooldown", () => {
     // Zero resistance, so this test measures the monster's cooldown rather than damage reduction.
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, resistance: 0 });
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 0 });
     const session = testSession([player]);
     const { damage, attackCooldownMs } = impStats();
     const impHits = (now: number) =>
@@ -150,7 +160,7 @@ describe("monster behavior", () => {
   });
 
   it("reports the damage resistance actually let through", () => {
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, resistance: 100 });
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 100 });
     const session = testSession([player]);
     const { damage } = impStats();
 
@@ -162,20 +172,22 @@ describe("monster behavior", () => {
   });
 
   it("closes to attack range without walking into the player", () => {
-    const player = testPlayer("alpha", { position: { x: 8, y: 1 } });
+    const stand = at(8, 1);
+    const player = testPlayer("alpha", { position: stand });
     const session = testSession([player]);
 
-    for (let now = 0; now <= 3000; now += 50) simulate(session, now);
+    // Long enough for the imp to cross the room it now has to cross.
+    for (let now = 0; now <= 6000; now += 50) simulate(session, now);
 
     const imp = monster(session, ASH_IMP_ID);
-    const gap = Math.hypot(imp.position.x - 8, imp.position.y - 1);
+    const gap = Math.hypot(imp.position.x - stand.x, imp.position.y - stand.y);
     expect(gap).toBeLessThanOrEqual(impStats().attackRange);
     expect(gap).toBeGreaterThanOrEqual(0.7);
     expect(player.health).toBeLessThan(PLAYER_MAX_HEALTH);
   });
 
   it("downs a player, leaves them alone, and respawns them with full health", () => {
-    const player = testPlayer("alpha", { position: { x: 10, y: 2 }, health: 1, resistance: 0 });
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), health: 1, resistance: 0 });
     const session = testSession([player]);
 
     const [hit] = simulate(session, 0);
@@ -189,7 +201,7 @@ describe("monster behavior", () => {
     simulate(session, PLAYER_RESPAWN_MS);
 
     expect(player.health).toBe(PLAYER_MAX_HEALTH);
-    expect(player.position).toEqual({ x: 2, y: 2 });
+    expect(player.position).toEqual(at(2, 2));
     expect(player.respawnAt).toBeNull();
   });
 });
