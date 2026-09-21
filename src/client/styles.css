@@ -274,6 +274,65 @@ button:disabled {
 .hud__warning[hidden] {
   display: none;
 }
+
+/* Quieter than .hud__warning: the gate is a state of the party, not something going wrong. */
+.hud__notice {
+  flex-basis: 100%;
+  margin: 0;
+  color: #9fd0a6;
+  font-size: 0.82rem;
+}
+
+/* What the last run came to. Boxed, because it outlives the action that caused it. */
+.hud__outcome {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #4a5a46;
+  border-radius: 6px;
+  background: #1a201b;
+  color: #d8e6cf;
+  font-size: 0.82rem;
+}
+
+.hud__notice[hidden],
+.hud__outcome[hidden],
+.hud__bank[hidden] {
+  display: none;
+}
+
+.hud__bank-heading {
+  margin: 0;
+  color: #8d8578;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hud__bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__bank-entry {
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #3c3630;
+  border-radius: 6px;
+  background: #1b1d21;
+  color: #d8ceb1;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.hud__bank-entry--empty {
+  border-style: dashed;
+  color: #7c766a;
+}
+
 .controls-menu {
   position: fixed;
   inset: 0;

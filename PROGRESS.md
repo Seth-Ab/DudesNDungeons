@@ -4,17 +4,17 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7 and 11. Sessions now begin
-  in a lit authored hub, unanimously ready parties generate a run, and escape or a total wipe returns
-  the party to the hub under protocol v8. The dungeon is drawn as pixel art rather than flat rectangles.
-- Last completed work: Frontend step 7 closed with pixel-art tiles and props, baked from reviewable
-  text art. Two bugs left over from the scale change were fixed along the way, both of which made
-  doors unusable: no closed door was ever sent to a client, and no locked door could be opened from
-  the UI. See `docs/decisions/0010-pixel-art-tiles.md`. Backend step 10 landed just before it; see
-  `docs/decisions/0009-hub-and-run-lifecycle.md`.
-- Next recommended step: Backend step 11 (persistent profiles and progression) can now build on the
-  session-local item bank. Backend step 5 (voice signaling, half done) and step 6 (deployment
-  readiness) remain open. Frontend step 9 must surface hub/run outcomes and stored items.
+- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11. Sessions
+  now begin in a lit authored hub, unanimously ready parties generate a run, and escape or a total
+  wipe returns the party to the hub under protocol v8. The dungeon is drawn as pixel art rather than
+  flat rectangles, and the hub reads as a place with named areas rather than an empty box.
+- Last completed work: Frontend step 9 put the hub and the run flow on screen. The hub's areas are
+  drawn from the room metadata snapshots already carried, the gate says what it is waiting for
+  before the interact is sent, and the HUD shows where the party is, what they carry, and what the
+  last run cost. Frontend step 7 closed before it with pixel-art tiles and props.
+- Next recommended step: Backend step 11 (persistent profiles and progression), which can now build
+  on both the session-local item bank and a UI that already displays it. Backend step 5 (voice
+  signaling, half done) and step 6 (deployment readiness) remain open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -259,15 +259,23 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [x] Show health, resistance, and stamina bars and three inventory slots. All three bars render from server `playerState`; three inventory slots were already visible.
 - [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on Backend step 12.
-- [ ] Render loot, doors, exits, monster health, downed players, and hub/run outcome state. Loot,
-  doors, exits, monster health, and downed players are done; location/outcome UI remains.
+- [x] Render loot, doors, exits, monster health, downed players, and hub/run outcome state. The last
+  two landed with Frontend step 9: the HUD names the place from room metadata and reports how the
+  run ended.
 - [x] Show combat results, refusals, and the resistance decay warning. The HUD warns from `stateSnapshot.run` a minute before decay starts, then while it is falling.
 
 ### 9. Hub World and Run Flow
 
-- [ ] Render the hub, entrance, torch supply, and storage.
-- [ ] Add run start, escape, and death flows.
-- [ ] Show what a player carries and what they banked.
+Complete on `feature/hub-run-flow`.
+
+- [x] Render the hub, entrance, torch supply, and storage. Areas are outlined and named from the
+  room metadata in the snapshot, and the gate is captioned with what it is waiting for. Storage has
+  no world entity to draw, so the bank is a HUD panel.
+- [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
+  not ready, the run start is announced, and the return to the hub reports what this player got out
+  with or lost.
+- [x] Show what a player carries and what they banked. Three slots and the torch line, which is
+  separate because a torch is not an inventory item, plus the session bank.
 
 ### 10. Skills and Progression UI
 
@@ -530,3 +538,87 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - No protocol change. The sheet is 1.4 kB and lands under Vite's inline limit, so it ships as a data URI in the bundle rather than a second request.
   - Merged Backend step 10 (hub and run lifecycle, PR #15) in after it landed mid-task. The tile alphabet seam held with nothing to coordinate: `content/dungeons/hub.json` uses the same `#` and `.` as every other authored map. The new `torch` item kind did exactly what the exhaustive `Record<ItemKind, SpriteName>` was there for and failed the client build until `loot-torch` was authored, rather than spawning on the floor wearing a key.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (260/260), and `npm run build`.
+
+### 2026-09-20
+
+- Completed Frontend step 9, Hub World and Run Flow, on `feature/hub-run-flow`. Backend step 10 gave
+  the party a hub and a run lifecycle without a single renderer change, by design; this is the half
+  a player can see.
+  - Drew the hub's named areas from the room metadata the snapshot already carries.
+    `content/dungeons/hub.json` is one open 21x13 rectangle: its Quest Gallery, Strategy Hearth,
+    Torch Supply and Dungeon Gate exist only as room records, because `AGENTS.md` freezes the
+    authored alphabet at `#` and `.` so backend and renderer work stay independent. Outlining and
+    naming those records is what turns the data into a place without spending the coordinated
+    content, collision, protocol, and renderer change a new tile character costs.
+  - Kept the outlines to the hub. A room is discovered the moment any part of it is lit, so drawing
+    one in a dungeon would trace its full extent from the first corner a player sees, which is the
+    shape of the room they have not explored yet. The same metadata is safe in the hub because the
+    hub is lit and monster-free by construction.
+  - Drew the signage after the darkness mask, unlike every other label. The mask is a client-side
+    vignette around the player rather than the server's lighting, so leaving the signs under it
+    faded out the one pointing at the torches exactly when a player was far enough away to need it.
+  - Named the place in the HUD from `map.name` plus the room the player stands in, which was
+    already on the wire and unused: "The Ember Hearth · Torch Supply". Corrected the connection
+    label while there, which said "in dungeon" for every player in the hub since Backend step 10.
+  - Refused the gate on the client when the party is not unanimously ready, and named who is
+    missing. The server answers a premature gate with `notPermitted`, which is also its answer to a
+    locked door without a key and a tonic at full health, so a client relaying it has nothing to say
+    beyond "no". `entranceStatus` mirrors `partyReadyForRun` the way `predictMove` mirrors the
+    movement rules; the server still decides, and a drift costs a round trip rather than a wrong
+    answer. The check is by target rather than by location, so a dungeon exit is never held back.
+  - Put every refusal in words. `Action refused: onCooldown` is a protocol token, not a sentence.
+  - Derived how a run ended from the two snapshots either side of the return to the hub, since
+    protocol v8 announces neither the start nor the end. That bounds what can honestly be said: a
+    wipe and an escape that left this player behind are the same pair of snapshots from the client,
+    because `returnToHub` heals everyone on the way back. So the banner speaks only about the
+    player reading it - what they banked, or that they went down and lost their carry - and never
+    about the party. Party-level wording needs a `runEnded` message and a protocol bump.
+  - Showed the torch separately from the three slots, and warned in the hub while it can still be
+    fixed. A torch is not an inventory item, so nothing else in the HUD would show its absence, and
+    the gate does not check: forgetting one is a decision the run will not let you revisit.
+  - Made the bank a HUD panel rather than a world object. Storage has no entity in `content/`; the
+    bank is `player.bankedItems`, so drawing a vault would mean inventing one.
+  - Fixed three bugs, all found by looking at the result in a browser rather than by reasoning:
+    - A snapshot overwrote every client-side action message 50ms after it appeared. `view.lastAction`
+      keeps its value until the next action, and the HUD re-applied it on every frame, so "No loot
+      nearby", "Nothing nearby", "Empty slot" and the gate's own refusal were all wiped before
+      anyone could read them. Pre-existing, and it made the new gate message look like it had never
+      fired at all. The HUD now applies a server action only when it is a new one.
+    - An area name centred on its room sat off screen for most of the walk across it, because an
+      area here is wider than the viewport. The first look drew a lone "Y" of "QUEST GALLERY"
+      against the left edge while the gallery filled half the screen. Names now centre on the part
+      of the area that is actually visible.
+    - The gate caption was drawn straight through the player's own name, because below the stairs is
+      exactly where a player stands to use them. It sits above them now, and the area label is
+      suppressed for a room a fixture already names.
+  - No protocol change, no server change, and nothing outside `src/client/` and `tests/client/`.
+  - Tests grew from 260 to 281: `tests/client/runFlow.test.ts` (15) covers the gate rule, the
+    outcome derivation, area lookup at world scale, and the refusal wording; six more in
+    `tests/client/sessionState.test.ts` pin the location transitions, including that the first
+    snapshot is nobody's run ending.
+  - Verified in a browser against a live dev server, walking the whole flow: the hub named as The
+    Ember Hearth with the Quest Gallery, Strategy Hearth and Torch Supply outlined and labelled; the
+    place label following the player from Strategy Hearth to Dungeon Gate; the gate captioned
+    "Waiting on 1 of 1" above its stairs; "Something is in the way." on walking into the north wall;
+    the torch warning and the empty bank; pressing interact at the gate answering "Waiting on Maya
+    to ready up." without a round trip; readying up flipping the sign to "The party is ready" and
+    the notice to "Use the Dungeon Gate to start the run."; and the interact then landing the party
+    in The Vault Run · Cinder Gate, reported as "in a run" with "The run has begun.", the hub's
+    outlines and notices gone and the dungeon dark around its wall torches.
+  - Not yet seen in a browser: the return to the hub and its outcome banner, which would mean
+    walking a generated run to its exit or dying in it. The transition either way is covered by the
+    six reducer cases added to `tests/client/sessionState.test.ts`.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (281/281), and `npm run build`.
+  - Two known flakes, both pre-existing, both in server tests this branch does not touch. Neither
+    can come from this work: the diff is `src/client/` and `tests/client/` only, and nothing under
+    `tests/server/` or `tests/e2e/` imports client code. Left alone rather than fixed here, because
+    both fixes belong in server tests and would hide in a client PR.
+    - `tests/server/scale.test.ts > anchors the window so a world coordinate reads back the tile it
+      names`, about 1 run in 20, measured over twenty runs of that file alone. `testSession` builds
+      `vault-run` without a seed, so `buildDungeon` draws a random one, and some layouts leave no
+      floor tile `SNAPSHOT_VIEW_RADIUS_TILES` clear of every edge for `deepFloorTile` to stand on.
+      Pinning the seed fixes it.
+    - `tests/e2e/session.test.ts > hub and run lifecycle > starts only when the whole connected
+      party is ready`, which times out waiting for `actionRejected`. It failed only on runs that
+      took 9-12s against the usual 6.6s, and passed 10 times out of 10 run on its own, so it is a
+      timeout that a loaded machine outruns rather than a race in the lifecycle.

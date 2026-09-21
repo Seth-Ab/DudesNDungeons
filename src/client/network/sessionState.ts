@@ -1,4 +1,5 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
+import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
   PlayerId,
@@ -37,6 +38,11 @@ export interface SessionView {
   location: SessionLocation | null;
   /** The server's run clock for this player. Null until the first snapshot. */
   run: RunState | null;
+  /**
+   * How the last run ended for this player, kept while they are back in the hub. Null during a run
+   * and before the first one, so the hub reports the trip the player just made and nothing else.
+   */
+  runOutcome: RunOutcome | null;
   lastError: SessionError | null;
   lastAction: string | null;
 }
@@ -52,6 +58,7 @@ export const initialSessionView: SessionView = {
   dungeon: null,
   location: null,
   run: null,
+  runOutcome: null,
   lastError: null,
   lastAction: null,
 };
@@ -129,10 +136,11 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         })),
       };
 
-    case "stateSnapshot":
+    case "stateSnapshot": {
       // Snapshots can overtake each other; an older one must never undo a newer one.
       if (message.tick <= view.tick) return view;
-      return {
+
+      const next: SessionView = {
         ...view,
         tick: message.tick,
         players: mergePlayers(view.players, message.players),
@@ -141,6 +149,18 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         location: message.location,
         run: message.run,
       };
+
+      // The party moves between the hub and a run as one, and protocol v8 announces neither: the
+      // only sign either happened is that two consecutive snapshots disagree about where everyone
+      // is. Read here rather than in the UI, so an outcome survives a frame that was never drawn.
+      if (view.location === null || view.location === message.location) return next;
+
+      if (message.location === "dungeon") {
+        return { ...next, runOutcome: null, lastAction: "The run has begun." };
+      }
+
+      return { ...next, runOutcome: runOutcome(selfOf(view), selfOf(next)) };
+    }
 
     case "sessionError":
       return {
@@ -159,7 +179,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
       };
 
     case "actionRejected":
-      return { ...view, lastAction: `Action refused: ${message.reason}` };
+      return { ...view, lastAction: rejectionMessage(message.reason) };
 
     // Voice feedback lands in later steps; ignoring it keeps the view honest rather than inventing
     // state the client cannot yet act on.

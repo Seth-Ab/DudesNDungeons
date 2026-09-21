@@ -21,6 +21,14 @@ const CONTROL_GROUPS: ControlGroup[] = [
     ],
   },
   {
+    title: "The Hub",
+    controls: [
+      { input: "F", action: "Take a torch from the Torch Supply" },
+      { input: "E", action: "Use the Dungeon Gate to start a run" },
+      { input: "Ready", action: "Required from every member before the gate opens" },
+    ],
+  },
+  {
     title: "Party",
     controls: [
       { input: "Ready", action: "Toggle ready state" },
