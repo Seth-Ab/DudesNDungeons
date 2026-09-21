@@ -6,6 +6,15 @@ import {
   PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
+import {
+  bankSummary,
+  entranceMessage,
+  entranceStatus,
+  outcomeMessage,
+  placeLabel,
+  roomAt,
+  torchNotice,
+} from "../state/runFlow.js";
 import type { InventoryItem, RunState, Vector2 } from "../../shared/types/core.js";
 
 interface HudOptions {
@@ -24,7 +33,9 @@ const PHASE_LABELS: Record<SessionView["phase"], string> = {
   connecting: "connecting",
   connected: "connected",
   joining: "joining",
-  inSession: "in dungeon",
+  // Overridden once a snapshot says where the party is: since Backend step 10 a session starts in
+  // the hub, so "in dungeon" was wrong for everyone who had not started a run yet.
+  inSession: "in session",
   reconnecting: "reconnecting",
   failed: "connection lost",
 };
@@ -33,12 +44,21 @@ export function createHud(options: HudOptions) {
   const element = document.createElement("header");
   element.className = "hud";
 
+  /**
+   * The last thing the server said about an action, so a client-side message is not wiped by the
+   * next snapshot 50ms later. `view.lastAction` keeps its value until another action happens, and
+   * re-applying it every frame meant "No loot nearby" and the gate's own refusal were overwritten
+   * by whatever the server last said, usually before anyone could read them.
+   */
+  let lastServerAction: string | null = null;
+
   const title = document.createElement("h1");
   title.className = "hud__title";
   title.textContent = "DudesNDungeons";
 
   const connectionStatus = createStat("Connection", "offline");
   const roomStatus = createStat("Room", "-");
+  const placeStatus = createStat("Place", "-");
   const positionStatus = createStat("Position", "-");
   const voiceStatus = createStat("Voice", "voice disabled");
   const actionStatus = createStat("Action", "-");
@@ -55,6 +75,20 @@ export function createHud(options: HudOptions) {
   const decayWarning = document.createElement("p");
   decayWarning.className = "hud__warning";
   decayWarning.hidden = true;
+
+  // What the hub is waiting for, and what the last run cost. Neither is an error and neither is a
+  // refused action, so they get their own lines rather than fighting over the action status.
+  const gateNotice = document.createElement("p");
+  gateNotice.className = "hud__notice";
+  gateNotice.hidden = true;
+
+  const torchWarning = document.createElement("p");
+  torchWarning.className = "hud__warning";
+  torchWarning.hidden = true;
+
+  const outcomeBanner = document.createElement("p");
+  outcomeBanner.className = "hud__outcome";
+  outcomeBanner.hidden = true;
 
   const errorBox = document.createElement("p");
   errorBox.className = "hud__error";
@@ -97,16 +131,31 @@ export function createHud(options: HudOptions) {
   const inventory = document.createElement("ol");
   inventory.className = "hud__inventory";
 
+  // Torches never enter the three slots, so nothing above would show one. A player who walks
+  // through the gate without one spends the whole run in somebody else's light.
+  const torchStatus = createStat("Torch", "none");
+
+  const bank = document.createElement("ul");
+  bank.className = "hud__bank";
+
+  const bankHeading = document.createElement("p");
+  bankHeading.className = "hud__bank-heading";
+  bankHeading.textContent = "Banked this session";
+
   const leftGroup = document.createElement("div");
   leftGroup.className = "hud__group";
   leftGroup.append(
     title,
     connectionStatus.element,
     roomStatus.element,
+    placeStatus.element,
     positionStatus.element,
     actionStatus.element,
     vitals,
+    gateNotice,
+    torchWarning,
     decayWarning,
+    outcomeBanner,
     errorBox,
   );
 
@@ -115,6 +164,9 @@ export function createHud(options: HudOptions) {
   rightGroup.append(
     roster,
     inventory,
+    torchStatus.element,
+    bankHeading,
+    bank,
     attackButton,
     pickupButton,
     interactButton,
@@ -144,7 +196,13 @@ export function createHud(options: HudOptions) {
     },
 
     syncTo(view: SessionView) {
-      connectionStatus.value.textContent = PHASE_LABELS[view.phase];
+      const inHub = view.location === "hub";
+      connectionStatus.value.textContent =
+        view.phase === "inSession" && view.location
+          ? inHub
+            ? "in the hub"
+            : "in a run"
+          : PHASE_LABELS[view.phase];
       roomStatus.value.textContent = view.roomCode ?? "-";
 
       // `notImplemented` is the expected answer for actions the backend has not built yet, so it
@@ -163,9 +221,31 @@ export function createHud(options: HudOptions) {
       resistanceBar.set(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE);
       staminaBar.set(self?.stamina ?? 0, PLAYER_MAX_STAMINA);
 
-      const warning = inSession ? decayMessage(view.run) : "";
+      // Named from the room metadata the snapshot already carries, which is the only thing that
+      // tells the Torch Supply apart from the Quest Gallery: the hub is one open rectangle.
+      const room = view.dungeon && self ? roomAt(view.dungeon.rooms, self.position) : null;
+      placeStatus.value.textContent = view.dungeon
+        ? placeLabel(view.dungeon.map.name, room)
+        : "-";
+
+      // Decay only runs in a dungeon, so the hub says what it is waiting for instead.
+      const warning = inSession && !inHub ? decayMessage(view.run) : "";
       decayWarning.textContent = warning;
       decayWarning.hidden = warning === "";
+
+      const gateText = inSession && inHub ? entranceMessage(entranceStatus(view.players)) : "";
+      gateNotice.textContent = gateText;
+      gateNotice.hidden = gateText === "";
+
+      const torchText = inSession ? torchNotice(self, view.location) : "";
+      torchWarning.textContent = torchText;
+      torchWarning.hidden = torchText === "";
+
+      // Kept up while the party is back in the hub, so the last trip is still readable after the
+      // action line has moved on to whatever they did next.
+      const outcomeText = inSession && inHub && view.runOutcome ? outcomeMessage(view.runOutcome) : "";
+      outcomeBanner.textContent = outcomeText;
+      outcomeBanner.hidden = outcomeText === "";
 
       const canAct = inSession && (self?.health ?? 0) > 0;
       attackButton.disabled = !canAct;
@@ -175,9 +255,14 @@ export function createHud(options: HudOptions) {
         ready = self.ready;
       }
       readyButton.textContent = ready ? "Ready ✓" : "Ready";
-      if (view.lastAction) actionStatus.value.textContent = view.lastAction;
+      if (view.lastAction && view.lastAction !== lastServerAction) {
+        lastServerAction = view.lastAction;
+        actionStatus.value.textContent = view.lastAction;
+      }
 
       renderInventory(inventory, self?.inventory ?? []);
+      torchStatus.value.textContent = self?.carryingTorch ? "carried" : "none";
+      renderBank(bank, self?.bankedItems ?? []);
       useButtons.forEach((button, slot) => {
         button.disabled = !canAct || !self?.inventory[slot];
       });
@@ -248,6 +333,21 @@ function createActionButton(label: string, onClick: () => void): HTMLButtonEleme
   button.textContent = label;
   button.addEventListener("click", onClick);
   return button;
+}
+
+/** What survived the last escape. Empty until somebody carries something out of a run. */
+function renderBank(list: HTMLUListElement, items: readonly InventoryItem[]): void {
+  const lines = bankSummary(items);
+
+  list.replaceChildren(
+    ...(lines.length === 0 ? ["Nothing banked yet"] : lines).map((line) => {
+      const entry = document.createElement("li");
+      entry.className = "hud__bank-entry";
+      if (lines.length === 0) entry.classList.add("hud__bank-entry--empty");
+      entry.textContent = line;
+      return entry;
+    }),
+  );
 }
 
 function renderInventory(list: HTMLOListElement, items: readonly InventoryItem[]): void {

@@ -208,6 +208,73 @@ describe("snapshots", () => {
   });
 });
 
+describe("the run lifecycle", () => {
+  const key = { id: "a1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" } as const;
+
+  function snapshot(view: SessionView, tick: number, location: "hub" | "dungeon", self: PlayerState) {
+    return applyServerMessage(view, {
+      type: "stateSnapshot",
+      tick,
+      location,
+      players: [self],
+      dungeon: dungeon(),
+      run: run(),
+    });
+  }
+
+  it("reports no outcome for the first snapshot, which is nobody's run ending", () => {
+    const view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
+
+    expect(view.location).toBe("hub");
+    expect(view.runOutcome).toBeNull();
+  });
+
+  it("announces the run and clears the last outcome when the party leaves the hub", () => {
+    let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
+    view = snapshot(view, 2, "dungeon", player(SELF_ID));
+
+    expect(view.lastAction).toBe("The run has begun.");
+    expect(view.runOutcome).toBeNull();
+  });
+
+  it("counts what the player banked when the party returns to the hub", () => {
+    let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
+    view = snapshot(view, 2, "dungeon", player(SELF_ID, { inventory: [key] }));
+    view = snapshot(view, 3, "hub", player(SELF_ID, { bankedItems: [key] }));
+
+    expect(view.runOutcome).toEqual({ kind: "escaped", banked: 1 });
+  });
+
+  // The server heals everyone on the way back to the hub, so the snapshot after the transition
+  // cannot say who was standing. Only the one before it can, which is why this is read here.
+  it("reports the loss of a player who was down when the run ended", () => {
+    let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
+    view = snapshot(view, 2, "dungeon", player(SELF_ID, { health: 0, inventory: [key] }));
+    view = snapshot(view, 3, "hub", player(SELF_ID, { health: 100 }));
+
+    expect(view.runOutcome).toEqual({ kind: "lost", banked: 0 });
+  });
+
+  it("keeps the outcome up across later snapshots in the hub", () => {
+    let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
+    view = snapshot(view, 2, "dungeon", player(SELF_ID));
+    view = snapshot(view, 3, "hub", player(SELF_ID, { bankedItems: [key] }));
+    view = snapshot(view, 4, "hub", player(SELF_ID, { bankedItems: [key] }));
+
+    expect(view.runOutcome).toEqual({ kind: "escaped", banked: 1 });
+  });
+
+  it("puts a refusal in words rather than passing the server's reason through", () => {
+    const view = applyServerMessage(joinedView(), {
+      type: "actionRejected",
+      sequence: 4,
+      reason: "exhausted",
+    });
+
+    expect(view.lastAction).toBe("Not enough stamina.");
+  });
+});
+
 describe("errors", () => {
   it("returns to connected after a rejected join so the code can be retyped", () => {
     let view = applyServerMessage({ ...initialSessionView, phase: "joining" }, {
@@ -258,7 +325,7 @@ describe("action feedback", () => {
     });
 
     expect(afterAttack.lastAction).toBe("Hit target for 3");
-    expect(afterRejection.lastAction).toBe("Action refused: outOfRange");
+    expect(afterRejection.lastAction).toBe("Too far away.");
     expect(afterRejection.players).toEqual(view.players);
   });
 });

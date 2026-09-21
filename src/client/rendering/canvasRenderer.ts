@@ -9,6 +9,8 @@ import type {
   LootState,
   MonsterState,
   PlayerState,
+  RoomState,
+  SessionLocation,
   Vector2,
 } from "../../shared/types/core.js";
 import {
@@ -57,6 +59,9 @@ const colors = {
   exit: "#6aa36f",
   light: "#f0c66a",
   label: "#f7f0da",
+  areaBorder: "#6b5a3e",
+  areaLabel: "#c9b184",
+  gateLabel: "#9fd0a6",
 };
 
 /** Flat fills, used for the frames before the tilesheet has decoded and if it never does. */
@@ -84,6 +89,10 @@ export interface Scene {
   localPosition: Vector2;
   self: PlayerState | null;
   others: PlayerState[];
+  /** Which world this is. The hub is signposted; a dungeon is not. */
+  location: SessionLocation | null;
+  /** One line under the hub gate saying whether it will open. Null outside the hub. */
+  gatePrompt: string | null;
 }
 
 export function createCanvasRenderer(getScene: () => Scene) {
@@ -417,6 +426,112 @@ export function createCanvasRenderer(getScene: () => Scene) {
     drawSprite(lootSprites[loot.kind], loot.position, 1, 1, camera);
   };
 
+  /**
+   * The hub's named areas, drawn from the room metadata the snapshot already carries.
+   *
+   * The hub is one open room in `content/dungeons/hub.json`: its Quest Gallery, Strategy Hearth,
+   * Torch Supply and Dungeon Gate are room records over an empty rectangle, because the authored
+   * tile alphabet is `#` and `.` and `AGENTS.md` keeps it that way so backend and renderer work
+   * stay independent. Marking them out here is what turns that data into a place, without a new
+   * tile character and the content, collision, protocol and renderer change one would cost.
+   *
+   * Hub only, and not because a dungeon has nothing to label: a room is discovered the moment any
+   * part of it is lit, so outlining one would draw its full extent from the first corner a player
+   * sees. In the dark that is the shape of the room they have not explored yet.
+   */
+  const drawAreas = (rooms: readonly RoomState[], camera: Vector2): void => {
+    for (const room of rooms) {
+      const topLeft = worldToScreen({ x: room.x - 0.5, y: room.y - 0.5 }, camera);
+      const width = room.width * pixelsPerWorldUnit;
+      const height = room.height * pixelsPerWorldUnit;
+
+      if (
+        topLeft.x > viewportWidth ||
+        topLeft.y > viewportHeight ||
+        topLeft.x + width < 0 ||
+        topLeft.y + height < 0
+      ) {
+        continue;
+      }
+
+      ctx.save();
+      ctx.strokeStyle = colors.areaBorder;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 10]);
+      ctx.strokeRect(topLeft.x + 1, topLeft.y + 1, width - 2, height - 2);
+      ctx.restore();
+    }
+  };
+
+  /**
+   * Signage: area names and what the gate is waiting for.
+   *
+   * Drawn after the light mask, unlike every other label, because it is the one thing in the hub a
+   * player needs to read from across the room. The mask is a vignette around the player rather than
+   * the server's lighting, so leaving these under it would fade out the sign pointing at the torches
+   * exactly when a player is far enough away to need it.
+   */
+  const drawSigns = (scene: Scene, camera: Vector2): void => {
+    ctx.textAlign = "center";
+
+    // A fixture names its own area better than the area does, and the two labels landed within a
+    // few pixels of each other in the one room that has both.
+    const signposted = new Set(
+      scene.dungeon.rooms
+        .filter((room) =>
+          scene.dungeon.exits.some(
+            (exit) =>
+              exit.position.x >= room.x &&
+              exit.position.x < room.x + room.width &&
+              exit.position.y >= room.y &&
+              exit.position.y < room.y + room.height,
+          ),
+        )
+        .map((room) => room.id),
+    );
+
+    if (scene.location === "hub") {
+      ctx.fillStyle = colors.areaLabel;
+      ctx.font = "13px sans-serif";
+      for (const room of scene.dungeon.rooms) {
+        if (signposted.has(room.id)) continue;
+        const topLeft = worldToScreen({ x: room.x - 0.5, y: room.y - 0.5 }, camera);
+        const width = room.width * pixelsPerWorldUnit;
+        const height = room.height * pixelsPerWorldUnit;
+
+        // Centred on the part of the area that is on screen, not on the area itself. An area here
+        // is two hundred pixels wider than the viewport, so a name centred on its middle sits off
+        // the edge for most of the walk across it: the first look at this drew a lone "Y" of
+        // "QUEST GALLERY" against the left edge while the gallery filled half the screen.
+        const left = Math.max(topLeft.x, 0);
+        const right = Math.min(topLeft.x + width, viewportWidth);
+        const top = Math.max(topLeft.y, 0);
+        if (right - left < 80 || top > viewportHeight || topLeft.y + height < 0) continue;
+
+        ctx.fillText(room.name.toUpperCase(), (left + right) / 2, top + 20);
+      }
+    }
+
+    for (const exit of scene.dungeon.exits) {
+      const center = worldToScreen(exit.position, camera);
+      const caption = scene.location === "hub" ? "Dungeon Gate" : "Way Out";
+      // Above the stairs rather than below them. Below is where a player stands to use them, and
+      // the caption was drawn straight through their own name the moment they arrived.
+      const captionY = center.y - (TILE_SCALE / 2) * pixelsPerWorldUnit - 8;
+
+      ctx.fillStyle = colors.gateLabel;
+      ctx.font = "14px sans-serif";
+      ctx.fillText(caption, center.x, captionY);
+
+      if (scene.location === "hub" && scene.gatePrompt) {
+        ctx.fillStyle = colors.label;
+        ctx.font = "12px sans-serif";
+        ctx.fillText(scene.gatePrompt, center.x, captionY - 16);
+      }
+    }
+  };
+
   const drawLightMask = (camera: Vector2): void => {
     const center = worldToScreen(camera, camera);
     const radius = PLAYER_TORCH_LIGHT_RADIUS * pixelsPerWorldUnit;
@@ -452,6 +567,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
       drawFlatTiles(scene.dungeon, camera);
     }
 
+    if (scene.location === "hub") drawAreas(scene.dungeon.rooms, camera);
+
     // Stairs first: they are cut into the floor, so everything else stands on top of them.
     scene.dungeon.exits.forEach((exit) =>
       tileset.ready
@@ -476,6 +593,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
     }
 
     drawLightMask(camera);
+    drawSigns(scene, camera);
   }
 
   window.addEventListener("resize", resize);

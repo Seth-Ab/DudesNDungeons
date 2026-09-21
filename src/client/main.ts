@@ -18,6 +18,7 @@ import {
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
 import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
+import { entranceMessage, entranceStatus, gatePrompt } from "./state/runFlow.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createHud } from "./ui/hud.js";
 import { createLobby } from "./ui/lobby.js";
@@ -57,6 +58,8 @@ const renderer = createCanvasRenderer(() => ({
   localPosition,
   self: selfOf(view),
   others: visibleOthersOf(view),
+  location: view.location,
+  gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
 }));
 
 const controlsMenu = createControlsMenu();
@@ -165,6 +168,20 @@ function performAction(action: GameplayAction): void {
         hud.setActionStatus("Nothing nearby");
         return;
       }
+
+      // The gate is the one refusal worth answering before the round trip. The server replies to a
+      // party that is not ready with a bare `notPermitted`, which is also its answer to a locked
+      // door and to a tonic at full health, so the client would have nothing to say beyond "no".
+      // Same bargain as `predictMove`: mirror the rule the server owns, and let the server still
+      // decide. The check is by target, not by location, so a dungeon exit is never held back.
+      if (view.location === "hub" && isExit(targetId)) {
+        const status = entranceStatus(view.players);
+        if (status.kind === "waiting") {
+          hud.setActionStatus(entranceMessage(status));
+          return;
+        }
+      }
+
       client.interact(targetId);
       return;
     }
@@ -188,6 +205,10 @@ function useInventorySlot(slot: number): void {
     return;
   }
   client.useItem(item.id);
+}
+
+function isExit(targetId: EntityId): boolean {
+  return view.dungeon?.exits.some((exit) => exit.id === targetId) ?? false;
 }
 
 function nearestLootId(): EntityId | null {
