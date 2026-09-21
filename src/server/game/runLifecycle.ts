@@ -4,6 +4,7 @@ import {
   PLAYER_SPAWN_FACING,
 } from "../../shared/constants/game.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
+import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
 import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID } from "./dungeonState.js";
 
@@ -83,12 +84,21 @@ export function startRun(session: Session, now: number): RunTransitionResult {
 /**
  * Returns everyone to a rebuilt hub. Survivors bank their carry on escape; a wipe or a downed
  * player loses it. Torches never cross back into the hub, so taking one on the next run is a choice.
+ *
+ * Banking writes to the player's profile, which outlives the session, so this is the one moment a
+ * run leaves a permanent mark on something a restart cannot clear.
  */
 export function returnToHub(session: Session, escaped: boolean): void {
   for (const player of session.players.values()) {
-    if (escaped && player.health > 0) {
-      player.bankedItems.push(...player.inventory);
+    const survived = escaped && player.health > 0;
+    if (survived) {
+      player.profile.bankedItems.push(...player.inventory);
+      player.profile.runsEscaped += 1;
+    } else {
+      player.profile.runsLost += 1;
     }
+    markProfileChanged(player.profile);
+
     player.inventory = [];
     player.carryingTorch = false;
   }

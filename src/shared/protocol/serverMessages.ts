@@ -4,6 +4,8 @@ import {
   entityIdSchema,
   playerIdSchema,
   playerStateSchema,
+  profileSecretSchema,
+  profileStateSchema,
   resumeTokenSchema,
   roomCodeSchema,
   runStateSchema,
@@ -20,6 +22,11 @@ export const errorCodeSchema = z.enum([
   "notInSession",
   "alreadyInSession",
   "runInProgress",
+  /**
+   * This profile is already playing somewhere. Two sessions sharing one bank would let a run's
+   * loot be banked twice, or lost twice, so the second join is refused rather than reconciled.
+   */
+  "profileInUse",
   "rateLimited",
   "notImplemented",
   "internalError",
@@ -46,9 +53,9 @@ export const playerLeftReasonSchema = z.enum(["left", "timedOut"]);
 export type PlayerLeftReason = z.infer<typeof playerLeftReasonSchema>;
 
 /**
- * Sent only to the joining player. `resumeToken` is a credential for reclaiming this slot after a
- * disconnect, so this message must never be broadcast to the rest of the party. `resumed` tells the
- * client whether it reclaimed an existing slot or was given a fresh one.
+ * Sent only to the joining player. `resumeToken` and `profileSecret` are both credentials, so this
+ * message must never be broadcast to the rest of the party. `resumed` tells the client whether it
+ * reclaimed an existing slot or was given a fresh one.
  */
 export const sessionJoinedSchema = z.object({
   type: z.literal("sessionJoined"),
@@ -59,6 +66,14 @@ export const sessionJoinedSchema = z.object({
   resumed: z.boolean(),
   tickRate: z.number().int().positive(),
   players: z.array(playerStateSchema),
+  /** The profile this slot now plays as, whether it was recognised or created just now. */
+  profile: profileStateSchema,
+  /**
+   * The profile secret, and only when the server has just issued one. Null on every later join,
+   * because the server stores a hash and so cannot repeat a secret it did not generate this time.
+   * A client that receives one stores it; a client that receives null keeps the one it sent.
+   */
+  profileSecret: profileSecretSchema.nullable(),
 });
 
 export const playerJoinedSchema = z.object({

@@ -30,12 +30,25 @@ export interface TokenStore {
   clear(roomCode: string): void;
 }
 
+/**
+ * Where the profile secret lives. Not room-scoped, unlike `TokenStore`: one device has one profile,
+ * and it plays in whichever room it likes.
+ *
+ * There is no `clear`. Leaving a dungeon ends a session; it does not disown everything the player
+ * has banked, and nothing in the flow should be able to throw progression away by accident.
+ */
+export interface ProfileSecretStore {
+  read(): string | null;
+  write(secret: string): void;
+}
+
 export interface SessionClientOptions {
   /** Origin for REST calls, e.g. `http://localhost:8080`. */
   httpUrl: string;
   /** Origin for the socket, e.g. `ws://localhost:8080`. */
   wsUrl: string;
   tokenStore: TokenStore;
+  profileSecretStore: ProfileSecretStore;
   createSocket?: (url: string) => SocketLike;
   fetchFn?: typeof fetch;
   /** Backoff schedule for reconnects, in ms. Must stay inside the server's 60s grace window. */
@@ -52,6 +65,7 @@ export function createSessionClient(options: SessionClientOptions) {
     httpUrl,
     wsUrl,
     tokenStore,
+    profileSecretStore,
     createSocket = (url) => new WebSocket(url) as unknown as SocketLike,
     fetchFn = fetch,
     retryDelaysMs = DEFAULT_RETRY_DELAYS_MS,
@@ -86,12 +100,16 @@ export function createSessionClient(options: SessionClientOptions) {
 
   function sendJoin(roomCode: string, playerName: string): void {
     const resumeToken = tokenStore.read(roomCode);
+    const profileSecret = profileSecretStore.read();
     send({
       type: "joinSession",
       protocolVersion: PROTOCOL_VERSION,
       roomCode,
       playerName,
       ...(resumeToken === null ? {} : { resumeToken }),
+      // Omitted rather than sent as null when this device has no profile yet, so the server reads
+      // it as "issue me one" rather than having to treat an empty credential as absent.
+      ...(profileSecret === null ? {} : { profileSecret }),
     });
   }
 
@@ -110,6 +128,11 @@ export function createSessionClient(options: SessionClientOptions) {
 
     if (parsed.message.type === "sessionJoined" && pending) {
       tokenStore.write(parsed.message.roomCode, parsed.message.resumeToken);
+      // Non-null only when the server minted a profile for this device. It will never repeat it,
+      // so this write is the only chance to keep it.
+      if (parsed.message.profileSecret !== null) {
+        profileSecretStore.write(parsed.message.profileSecret);
+      }
       retryIndex = 0;
     }
 

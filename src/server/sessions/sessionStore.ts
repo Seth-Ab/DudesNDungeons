@@ -18,6 +18,7 @@ import type {
   PlayerId,
   PlayerName,
   PlayerState,
+  ProfileId,
   ResumeToken,
   RoomCode,
   SessionLocation,
@@ -30,6 +31,7 @@ import {
   HUB_DUNGEON_ID,
   type DungeonRequest,
 } from "../game/dungeonState.js";
+import type { PlayerProfile } from "../profiles/profile.js";
 
 export interface SessionPlayer {
   id: PlayerId;
@@ -50,8 +52,13 @@ export interface SessionPlayer {
   inventory: InventoryItem[];
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
-  /** Items carried out alive. Session-local until Backend step 11 adds persistent profiles. */
-  bankedItems: InventoryItem[];
+  /**
+   * The roguelite profile playing this slot, owned by `ProfileStore` and shared by reference.
+   *
+   * Banked items and unlocks live on it rather than on the player, so what a run earns outlives the
+   * session that earned it. One profile may play only one slot at a time, which `join` enforces.
+   */
+  profile: PlayerProfile;
   /** Server-side memory of map tiles this player has seen at least once. */
   discoveredTiles: Set<string>;
   /**
@@ -107,6 +114,16 @@ export interface JoinRequest {
   roomCode: RoomCode;
   playerName: PlayerName;
   resumeToken?: ResumeToken | null;
+  /**
+   * The profile the caller's secret named, or null when it named none.
+   *
+   * Resolved by the caller rather than here, because this store owns sessions and knows nothing
+   * about where profiles are kept. Null means the join will mint one, which is why `createProfile`
+   * is a callback: an unrecognised secret paired with a mistyped room code should leave nothing
+   * behind.
+   */
+  profile: PlayerProfile | null;
+  createProfile: () => PlayerProfile;
 }
 
 export type JoinResult =
@@ -253,6 +270,17 @@ export class SessionStore {
       // erroring. The location check below decides whether a fresh join is currently allowed.
     }
 
+    // Checked after the resume branch, never before it: the slot a reconnecting player is
+    // reclaiming already holds their profile, and that is exactly the case this would refuse.
+    if (request.profile && this.#playerWithProfile(request.profile.id)) {
+      return {
+        ok: false,
+        code: "profileInUse",
+        message:
+          "This profile is already playing in a dungeon. Leave that party, or wait for its slot to time out",
+      };
+    }
+
     if (session.location === "dungeon") {
       return {
         ok: false,
@@ -277,7 +305,7 @@ export class SessionStore {
       connected: true,
       inventory: [],
       carryingTorch: false,
-      bankedItems: [],
+      profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Set(),
       discoveredRoomIds: new Set(),
       resumeToken: this.#createResumeToken(),
@@ -354,6 +382,22 @@ export class SessionStore {
     return timedOut;
   }
 
+  /**
+   * The slot a profile currently occupies anywhere on this server, or undefined when it is free.
+   *
+   * Across every session rather than just the one being joined: a profile is one bank, and two
+   * parties spending it at once would let the same items be banked twice or lost twice. A slot held
+   * open for a disconnected player still counts, because it is still theirs to come back to.
+   */
+  #playerWithProfile(profileId: ProfileId): SessionMember | undefined {
+    for (const session of this.#sessions.values()) {
+      for (const player of session.players.values()) {
+        if (player.profile.id === profileId) return { session, player };
+      }
+    }
+    return undefined;
+  }
+
   #removePlayer({ session, player }: SessionMember): void {
     session.players.delete(player.id);
     this.#sessionByPlayer.delete(player.id);
@@ -378,7 +422,7 @@ export function toPlayerState(player: SessionPlayer): PlayerState {
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),
     carryingTorch: player.carryingTorch,
-    bankedItems: player.bankedItems.map((item) => ({ ...item })),
+    bankedItems: player.profile.bankedItems.map((item) => ({ ...item })),
   };
 }
 

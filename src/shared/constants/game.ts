@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -148,6 +148,15 @@ export const RECONNECT_GRACE_MS = 60_000;
 
 /** Hex characters in a resume token: 16 random bytes, so guessing one is not practical. */
 export const RESUME_TOKEN_LENGTH = 32;
+
+/**
+ * Hex characters in a profile secret: 16 random bytes, like a resume token.
+ *
+ * Unlike a resume token, which unlocks one slot for one grace window, this names everything a
+ * device has ever banked and lasts as long as the profile does. The server issues it once, the
+ * browser keeps it in local storage, and it is never broadcast to the party.
+ */
+export const PROFILE_SECRET_LENGTH = 32;
 
 /**
  * How long a session with no players survives. Room creation is unauthenticated, so without this

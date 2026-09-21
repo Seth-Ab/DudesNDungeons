@@ -1,4 +1,4 @@
-import type { TokenStore } from "./sessionClient.js";
+import type { ProfileSecretStore, TokenStore } from "./sessionClient.js";
 
 /** Must match the server's default in `src/server/index.ts`. */
 const DEFAULT_WS_URL = "ws://localhost:8080";
@@ -68,6 +68,49 @@ export function createMemoryTokenStore(): TokenStore {
     },
     clear: (roomCode) => {
       tokens.delete(roomCode);
+    },
+  };
+}
+
+const PROFILE_SECRET_KEY = "dnd.profileSecret";
+
+/**
+ * The profile secret lives in local storage, not session storage, which is the opposite of the
+ * resume token above and for the opposite reason: a resume token unlocks one slot for a minute,
+ * while this names everything the player has ever banked. Losing it to a closed tab would mean
+ * starting the roguelite progression again, so it has to outlive the tab.
+ *
+ * Per-origin, so a player who plays from two browsers has two profiles. That matches the recorded
+ * checkpoint: identity is device-local first, and real accounts are deferred.
+ */
+export function createLocalStorageProfileSecretStore(storage: KeyValueStorage): ProfileSecretStore {
+  return {
+    read() {
+      try {
+        return storage.getItem(PROFILE_SECRET_KEY);
+      } catch {
+        // Blocked storage reads as a new device: the server will issue a fresh profile.
+        return null;
+      }
+    },
+    write(secret) {
+      try {
+        storage.setItem(PROFILE_SECRET_KEY, secret);
+      } catch {
+        // Nothing to do. The run still plays; it just banks into a profile this browser will not
+        // find again, which is the same outcome as a player who cleared their storage.
+      }
+    },
+  };
+}
+
+/** Used when local storage is unavailable. Progression then lasts as long as the page does. */
+export function createMemoryProfileSecretStore(): ProfileSecretStore {
+  let secret: string | null = null;
+  return {
+    read: () => secret,
+    write: (next) => {
+      secret = next;
     },
   };
 }

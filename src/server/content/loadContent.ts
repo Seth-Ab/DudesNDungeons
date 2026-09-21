@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 import type { z } from "zod";
+import { packageRoot } from "../paths.js";
 import {
   dungeonDefinitionSchema,
   itemDefinitionSchema,
@@ -47,24 +47,12 @@ export interface GameContent {
 export function resolveContentRoot(override = process.env.CONTENT_DIR): string {
   if (override) return resolve(override);
 
-  const start = dirname(fileURLToPath(import.meta.url));
-  let directory = start;
-
-  for (let depth = 0; depth < 8; depth += 1) {
-    if (existsSync(join(directory, "package.json"))) {
-      const candidate = join(directory, "content");
-      if (!existsSync(candidate)) {
-        throw new Error(`Package root ${directory} has no content/ directory. Set CONTENT_DIR.`);
-      }
-      return candidate;
-    }
-
-    const parent = dirname(directory);
-    if (parent === directory) break;
-    directory = parent;
+  const root = packageRoot(import.meta.url);
+  const candidate = join(root, "content");
+  if (!existsSync(candidate)) {
+    throw new Error(`Package root ${root} has no content/ directory. Set CONTENT_DIR.`);
   }
-
-  throw new Error(`Could not find a package root above ${start}. Set CONTENT_DIR.`);
+  return candidate;
 }
 
 function readJsonFiles(directory: string): { file: string; data: unknown }[] {

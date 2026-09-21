@@ -5,6 +5,7 @@ import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
+  PROFILE_SECRET_LENGTH,
   RESUME_TOKEN_LENGTH,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -199,6 +200,44 @@ export const resumeTokenSchema = z
   .regex(/^[0-9a-f]+$/, "Resume token must be lowercase hex");
 export type ResumeToken = z.infer<typeof resumeTokenSchema>;
 
+/** A roguelite profile, which outlives the session a player banked its items in. */
+export const profileIdSchema = z.string().uuid();
+export type ProfileId = z.infer<typeof profileIdSchema>;
+
+/**
+ * Bearer credential naming a profile. The device that holds one owns everything that profile has
+ * banked and unlocked, so it is issued once, sent only to its owner, and never broadcast.
+ *
+ * The server keeps only a hash of it, which is why a client that loses its copy cannot be told
+ * what it was: it starts a new profile instead.
+ */
+export const profileSecretSchema = z
+  .string()
+  .length(PROFILE_SECRET_LENGTH)
+  .regex(/^[0-9a-f]+$/, "Profile secret must be lowercase hex");
+export type ProfileSecret = z.infer<typeof profileSecretSchema>;
+
+/**
+ * A profile as its owner sees it, sent on join and to nobody else.
+ *
+ * `bankedItems` repeats what `playerState` carries for this player, because the two are read at
+ * different moments: this is what the profile held before the session touched it, and the player
+ * state is what it holds now.
+ */
+export const profileStateSchema = z.object({
+  id: profileIdSchema,
+  displayName: playerNameSchema,
+  bankedItems: z.array(inventoryItemSchema),
+  /** Content ids from `content/skills/`. Empty until unlocking ships. */
+  unlockedSkillIds: z.array(contentIdSchema),
+  /** Content ids from `content/upgrades/`. Empty until unlocking ships. */
+  unlockedUpgradeIds: z.array(contentIdSchema),
+  /** How many runs this profile has escaped from, and how many it went down in. */
+  runsEscaped: z.number().int().nonnegative(),
+  runsLost: z.number().int().nonnegative(),
+});
+export type ProfileState = z.infer<typeof profileStateSchema>;
+
 /**
  * The server's view of a player, broadcast to clients. Clients never author this shape: position,
  * health, and inventory are server-owned outputs, not inputs.
@@ -222,7 +261,10 @@ export const playerStateSchema = z.object({
   inventory: z.array(inventoryItemSchema).max(MAX_INVENTORY_SIZE),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
-  /** Session-local until Backend step 11 persists a device profile. */
+  /**
+   * What this player's profile holds. Owned by the profile rather than the session since Backend
+   * step 11, so it survives a restart, and visible to the whole party as it always was.
+   */
   bankedItems: z.array(inventoryItemSchema),
 });
 export type PlayerState = z.infer<typeof playerStateSchema>;

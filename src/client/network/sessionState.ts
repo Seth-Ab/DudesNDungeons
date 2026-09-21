@@ -73,6 +73,7 @@ const JOIN_REJECTIONS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   "protocolVersionMismatch",
   "alreadyInSession",
   "runInProgress",
+  "profileInUse",
 ]);
 
 function replacePlayer(

@@ -7,6 +7,7 @@ import {
   toPlayerState,
   type Session,
 } from "../../src/server/sessions/sessionStore.js";
+import { joinRequest, testProfile } from "./fixtures.js";
 
 const GRACE_MS = 60_000;
 const EMPTY_TTL_MS = 600_000;
@@ -30,7 +31,7 @@ function createStore(overrides: Partial<ConstructorParameters<typeof SessionStor
 }
 
 function joinOrThrow(store: SessionStore, session: Session, playerName: string) {
-  const result = store.join({ roomCode: session.roomCode, playerName });
+  const result = store.join(joinRequest({ roomCode: session.roomCode, playerName }));
   if (!result.ok) throw new Error(`expected join to succeed, got ${result.code}`);
   return result;
 }
@@ -64,7 +65,7 @@ describe("session creation and joining", () => {
     player.ready = true;
     expect(startRun(session, 0)).toEqual({ ok: true });
 
-    const result = store.join({ roomCode: session.roomCode, playerName: "Late" });
+    const result = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Late" }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("runInProgress");
@@ -86,7 +87,7 @@ describe("session creation and joining", () => {
     const store = createStore();
     store.createSession();
 
-    const result = store.join({ roomCode: "NOSUCH", playerName: "Grix" });
+    const result = store.join(joinRequest({ roomCode: "NOSUCH", playerName: "Grix" }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("sessionNotFound");
@@ -98,7 +99,7 @@ describe("session creation and joining", () => {
     joinOrThrow(store, session, "One");
     joinOrThrow(store, session, "Two");
 
-    const result = store.join({ roomCode: session.roomCode, playerName: "Three" });
+    const result = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Three" }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("sessionFull");
@@ -111,7 +112,7 @@ describe("session creation and joining", () => {
     joinOrThrow(store, session, "Two");
     store.markDisconnected(first.player.id);
 
-    const result = store.join({ roomCode: session.roomCode, playerName: "Three" });
+    const result = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Three" }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("sessionFull");
@@ -154,11 +155,11 @@ describe("disconnect and reconnect", () => {
     expect(player.connected).toBe(false);
 
     clock += GRACE_MS - 1;
-    const result = store.join({
+    const result = store.join(joinRequest({
       roomCode: session.roomCode,
       playerName: "Grix",
       resumeToken: player.resumeToken,
-    });
+    }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -176,11 +177,11 @@ describe("disconnect and reconnect", () => {
     const session = store.createSession();
     const { player } = joinOrThrow(store, session, "Grix");
 
-    const result = store.join({
+    const result = store.join(joinRequest({
       roomCode: session.roomCode,
       playerName: "Impostor",
       resumeToken: player.resumeToken,
-    });
+    }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("alreadyInSession");
@@ -195,11 +196,11 @@ describe("disconnect and reconnect", () => {
     clock += GRACE_MS;
     expect(store.sweep()).toHaveLength(1);
 
-    const result = store.join({
+    const result = store.join(joinRequest({
       roomCode: session.roomCode,
       playerName: "Grix",
       resumeToken: player.resumeToken,
-    });
+    }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -228,11 +229,11 @@ describe("disconnect and reconnect", () => {
     const { player } = joinOrThrow(store, session, "Typo");
     store.markDisconnected(player.id);
 
-    const result = store.join({
+    const result = store.join(joinRequest({
       roomCode: session.roomCode,
       playerName: "Fixed",
       resumeToken: player.resumeToken,
-    });
+    }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -248,11 +249,11 @@ describe("disconnect and reconnect", () => {
     expect(startRun(session, 0)).toEqual({ ok: true });
     store.markDisconnected(player.id);
 
-    const result = store.join({
+    const result = store.join(joinRequest({
       roomCode: session.roomCode,
       playerName: "Grix",
       resumeToken: player.resumeToken,
-    });
+    }));
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.resumed).toBe(true);
@@ -378,5 +379,112 @@ describe("public player state", () => {
     joinOrThrow(store, session, "Two");
 
     expect(rosterOf(session).map((player) => player.name)).toEqual(["One", "Two"]);
+  });
+});
+
+describe("joining with a profile", () => {
+  const TONIC = { id: "44444444-4444-4444-8444-444444444444", name: "Minor Tonic", kind: "tonic" as const };
+
+  it("plays a recognised profile rather than minting a new one", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const profile = testProfile("returning", { bankedItems: [TONIC] });
+
+    const result = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      profile,
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.player.profile).toBe(profile);
+    // What the profile banked is what the party sees this player holding.
+    expect(toPlayerState(result.player).bankedItems).toEqual([TONIC]);
+  });
+
+  it("creates a profile only once the join has otherwise succeeded", () => {
+    const store = createStore();
+    let created = 0;
+
+    const result = store.join(joinRequest({
+      roomCode: "NOSUCH",
+      playerName: "Grix",
+      createProfile: () => {
+        created += 1;
+        return testProfile("Grix");
+      },
+    }));
+
+    expect(result.ok).toBe(false);
+    // A mistyped room code must not leave an empty profile behind for as long as the server lives.
+    expect(created).toBe(0);
+  });
+
+  it("refuses a profile that is already playing somewhere", () => {
+    const store = createStore();
+    const first = store.createSession();
+    const second = store.createSession();
+    const profile = testProfile("shared");
+
+    store.join(joinRequest({ roomCode: first.roomCode, playerName: "Grix", profile }));
+    const result = store.join(joinRequest({
+      roomCode: second.roomCode,
+      playerName: "Grix",
+      profile,
+    }));
+
+    // One bank cannot be spent by two parties at once, so the second join is refused outright.
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("profileInUse");
+  });
+
+  it("still lets that profile reconnect to the slot it already holds", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const profile = testProfile("reconnecting");
+    const joined = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      profile,
+    }));
+    if (!joined.ok) throw new Error("expected the first join to succeed");
+
+    store.markDisconnected(joined.player.id);
+    // The slot still holds this profile, which is exactly what the in-use check would refuse; the
+    // resume token has to be read first or a refresh would lock a player out of their own party.
+    const result = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      profile,
+      resumeToken: joined.player.resumeToken,
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.resumed).toBe(true);
+    expect(result.player.id).toBe(joined.player.id);
+  });
+
+  it("frees the profile once the player leaves", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const profile = testProfile("departing");
+    const joined = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      profile,
+    }));
+    if (!joined.ok) throw new Error("expected the first join to succeed");
+
+    store.leave(joined.player.id);
+    const result = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      profile,
+    }));
+
+    expect(result.ok).toBe(true);
   });
 });

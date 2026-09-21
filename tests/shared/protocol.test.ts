@@ -17,6 +17,7 @@ const PLAYER_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const TARGET_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
 const SESSION_ID = "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f";
 const RESUME_TOKEN = "0123456789abcdef0123456789abcdef";
+const PROFILE_ID = "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f";
 
 describe("parseClientMessage", () => {
   it("accepts a well-formed joinSession message", () => {
@@ -216,7 +217,7 @@ describe("parseServerMessage", () => {
     }
   });
 
-  it("round-trips a sessionJoined carrying the resume token", () => {
+  it("round-trips a sessionJoined carrying the resume token and the profile", () => {
     const message: ServerMessage = {
       type: "sessionJoined",
       sessionId: SESSION_ID,
@@ -226,6 +227,17 @@ describe("parseServerMessage", () => {
       resumed: true,
       tickRate: 20,
       players: [],
+      profile: {
+        id: PROFILE_ID,
+        displayName: "Grix",
+        bankedItems: [],
+        unlockedSkillIds: ["iron-will"],
+        unlockedUpgradeIds: [],
+        runsEscaped: 2,
+        runsLost: 1,
+      },
+      // A rejoin, so the server issues nothing and the client keeps the secret it already has.
+      profileSecret: null,
     };
 
     const result = parseServerMessage(serializeServerMessage(message));

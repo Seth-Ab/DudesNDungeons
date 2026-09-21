@@ -70,6 +70,7 @@ logged or shared.
 - `src/server/` - authoritative dungeon state, sessions, WebSocket networking, and voice signaling.
 - `src/shared/` - protocol definitions, shared game helpers, constants, and TypeScript types.
 - `content/` - editable game data for dungeons, items, monsters, and skills. See below.
+- `data/` - persistent server state, currently player profiles. Created on demand and gitignored.
 - `assets/` - sprites, maps, audio, and UI media.
 - `tests/` - client, server, shared, and end-to-end tests.
 - `docs/` - architecture notes and decision records.
@@ -99,14 +100,33 @@ Generated dungeons are a pure function of their seed, which is recorded on the s
 be reproduced exactly from a bug report.
 
 Items are already active gameplay content: dungeon definitions spawn them and the server owns pickup,
-inventory, and use. Skills and upgrades currently provide the validated authoring layer for Backend
-Step 11; persistent profiles, unlock decisions, and applying their effects are still to be built.
-See `content/README.md` for the supported shapes and relationships.
+inventory, and use. Skills and upgrades currently provide the validated authoring layer; profiles
+now persist the ids a player has unlocked, but nothing unlocks them yet and their effects are not
+applied. That is the rest of Backend Step 11. See `content/README.md` for the supported shapes and
+relationships.
 
 Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no
-torch is issued automatically. Escaping banks a standing player's inventory for later runs in that
-session, while a downed player or a full-party wipe loses current carried items. Persistent banking
-across server restarts remains Backend Step 11.
+torch is issued automatically. Escaping banks a standing player's inventory, while a downed player
+or a full-party wipe loses current carried items.
+
+## Player Profiles
+
+Banked items and unlocked skills belong to a profile, which outlives both the session and the
+server. Profiles live in `data/profiles.json`, which `DATA_DIR` relocates.
+
+Identity is device-local, per the recorded checkpoint: real accounts are deferred. On a first join
+the server issues a profile secret, sends it once, and keeps only a SHA-256 hash of it. The browser
+stores it in local storage and sends it on every later join, in any room. Clearing that storage, or
+playing from a different browser, starts a new profile - there is no way to recover a secret the
+server never kept.
+
+Two consequences worth knowing:
+
+- One profile plays one party at a time. A second join with the same secret is refused with
+  `profileInUse` while the first slot is live, including a slot held open for a disconnected player
+  until its 60-second grace window closes. That is what stops one bank being spent twice.
+- `data/profiles.json` is refused rather than ignored when it cannot be parsed, because starting
+  with an empty store would overwrite everything on the first save.
 
 ## Frontend Development
 
