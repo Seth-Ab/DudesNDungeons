@@ -71,6 +71,19 @@ describe("generated dungeons", () => {
     expect(kinds).toContain("puzzle");
   });
 
+  it("makes the Iron Will scroll rare rather than guaranteed", () => {
+    let runsWithScroll = 0;
+    const runCount = 80;
+
+    for (let seed = 0; seed < runCount; seed += 1) {
+      const { dungeon } = generate(seed);
+      if (dungeon.loot.some((loot) => loot.kind === "skillScroll")) runsWithScroll += 1;
+    }
+
+    expect(runsWithScroll).toBeGreaterThan(0);
+    expect(runsWithScroll).toBeLessThan(runCount / 4);
+  });
+
   it("never overlaps two rooms", () => {
     const { dungeon } = generate(31);
 

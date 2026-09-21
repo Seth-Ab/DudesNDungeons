@@ -433,6 +433,10 @@ function populate(
     const item = content.items.get(rule.itemId);
     if (!item) throw new Error(`Template "${room.template.id}" spawns unknown item "${rule.itemId}"`);
 
+    // Preserve the seeded stream for ordinary loot: a default chance of 1 should not consume a
+    // random draw and silently move every entity id and later placement in existing dungeons.
+    if (rule.chance < 1 && rng.next() > rule.chance) continue;
+
     const count = rng.int(rule.min, rule.max);
     for (let index = 0; index < count; index += 1) {
       const tile = take();

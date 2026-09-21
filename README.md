@@ -84,7 +84,7 @@ Monsters, items, room templates, and dungeons are JSON under `content/`, not cod
 monster's damage or adding a room template is a file change and a server restart, with no rebuild.
 
 - `content/monsters/` - one file per monster type, keyed by a kebab-case id such as `ash-imp`.
-- `content/items/` - keys, tonics, wards, and separately equipped torches.
+- `content/items/` - keys, tonics, wards, skill scrolls, and separately equipped torches.
 - `content/skills/` - validated skill definitions for persistent player progression.
 - `content/upgrades/` - validated, tiered improvements linked to skills.
 - `content/dungeons/templates/` - room templates, each with tiles, doorways, lights, and spawn rules.
@@ -99,11 +99,12 @@ becoming a dungeon nobody can finish. `CONTENT_DIR` overrides where content is r
 Generated dungeons are a pure function of their seed, which is recorded on the session, so a run can
 be reproduced exactly from a bug report.
 
-Items are already active gameplay content: dungeon definitions spawn them and the server owns pickup,
-inventory, and use. Skills and upgrades currently provide the validated authoring layer; profiles
-now persist the ids a player has unlocked, but nothing unlocks them yet and their effects are not
-applied. That is the rest of Backend Step 11. See `content/README.md` for the supported shapes and
-relationships.
+Items are active gameplay content: dungeon definitions spawn them and the server owns pickup,
+inventory, and use. The first skill-scroll slice is also live: a rare Scroll of Iron Will can spawn
+in the boss room, occupies an inventory slot, and grants its server-resolved effect when used. A
+scroll used in a dungeon is provisional until that player escapes; a wipe or abandonment loses it.
+Upgrade acquisition and the full progression UI remain in Backend Step 11 and Frontend Step 10.
+See `content/README.md` for the supported shapes and relationships.
 
 Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no
 torch is issued automatically. Escaping banks a standing player's inventory, while a downed player

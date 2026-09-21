@@ -114,6 +114,22 @@ describe("ending a run", () => {
 });
 
 describe("what a run leaves on a profile", () => {
+  it("saves used skill scrolls only for players who make it out", () => {
+    const standing = testPlayer("standing", { runSkillIds: new Set(["iron-will"]) });
+    const downed = testPlayer("downed", {
+      health: 0,
+      runSkillIds: new Set(["torchbearer"]),
+    });
+    const session = testSession([standing, downed]);
+
+    returnToHub(session, true);
+
+    expect(standing.profile.unlockedSkillIds).toEqual(["iron-will"]);
+    expect(downed.profile.unlockedSkillIds).toEqual([]);
+    expect(standing.runSkillIds).toEqual(new Set());
+    expect(downed.runSkillIds).toEqual(new Set());
+  });
+
   it("marks every profile changed, so the bank reaches the disk", () => {
     const standing = testPlayer("standing", { inventory: [{ ...TONIC }] });
     const downed = testPlayer("downed", { health: 0 });

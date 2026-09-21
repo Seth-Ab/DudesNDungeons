@@ -94,6 +94,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     ready: false,
     connected: true,
     inventory: [],
+    runSkillIds: new Set(),
     carryingTorch: true,
     profile: testProfile(id),
     discoveredTiles: new Set(),

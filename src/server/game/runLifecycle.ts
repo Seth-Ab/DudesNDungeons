@@ -7,6 +7,7 @@ import type { RejectionReason } from "../../shared/protocol/index.js";
 import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
 import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID } from "./dungeonState.js";
+import { bankRunSkills, discardRunSkills } from "./progression.js";
 
 export type RunTransitionResult =
   | { ok: true }
@@ -76,6 +77,8 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
 export function startRun(session: Session, now: number): RunTransitionResult {
   if (!partyReadyForRun(session)) return { ok: false, reason: "notPermitted" };
 
+  // Defensive as well as semantic: provisional unlocks never cross from one run into another.
+  for (const player of session.players.values()) discardRunSkills(player);
   installWorld(session, session.runDungeon.dungeonId ?? "vault-run", now);
   session.location = "dungeon";
   return { ok: true };
@@ -93,8 +96,10 @@ export function returnToHub(session: Session, escaped: boolean): void {
     const survived = escaped && player.health > 0;
     if (survived) {
       player.profile.bankedItems.push(...player.inventory);
+      bankRunSkills(player);
       player.profile.runsEscaped += 1;
     } else {
+      discardRunSkills(player);
       player.profile.runsLost += 1;
     }
     markProfileChanged(player.profile);

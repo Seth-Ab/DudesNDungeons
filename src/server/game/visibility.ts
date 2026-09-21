@@ -1,5 +1,4 @@
 import {
-  PLAYER_TORCH_LIGHT_RADIUS,
   SNAPSHOT_VIEW_RADIUS_TILES,
   VOICE_FULL_VOLUME_DISTANCE,
   VOICE_SILENCE_DISTANCE,
@@ -16,6 +15,7 @@ import type {
 import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
+import { contentForSession, torchLightRadiusFor } from "./progression.js";
 
 const UNKNOWN_TILE = " ";
 const DISCOVERED_FLOOR_TILE = ",";
@@ -106,7 +106,7 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
   return true;
 }
 
-function carriedTorchFor(player: SessionPlayer): ActiveLightSource | null {
+function carriedTorchFor(session: Session, player: SessionPlayer): ActiveLightSource | null {
   if (!player.carryingTorch) return null;
 
   return {
@@ -115,13 +115,13 @@ function carriedTorchFor(player: SessionPlayer): ActiveLightSource | null {
     kind: "carriedTorch",
     position: { ...player.position },
     origin: player.position,
-    radius: PLAYER_TORCH_LIGHT_RADIUS,
+    radius: torchLightRadiusFor(player, contentForSession(session)),
   };
 }
 
 function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): ActiveLightSource[] {
   const sources: ActiveLightSource[] = [];
-  const ownTorch = carriedTorchFor(viewer);
+  const ownTorch = carriedTorchFor(session, viewer);
   if (ownTorch) sources.push(ownTorch);
 
   for (const light of session.dungeon.lightSources) {
@@ -132,7 +132,7 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
   for (const player of session.players.values()) {
     if (player.id === viewer.id || !player.connected || player.health <= 0) continue;
 
-    const torch = carriedTorchFor(player);
+    const torch = carriedTorchFor(session, player);
     if (!torch || !hasLineOfSight(session.dungeon, viewer.position, player.position)) continue;
     sources.push(torch);
   }

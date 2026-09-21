@@ -283,6 +283,21 @@
         "5*0000000000000000"
       ]
     },
+    "loot-skill-scroll": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "3*0000000000000000",
+        "0000iiiiiiii0000",
+        "000ijjjjjjjji000",
+        "000ijjjeejjji000",
+        "000ijjeeeejji000",
+        "4*000ijjjjjjjji000",
+        "000ijjjjjjjji000",
+        "0000iiiiiiii0000",
+        "3*0000000000000000"
+      ]
+    },
     "loot-torch": {
       "tilesWide": 1,
       "tilesHigh": 1,

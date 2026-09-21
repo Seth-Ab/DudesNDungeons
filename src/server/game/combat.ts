@@ -10,6 +10,7 @@ import type { RejectionReason, ServerMessage } from "../../shared/protocol/index
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown, monsterStatsFor } from "./dungeonState.js";
+import { contentForSession, progressionEffectTotal } from "./progression.js";
 import { advanceVitals, damagePlayer, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
@@ -94,7 +95,10 @@ export function resolvePlayerAttack(
     };
   }
 
-  const dealt = Math.min(PLAYER_ATTACK_DAMAGE, target.health);
+  const damage =
+    PLAYER_ATTACK_DAMAGE +
+    progressionEffectTotal(player, "attackDamageBonus", contentForSession(session));
+  const dealt = Math.min(damage, target.health);
   target.health -= dealt;
   target.alive = target.health > 0;
 
@@ -157,7 +161,7 @@ function actMonster(
 
   session.monsterCooldowns.set(monster.id, now + stats.attackCooldownMs);
   // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
-  const dealt = damagePlayer(target, stats.damage);
+  const dealt = damagePlayer(target, stats.damage, contentForSession(session));
 
   return {
     type: "attackResolved",

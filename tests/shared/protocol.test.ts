@@ -346,7 +346,14 @@ describe("parseServerMessage", () => {
         stamina: 100,
         ready: true,
         connected: true,
-        inventory: [{ id: TARGET_ID, name: "Minor Tonic", kind: "tonic" }],
+        inventory: [
+          {
+            id: TARGET_ID,
+            name: "Scroll of Iron Will",
+            kind: "skillScroll",
+            skillId: "iron-will",
+          },
+        ],
         carryingTorch: true,
         bankedItems: [],
       },
@@ -358,6 +365,30 @@ describe("parseServerMessage", () => {
     if (result.ok) {
       expect(result.message).toEqual(message);
     }
+  });
+
+  it("rejects a skill scroll that does not say what it teaches", () => {
+    const result = parseServerMessage(
+      JSON.stringify({
+        type: "playerJoined",
+        player: {
+          id: PLAYER_ID,
+          name: "Grix",
+          position: { x: 2, y: 2 },
+          facing: { x: 0, y: 1 },
+          health: 100,
+          resistance: 40,
+          stamina: 100,
+          ready: false,
+          connected: true,
+          inventory: [{ id: TARGET_ID, name: "Blank Scroll", kind: "skillScroll" }],
+          carryingTorch: false,
+          bankedItems: [],
+        },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
   });
 
   it("rejects an item of an unknown kind", () => {

@@ -124,6 +124,7 @@ describe("persisting profiles", () => {
     const before = newStore(storage);
     const { profile, secret } = before.create("Grix");
     profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" });
+    profile.unlockedSkillIds.push("iron-will");
     profile.runsEscaped = 3;
     markProfileChanged(profile);
     before.flush();
@@ -135,6 +136,7 @@ describe("persisting profiles", () => {
     expect(restored).not.toBeNull();
     expect(restored?.id).toBe(profile.id);
     expect(restored?.bankedItems).toEqual([{ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" }]);
+    expect(restored?.unlockedSkillIds).toEqual(["iron-will"]);
     expect(restored?.runsEscaped).toBe(3);
     // A profile read back has nothing outstanding to write until something changes it again.
     expect(after.dirty).toBe(false);

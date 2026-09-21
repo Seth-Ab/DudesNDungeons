@@ -267,7 +267,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           session,
           resumed
             ? { type: "playerConnectionChanged", playerId: player.id, connected: true }
-            : { type: "playerJoined", player: toPlayerState(player) },
+            : { type: "playerJoined", player: toPlayerState(player, session) },
           player.id,
         );
 
