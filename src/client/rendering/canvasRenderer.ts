@@ -80,6 +80,7 @@ const lootSprites: Record<ItemKind, SpriteName> = {
   key: "loot-key",
   tonic: "loot-tonic",
   ward: "loot-ward",
+  skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
 };
 

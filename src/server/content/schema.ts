@@ -45,12 +45,24 @@ export const monsterTypeSchema = z.object({
 });
 export type MonsterType = z.infer<typeof monsterTypeSchema>;
 
-/** Mirrors `itemKindSchema` in shared types. Kept separate so content can gain kinds independently. */
-export const itemDefinitionSchema = z.object({
+const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   kind: z.enum(["key", "tonic", "ward", "torch"]),
 });
+
+const skillScrollDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("skillScroll"),
+  skillId: contentIdSchema,
+});
+
+/** Mirrors the shared item kinds while requiring every skill scroll to name what it teaches. */
+export const itemDefinitionSchema = z.discriminatedUnion("kind", [
+  ordinaryItemDefinitionSchema,
+  skillScrollDefinitionSchema,
+]);
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 
 /**
@@ -139,7 +151,13 @@ export const spawnCountSchema = z
 
 export const monsterSpawnRuleSchema = spawnCountSchema.and(z.object({ typeId: contentIdSchema }));
 
-export const lootSpawnRuleSchema = spawnCountSchema.and(z.object({ itemId: contentIdSchema }));
+export const lootSpawnRuleSchema = spawnCountSchema.and(
+  z.object({
+    itemId: contentIdSchema,
+    /** Chance that this rule runs at all. Keeps rare loot rare without inventing empty items. */
+    chance: z.number().min(0).max(1).default(1),
+  }),
+);
 
 export const roomTemplateSchema = z.object({
   id: contentIdSchema,

@@ -169,6 +169,12 @@ function assertRectangular(label: string, tiles: readonly string[]): void {
  * later, as a crash mid-run or a dungeon nobody can finish.
  */
 function validateReferences(content: GameContent): void {
+  for (const item of content.items.values()) {
+    if (item.kind === "skillScroll" && !content.skills.has(item.skillId)) {
+      throw new Error(`Skill scroll "${item.id}" teaches unknown skill "${item.skillId}"`);
+    }
+  }
+
   const skillTiers = new Set<string>();
   for (const upgrade of content.upgrades.values()) {
     const label = `Upgrade "${upgrade.id}"`;

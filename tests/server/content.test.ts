@@ -42,6 +42,10 @@ describe("the shipped content", () => {
     expect(content.monsters.size).toBeGreaterThan(0);
     expect(content.items.size).toBeGreaterThan(0);
     expect(content.skills.has("iron-will")).toBe(true);
+    expect(content.items.get("iron-will-scroll")).toMatchObject({
+      kind: "skillScroll",
+      skillId: "iron-will",
+    });
     expect(content.upgrades.has("iron-will-steeled")).toBe(true);
     expect(content.templates.size).toBeGreaterThan(0);
     expect(content.items.get("travelers-torch")?.kind).toBe("torch");
@@ -100,6 +104,19 @@ describe("rejecting bad content", () => {
     });
 
     expect(() => loadContent(root)).toThrow(/belongs to unknown skill "missing-skill"/);
+  });
+
+  it("refuses a skill scroll that teaches a skill that does not exist", () => {
+    const root = contentRoot({
+      "items/ghost-scroll.json": {
+        id: "ghost-scroll",
+        name: "Ghost Scroll",
+        kind: "skillScroll",
+        skillId: "missing-skill",
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/teaches unknown skill "missing-skill"/);
   });
 
   it("refuses upgrade prerequisites from another skill", () => {

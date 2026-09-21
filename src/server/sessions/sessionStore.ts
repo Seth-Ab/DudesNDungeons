@@ -31,6 +31,7 @@ import {
   HUB_DUNGEON_ID,
   type DungeonRequest,
 } from "../game/dungeonState.js";
+import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
 
 export interface SessionPlayer {
@@ -50,6 +51,8 @@ export interface SessionPlayer {
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
+  /** Skills learned from consumed scrolls this run, provisional until this player extracts. */
+  runSkillIds: Set<string>;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
   /**
@@ -304,6 +307,7 @@ export class SessionStore {
       ready: false,
       connected: true,
       inventory: [],
+      runSkillIds: new Set(),
       carryingTorch: false,
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Set(),
@@ -409,14 +413,17 @@ export class SessionStore {
  * broadcast. Resistance and stamina are rounded here: they move by fractions of a point per tick on
  * the server, and a HUD bar has no use for that precision.
  */
-export function toPlayerState(player: SessionPlayer): PlayerState {
+export function toPlayerState(player: SessionPlayer, session?: Session): PlayerState {
+  const resistance = session
+    ? effectiveResistance(player, contentForSession(session))
+    : effectiveResistance(player);
   return {
     id: player.id,
     name: player.name,
     position: { ...player.position },
     facing: { ...player.facing },
     health: player.health,
-    resistance: Math.round(player.resistance),
+    resistance: Math.round(resistance),
     stamina: Math.round(player.stamina),
     ready: player.ready,
     connected: player.connected,
@@ -427,5 +434,5 @@ export function toPlayerState(player: SessionPlayer): PlayerState {
 }
 
 export function rosterOf(session: Session): PlayerState[] {
-  return [...session.players.values()].map(toPlayerState);
+  return [...session.players.values()].map((player) => toPlayerState(player, session));
 }

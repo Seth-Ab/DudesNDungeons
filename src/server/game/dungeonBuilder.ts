@@ -45,13 +45,16 @@ export function monsterInstance(type: MonsterType, position: Vector2, id: string
 }
 
 export function lootInstance(item: ItemDefinition, position: Vector2, id: string): LootState {
-  return {
+  const instance = {
     id,
     name: item.name,
-    kind: item.kind,
     position: { ...position },
     pickedUp: false,
   };
+
+  return item.kind === "skillScroll"
+    ? { ...instance, kind: item.kind, skillId: item.skillId }
+    : { ...instance, kind: item.kind };
 }
 
 /**

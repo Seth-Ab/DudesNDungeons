@@ -21,6 +21,12 @@ import {
 
 const KEY: InventoryItem = { id: COPPER_KEY_ID, name: "Copper Key", kind: "key" };
 const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", kind: "tonic" };
+const SKILL_SCROLL: InventoryItem = {
+  id: "77777777-7777-4777-8777-777777777777",
+  name: "Scroll of Iron Will",
+  kind: "skillScroll",
+  skillId: "iron-will",
+};
 
 /** At the face of the doorway, on the tile before it: where a party walking up to it stops. */
 const BY_THE_DOOR = at(10, 6, 1.9);
@@ -91,6 +97,57 @@ describe("using items", () => {
       ok: false,
       reason: "targetMissing",
     });
+  });
+
+  it("consumes a skill scroll and activates it provisionally during a run", () => {
+    const player = testPlayer("alpha", { inventory: [{ ...SKILL_SCROLL }] });
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
+    expect(player.inventory).toEqual([]);
+    expect(player.runSkillIds).toEqual(new Set(["iron-will"]));
+    expect(player.profile.unlockedSkillIds).toEqual([]);
+  });
+
+  it("does not consume a scroll for a skill the player already knows", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }],
+      profile: testPlayer("known").profile,
+    });
+    player.profile.unlockedSkillIds.push("iron-will");
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({
+      ok: false,
+      reason: "notPermitted",
+    });
+    expect(player.inventory).toEqual([SKILL_SCROLL]);
+  });
+
+  it("does not consume a duplicate after learning the same skill during this run", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }],
+      runSkillIds: new Set(["iron-will"]),
+    });
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({
+      ok: false,
+      reason: "notPermitted",
+    });
+    expect(player.inventory).toEqual([SKILL_SCROLL]);
+  });
+
+  it("makes a skill learned in the hub permanent immediately", () => {
+    const player = testPlayer("alpha", { inventory: [{ ...SKILL_SCROLL }] });
+    const session = testSession([player]);
+    session.location = "hub";
+    const before = player.profile.revision;
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
+    expect(player.profile.unlockedSkillIds).toEqual(["iron-will"]);
+    expect(player.runSkillIds).toEqual(new Set());
+    expect(player.profile.revision).toBe(before + 1);
   });
 });
 

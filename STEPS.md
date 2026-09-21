@@ -111,6 +111,10 @@ an existing slot still works during a run.
 - Persist profiles across server restarts. File-backed is enough at this size.
 - Bank what a survivor carries out; take what a dead player was carrying, per the death checkpoint.
 - Add skills with server-resolved effects across combat, sight range, resistance, and puzzle interaction.
+  Skills enter the dungeon as rare, transferable scroll items that occupy an inventory slot. Using
+  one grants its effect for the run, but it becomes permanent only if that player makes it back to
+  the hub; a hub purchase is permanent immediately. An already-known scroll cannot be consumed,
+  leaving duplicates available for another player or a future upgrade path.
 - Never trust a client-sent profile, inventory, or unlock. The client asks; the server decides.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying

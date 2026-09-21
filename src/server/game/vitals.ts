@@ -7,7 +7,9 @@ import {
   STAMINA_REGEN_PER_SECOND,
 } from "../../shared/constants/game.js";
 import type { RunState } from "../../shared/types/core.js";
+import type { GameContent } from "../content/loadContent.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { effectiveResistance } from "./progression.js";
 
 /**
  * Health, resistance, and stamina in one place.
@@ -36,10 +38,14 @@ export function damageMultiplier(resistance: number): number {
  * slower to kill rather than invulnerable. A hit never carries past zero: the returned number is
  * what the target lost, which is what `attackResolved` reports.
  */
-export function damagePlayer(player: SessionPlayer, rawDamage: number): number {
+export function damagePlayer(
+  player: SessionPlayer,
+  rawDamage: number,
+  content?: GameContent,
+): number {
   if (rawDamage <= 0 || player.health <= 0) return 0;
 
-  const scaled = rawDamage * damageMultiplier(player.resistance);
+  const scaled = rawDamage * damageMultiplier(effectiveResistance(player, content));
   const dealt = Math.min(Math.max(1, Math.round(scaled)), player.health);
 
   player.health -= dealt;
@@ -47,10 +53,14 @@ export function damagePlayer(player: SessionPlayer, rawDamage: number): number {
 }
 
 /** Raises resistance, capped. Returns false when the player is already at the cap. */
-export function restoreResistance(player: SessionPlayer, amount: number): boolean {
-  if (player.resistance >= PLAYER_MAX_RESISTANCE) return false;
+export function restoreResistance(
+  player: SessionPlayer,
+  amount: number,
+  maximum = PLAYER_MAX_RESISTANCE,
+): boolean {
+  if (player.resistance >= maximum) return false;
 
-  player.resistance = clamp(player.resistance + amount, PLAYER_MAX_RESISTANCE);
+  player.resistance = clamp(player.resistance + amount, maximum);
   return true;
 }
 

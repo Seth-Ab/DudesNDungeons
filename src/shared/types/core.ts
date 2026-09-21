@@ -71,24 +71,51 @@ export type MonsterState = z.infer<typeof monsterStateSchema>;
 /**
  * What an item does. Torches equip separately and never consume one of the three inventory slots.
  */
-export const itemKindSchema = z.enum(["key", "tonic", "ward", "torch"]);
+export const itemKindSchema = z.enum(["key", "tonic", "ward", "torch", "skillScroll"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
-export const lootStateSchema = z.object({
+const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: itemKindSchema,
+  kind: z.enum(["key", "tonic", "ward", "torch"]),
   position: vector2Schema,
   pickedUp: z.boolean(),
 });
+
+const skillScrollLootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("skillScroll"),
+  skillId: contentIdSchema,
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+
+export const lootStateSchema = z.discriminatedUnion("kind", [
+  ordinaryLootStateSchema,
+  skillScrollLootStateSchema,
+]);
 export type LootState = z.infer<typeof lootStateSchema>;
 
 /** An item a player carries. It keeps the id it had as loot on the floor. */
-export const inventoryItemSchema = z.object({
+const ordinaryInventoryItemSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: itemKindSchema,
+  kind: z.enum(["key", "tonic", "ward", "torch"]),
 });
+
+const skillScrollInventoryItemSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("skillScroll"),
+  /** Skill content id learned by using this scroll. The scroll itself is consumed. */
+  skillId: contentIdSchema,
+});
+
+export const inventoryItemSchema = z.discriminatedUnion("kind", [
+  ordinaryInventoryItemSchema,
+  skillScrollInventoryItemSchema,
+]);
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
 
 export const doorStateSchema = z.object({
@@ -228,9 +255,9 @@ export const profileStateSchema = z.object({
   id: profileIdSchema,
   displayName: playerNameSchema,
   bankedItems: z.array(inventoryItemSchema),
-  /** Content ids from `content/skills/`. Empty until unlocking ships. */
+  /** Content ids from `content/skills/` that this profile extracted or acquired in the hub. */
   unlockedSkillIds: z.array(contentIdSchema),
-  /** Content ids from `content/upgrades/`. Empty until unlocking ships. */
+  /** Content ids from `content/upgrades/`. Acquisition is still future work. */
   unlockedUpgradeIds: z.array(contentIdSchema),
   /** How many runs this profile has escaped from, and how many it went down in. */
   runsEscaped: z.number().int().nonnegative(),

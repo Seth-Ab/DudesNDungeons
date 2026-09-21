@@ -4,19 +4,20 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11, and the
-  identity and persistence half of Backend step 11. Sessions begin in a lit authored hub,
-  unanimously ready parties generate a run, and escape or a total wipe returns the party to the hub
-  under protocol v9. What a player banks now belongs to a device-local profile that survives a
+- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11, plus
+  identity, persistence, and the first skill-scroll slice of Backend step 11. Sessions begin in a
+  lit authored hub, unanimously ready parties generate a run, and escape or a total wipe returns
+  the party to the hub
+  under protocol v10. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: the first half of Backend step 11. A profile holds banked items and unlock
-  ids, lives in `data/profiles.json`, and is claimed with a server-issued secret the browser keeps
-  in local storage. One profile plays one party at a time. Frontend step 9 closed before it with
-  the hub and run flow on screen.
-- Next recommended step: the rest of Backend step 11 - unlocking skills and applying their effects -
-  which now has a profile to unlock onto and a `content/` catalog to unlock from. Frontend step 10
-  is its visible half and cannot start before it. Backend step 5 (voice signaling, half done) and
-  step 6 (deployment readiness) remain open.
+- Last completed work: the first playable skill-scroll slice of Backend step 11. A rare Scroll of
+  Iron Will uses one inventory slot, activates immediately, and becomes a permanent profile unlock
+  only for a player who extracts. Resistance, attack, upgrade, and torch-sight effects resolve on
+  the server; protocol v10 carries the new item kind and its skill id.
+- Next recommended step: expose the progression catalog plus active and permanent unlock state to
+  the owning client, then build Frontend step 10. Upgrade-scroll acquisition, duplicate-to-upgrade
+  behavior, transfer/drop, monster drops, chests, and hub shops remain follow-ups. Backend step 5
+  (voice signaling, half done) and step 6 (deployment readiness) also remain open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -36,6 +37,11 @@ Resolved:
 - Progression currency: none. `GAMEDESCRIPTION.md` names only items and skills kept between runs,
   so no currency was invented to go with them, and upgrade definitions keep leaving unlock costs
   out. Decided on 2026-09-20 while building the profile; revisit only if the owner asks for one.
+- Skill acquisition and saving: skills are rare, transferable scroll loot occupying a normal
+  inventory slot. Using one activates it immediately, but dungeon-earned skills become permanent
+  only on extraction; a hub purchase is permanent immediately. Revive then escape counts, as will
+  carrying a downed player through the exit once carrying exists. An already-known scroll is not
+  consumed; duplicates may become upgrades later. Recorded in decision 0011.
 - Target run length: 15-20 minutes for a full dungeon run.
 - World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
 - Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
@@ -64,11 +70,11 @@ Missing entirely, and now covered by new steps:
 - ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
 - ~~The hub world, run lifecycle, torch supply, and session-local storage.~~ Closed by Backend step
   10 on 2026-09-17. Persistent storage and its frontend remain open.
-- Roguelite progression. Half closed by Backend step 11 on 2026-09-20: banked items and a profile
-  now outlive both the session and the server. Skills are still neither unlocked nor applied, so
-  "unlock skills which help them fight, solve puzzles, and see greater distances" is untouched.
+- Roguelite progression. Partially closed by Backend step 11 on 2026-09-20: banked items and a
+  profile outlive both the session and the server, and the first rare scroll activates Iron Will
+  provisionally before extraction saves it. General acquisition, upgrades, transfer, and UI remain.
 - ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
-- Skills, traps, cooperative puzzles, and bosses.
+- Traps, cooperative puzzle mechanics, bosses, and the rest of the skill progression surface.
 - Carrying objects and downed players.
 - ~~A camera.~~ Closed by Frontend step 7. The renderer draws through a camera centred on the local player.
 
@@ -170,8 +176,8 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 
 ### 11. Roguelite Progression and Persistence
 
-Identity and persistence landed on 2026-09-20 under protocol v9; unlocking and skill effects have
-not started.
+Identity and persistence landed on 2026-09-20 under protocol v9. The first skill-scroll slice landed
+under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 
 - [x] Add a player profile holding banked items and unlocked skills. `src/server/profiles/`.
   `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
@@ -181,10 +187,12 @@ not started.
 - [x] Persist survivor banking and dead-player loss across server restarts. `returnToHub` writes to
   the profile and marks it changed; the server flushes on escape, on wipe, on join, every sweep,
   and on close.
-- [ ] Add skills with server-resolved effects. `unlockedSkillIds` and `unlockedUpgradeIds` persist,
-  but nothing unlocks them and no effect is applied.
+- [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
+  boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
+  effect resolver drives resistance, attack damage, upgrade tiers, and torch sight. Remaining:
+  expose progression state/catalog, add upgrade acquisition, and connect puzzle effects.
 - [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
-  definitions are not unlocked or applied until the runtime work above exists.
+  skill definitions now feed the effect resolver, while upgrade acquisition remains future work.
 - [x] Reject client-sent profile, inventory, or unlock state. The client sends one credential and
   nothing else; `profileState` is output-only and never parsed from a client frame.
 
@@ -558,6 +566,24 @@ Complete on `feature/hub-run-flow`.
   - Verified: `npm run typecheck`, `npm run lint`, `npm test` (260/260), and `npm run build`.
 
 ### 2026-09-20
+
+- Added the first playable skill-scroll slice of Backend step 11 on
+  `feature/skill-scroll-progression`:
+  - Recorded the owner-defined save boundary in `docs/decisions/0011-skill-scroll-progression.md`:
+    scrolls occupy inventory, activate on use, become permanent only on extraction, and remain
+    unconsumed when the skill is already known. Hub acquisition saves immediately; revive then
+    escape counts, and carried extraction will count when Backend step 12 adds it.
+  - Added the rare Scroll of Iron Will to boss-room generation and protocol v10's discriminated
+    loot/inventory shapes, including its own pixel-art sprite.
+  - Added run-local skill state that survives reconnect, activates effects immediately, promotes to
+    the profile for standing survivors, and is discarded for a wipe or player left behind.
+  - Centralized skill and upgrade effect totals. Resistance affects damage and the HUD, attack
+    bonuses affect server-resolved swings, and sight bonuses change server-authoritative torch
+    visibility. Puzzle power has no consumer until Backend step 12.
+  - Added coverage for content references, scroll use and duplicate refusal, hub permanence,
+    extraction/loss, upgrade prerequisites, effect consumers, protocol validation, deterministic
+    rarity, and sprite-sheet drift.
+  - Verified `npm run lint`, `npm run typecheck`, `npm test` (320/320), and `npm run build`.
 
 - Completed Frontend step 9, Hub World and Run Flow, on `feature/hub-run-flow`. Backend step 10 gave
   the party a hub and a run lifecycle without a single renderer change, by design; this is the half

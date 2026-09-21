@@ -32,7 +32,10 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
   };
 }
 
-function item(name: string, kind: InventoryItem["kind"] = "tonic"): InventoryItem {
+function item(
+  name: string,
+  kind: Exclude<InventoryItem["kind"], "skillScroll"> = "tonic",
+): InventoryItem {
   return { id: "a1111111-1111-4111-8111-111111111111", name, kind };
 }
 
