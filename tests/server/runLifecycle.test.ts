@@ -8,12 +8,18 @@ import {
 } from "../../src/server/game/runLifecycle.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { InventoryItem } from "../../src/shared/types/core.js";
-import { testPlayer, testSession } from "./fixtures.js";
+import { joinRequest, testPlayer, testProfile, testSession } from "./fixtures.js";
 
 const TONIC: InventoryItem = {
   id: "44444444-4444-4444-8444-444444444444",
   name: "Minor Tonic",
   kind: "tonic",
+};
+
+const KEY: InventoryItem = {
+  id: "33333333-3333-4333-8333-333333333333",
+  name: "Copper Key",
+  kind: "key",
 };
 
 function hubParty(names: string[]) {
@@ -27,7 +33,7 @@ function hubParty(names: string[]) {
   });
   const session = store.createSession();
   const players = names.map((playerName) => {
-    const joined = store.join({ roomCode: session.roomCode, playerName });
+    const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName }));
     if (!joined.ok) throw new Error(joined.message);
     return joined.player;
   });
@@ -82,8 +88,8 @@ describe("ending a run", () => {
 
     expect(session.location).toBe("hub");
     expect(session.dungeon.map.id).toBe("hub");
-    expect(standing.bankedItems).toEqual([TONIC]);
-    expect(downed.bankedItems).toEqual([]);
+    expect(standing.profile.bankedItems).toEqual([TONIC]);
+    expect(downed.profile.bankedItems).toEqual([]);
     expect(standing.inventory).toEqual([]);
     expect(downed.inventory).toEqual([]);
     expect(standing.carryingTorch).toBe(false);
@@ -101,8 +107,61 @@ describe("ending a run", () => {
 
     expect(first.inventory).toEqual([]);
     expect(second.inventory).toEqual([]);
-    expect(first.bankedItems).toEqual([]);
-    expect(second.bankedItems).toEqual([]);
+    expect(first.profile.bankedItems).toEqual([]);
+    expect(second.profile.bankedItems).toEqual([]);
     expect(session.dungeon.loot.filter((loot) => loot.kind === "torch")).toHaveLength(4);
+  });
+});
+
+describe("what a run leaves on a profile", () => {
+  it("marks every profile changed, so the bank reaches the disk", () => {
+    const standing = testPlayer("standing", { inventory: [{ ...TONIC }] });
+    const downed = testPlayer("downed", { health: 0 });
+    const session = testSession([standing, downed]);
+    const before = [standing.profile.revision, downed.profile.revision];
+
+    returnToHub(session, true);
+
+    // Without the mark the items would be banked in memory and silently lost on the next restart,
+    // which is the one failure this step exists to prevent.
+    expect(standing.profile.revision).toBeGreaterThan(before[0]!);
+    expect(downed.profile.revision).toBeGreaterThan(before[1]!);
+  });
+
+  it("counts an escape for whoever walked out and a loss for whoever did not", () => {
+    const standing = testPlayer("standing");
+    const downed = testPlayer("downed", { health: 0 });
+    const session = testSession([standing, downed]);
+
+    returnToHub(session, true);
+
+    expect(standing.profile.runsEscaped).toBe(1);
+    expect(standing.profile.runsLost).toBe(0);
+    // Left behind by a party that escaped without them, which is a loss however the run ended.
+    expect(downed.profile.runsEscaped).toBe(0);
+    expect(downed.profile.runsLost).toBe(1);
+  });
+
+  it("counts a wipe as a loss for everyone, standing or not", () => {
+    const first = testPlayer("first", { health: 0 });
+    const second = testPlayer("second", { health: 0 });
+    const session = testSession([first, second]);
+
+    returnToHub(session, false);
+
+    expect(first.profile.runsLost).toBe(1);
+    expect(second.profile.runsLost).toBe(1);
+  });
+
+  it("keeps banking onto what the profile already held", () => {
+    const player = testPlayer("veteran", {
+      inventory: [{ ...TONIC }],
+      profile: testProfile("veteran", { bankedItems: [{ ...KEY }] }),
+    });
+    const session = testSession([player]);
+
+    returnToHub(session, true);
+
+    expect(player.profile.bankedItems).toEqual([KEY, TONIC]);
   });
 });

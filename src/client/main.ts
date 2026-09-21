@@ -4,6 +4,8 @@ import type { EntityId, Vector2 } from "../shared/types/core.js";
 import { requestMicrophonePreview } from "./audio/proximityAudio.js";
 import { createInputController, type GameplayAction } from "./input/inputController.js";
 import {
+  createLocalStorageProfileSecretStore,
+  createMemoryProfileSecretStore,
   createMemoryTokenStore,
   createSessionStorageTokenStore,
   resolveEndpoints,
@@ -41,6 +43,15 @@ function tokenStore() {
   }
 }
 
+function profileSecretStore() {
+  try {
+    return createLocalStorageProfileSecretStore(window.localStorage);
+  } catch {
+    // Same fallback, one step worse: progression then lasts only as long as the page.
+    return createMemoryProfileSecretStore();
+  }
+}
+
 let renderedDungeon = createPlaceholderDungeon();
 /** Locally predicted position. Only drawn once the server has placed this player. */
 let localPosition: Vector2 = { x: 0, y: 0 };
@@ -51,6 +62,7 @@ const client = createSessionClient({
   httpUrl: endpoints.httpUrl,
   wsUrl: endpoints.wsUrl,
   tokenStore: tokenStore(),
+  profileSecretStore: profileSecretStore(),
 });
 
 const renderer = createCanvasRenderer(() => ({

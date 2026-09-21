@@ -4,17 +4,19 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11. Sessions
-  now begin in a lit authored hub, unanimously ready parties generate a run, and escape or a total
-  wipe returns the party to the hub under protocol v8. The dungeon is drawn as pixel art rather than
-  flat rectangles, and the hub reads as a place with named areas rather than an empty box.
-- Last completed work: Frontend step 9 put the hub and the run flow on screen. The hub's areas are
-  drawn from the room metadata snapshots already carried, the gate says what it is waiting for
-  before the interact is sent, and the HUD shows where the party is, what they carry, and what the
-  last run cost. Frontend step 7 closed before it with pixel-art tiles and props.
-- Next recommended step: Backend step 11 (persistent profiles and progression), which can now build
-  on both the session-local item bank and a UI that already displays it. Backend step 5 (voice
-  signaling, half done) and step 6 (deployment readiness) remain open.
+- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11, and the
+  identity and persistence half of Backend step 11. Sessions begin in a lit authored hub,
+  unanimously ready parties generate a run, and escape or a total wipe returns the party to the hub
+  under protocol v9. What a player banks now belongs to a device-local profile that survives a
+  server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
+- Last completed work: the first half of Backend step 11. A profile holds banked items and unlock
+  ids, lives in `data/profiles.json`, and is claimed with a server-issued secret the browser keeps
+  in local storage. One profile plays one party at a time. Frontend step 9 closed before it with
+  the hub and run flow on screen.
+- Next recommended step: the rest of Backend step 11 - unlocking skills and applying their effects -
+  which now has a profile to unlock onto and a `content/` catalog to unlock from. Frontend step 10
+  is its visible half and cannot start before it. Backend step 5 (voice signaling, half done) and
+  step 6 (deployment readiness) remain open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -28,7 +30,12 @@ Resolved:
 - Target party size for v1: 4.
 - Death and loss: Downed players stay down until revived or carried out. If the party escapes without them, they lose carried items and return to the hub.
 - Carry capacity: Three inventory slots. Keys and normal items use slots; torches are carried/equipped separately and do not spend inventory slots.
-- Identity for progression: Device-local profile first, backed by a local profile secret. Real accounts are deferred.
+- Identity for progression: Device-local profile first, backed by a local profile secret. Real
+  accounts are deferred. Implemented on 2026-09-20: the server issues the secret and keeps only its
+  hash, and the browser holds it in local storage.
+- Progression currency: none. `GAMEDESCRIPTION.md` names only items and skills kept between runs,
+  so no currency was invented to go with them, and upgrade definitions keep leaving unlock costs
+  out. Decided on 2026-09-20 while building the profile; revisit only if the owner asks for one.
 - Target run length: 15-20 minutes for a full dungeon run.
 - World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
 - Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
@@ -57,7 +64,9 @@ Missing entirely, and now covered by new steps:
 - ~~Rooms.~~ Closed by Backend step 9 on 2026-09-15.
 - ~~The hub world, run lifecycle, torch supply, and session-local storage.~~ Closed by Backend step
   10 on 2026-09-17. Persistent storage and its frontend remain open.
-- Roguelite progression. Nothing outlives a session; `SessionStore` is in-memory and keyed by room code.
+- Roguelite progression. Half closed by Backend step 11 on 2026-09-20: banked items and a profile
+  now outlive both the session and the server. Skills are still neither unlocked nor applied, so
+  "unlock skills which help them fight, solve puzzles, and see greater distances" is untouched.
 - ~~Resistance and stamina, and the decay that punishes a slow run.~~ Closed by Backend step 7 on 2026-09-14.
 - Skills, traps, cooperative puzzles, and bosses.
 - Carrying objects and downed players.
@@ -161,14 +170,23 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 
 ### 11. Roguelite Progression and Persistence
 
-- [ ] Add a player profile holding banked items and unlocked skills.
-- [ ] Persist profiles across server restarts.
-- [ ] Persist survivor banking and dead-player loss across server restarts. The session-local rule
-  landed in Backend step 10.
-- [ ] Add skills with server-resolved effects.
+Identity and persistence landed on 2026-09-20 under protocol v9; unlocking and skill effects have
+not started.
+
+- [x] Add a player profile holding banked items and unlocked skills. `src/server/profiles/`.
+  `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
+  reference and may play only one slot at a time.
+- [x] Persist profiles across server restarts. `data/profiles.json`, written atomically, validated
+  on read, relocatable with `DATA_DIR`. In-memory everywhere except `src/server/index.ts`.
+- [x] Persist survivor banking and dead-player loss across server restarts. `returnToHub` writes to
+  the profile and marks it changed; the server flushes on escape, on wipe, on join, every sweep,
+  and on close.
+- [ ] Add skills with server-resolved effects. `unlockedSkillIds` and `unlockedUpgradeIds` persist,
+  but nothing unlocks them and no effect is applied.
 - [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
-  definitions are not unlocked or applied until the profile/runtime work above exists.
-- [ ] Reject client-sent profile, inventory, or unlock state.
+  definitions are not unlocked or applied until the runtime work above exists.
+- [x] Reject client-sent profile, inventory, or unlock state. The client sends one credential and
+  nothing else; `profileState` is output-only and never parsed from a client frame.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
 
@@ -622,3 +640,65 @@ Complete on `feature/hub-run-flow`.
       party is ready`, which times out waiting for `actionRejected`. It failed only on runs that
       took 9-12s against the usual 6.6s, and passed 10 times out of 10 run on its own, so it is a
       timeout that a loaded machine outruns rather than a race in the lifecycle.
+
+- Completed the identity and persistence half of Backend step 11 on `feature/profile-persistence`.
+  Nothing a run earned outlived the process before this: `SessionStore` is in memory, so restarting
+  the server emptied every bank.
+  - Added a profile as its own thing in `src/server/profiles/`, rather than widening the session.
+    `SessionPlayer.bankedItems` became `SessionPlayer.profile`, a reference to an object the
+    `ProfileStore` owns, so banking at the end of a run needs no write-back step and `toPlayerState`
+    reads the bank straight off the profile.
+  - Issued identity from the server rather than accepting it from the client. `joinSession` carries
+    at most a profile secret; everything about what that profile holds comes back in `sessionJoined`
+    and is never parsed from a client frame. Protocol v8 to v9.
+  - Stored only a SHA-256 hash of the secret. That is also why `sessionJoined.profileSecret` is
+    non-null exactly once, on the join that minted it: the server cannot repeat a secret it did not
+    just generate. A client that loses its copy starts a new profile, which is the honest outcome
+    and the one the checkpoint's "device-local first" already implies.
+  - Put the secret in local storage while the resume token stays in session storage. Opposite
+    lifetimes for opposite reasons: a resume token unlocks one slot for sixty seconds, this names
+    everything a player has ever banked.
+  - Refused a second join by a profile that is already playing, with a new `profileInUse` error.
+    One bank spent by two parties would let a run's loot be banked twice or lost twice. The check
+    sits after the resume branch, not before it: a reconnecting player's own slot already holds
+    their profile, and checking first would lock them out of their own party on a refresh. A slot
+    held open for a disconnected player still counts, so a dropped player who opens a new room waits
+    out the grace window. Covered by a test, and called out in the README as a thing players hit.
+  - Made `markProfileChanged` clockless. Game code is paced by `performance.now()`, and stamping
+    that monotonic number onto `lastSeenAt` would have written something meaningless across a
+    restart; `lastSeenAt` is set on join instead, where the store's own wall clock is at hand.
+  - Persisted with a revision counter rather than a dirty flag on the store, so `returnToHub` can
+    bank an item without holding a reference to whatever is writing files. `flush()` compares each
+    profile's revision against what was last written and does nothing when nothing changed, which
+    is what lets the server call it on escape, on wipe, on join, every sweep, and on close.
+  - Wrote to a temp file and renamed over the target, and refused a `profiles.json` that does not
+    parse instead of starting empty. Starting empty is the worse failure: the first save would then
+    overwrite whatever the file still held.
+  - Added no progression currency. `GAMEDESCRIPTION.md` names only items and skills kept between
+    runs, and `content/schema.ts` already leaves unlock costs out for the same reason. Recorded as
+    a checkpoint rather than decided silently.
+  - Two things the tests caught rather than review: the in-memory storage accepted a profile the
+    file-backed one rejected, because only the file parsed the schema - the memory double now
+    validates on write, so a store bug fails in a test rather than on a deployment. And the first
+    end-to-end attempt used `disconnect()` where a player leaving for another room would press
+    leave, which surfaced the held-slot refusal above as real behaviour worth its own test.
+  - Fixed the `tests/server/scale.test.ts` flake logged on 2026-09-18, since this is a server
+    change and that is where it belonged. `testSession` now pins a seed, so a test about snapshot
+    windowing is no longer also a test about which map the generator drew.
+  - The other flake logged that day is still open: `tests/e2e/session.test.ts > starts only when the
+    whole connected party is ready` timed out once on the first full run here and passed on every
+    run since, matching the diagnosis that it is a tight timeout rather than a race. Left alone
+    because nothing here touches it and a guess at the right timeout is not worth a blind change.
+  - Tests grew from 281 to 308: `tests/server/profiles.test.ts` (12) covers hashing, lookup, dirty
+    tracking, reload, and every way the file can be untrustworthy; five in `sessions.test.ts` cover
+    profile reuse, the in-use refusal, reconnect, and that a failed join mints nothing; four in
+    `runLifecycle.test.ts` cover what a run leaves on a profile; five in
+    `tests/client/sessionClient.test.ts` drive the real client against the real server, including a
+    banked item surviving a restart and arriving back in the roster the HUD draws from.
+  - Verified: `npm run typecheck`, `npm run lint`, `npm test` (308/308), and `npm run build`. Also
+    smoke-tested the real file path against a live server: `data/profiles.json` is written, holds a
+    64-hex hash and not the secret, and a restarted server hands the same device the same profile
+    without issuing a second one.
+  - Not done here, and the rest of Backend step 11: unlocking skills and applying their effects.
+    `unlockedSkillIds` and `unlockedUpgradeIds` persist but stay empty. Frontend step 10 is their
+    visible half and should follow that, not this.

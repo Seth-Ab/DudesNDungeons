@@ -20,12 +20,19 @@ import { interact, pickupItem, useItem } from "./game/items.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
 import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
+import { toProfileState } from "./profiles/profile.js";
+import { ProfileStore } from "./profiles/profileStore.js";
 import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
 
 export interface GameServerOptions {
   store?: SessionStore;
+  /**
+   * Where roguelite profiles live. Defaults to an in-memory store, so a test or a bare
+   * `createGameServer()` writes nothing; `src/server/index.ts` supplies the file-backed one.
+   */
+  profiles?: ProfileStore;
   tickIntervalMs?: number;
   sweepIntervalMs?: number;
   /**
@@ -43,6 +50,7 @@ export interface GameServerOptions {
 export interface GameServer {
   httpServer: Server;
   store: SessionStore;
+  profiles: ProfileStore;
   listen(port: number, host: string): Promise<AddressInfo>;
   close(): Promise<void>;
 }
@@ -54,6 +62,7 @@ export interface GameServer {
  */
 export function createGameServer(options: GameServerOptions = {}): GameServer {
   const store = options.store ?? new SessionStore();
+  const profiles = options.profiles ?? new ProfileStore();
   const tickIntervalMs = options.tickIntervalMs ?? SERVER_TICK_MS;
   const sweepIntervalMs = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
   const allowedOrigin = options.allowedOrigin ?? "*";
@@ -202,10 +211,25 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
+        // The secret names a profile or it does not; an unknown one is a fresh device rather than
+        // an error, because there is nothing a player could do about a profile the server lost.
+        const known = profiles.find(message.profileSecret);
+        // Held so the secret can be sent back exactly when the server minted it, and never
+        // otherwise: only a hash of it is kept, so a secret cannot be repeated on a later join.
+        let issuedSecret: string | null = null;
+
         const joined = store.join({
           roomCode: message.roomCode,
           playerName: message.playerName,
           resumeToken: message.resumeToken,
+          profile: known,
+          // Called only once the join has otherwise succeeded, so a mistyped room code does not
+          // strand an empty profile on disk.
+          createProfile: () => {
+            const created = profiles.create(message.playerName);
+            issuedSecret = created.secret;
+            return created.profile;
+          },
         });
 
         if (!joined.ok) {
@@ -217,7 +241,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         playerId = player.id;
         socketsByPlayer.set(player.id, socket);
 
-        // Carries the resume token, so it goes to this player alone and never through broadcast().
+        // Names the profile after whoever is playing it now, and dates it, so an operator reading
+        // the file can tell a live profile from one abandoned months ago.
+        if (issuedSecret === null) profiles.touch(player.profile, message.playerName);
+        // A profile minted just now is worth writing immediately: everything else a session does is
+        // recoverable, but a secret the client stores and the server forgets is a bank nobody owns.
+        profiles.flush();
+
+        // Carries the resume token and the profile secret, both credentials, so it goes to this
+        // player alone and never through broadcast().
         send(socket, {
           type: "sessionJoined",
           sessionId: session.id,
@@ -227,6 +259,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           resumed,
           tickRate: SERVER_TICK_RATE_HZ,
           players: visibilityFrameForPlayer(session, player).players,
+          profile: toProfileState(player.profile),
+          profileSecret: issuedSecret,
         });
 
         broadcast(
@@ -348,6 +382,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
+        // The dungeon exit lives behind `playerInteract`, so this is where an escape banks. A
+        // no-op unless something actually changed a profile, which opening a door does not.
+        profiles.flush();
         publish(member.session);
         return;
       }
@@ -388,7 +425,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       // Dungeon simulation advances even with nobody watching, so a reconnecting party returns to
       // a world that kept its timers rather than one frozen mid-fight.
       const monsterAttacks = simulate(session, at);
-      if (partyWiped(session)) returnToHub(session, false);
+      if (partyWiped(session)) {
+        returnToHub(session, false);
+        // A wipe costs everyone their carry, which is a profile change like any other.
+        profiles.flush();
+      }
       session.tick += 1;
 
       const hasAudience = [...session.players.values()].some((player) => player.connected);
@@ -400,6 +441,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   }, tickIntervalMs);
 
   const sweepTimer = setInterval(() => {
+    // The safety net under the targeted flushes above, for any profile change they did not cover.
+    profiles.flush();
+
     for (const member of store.sweep()) {
       socketsByPlayer.delete(member.player.id);
       broadcast(member.session, {
@@ -414,6 +458,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   return {
     httpServer,
     store,
+    profiles,
     listen(port, host) {
       return new Promise((resolve, reject) => {
         const onError = (error: Error): void => {
@@ -433,6 +478,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     close() {
       clearInterval(tickTimer);
       clearInterval(sweepTimer);
+      // Last chance to save: after this the timers are gone and nothing else will write.
+      profiles.flush();
       for (const socket of socketsByPlayer.values()) socket.terminate();
       for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();

@@ -1,9 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
+import { markProfileChanged } from "../../src/server/profiles/profile.js";
+import {
+  createMemoryProfileStorage,
+  ProfileStore,
+  type ProfileStorage,
+} from "../../src/server/profiles/profileStore.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
-import { createMemoryTokenStore } from "../../src/client/network/endpoints.js";
+import {
+  createMemoryProfileSecretStore,
+  createMemoryTokenStore,
+} from "../../src/client/network/endpoints.js";
 import {
   createSessionClient,
+  type ProfileSecretStore,
   type SessionClient,
 } from "../../src/client/network/sessionClient.js";
 import type { SessionView } from "../../src/client/network/sessionState.js";
@@ -20,11 +30,19 @@ let httpUrl: string;
 let wsUrl: string;
 const clients: SessionClient[] = [];
 
-function newClient(retryDelaysMs = [20, 40, 80]): SessionClient {
+/**
+ * A fresh client, which is a fresh device unless it is handed a secret store to share: two clients
+ * with their own stores are two players, and two clients over one store are one player twice.
+ */
+function newClient(
+  retryDelaysMs = [20, 40, 80],
+  profileSecretStore: ProfileSecretStore = createMemoryProfileSecretStore(),
+): SessionClient {
   const client = createSessionClient({
     httpUrl,
     wsUrl,
     tokenStore: createMemoryTokenStore(),
+    profileSecretStore,
     retryDelaysMs,
   });
   clients.push(client);
@@ -55,6 +73,28 @@ function until(
 }
 
 const inSession = (view: SessionView): boolean => view.phase === "inSession";
+
+/**
+ * Resolves once the server satisfies `predicate`. For the cases with nothing on the wire to wait
+ * for, such as a departure nobody else is in the room to notice.
+ */
+function untilServer(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    const poll = (): void => {
+      if (predicate()) {
+        resolve();
+        return;
+      }
+      if (Date.now() > deadline) {
+        reject(new Error("timed out waiting on the server"));
+        return;
+      }
+      setTimeout(poll, 10);
+    };
+    poll();
+  });
+}
 
 beforeEach(async () => {
   server = createGameServer({
@@ -254,5 +294,144 @@ describe("reconnecting", () => {
 
     const view = await until(host, (v) => v.players.length === 1, 5000);
     expect(view.players[0]?.name).toBe("Alpha");
+  });
+});
+
+describe("roguelite profiles", () => {
+  const KEY = { id: "33333333-3333-4333-8333-333333333333", name: "Copper Key", kind: "key" as const };
+
+  /**
+   * Replaces the running server with a fresh one over the same profile storage, which is what a
+   * restart looks like to a player: a new process, the same file on disk.
+   */
+  async function restartOver(storage: ProfileStorage): Promise<void> {
+    await server.close();
+    server = createGameServer({
+      store: new SessionStore({ reconnectGraceMs: GRACE_MS, dungeon: { dungeonId: "ember-vault" } }),
+      profiles: new ProfileStore({ storage }),
+      tickIntervalMs: 20,
+      sweepIntervalMs: 20,
+      log: false,
+    });
+    const address = await server.listen(0, "127.0.0.1");
+    httpUrl = `http://127.0.0.1:${address.port}`;
+    wsUrl = `ws://127.0.0.1:${address.port}`;
+  }
+
+  it("issues a profile on a first join and stores its secret", async () => {
+    const secrets = createMemoryProfileSecretStore();
+    const client = newClient(undefined, secrets);
+    const roomCode = await client.createRoom();
+
+    client.join(roomCode, "Alpha");
+    await until(client, inSession);
+
+    const secret = secrets.read();
+    expect(secret).toMatch(/^[0-9a-f]{32}$/);
+    expect(server.profiles.find(secret)).not.toBeNull();
+  });
+
+  it("plays the same profile on a later join, without issuing a second one", async () => {
+    const secrets = createMemoryProfileSecretStore();
+
+    const first = newClient(undefined, secrets);
+    const firstRoom = await first.createRoom();
+    first.join(firstRoom, "Alpha");
+    const joined = await until(first, inSession);
+    const issued = secrets.read();
+
+    // Leaving, not dropping: a held slot still owns the profile, which the next test is about.
+    first.leave();
+    await untilServer(() => server.store.findMember(joined.selfId!) === undefined);
+
+    // A different room and a different socket, but the same device: one profile, not two.
+    const second = newClient(undefined, secrets);
+    const secondRoom = await second.createRoom();
+    second.join(secondRoom, "Alpha");
+    await until(second, inSession);
+
+    expect(secrets.read()).toBe(issued);
+    expect(server.profiles.size).toBe(1);
+  });
+
+  it("holds the profile for a dropped player until their slot is released", async () => {
+    const secrets = createMemoryProfileSecretStore();
+
+    const first = newClient(undefined, secrets);
+    const roomCode = await first.createRoom();
+    first.join(roomCode, "Alpha");
+    await until(first, inSession);
+
+    // A dropped socket is not a departure: the slot is theirs for the grace window, and so is the
+    // profile. Letting a second party spend the same bank meanwhile is the thing being prevented.
+    first.disconnect();
+
+    const second = newClient(undefined, secrets);
+    const otherRoom = await second.createRoom();
+    second.join(otherRoom, "Alpha");
+    const view = await until(second, (candidate) => candidate.lastError !== null);
+
+    expect(view.lastError?.code).toBe("profileInUse");
+  });
+
+  it("gives two devices two profiles", async () => {
+    const first = newClient();
+    const second = newClient();
+    const roomCode = await first.createRoom();
+
+    first.join(roomCode, "Alpha");
+    await until(first, inSession);
+    second.join(roomCode, "Beta");
+    await until(second, inSession);
+
+    expect(server.profiles.size).toBe(2);
+  });
+
+  it("refuses a profile that is already playing, and says so", async () => {
+    const secrets = createMemoryProfileSecretStore();
+
+    const first = newClient(undefined, secrets);
+    const roomCode = await first.createRoom();
+    first.join(roomCode, "Alpha");
+    await until(first, inSession);
+
+    // The same device joining a second party while the first is still live.
+    const second = newClient(undefined, secrets);
+    const otherRoom = await second.createRoom();
+    second.join(otherRoom, "Alpha");
+    const view = await until(second, (candidate) => candidate.lastError !== null);
+
+    expect(view.lastError?.code).toBe("profileInUse");
+    // A join rejection, not a dead connection: the player can correct it and try again.
+    expect(view.phase).toBe("connected");
+  });
+
+  it("returns a banked item to the same device after a server restart", async () => {
+    const storage = createMemoryProfileStorage();
+    await restartOver(storage);
+
+    const secrets = createMemoryProfileSecretStore();
+    const before = newClient(undefined, secrets);
+    const firstRoom = await before.createRoom();
+    before.join(firstRoom, "Alpha");
+    const joined = await until(before, inSession);
+
+    // What `returnToHub` does when a survivor walks out of the dungeon, applied directly: this test
+    // is about the item outliving the process, and the run that earns it is covered elsewhere.
+    const member = server.store.findMember(joined.selfId!);
+    member!.player.profile.bankedItems.push({ ...KEY });
+    markProfileChanged(member!.player.profile);
+    before.disconnect();
+
+    await restartOver(storage);
+
+    const after = newClient(undefined, secrets);
+    const secondRoom = await after.createRoom();
+    after.join(secondRoom, "Alpha");
+    const view = await until(after, inSession);
+
+    // Read from the roster the client renders from, so this covers the whole path: file, profile,
+    // player state, wire, and the view the HUD draws the bank out of.
+    expect(view.players[0]?.bankedItems).toEqual([KEY]);
   });
 });

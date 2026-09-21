@@ -65,6 +65,16 @@ function joinedView(): SessionView {
     resumed: false,
     tickRate: 20,
     players: [player(SELF_ID)],
+    profile: {
+      id: "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+      displayName: "Self",
+      bankedItems: [],
+      unlockedSkillIds: [],
+      unlockedUpgradeIds: [],
+      runsEscaped: 0,
+      runsLost: 0,
+    },
+    profileSecret: null,
   });
 }
 

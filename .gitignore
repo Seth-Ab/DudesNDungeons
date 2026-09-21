@@ -2,6 +2,9 @@ node_modules/
 dist/
 coverage/
 
+# Player profiles: local server state, and they hold profile secret hashes.
+data/
+
 .env
 .env.*
 !.env.example

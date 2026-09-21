@@ -3,6 +3,7 @@ import {
   entityIdSchema,
   playerIdSchema,
   playerNameSchema,
+  profileSecretSchema,
   resumeTokenSchema,
   roomCodeSchema,
   vector2Schema,
@@ -13,6 +14,11 @@ import { voiceSignalSchema } from "./voice.js";
  * `resumeToken` is the token from an earlier `sessionJoined` in the same room. Present, it asks the
  * server to reclaim that player slot with its position, health, and ready state intact. Absent or
  * no longer valid, the join is treated as a brand new player.
+ *
+ * `profileSecret` names the roguelite profile this device already owns, from an earlier
+ * `sessionJoined` in any room. Absent or unknown to the server, a fresh profile is created and its
+ * secret comes back once. The two credentials answer different questions: the resume token says
+ * which slot in this room, the profile secret says whose bank and unlocks.
  */
 export const joinSessionSchema = z.object({
   type: z.literal("joinSession"),
@@ -20,6 +26,7 @@ export const joinSessionSchema = z.object({
   roomCode: roomCodeSchema,
   playerName: playerNameSchema,
   resumeToken: resumeTokenSchema.nullish(),
+  profileSecret: profileSecretSchema.nullish(),
 });
 
 export const leaveSessionSchema = z.object({

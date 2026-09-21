@@ -5,7 +5,8 @@ import {
 } from "../../src/shared/constants/game.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { scalePoint } from "../../src/server/game/scale.js";
-import type { Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
+import type { PlayerProfile } from "../../src/server/profiles/profile.js";
+import type { JoinRequest, Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
 import type { Vector2 } from "../../src/shared/types/core.js";
 
 /**
@@ -39,6 +40,48 @@ export function at(x: number, y: number, dx = 0, dy = 0): Vector2 {
   return { x: point.x + dx, y: point.y + dy };
 }
 
+/**
+ * A profile with nothing banked, for the tests that only need a player to have one.
+ *
+ * `secretHash` is a plausible-looking constant rather than a real hash: nothing here resolves a
+ * secret, and `tests/server/profiles.test.ts` covers the cases that do.
+ */
+export function testProfile(id: string, overrides: Partial<PlayerProfile> = {}): PlayerProfile {
+  return {
+    id: `profile-${id}`,
+    secretHash: "0".repeat(64),
+    displayName: id,
+    bankedItems: [],
+    unlockedSkillIds: [],
+    unlockedUpgradeIds: [],
+    runsEscaped: 0,
+    runsLost: 0,
+    createdAt: 0,
+    lastSeenAt: 0,
+    revision: 0,
+    ...overrides,
+  };
+}
+
+let profileCounter = 0;
+
+/**
+ * A join request carrying a fresh profile, for the tests that care about sessions rather than
+ * progression. Pass `profile` to hand a join one that already exists.
+ *
+ * Every call mints a distinct profile, including two joins under the same player name, so a test
+ * about party size is never accidentally a test about one profile playing twice.
+ */
+export function joinRequest(
+  fields: Pick<JoinRequest, "roomCode" | "playerName"> & Partial<JoinRequest>,
+): JoinRequest {
+  return {
+    profile: null,
+    createProfile: () => testProfile(`${fields.playerName}-${(profileCounter += 1)}`),
+    ...fields,
+  };
+}
+
 export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): SessionPlayer {
   return {
     id,
@@ -52,7 +95,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     connected: true,
     inventory: [],
     carryingTorch: true,
-    bankedItems: [],
+    profile: testProfile(id),
     discoveredTiles: new Set(),
     discoveredRoomIds: new Set(),
     resumeToken: id.padEnd(32, "0"),
@@ -64,8 +107,18 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
   };
 }
 
+/**
+ * Pinned so a generated dungeon is the same one every run.
+ *
+ * Without it `buildDungeon` draws a fresh seed, and a layout that happens to leave no floor tile
+ * `SNAPSHOT_VIEW_RADIUS_TILES` clear of every edge failed `scale.test.ts` about one run in twenty.
+ * A test about windowing should not also be a test about which map came out of the generator.
+ */
+export const TEST_SEED = 20260920;
+
 export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_ID): Session {
-  const built = buildDungeon({ dungeonId });
+  const request = { dungeonId, seed: TEST_SEED };
+  const built = buildDungeon(request);
 
   return {
     id: "session-1",
@@ -73,7 +126,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     createdAt: 0,
     dungeon: built.dungeon,
     location: "dungeon",
-    runDungeon: { dungeonId },
+    runDungeon: request,
     spawnPoints: built.spawnPoints,
     seed: built.seed,
     tick: 0,
