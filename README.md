@@ -76,7 +76,8 @@ logged or shared.
 - `docs/` - architecture notes and decision records.
 - `scripts/` - local automation scripts.
 - `config/` - non-secret configuration templates.
-- `.agents/skills/` - discoverable repo-local skills for repeated AI-agent and contributor workflows.
+- `.agents/skills/` - canonical repo-local skills for repeated AI-agent and contributor workflows.
+- `.claude/skills/` - Claude Code discovery symlinks to the canonical skills.
 
 ## Game Content
 

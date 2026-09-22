@@ -317,6 +317,8 @@ Complete on `feature/hub-run-flow`.
 - Added the `backlog-audit` skill for evidence-backed backlog reviews. Audit-only runs produce
   proposals without editing code or creating issues; publishing GitHub issues requires explicit
   owner authorization and a duplicate check.
+- Added `.claude/skills/` symlinks for all five skills, keeping `.agents/skills/` canonical while
+  exposing the same workflows as direct slash commands in Claude Code without duplicated files.
 
 ### 2026-09-17
 
