@@ -45,6 +45,10 @@ Before creating a branch:
 Inspect `git status --short`, the current branch, the default branch, and configured remotes. Never
 discard, reset, stash, stage, or commit unrelated user work.
 
+Run `npm run worktrees:prune -- --dry-run` and report any worktrees it would remove from earlier
+tickets, so they don't silently accumulate. Only remove one (`npm run worktrees:prune`) when the
+user asks or when a prior ticket's worktree is confirmed merged and clean.
+
 Fetch the current default branch, then create the issue branch before editing files. Use a concise
 name containing the issue number, such as `fix/issue-28-websocket-payload-limit`,
 `feature/issue-31-boss-gating`, or `chore/issue-36-progress-sync`.
@@ -140,3 +144,6 @@ an external service change. Do not merge the PR.
 
 Report the issue URL, branch, commit hash or hashes, PR URL, checks run, CI state, and any reviewer
 notes. State whether the working tree is clean and identify any untouched pre-existing changes.
+
+If this run used a separate worktree, do not remove it yet, since the PR is not merged. Tell the
+user it will show up in `npm run worktrees:prune --dry-run` once the PR merges.
