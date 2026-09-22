@@ -6,7 +6,7 @@ Use `AGENTS.md` for contributor and agent instructions. Use `STEPS.md` as the pr
 
 Use `GAMEDESCRIPTION.md` as the source of truth for overall game direction (vision, pillars, level design, movement, gameplay). It is owner-authored only: read it before design-adjacent work, but agents must never write or propose edits to it.
 
-Repo-local shared skills live in `.agents/skills/`, the standard Codex discovery path. Use them when their descriptions match the task, especially for backlog audits, progress syncing, protocol changes, frontend gameplay slices, and backend authoritative state work. The instructions remain readable by other agents and human contributors.
+Repo-local shared skills live canonically in `.agents/skills/`, the standard Codex discovery path. Claude Code compatibility symlinks live in `.claude/skills/`; keep them pointed at the canonical skill directories instead of duplicating instructions. Use skills when their descriptions match the task, especially for backlog audits, progress syncing, protocol changes, frontend gameplay slices, and backend authoritative state work.
 
 ## Project Structure & Module Organization
 
@@ -22,7 +22,8 @@ This repository is currently at planning/scaffold stage. Keep new source code or
 - `docs/` for architecture notes and decision records.
 - `scripts/` for local automation and one-off project scripts.
 - `config/` for checked-in, non-secret configuration templates.
-- `.agents/skills/` for discoverable repo-local skills used by AI agents and contributors.
+- `.agents/skills/` for canonical, Codex-discoverable repo-local skills.
+- `.claude/skills/` for Claude Code symlinks to the canonical skill directories.
 
 Avoid mixing client-only browser code with server logic. Shared protocol definitions should live in one place so clients and the server cannot drift.
 
