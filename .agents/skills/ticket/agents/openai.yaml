@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ticket"
+  short_description: "Complete one GitHub issue and open a verified PR"
+  default_prompt: "Use $ticket to complete this GitHub issue end to end and open a review-ready pull request: <issue URL>"
