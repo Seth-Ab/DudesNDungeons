@@ -4,7 +4,7 @@ This plan tracks the work needed to build a browser-based co-op dungeon crawler 
 
 `GAMEDESCRIPTION.md` is the owner-authored source of truth for what the game is: a dark, randomly generated dungeon crawl for up to four friends, built on lighting, looting and fighting, proximity voice, and roguelite progression between runs. This file turns that direction into ordered work. Where the two disagree, `GAMEDESCRIPTION.md` wins and this file is what gets corrected.
 
-Steps 1-6 in each track predate `GAMEDESCRIPTION.md` and are kept at their original numbers, because `PROGRESS.md`, the decision records, and `agent-skills/` all reference them. Steps 7 and up carry the work the game description added.
+Steps 1-6 in each track predate `GAMEDESCRIPTION.md` and are kept at their original numbers, because `PROGRESS.md`, the decision records, and `.agents/skills/` all reference them. Steps 7 and up carry the work the game description added.
 
 ## Opinion Checkpoints
 

@@ -310,6 +310,14 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+### 2026-09-22
+
+- Migrated the four repo-local shared skills from `agent-skills/` to the standard
+  `.agents/skills/` discovery path and updated repository documentation to use the new location.
+- Added the `backlog-audit` skill for evidence-backed backlog reviews. Audit-only runs produce
+  proposals without editing code or creating issues; publishing GitHub issues requires explicit
+  owner authorization and a duplicate check.
+
 ### 2026-09-17
 
 - Completed Backend step 10, Hub World and Run Lifecycle, on protocol v8:
@@ -391,8 +399,8 @@ Complete on `feature/hub-run-flow`.
 - Added GitHub Actions CI to run `npm ci`, `npm test`, and `npm run build` on pull requests to `main`.
 - Verified PR #1 CI passed. Attempted to require CI before merge, but GitHub returned a branch protection plan limit for this private repository.
 - Resolved PR #2 conflicts by keeping backend session code, frontend Canvas code, the PR template, and CI together.
-- Added repo-local shared skills under `agent-skills/`: `project-progress-sync`, `protocol-contract-change`, `frontend-gameplay-slice`, and `backend-authoritative-state`.
-- Moved shared skills from `.codex/skills/` to tool-neutral `agent-skills/` so Codex, Claude, and contributors can use the same guidance.
+- Added repo-local shared skills, now under `.agents/skills/`: `project-progress-sync`, `protocol-contract-change`, `frontend-gameplay-slice`, and `backend-authoritative-state`.
+- Moved shared skills out of the user-local `.codex/skills/`; they now use the repository-standard `.agents/skills/` path so Codex can discover the same checked-in guidance contributors can read.
 - Fast-forwarded `backend-development` to current `main` before starting Backend Dev step 3.
 - Completed Backend Dev step 3 (Authoritative Dungeon State):
   - Added `src/server/game/dungeonState.ts` with the fixed Ember Vault map, per-session dungeon cloning, spawn points, movement stepping, and collision checks against walls, bounds, other players, living monsters, and closed doors.
@@ -429,7 +437,7 @@ Complete on `feature/hub-run-flow`.
 - Added `GAMEDESCRIPTION.md` as the owner-authored source of truth for game direction, referenced from `AGENTS.md` and `README.md`. Agents read it and never write to it.
 - Merged `main` into `feature/client-networking`.
 - Rewrote the roadmap against that direction:
-  - `STEPS.md` gained Backend steps 7-12 (vitals and the run timer, server-authoritative visibility and lighting, procedural generation from room templates, hub world and run lifecycle, roguelite persistence, and traps/puzzles/bosses/carrying) and Frontend steps 7-10 (camera and darkness, vitals and gameplay controls, hub flow, skills UI). Steps 1-6 keep their numbers because `PROGRESS.md`, the decision records, and `agent-skills/` reference them.
+  - `STEPS.md` gained Backend steps 7-12 (vitals and the run timer, server-authoritative visibility and lighting, procedural generation from room templates, hub world and run lifecycle, roguelite persistence, and traps/puzzles/bosses/carrying) and Frontend steps 7-10 (camera and darkness, vitals and gameplay controls, hub flow, skills UI). Steps 1-6 keep their numbers because `PROGRESS.md`, the decision records, and `.agents/skills/` reference them.
   - Added five open opinion checkpoints the description raises: what death costs, whether the hybrid tactical exchange survives, three inventory slots against the current eight, how identity outlives a session, and target run length.
   - Added the Direction Alignment section above, recording what already matches, what is missing, and the three places the code and the description now contradict each other.
 - Recommended code changes, none applied yet, ordered by how much more expensive they get if deferred:

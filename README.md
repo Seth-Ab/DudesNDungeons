@@ -76,7 +76,7 @@ logged or shared.
 - `docs/` - architecture notes and decision records.
 - `scripts/` - local automation scripts.
 - `config/` - non-secret configuration templates.
-- `agent-skills/` - repo-local shared skills for repeated AI-agent and contributor workflows.
+- `.agents/skills/` - discoverable repo-local skills for repeated AI-agent and contributor workflows.
 
 ## Game Content
 
