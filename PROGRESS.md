@@ -17,7 +17,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Next recommended step: expose the progression catalog plus active and permanent unlock state to
   the owning client, then build Frontend step 10. Upgrade-scroll acquisition, duplicate-to-upgrade
   behavior, transfer/drop, monster drops, chests, and hub shops remain follow-ups. Backend step 5
-  (voice signaling, half done) and step 6 (deployment readiness) also remain open.
+  (voice signaling, half done) also remains open, as does verifying Backend step 6 on a real
+  deployment.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -128,10 +129,20 @@ Half done: the proximity half landed with Backend step 8, the signaling relay ha
 
 ### 6. Deployment Readiness
 
-- [ ] Add environment configuration documentation.
-- [ ] Add production build and start commands.
-- [ ] Add basic logging for sessions, disconnects, and server errors.
-- [ ] Verify one deployed server can host multiple dungeon instances.
+Reconciled on 2026-09-22 against the code and a local production smoke test; only the deployed
+check remains.
+
+- [x] Add environment configuration documentation. `config/.env.example` documents `PORT`, `HOST`,
+  `CORS_ORIGIN`, `VITE_WS_URL`, `CONTENT_DIR`, and `DATA_DIR`; `README.md` points to it.
+- [x] Add production build and start commands. `npm run build` then `npm start`, listed in
+  `README.md`; verified by building and serving `GET /health` and `POST /sessions` from `dist/`.
+- [x] Add basic logging for sessions, disconnects, and server errors. `src/server/index.ts` logs
+  startup and `SIGINT`/`SIGTERM` shutdown; `src/server/gameServer.ts` logs session creation, join,
+  leave, disconnect, slot timeout, rejected messages, and socket errors. Plain `console` output,
+  no structured logger.
+- [ ] Verify one deployed server can host multiple dungeon instances. A local `npm start` process
+  hosted two joined sessions at once over HTTP and WebSocket, but there is no deployment target yet,
+  and the only automated multi-session check is store-level (`tests/server/sessions.test.ts`).
 
 ### 7. Player Vitals: Resistance, Stamina, and the Run Timer
 
@@ -227,7 +238,9 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Send movement intent messages instead of direct position changes. Backend step 3 now resolves them authoritatively.
 - [x] Render remote players from server broadcasts.
-- [ ] Add simple interpolation or step animation. Deferred: there is nothing to interpolate until the server moves players.
+- [ ] Add simple interpolation or step animation. The server moves players and the local player is
+  predicted and reconciled (`predictMove`/`reconcile`), but remote players and monsters are still
+  drawn at each snapshot's position with no interpolation between snapshots.
 - [x] Show connection, join, leave, and disconnect states.
 
 #### 2a. Client Networking
@@ -257,7 +270,9 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add controls for attack, interact, pickup, and use item.
 - [x] Display server-confirmed combat results.
 - [x] Add feedback for invalid moves or blocked actions.
-- [ ] Show win, loss, and dungeon exit states.
+- [x] Show win, loss, and dungeon exit states. Landed with Frontend step 9: on the return to the
+  hub the HUD reports an escape with what was banked, or a loss for a downed player
+  (`runOutcome`/`outcomeMessage` in `src/client/state/runFlow.ts`).
 
 ### 5. Proximity Voice Chat
 
@@ -320,6 +335,11 @@ Complete on `feature/hub-run-flow`.
 
 ### 2026-09-22
 
+- Reconciled stale status for issue #36. Backend step 6 environment documentation, production
+  build/start, and basic logging are checked after verifying the code and running `npm start` from
+  a fresh build with two concurrent sessions; the deployed multi-instance check stays open. Frontend
+  step 4 outcome states are checked to match Frontend steps 8 and 9, and the Frontend step 2
+  interpolation note now reflects server-owned movement.
 - Added the `ticket` skill for completing one approved GitHub issue through a review-ready pull
   request. It validates owner decisions and dependencies before editing, creates the issue branch
   before implementation, runs the full repository checks, updates progress, commits and pushes only
