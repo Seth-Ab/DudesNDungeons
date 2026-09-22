@@ -79,6 +79,12 @@ logged or shared.
 - `.agents/skills/` - canonical repo-local skills for repeated AI-agent and contributor workflows.
 - `.claude/skills/` - Claude Code discovery symlinks to the canonical skills.
 
+Use `/ticket <GitHub issue URL>` to run the repo-local ticket workflow: validate one approved issue,
+create its branch, implement and verify the scoped work, commit and push it, and open a pull request.
+The workflow does not merge the pull request. When invoked from a Herdr-managed pane with
+`HERDR_ENV=1`, it opens a new tab, starts Claude there, and delegates the complete workflow with a
+recursion guard; outside Herdr it runs in the current agent.
+
 ## Game Content
 
 Monsters, items, room templates, and dungeons are JSON under `content/`, not code. Editing a

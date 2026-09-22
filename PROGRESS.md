@@ -320,6 +320,12 @@ Complete on `feature/hub-run-flow`.
 
 ### 2026-09-22
 
+- Added the `ticket` skill for completing one approved GitHub issue through a review-ready pull
+  request. It validates owner decisions and dependencies before editing, creates the issue branch
+  before implementation, runs the full repository checks, updates progress, commits and pushes only
+  scoped work, links the issue with `Closes`, and never merges the PR. When `HERDR_ENV=1`, it now
+  delegates the workflow to Claude in a new Herdr tab and uses a child marker to prevent recursive
+  delegation; outside Herdr the invoking agent runs it directly.
 - Migrated the four repo-local shared skills from `agent-skills/` to the standard
   `.agents/skills/` discovery path and updated repository documentation to use the new location.
 - Added the `backlog-audit` skill for evidence-backed backlog reviews. Audit-only runs produce
