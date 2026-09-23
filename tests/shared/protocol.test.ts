@@ -200,6 +200,28 @@ describe("parseClientMessage", () => {
       expect(result.message).toEqual(message);
     }
   });
+
+  it("round-trips a liftPlayer message", () => {
+    const message: ClientMessage = { type: "liftPlayer", targetPlayerId: PLAYER_ID };
+
+    const result = parseClientMessage(serializeClientMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
+
+  it("round-trips a dropCarry message", () => {
+    const message: ClientMessage = { type: "dropCarry" };
+
+    const result = parseClientMessage(serializeClientMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toEqual(message);
+    }
+  });
 });
 
 describe("parseServerMessage", () => {
@@ -355,6 +377,8 @@ describe("parseServerMessage", () => {
           },
         ],
         carryingTorch: true,
+        carryingPlayerId: null,
+        carriedByPlayerId: null,
         bankedItems: [],
       },
     };
@@ -383,6 +407,8 @@ describe("parseServerMessage", () => {
           connected: true,
           inventory: [{ id: TARGET_ID, name: "Blank Scroll", kind: "skillScroll" }],
           carryingTorch: false,
+          carryingPlayerId: null,
+          carriedByPlayerId: null,
           bankedItems: [],
         },
       }),

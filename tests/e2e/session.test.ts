@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import {
   ATTACK_STAMINA_COST,
+  LIFT_STAMINA_COST,
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_STAMINA,
   PROTOCOL_VERSION,
@@ -478,6 +479,94 @@ describe("hub and run lifecycle", () => {
       (message) => message.location === "hub",
     );
     expect(hub.players[0]).toMatchObject({ health: 100, inventory: [], bankedItems: [] });
+  });
+
+  it("lifts, carries, and extracts a downed party member through the exit", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const hubSession = server.store.getSession(roomCode)!;
+    const entrance = hubSession.dungeon.exits[0]!;
+    hubSession.players.get(alpha.joined.playerId)!.position = { ...entrance.position };
+
+    alpha.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    beta.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    alpha.client.send({ type: "playerInteract", targetId: entrance.id });
+    await alpha.client.nextWhere("stateSnapshot", (message) => message.location === "dungeon");
+
+    const session = server.store.getSession(roomCode)!;
+    const carrier = session.players.get(alpha.joined.playerId)!;
+    const downed = session.players.get(beta.joined.playerId)!;
+    downed.health = 0;
+    downed.position = { ...carrier.position };
+    carrier.stamina = PLAYER_MAX_STAMINA;
+
+    alpha.client.send({ type: "liftPlayer", targetPlayerId: downed.id });
+    // The snapshot's own `players` array is the viewer's visible set, which downed party members
+    // outside the light may not be in; the carry link itself is authoritative session state, so it
+    // is asserted there. The snapshot is only used to synchronize on the tick that applied the lift.
+    await alpha.client.nextWhere("stateSnapshot", () => downed.carriedByPlayerId === carrier.id);
+    expect(downed.carriedByPlayerId).toBe(carrier.id);
+    expect(carrier.stamina).toBe(PLAYER_MAX_STAMINA - LIFT_STAMINA_COST);
+
+    // Walking the carrier moves the downed party member along with them.
+    const beforeMove = carrier.position.x;
+    alpha.client.send({ type: "playerMoveIntent", sequence: 1, direction: { x: 1, y: 0 } });
+    await alpha.client.nextWhere("stateSnapshot", () => carrier.position.x > beforeMove);
+    expect(downed.position).toEqual(carrier.position);
+
+    const exit = session.dungeon.exits[0]!;
+    carrier.position = { ...exit.position };
+    downed.position = { ...exit.position };
+
+    alpha.client.send({ type: "playerInteract", targetId: exit.id });
+    await alpha.client.nextWhere("stateSnapshot", (message) => message.location === "hub");
+
+    // Carried out despite being downed at the moment of extraction: this is the payoff for the
+    // carry, distinct from a full revive, which stays out of scope.
+    expect(downed.profile.runsEscaped).toBe(1);
+    expect(downed.profile.runsLost).toBe(0);
+    expect(carrier.carryingPlayerId).toBeNull();
+    expect(downed.carriedByPlayerId).toBeNull();
+  });
+
+  it("drops a carried player explicitly, and again automatically when the carrier disconnects", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const hubSession = server.store.getSession(roomCode)!;
+    const entrance = hubSession.dungeon.exits[0]!;
+    hubSession.players.get(alpha.joined.playerId)!.position = { ...entrance.position };
+
+    alpha.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    beta.client.send({ type: "setReady", ready: true });
+    await alpha.client.next("playerReadyChanged");
+    alpha.client.send({ type: "playerInteract", targetId: entrance.id });
+    await alpha.client.nextWhere("stateSnapshot", (message) => message.location === "dungeon");
+
+    const session = server.store.getSession(roomCode)!;
+    const carrier = session.players.get(alpha.joined.playerId)!;
+    const downed = session.players.get(beta.joined.playerId)!;
+    downed.health = 0;
+    downed.position = { ...carrier.position };
+
+    alpha.client.send({ type: "liftPlayer", targetPlayerId: downed.id });
+    await alpha.client.nextWhere("stateSnapshot", () => carrier.carryingPlayerId === downed.id);
+
+    alpha.client.send({ type: "dropCarry" });
+    await alpha.client.nextWhere("stateSnapshot", () => carrier.carryingPlayerId === null);
+    expect(downed.carriedByPlayerId).toBeNull();
+
+    alpha.client.send({ type: "liftPlayer", targetPlayerId: downed.id });
+    await alpha.client.nextWhere("stateSnapshot", () => carrier.carryingPlayerId === downed.id);
+
+    alpha.client.close();
+    await new Promise((resolve) => setTimeout(resolve, GRACE_MS + SWEEP_MS * 3));
+
+    expect(downed.carriedByPlayerId).toBeNull();
   });
 });
 

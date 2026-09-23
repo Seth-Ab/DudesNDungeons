@@ -40,6 +40,10 @@ function resetPlayerForWorld(player: SessionPlayer): void {
   player.discoveredRoomIds.clear();
   player.nextMoveAt = null;
   player.nextAttackAt = null;
+  // Carrying does not cross a world transition: positions are about to be rebuilt from scratch, so
+  // any carry link left standing would point at a location that no longer means anything.
+  player.carryingPlayerId = null;
+  player.carriedByPlayerId = null;
 }
 
 /** Places the whole party without letting their positions in the old world block new spawns. */
@@ -88,12 +92,15 @@ export function startRun(session: Session, now: number): RunTransitionResult {
  * Returns everyone to a rebuilt hub. Survivors bank their carry on escape; a wipe or a downed
  * player loses it. Torches never cross back into the hub, so taking one on the next run is a choice.
  *
+ * A downed player being physically carried at the moment the party escapes counts as a survivor
+ * too: that is the payoff for hauling them to the exit, distinct from and short of a full revive.
+ *
  * Banking writes to the player's profile, which outlives the session, so this is the one moment a
  * run leaves a permanent mark on something a restart cannot clear.
  */
 export function returnToHub(session: Session, escaped: boolean): void {
   for (const player of session.players.values()) {
-    const survived = escaped && player.health > 0;
+    const survived = escaped && (player.health > 0 || player.carriedByPlayerId !== null);
     if (survived) {
       player.profile.bankedItems.push(...player.inventory);
       bankRunSkills(player);

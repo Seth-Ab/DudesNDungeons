@@ -1,7 +1,14 @@
 import type { Vector2 } from "../../shared/types/core.js";
 import { headingFrom, type MoveDirection } from "../state/gameState.js";
 
-export type GameplayAction = "attack" | "pickup" | "interact" | "useSlot1" | "useSlot2" | "useSlot3";
+export type GameplayAction =
+  | "attack"
+  | "pickup"
+  | "interact"
+  | "carry"
+  | "useSlot1"
+  | "useSlot2"
+  | "useSlot3";
 
 interface InputControllerOptions {
   onAction?: (action: GameplayAction) => void;
@@ -22,6 +29,7 @@ const actionKeys = new Map<string, GameplayAction>([
   [" ", "attack"],
   ["e", "interact"],
   ["f", "pickup"],
+  ["c", "carry"],
   ["1", "useSlot1"],
   ["2", "useSlot2"],
   ["3", "useSlot3"],

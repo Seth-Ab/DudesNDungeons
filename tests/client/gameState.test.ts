@@ -43,6 +43,8 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     connected: true,
     inventory: [],
     carryingTorch: false,
+    carryingPlayerId: null,
+    carriedByPlayerId: null,
     bankedItems: [],
     ...overrides,
   };

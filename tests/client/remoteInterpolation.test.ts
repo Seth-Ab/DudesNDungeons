@@ -23,6 +23,8 @@ function player(position: { x: number; y: number }, overrides: Partial<PlayerSta
     connected: true,
     inventory: [],
     carryingTorch: false,
+    carryingPlayerId: null,
+    carriedByPlayerId: null,
     bankedItems: [],
     ...overrides,
   };

@@ -276,6 +276,14 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "useItem", itemId });
     },
 
+    liftPlayer(targetPlayerId: string): boolean {
+      return send({ type: "liftPlayer", targetPlayerId });
+    },
+
+    dropCarry(): boolean {
+      return send({ type: "dropCarry" });
+    },
+
     disconnect(): void {
       pending = null;
       socket?.close();

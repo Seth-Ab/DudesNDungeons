@@ -105,6 +105,7 @@ const hud = createHud({
   onAttack: () => performAction("attack"),
   onPickup: () => performAction("pickup"),
   onInteract: () => performAction("interact"),
+  onCarry: () => performAction("carry"),
   onUseSlot: (slot) => useInventorySlot(slot),
   onOpenControls: () => controlsMenu.open(),
 });
@@ -230,6 +231,21 @@ function performAction(action: GameplayAction): void {
       client.interact(targetId);
       return;
     }
+    case "carry": {
+      if (self.carryingPlayerId) {
+        client.dropCarry();
+        return;
+      }
+
+      const targetId = nearestDownedPlayerId();
+      if (!targetId) {
+        hud.setActionStatus("No one down nearby");
+        return;
+      }
+
+      client.liftPlayer(targetId);
+      return;
+    }
     case "useSlot1":
       useInventorySlot(0);
       return;
@@ -254,6 +270,14 @@ function useInventorySlot(slot: number): void {
 
 function isExit(targetId: EntityId): boolean {
   return view.dungeon?.exits.some((exit) => exit.id === targetId) ?? false;
+}
+
+function nearestDownedPlayerId(): EntityId | null {
+  return nearest(
+    othersOf(view)
+      .filter((player) => player.health <= 0 && !player.carriedByPlayerId)
+      .map((player) => ({ id: player.id, gap: distance(localPosition, player.position) })),
+  );
 }
 
 function nearestLootId(): EntityId | null {

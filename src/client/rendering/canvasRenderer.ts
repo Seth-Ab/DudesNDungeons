@@ -275,6 +275,9 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.globalAlpha = 1;
   };
 
+  const carryLabel = (player: PlayerState): string =>
+    player.carryingPlayerId ? `${player.name} [carrying]` : player.name;
+
   const drawFigure = (
     position: Vector2,
     label: string,
@@ -585,12 +588,12 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     for (const player of scene.others) {
       const color = player.health > 0 ? colors.remotePlayer : colors.downedPlayer;
-      drawFigure(player.position, player.name, color, !player.connected, camera);
+      drawFigure(player.position, carryLabel(player), color, !player.connected, camera);
     }
 
     if (scene.self) {
       const color = scene.self.health > 0 ? colors.localPlayer : colors.downedPlayer;
-      drawFigure(scene.localPosition, scene.self.name, color, false, camera);
+      drawFigure(scene.localPosition, carryLabel(scene.self), color, false, camera);
     }
 
     drawLightMask(camera);

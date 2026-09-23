@@ -14,6 +14,7 @@ import {
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId } from "../shared/types/core.js";
+import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
@@ -385,6 +386,26 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         // The dungeon exit lives behind `playerInteract`, so this is where an escape banks. A
         // no-op unless something actually changed a profile, which opening a door does not.
         profiles.flush();
+        publish(member.session);
+        return;
+      }
+
+      if (message.type === "liftPlayer" || message.type === "dropCarry") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const result =
+          message.type === "liftPlayer"
+            ? liftPlayer(member.session, playerId, message.targetPlayerId)
+            : dropCarry(member.session, playerId);
+        if (!result.ok) {
+          send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
+          return;
+        }
+
         publish(member.session);
         return;
       }

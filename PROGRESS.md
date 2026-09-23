@@ -8,9 +8,20 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   identity, persistence, and the first skill-scroll slice of Backend step 11. Sessions begin in a
   lit authored hub, unanimously ready parties generate a run, and escape or a total wipe returns
   the party to the hub
-  under protocol v10. What a player banks now belongs to a device-local profile that survives a
+  under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: Frontend step 2's remaining item, remote player interpolation. Remote players
+- Last completed work: the carrying slice of Backend/Frontend step 12 (issue #34). A standing
+  player can lift a downed party member within `INTERACT_RANGE`, spending `LIFT_STAMINA_COST` and
+  then `CARRY_STAMINA_DRAIN_PER_SECOND` continuously in place of stamina regen; carrying halves
+  movement speed (`CARRY_MOVE_SPEED_MULTIPLIER`) and drags the target's position along the
+  carrier's. Exhaustion, an explicit drop, a carrier's disconnect, or either player leaving the
+  session all release the target safely; a downed player still being carried when the party
+  escapes counts as a survivor for banking, distinct from a full revive. Object carrying (as
+  opposed to downed players) has no content to carry yet, so only the player-carrying half of the
+  issue is wired end to end; see the scope note below. Protocol v11 adds `carryingPlayerId` /
+  `carriedByPlayerId` to `PlayerState` and the `liftPlayer` / `dropCarry` client messages. New
+  `src/server/game/carrying.ts`; a "C" key and HUD button toggle lift/drop client-side.
+- Before that: Frontend step 2's remaining item, remote player interpolation. Remote players
   now slide between authoritative snapshots instead of snapping, drawn from a new
   `src/client/state/remoteInterpolation.ts` module and a continuous render loop; teleports, run
   transitions, reconnects, and large corrections still snap. Before that: the first playable
@@ -216,7 +227,10 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 - [ ] Add traps as server-resolved triggers.
 - [ ] Add puzzle objects that need two or more players at once.
 - [ ] Add boss monsters and rooms that gate on them.
-- [ ] Add lifting and carrying for objects and downed players.
+- [x] Add lifting and carrying for downed players, spending step 7's stamina costs and paying a
+  movement penalty. `src/server/game/carrying.ts`. Carryable objects have no content yet (nothing
+  in `content/` is marked liftable), so this covers the downed-player half of the item only; a
+  liftable prop would need its own content schema and is left for whenever one is authored.
 
 ### 13. World Tile Scale
 
@@ -305,7 +319,8 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 ### 8. Vitals, Inventory, and Gameplay Controls
 
 - [x] Show health, resistance, and stamina bars and three inventory slots. All three bars render from server `playerState`; three inventory slots were already visible.
-- [ ] Add attack, interact, pickup, use, drop, and carry controls. Attack, interact, pickup, and use are done; drop and carry wait on Backend step 12.
+- [x] Add attack, interact, pickup, use, drop, and carry controls. The "C" key and a HUD button
+  lift the nearest downed party member in reach, or drop whoever is currently carried.
 - [x] Render loot, doors, exits, monster health, downed players, and hub/run outcome state. The last
   two landed with Frontend step 9: the HUD names the place from room metadata and reports how the
   run ended.

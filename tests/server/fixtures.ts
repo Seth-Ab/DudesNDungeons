@@ -96,6 +96,8 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     inventory: [],
     runSkillIds: new Set(),
     carryingTorch: true,
+    carryingPlayerId: null,
+    carriedByPlayerId: null,
     profile: testProfile(id),
     discoveredTiles: new Set(),
     discoveredRoomIds: new Set(),

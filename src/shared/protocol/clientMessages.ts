@@ -72,6 +72,17 @@ export const useItemSchema = z.object({
   itemId: entityIdSchema,
 });
 
+/** Lifts a downed party member within reach. Refused if either player is already carrying/carried. */
+export const liftPlayerSchema = z.object({
+  type: z.literal("liftPlayer"),
+  targetPlayerId: playerIdSchema,
+});
+
+/** Explicitly drops whoever the sender is carrying. A no-op refusal if they are carrying nobody. */
+export const dropCarrySchema = z.object({
+  type: z.literal("dropCarry"),
+});
+
 export const voiceSignalMessageSchema = z.object({
   type: z.literal("voiceSignal"),
   targetPlayerId: playerIdSchema,
@@ -87,6 +98,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   playerInteractSchema,
   pickupItemSchema,
   useItemSchema,
+  liftPlayerSchema,
+  dropCarrySchema,
   voiceSignalMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;

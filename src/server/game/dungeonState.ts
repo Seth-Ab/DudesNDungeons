@@ -1,3 +1,4 @@
+import { CARRY_MOVE_SPEED_MULTIPLIER } from "../../shared/constants/game.js";
 import {
   MOVE_BURST_TOLERANCE_MS,
   MOVE_INTERVAL_MS,
@@ -139,7 +140,11 @@ export function movePlayer(
   if (!player) return { ok: false, reason: "outOfRange" };
   if (isDown(player)) return { ok: false, reason: "notPermitted" };
 
-  const step = stepFrom(player.position, direction);
+  const step = stepFrom(
+    player.position,
+    direction,
+    player.carryingPlayerId ? CARRY_MOVE_SPEED_MULTIPLIER : 1,
+  );
   if (!step) return { ok: false, reason: "outOfRange" };
 
   const due = player.nextMoveAt ?? now;
@@ -155,5 +160,14 @@ export function movePlayer(
 
   player.position = step.next;
   player.nextMoveAt = Math.max(due, now) + MOVE_INTERVAL_MS;
+
+  // A carried player is an inert body, not a separate mover: they follow the carrier's position
+  // exactly rather than being simulated, which is also what keeps them clear of collision checks
+  // (`isDown` players never block, per `blockingPlayerPositions`).
+  if (player.carryingPlayerId) {
+    const carried = session.players.get(player.carryingPlayerId);
+    if (carried) carried.position = copyVector(player.position);
+  }
+
   return { ok: true, player };
 }

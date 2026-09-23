@@ -288,6 +288,10 @@ export const playerStateSchema = z.object({
   inventory: z.array(inventoryItemSchema).max(MAX_INVENTORY_SIZE),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
+  /** The downed party member this player is carrying, or null. Spent by Backend step 12. */
+  carryingPlayerId: playerIdSchema.nullable(),
+  /** The player carrying this one, or null. Set only while this player is downed. */
+  carriedByPlayerId: playerIdSchema.nullable(),
   /**
    * What this player's profile holds. Owned by the profile rather than the session since Backend
    * step 11, so it survives a restart, and visible to the whole party as it always was.

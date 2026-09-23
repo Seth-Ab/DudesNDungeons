@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -81,6 +81,11 @@ export const ATTACK_STAMINA_COST = 15;
 export const LIFT_STAMINA_COST = 20;
 /** Drain per second while carrying something. Spent by Backend step 12. */
 export const CARRY_STAMINA_DRAIN_PER_SECOND = 6;
+/**
+ * Movement penalty for carrying: a carrying player covers half the ground per step. Slow enough
+ * that hauling a downed party member to the exit is a real cost, not a free action.
+ */
+export const CARRY_MOVE_SPEED_MULTIPLIER = 0.5;
 
 export const PLAYER_ATTACK_DAMAGE = 6;
 /** Center-to-center reach of a swing, in world units. */

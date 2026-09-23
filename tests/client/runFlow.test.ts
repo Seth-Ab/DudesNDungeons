@@ -27,6 +27,8 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     connected: true,
     inventory: [],
     carryingTorch: false,
+    carryingPlayerId: null,
+    carriedByPlayerId: null,
     bankedItems: [],
     ...overrides,
   };

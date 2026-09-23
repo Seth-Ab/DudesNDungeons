@@ -24,6 +24,7 @@ interface HudOptions {
   onAttack: () => void;
   onPickup: () => void;
   onInteract: () => void;
+  onCarry: () => void;
   onUseSlot: (slot: number) => void;
   onOpenControls: () => void;
 }
@@ -124,6 +125,7 @@ export function createHud(options: HudOptions) {
   const attackButton = createActionButton("Attack", options.onAttack);
   const pickupButton = createActionButton("Pickup", options.onPickup);
   const interactButton = createActionButton("Interact", options.onInteract);
+  const carryButton = createActionButton("Carry", options.onCarry);
   const useButtons = [0, 1, 2].map((slot) =>
     createActionButton(`Use ${slot + 1}`, () => options.onUseSlot(slot)),
   );
@@ -170,6 +172,7 @@ export function createHud(options: HudOptions) {
     attackButton,
     pickupButton,
     interactButton,
+    carryButton,
     ...useButtons,
     readyButton,
     leaveButton,
@@ -251,6 +254,8 @@ export function createHud(options: HudOptions) {
       attackButton.disabled = !canAct;
       pickupButton.disabled = !canAct;
       interactButton.disabled = !canAct;
+      carryButton.disabled = !canAct;
+      carryButton.textContent = self?.carryingPlayerId ? "Drop" : "Carry";
       if (self && self.ready !== ready) {
         ready = self.ready;
       }
@@ -274,7 +279,16 @@ export function createHud(options: HudOptions) {
           if (!player.connected) item.classList.add("hud__roster-entry--offline");
           if (player.id === view.selfId) item.classList.add("hud__roster-entry--self");
 
-          const standing = player.health > 0 ? (player.ready ? "ready" : "waiting") : "down";
+          const standing =
+            player.health > 0
+              ? player.carryingPlayerId
+                ? "carrying"
+                : player.ready
+                  ? "ready"
+                  : "waiting"
+              : player.carriedByPlayerId
+                ? "down, being carried"
+                : "down";
           const state = player.connected ? standing : "disconnected";
           item.textContent = `${player.name} · ${player.health}hp · ${state}`;
           return item;

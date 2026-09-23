@@ -5,7 +5,7 @@ import {
   MOVE_INTERVAL_MS,
   PLAYER_STEP_DISTANCE,
 } from "../../src/shared/game/movement.js";
-import { TILE_SCALE } from "../../src/shared/constants/game.js";
+import { CARRY_MOVE_SPEED_MULTIPLIER, TILE_SCALE } from "../../src/shared/constants/game.js";
 import { at, testPlayer, testSession } from "./fixtures.js";
 
 /** The Ember Vault's authored spawn tiles, in the world coordinates they are played at. */
@@ -93,6 +93,22 @@ describe("dungeon movement", () => {
       ok: false,
       reason: "notPermitted",
     });
+  });
+
+  it("drags a carried player along and pays the carry movement penalty", () => {
+    const carrier = testPlayer("alpha", { position: at(2, 2), carryingPlayerId: "beta" });
+    const carried = testPlayer("beta", {
+      position: at(2, 2),
+      health: 0,
+      carriedByPlayerId: "alpha",
+    });
+    const session = testSession([carrier, carried]);
+
+    const result = movePlayer(session, carrier.id, { x: 1, y: 0 }, 0);
+
+    expect(result.ok).toBe(true);
+    expect(carrier.position.x).toBeCloseTo(at(2, 2).x + PLAYER_STEP_DISTANCE * CARRY_MOVE_SPEED_MULTIPLIER);
+    expect(carried.position).toEqual(carrier.position);
   });
 
   it("blocks movement into monsters", () => {
