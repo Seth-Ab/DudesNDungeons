@@ -55,8 +55,9 @@ Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint
 - `npm run typecheck` runs TypeScript checks without emitting files.
 - `npm run lint` runs ESLint.
 - `npm test` runs the Vitest suite.
+- `npm run test:e2e` runs the Playwright browser suite against the Vite dev server (starts it automatically). Install browsers once with `npx playwright install chromium`.
 
-GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
+GitHub Actions runs `npm ci`, `npm test`, `npm run test:e2e` (after installing Playwright's Chromium browser), and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
 
 Do not introduce new commands without adding them to project documentation.
 
@@ -71,6 +72,8 @@ Name protocol messages by intent, such as `playerMove`, `attackResolved`, or `vo
 Add tests alongside meaningful behavior, especially server-side game rules and message validation. Use filenames like `movement.test.ts`, `combat.test.ts`, or `sessions.test.ts`. Prioritize deterministic tests for dungeon state transitions before testing rendering details.
 
 For multiplayer features, include tests for invalid input, disconnected players, duplicate session joins, and proximity distance calculations.
+
+Browser-driven end-to-end tests live in `tests/e2e/browser/` and run under Playwright, not Vitest. Name them `*.spec.ts` (Playwright's default match) so they stay separate from Vitest's `*.test.ts` glob; add one when a change needs verifying in a real rendered page (canvas output, input handling, multi-client flows) rather than through unit-level assertions.
 
 ## Commit & Pull Request Guidelines
 

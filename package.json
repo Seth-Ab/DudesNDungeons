@@ -20,6 +20,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "typecheck": "npm run typecheck:server && npm run typecheck:client",
     "typecheck:server": "tsc -p tsconfig.json --noEmit",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",
     "eslint": "^9.17.0",
