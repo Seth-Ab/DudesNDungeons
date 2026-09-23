@@ -10,10 +10,14 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v10. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: the first playable skill-scroll slice of Backend step 11. A rare Scroll of
-  Iron Will uses one inventory slot, activates immediately, and becomes a permanent profile unlock
-  only for a player who extracts. Resistance, attack, upgrade, and torch-sight effects resolve on
-  the server; protocol v10 carries the new item kind and its skill id.
+- Last completed work: Frontend step 2's remaining item, remote player interpolation. Remote players
+  now slide between authoritative snapshots instead of snapping, drawn from a new
+  `src/client/state/remoteInterpolation.ts` module and a continuous render loop; teleports, run
+  transitions, reconnects, and large corrections still snap. Before that: the first playable
+  skill-scroll slice of Backend step 11. A rare Scroll of Iron Will uses one inventory slot,
+  activates immediately, and becomes a permanent profile unlock only for a player who extracts.
+  Resistance, attack, upgrade, and torch-sight effects resolve on the server; protocol v10 carries
+  the new item kind and its skill id.
 - Next recommended step: expose the progression catalog plus active and permanent unlock state to
   the owning client, then build Frontend step 10. Upgrade-scroll acquisition, duplicate-to-upgrade
   behavior, transfer/drop, monster drops, chests, and hub shops remain follow-ups. Backend step 5
@@ -238,9 +242,11 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Send movement intent messages instead of direct position changes. Backend step 3 now resolves them authoritatively.
 - [x] Render remote players from server broadcasts.
-- [ ] Add simple interpolation or step animation. The server moves players and the local player is
-  predicted and reconciled (`predictMove`/`reconcile`), but remote players and monsters are still
-  drawn at each snapshot's position with no interpolation between snapshots.
+- [x] Add simple interpolation or step animation. `src/client/state/remoteInterpolation.ts` slides
+  each remote player between the last two authoritative positions over the server's tick interval,
+  fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is untouched.
+  A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE` snaps instead
+  of sliding. Monsters still draw at raw snapshot position; interpolation was scoped to players only.
 - [x] Show connection, join, leave, and disconnect states.
 
 #### 2a. Client Networking
