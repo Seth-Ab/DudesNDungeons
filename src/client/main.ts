@@ -20,6 +20,13 @@ import {
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
 import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
+import {
+  emptyRemoteInterpolation,
+  remoteInterpolatedPosition,
+  resetRemoteInterpolation,
+  updateRemoteInterpolation,
+  type RemoteInterpolationState,
+} from "./state/remoteInterpolation.js";
 import { entranceMessage, entranceStatus, gatePrompt } from "./state/runFlow.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createHud } from "./ui/hud.js";
@@ -57,6 +64,8 @@ let renderedDungeon = createPlaceholderDungeon();
 let localPosition: Vector2 = { x: 0, y: 0 };
 let lastIntentAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
+/** Where remote players are sliding from/to. Local prediction and reconciliation never touch this. */
+let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 
 const client = createSessionClient({
   httpUrl: endpoints.httpUrl,
@@ -65,14 +74,20 @@ const client = createSessionClient({
   profileSecretStore: profileSecretStore(),
 });
 
-const renderer = createCanvasRenderer(() => ({
-  dungeon: renderedDungeon,
-  localPosition,
-  self: selfOf(view),
-  others: visibleOthersOf(view),
-  location: view.location,
-  gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
-}));
+const renderer = createCanvasRenderer(() => {
+  const now = performance.now();
+  return {
+    dungeon: renderedDungeon,
+    localPosition,
+    self: selfOf(view),
+    others: visibleOthersOf(view).map((player) => ({
+      ...player,
+      position: remoteInterpolatedPosition(remoteInterpolation, player.id, now, player.position),
+    })),
+    location: view.location,
+    gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
+  };
+});
 
 const controlsMenu = createControlsMenu();
 
@@ -131,11 +146,21 @@ setInterval(() => {
 
 client.subscribe((next) => {
   const joinedNow = view.phase !== "inSession" && next.phase === "inSession";
+  // The party moves between the hub and a run as one; a location change relocates everyone, so any
+  // slide in progress would cut across the whole map instead of tracking a step.
+  const transitioned =
+    view.location !== null && next.location !== null && view.location !== next.location;
   view = next;
 
   if (view.dungeon) {
     renderedDungeon = view.dungeon;
   }
+
+  const now = performance.now();
+  remoteInterpolation =
+    joinedNow || transitioned
+      ? resetRemoteInterpolation(visibleOthersOf(view), now)
+      : updateRemoteInterpolation(remoteInterpolation, visibleOthersOf(view), now);
 
   const self = selfOf(view);
   if (self) {
@@ -154,6 +179,14 @@ client.subscribe((next) => {
 
 input.start();
 lobby.focus();
+
+// Snapshots and predicted moves only redraw on their own schedule (server tick or intent send);
+// this keeps remote players sliding smoothly toward their latest target on every animation frame.
+function renderLoop(): void {
+  renderer.render();
+  requestAnimationFrame(renderLoop);
+}
+requestAnimationFrame(renderLoop);
 
 function performAction(action: GameplayAction): void {
   const self = selfOf(view);
