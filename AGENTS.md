@@ -57,7 +57,7 @@ Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint
 - `npm test` runs the Vitest suite.
 - `npm run test:e2e` runs the Playwright browser suite against the Vite dev server (starts it automatically). Install browsers once with `npx playwright install chromium`.
 
-GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
+GitHub Actions runs `npm ci`, `npm test`, `npm run test:e2e` (after installing Playwright's Chromium browser), and `npm run build` for pull requests to `main`. Keep these checks passing before requesting review or merge.
 
 Do not introduce new commands without adding them to project documentation.
 
