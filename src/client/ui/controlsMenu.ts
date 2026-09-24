@@ -17,6 +17,7 @@ const CONTROL_GROUPS: ControlGroup[] = [
       { input: "Space", action: "Attack (costs stamina)" },
       { input: "F", action: "Pick up nearby loot" },
       { input: "E", action: "Interact with doors and exits" },
+      { input: "C", action: "Carry a downed party member, or drop who you're carrying" },
       { input: "1 / 2 / 3", action: "Use inventory slot" },
     ],
   },

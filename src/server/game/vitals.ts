@@ -1,4 +1,5 @@
 import {
+  CARRY_STAMINA_DRAIN_PER_SECOND,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
   RESISTANCE_DAMAGE_SCALE,
@@ -111,7 +112,20 @@ export function advanceVitals(session: Session, now: number, elapsedMs: number):
   for (const player of session.players.values()) {
     if (player.health <= 0) continue;
 
-    player.stamina = clamp(player.stamina + STAMINA_REGEN_PER_SECOND * seconds, PLAYER_MAX_STAMINA);
+    // Carrying replaces regen with continuous drain, the same way being downed suspends it: a
+    // carrier's stamina bar only ever falls while they haul someone, and a carrier who cannot pay
+    // the drain in full is exhausted mid-carry. The target is set down where the carrier stands
+    // rather than left in a state nothing can resolve.
+    if (player.carryingPlayerId !== null) {
+      const paidInFull = drainStamina(player, CARRY_STAMINA_DRAIN_PER_SECOND, elapsedMs);
+      if (!paidInFull) {
+        const carried = session.players.get(player.carryingPlayerId);
+        if (carried) carried.carriedByPlayerId = null;
+        player.carryingPlayerId = null;
+      }
+    } else {
+      player.stamina = clamp(player.stamina + STAMINA_REGEN_PER_SECOND * seconds, PLAYER_MAX_STAMINA);
+    }
 
     // Only the part of this step that falls after the grace period decays, so decay starts at the
     // right moment rather than at the first tick after it.

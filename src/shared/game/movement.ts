@@ -45,16 +45,22 @@ export interface Step {
   next: Vector2;
 }
 
-/** Applies one step along an unnormalized direction. Null for a direction too small to have one. */
-export function stepFrom(from: Vector2, direction: Vector2): Step | null {
+/**
+ * Applies one step along an unnormalized direction. Null for a direction too small to have one.
+ *
+ * `speedMultiplier` scales the distance covered, not the pacing interval: a carrying player still
+ * sends and is accepted one move per `MOVE_INTERVAL_MS`, they simply cover less ground each time.
+ */
+export function stepFrom(from: Vector2, direction: Vector2, speedMultiplier = 1): Step | null {
   const heading = normalizeDirection(direction);
   if (!heading) return null;
 
+  const stepDistance = PLAYER_STEP_DISTANCE * speedMultiplier;
   return {
     heading,
     next: {
-      x: from.x + heading.x * PLAYER_STEP_DISTANCE,
-      y: from.y + heading.y * PLAYER_STEP_DISTANCE,
+      x: from.x + heading.x * stepDistance,
+      y: from.y + heading.y * stepDistance,
     },
   };
 }

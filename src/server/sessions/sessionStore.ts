@@ -55,6 +55,10 @@ export interface SessionPlayer {
   runSkillIds: Set<string>;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
+  /** The downed party member this player is carrying, or null. Set only by `src/server/game/carrying.ts`. */
+  carryingPlayerId: PlayerId | null;
+  /** The player carrying this one, or null. Set only while this player is downed. */
+  carriedByPlayerId: PlayerId | null;
   /**
    * The roguelite profile playing this slot, owned by `ProfileStore` and shared by reference.
    *
@@ -309,6 +313,8 @@ export class SessionStore {
       inventory: [],
       runSkillIds: new Set(),
       carryingTorch: false,
+      carryingPlayerId: null,
+      carriedByPlayerId: null,
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Set(),
       discoveredRoomIds: new Set(),
@@ -351,6 +357,10 @@ export class SessionStore {
 
     member.player.connected = false;
     member.player.disconnectedAt = this.#now();
+    // Nobody is steering a dropped carrier, so whoever they were hauling is set down where they
+    // stand. The reverse is left alone: a carried player is an inert body regardless of their own
+    // connection, so their carrier keeps carrying them.
+    this.#dropCarryFor(member.session, member.player);
     return member;
   }
 
@@ -402,7 +412,24 @@ export class SessionStore {
     return undefined;
   }
 
+  /** Clears a carry in both directions. Safe to call on a player who is carrying nobody. */
+  #dropCarryFor(session: Session, player: SessionPlayer): void {
+    if (player.carryingPlayerId) {
+      const carried = session.players.get(player.carryingPlayerId);
+      if (carried) carried.carriedByPlayerId = null;
+      player.carryingPlayerId = null;
+    }
+  }
+
   #removePlayer({ session, player }: SessionMember): void {
+    // A removed player can neither keep carrying nor keep being carried: the slot they occupied is
+    // about to disappear, so both sides of any carry link must be cleared before it does.
+    this.#dropCarryFor(session, player);
+    if (player.carriedByPlayerId) {
+      const carrier = session.players.get(player.carriedByPlayerId);
+      if (carrier) carrier.carryingPlayerId = null;
+    }
+
     session.players.delete(player.id);
     this.#sessionByPlayer.delete(player.id);
   }
@@ -429,6 +456,8 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),
     carryingTorch: player.carryingTorch,
+    carryingPlayerId: player.carryingPlayerId,
+    carriedByPlayerId: player.carriedByPlayerId,
     bankedItems: player.profile.bankedItems.map((item) => ({ ...item })),
   };
 }
