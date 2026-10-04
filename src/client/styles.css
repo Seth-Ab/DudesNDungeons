@@ -130,33 +130,70 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.hud__roster {
+/* Visible-only party frames, top-left under the status panel. */
+.hud__frames {
+  position: absolute;
+  top: 5.5rem;
+  left: 0.5rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-direction: column;
+  gap: 0.35rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.hud__roster-entry {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid #3c3630;
-  border-radius: 999px;
-  background: #23262b;
-  color: #d8ceb1;
+.hud__frames[hidden] {
+  display: none;
+}
+
+.hud__frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 10rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #332f2b;
+  border-radius: 8px;
+  background: rgba(27, 28, 31, 0.82);
+}
+
+.hud__frame-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: #f7f0da;
   font-size: 0.8rem;
+}
+
+.hud__frame-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hud__roster-entry--self {
-  border-color: #caa85a;
-  color: #f7f0da;
+.hud__frame-state {
+  color: #d8ceb1;
+  font-weight: 700;
 }
 
-.hud__roster-entry--offline {
+.hud__frame[data-state="downed"] .hud__frame-state,
+.hud__frame[data-state="beingCarried"] .hud__frame-state {
+  color: #d9625c;
+}
+
+.hud__frame[data-state="disconnected"] {
   opacity: 0.5;
   font-style: italic;
+}
+
+.hud__frame .hud__bar-track {
+  width: 6.5rem;
+}
+
+.hud__frame .hud__bar-value {
+  font-size: 0.7rem;
 }
 
 /* Bottom-centre: contextual prompt over the hotbar. Clear of the party and action corners. */

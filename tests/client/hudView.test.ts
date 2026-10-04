@@ -18,7 +18,7 @@ import {
   placeStatusLabel,
   positionLabel,
   readyLabel,
-  rosterEntries,
+  partyFrames,
   roomCodeLabel,
   toastMessages,
   torchStatusLabel,
@@ -26,6 +26,7 @@ import {
 } from "../../src/client/state/hudView.js";
 import {
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
@@ -284,32 +285,69 @@ describe("inventory and bank", () => {
   });
 });
 
-describe("roster", () => {
-  it("describes each player's standing", () => {
-    const entries = rosterEntries(
+describe("party frames", () => {
+  const SAM_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const IRIS_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  it("leaves self out and gives each other player a frame", () => {
+    const frames = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [player("Maya", { id: SELF_ID }), player("Sam", { id: SAM_ID, health: 40, resistance: 25 })],
+      }),
+    );
+
+    expect(frames).toHaveLength(1);
+    expect(frames[0]).toMatchObject({ id: SAM_ID, name: "Sam", state: "waiting" });
+    expect(frames[0]?.health).toMatchObject({ ratio: 0.4, text: "40/100" });
+    expect(frames[0]?.resistance.ratio).toBeCloseTo(25 / PLAYER_MAX_RESISTANCE);
+  });
+
+  it("gives every standing a distinct icon shape", () => {
+    const frames = partyFrames(
       view({
         selfId: SELF_ID,
         players: [
-          player("Maya", { id: SELF_ID, ready: true }),
-          player("Sam", { health: 0, carriedByPlayerId: SELF_ID }),
-          player("Iris", { connected: false }),
-          player("Bo", { carryingPlayerId: SELF_ID }),
-          player("Al", { health: 0 }),
-          player("Cy"),
+          player("Ready", { id: "1", ready: true }),
+          player("Wait", { id: "2" }),
+          player("Carry", { id: "3", carryingPlayerId: SELF_ID }),
+          player("Down", { id: "4", health: 0 }),
+          player("Lifted", { id: "5", health: 0, carriedByPlayerId: SELF_ID }),
+          player("Gone", { id: "6", connected: false }),
         ],
       }),
     );
 
-    expect(entries.map((entry) => entry.text)).toEqual([
-      "Maya · 100hp · ready",
-      "Sam · 0hp · down, being carried",
-      "Iris · 100hp · disconnected",
-      "Bo · 100hp · carrying",
-      "Al · 0hp · down",
-      "Cy · 100hp · waiting",
+    expect(frames.map((frame) => frame.state)).toEqual([
+      "ready",
+      "waiting",
+      "carrying",
+      "downed",
+      "beingCarried",
+      "disconnected",
     ]);
-    expect(entries[0]).toMatchObject({ self: true, offline: false });
-    expect(entries[2]).toMatchObject({ self: false, offline: true });
+    expect(new Set(frames.map((frame) => frame.icon)).size).toBe(6);
+  });
+
+  it("treats a disconnected player as disconnected even when downed", () => {
+    const [frame] = partyFrames(
+      view({ selfId: SELF_ID, players: [player("Gone", { id: SAM_ID, connected: false, health: 0 })] }),
+    );
+    expect(frame?.state).toBe("disconnected");
+  });
+
+  it("drops a frame as soon as the ally leaves the visible snapshot", () => {
+    const sam = player("Sam", { id: SAM_ID });
+    const iris = player("Iris", { id: IRIS_ID });
+    const self = player("Maya", { id: SELF_ID });
+
+    const before = partyFrames(view({ selfId: SELF_ID, players: [self, sam, iris] }));
+    expect(before.map((frame) => frame.name)).toEqual(["Sam", "Iris"]);
+
+    const after = partyFrames(view({ selfId: SELF_ID, players: [self, iris] }));
+    expect(after.map((frame) => frame.name)).toEqual(["Iris"]);
+
+    expect(partyFrames(view({ selfId: SELF_ID, players: [self] }))).toEqual([]);
   });
 });
 

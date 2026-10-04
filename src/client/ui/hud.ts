@@ -19,7 +19,7 @@ import { createActions } from "./hud/actions.js";
 import { createPanel, createStat } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
-import { createRoster } from "./hud/roster.js";
+import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
 import { createToasts } from "./hud/toasts.js";
 import { createVitals } from "./hud/vitals.js";
@@ -60,7 +60,7 @@ export function createHud(options: HudOptions) {
   const placeStatus = createStat("Place", "-");
   const actionStatus = createStat("Action", "-");
   const vitals = createVitals();
-  const roster = createRoster();
+  const partyFrames = createPartyFrames();
   const inventory = createInventory();
   const actions = createActions(options);
   const hotbar = createHotbar(options);
@@ -84,7 +84,7 @@ export function createHud(options: HudOptions) {
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
-  partyPanel.append(vitals.element, roster.element, ...inventory.bankElements);
+  partyPanel.append(vitals.element, ...inventory.bankElements);
 
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
@@ -92,7 +92,7 @@ export function createHud(options: HudOptions) {
   actionButtons.append(...actions.elements);
   actionPanel.append(actionButtons);
 
-  element.append(statusPanel, toasts.element, sessionPanel, partyPanel, actionPanel, hotbar.element);
+  element.append(statusPanel, partyFrames.element, toasts.element, sessionPanel, partyPanel, actionPanel, hotbar.element);
 
   // The prompt follows the predicted position, which moves between snapshots.
   let currentView: SessionView | null = null;
@@ -157,7 +157,7 @@ export function createHud(options: HudOptions) {
       refreshPrompt();
 
       inventory.update(self);
-      roster.update(view);
+      partyFrames.update(view);
     },
   };
 }
