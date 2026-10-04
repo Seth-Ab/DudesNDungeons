@@ -1,0 +1,8 @@
+{
+  "id": "ember-vent",
+  "name": "Ember Vent",
+  "radius": 2,
+  "damage": 6,
+  "resistanceLoss": 8,
+  "rearmMs": 6000
+}

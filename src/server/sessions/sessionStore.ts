@@ -115,6 +115,8 @@ export interface Session {
   simulatedAt: number | null;
   /** When each monster may attack again. Server-side only, so clients never see monster timing. */
   monsterCooldowns: Map<EntityId, number>;
+  /** When each triggered, rearming trap may be armed again. Server-side only. */
+  trapRearmAt: Map<EntityId, number>;
 }
 
 export interface JoinRequest {
@@ -220,6 +222,7 @@ export class SessionStore {
       players: new Map(),
       simulatedAt: null,
       monsterCooldowns: new Map(),
+      trapRearmAt: new Map(),
     };
     this.#sessions.set(roomCode, session);
     return session;

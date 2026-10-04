@@ -1,0 +1,7 @@
+{
+  "id": "spike-plate",
+  "name": "Spike Plate",
+  "radius": 1.8,
+  "damage": 14,
+  "rearmMs": 4000
+}

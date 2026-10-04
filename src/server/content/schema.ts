@@ -45,6 +45,32 @@ export const monsterTypeSchema = z.object({
 });
 export type MonsterType = z.infer<typeof monsterTypeSchema>;
 
+/**
+ * A kind of trap. A trap fires when a standing, connected player comes within `radius` while it is
+ * armed, and every effect is applied by the server through the shared vitals helpers.
+ *
+ * With no `rearmMs` a trap is single use and ends the run `disabled`; with one it rearms that long
+ * after firing, once nobody is standing in reach, so lingering on a plate is not a damage loop.
+ */
+export const trapTypeSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    /** World units, like a light radius: it is not scaled with the map. */
+    radius: z.number().positive(),
+    /** Raw health damage, scaled by the victim's resistance like any other hit. */
+    damage: z.number().int().nonnegative().default(0),
+    /** Flat resistance removed. Resistance never regenerates, so this is the lasting cost. */
+    resistanceLoss: z.number().int().nonnegative().default(0),
+    /** Flat stamina removed, down to zero. */
+    staminaDrain: z.number().int().nonnegative().default(0),
+    rearmMs: z.number().int().positive().optional(),
+  })
+  .refine((trap) => trap.damage + trap.resistanceLoss + trap.staminaDrain > 0, {
+    message: "A trap must have at least one effect",
+  });
+export type TrapType = z.infer<typeof trapTypeSchema>;
+
 const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -151,6 +177,8 @@ export const spawnCountSchema = z
 
 export const monsterSpawnRuleSchema = spawnCountSchema.and(z.object({ typeId: contentIdSchema }));
 
+export const trapSpawnRuleSchema = spawnCountSchema.and(z.object({ typeId: contentIdSchema }));
+
 export const lootSpawnRuleSchema = spawnCountSchema.and(
   z.object({
     itemId: contentIdSchema,
@@ -169,6 +197,7 @@ export const roomTemplateSchema = z.object({
   lights: z.array(templateLightSchema).default([]),
   monsters: z.array(monsterSpawnRuleSchema).default([]),
   loot: z.array(lootSpawnRuleSchema).default([]),
+  traps: z.array(trapSpawnRuleSchema).default([]),
 });
 export type RoomTemplate = z.infer<typeof roomTemplateSchema>;
 
@@ -188,6 +217,8 @@ const placedEntitySchema = z.object({
 const placedMonsterSchema = placedEntitySchema.extend({ typeId: contentIdSchema });
 
 const placedLootSchema = placedEntitySchema.extend({ itemId: contentIdSchema });
+
+const placedTrapSchema = placedEntitySchema.extend({ typeId: contentIdSchema });
 
 const placedDoorSchema = placedEntitySchema.extend({ locked: z.boolean().default(false) });
 
@@ -224,6 +255,7 @@ export const authoredDungeonSchema = z.object({
   rooms: z.array(authoredRoomSchema).default([]),
   monsters: z.array(placedMonsterSchema).default([]),
   loot: z.array(placedLootSchema).default([]),
+  traps: z.array(placedTrapSchema).default([]),
   doors: z.array(placedDoorSchema).default([]),
   exits: z.array(placedExitSchema).default([]),
   lights: z.array(placedLightSchema).default([]),

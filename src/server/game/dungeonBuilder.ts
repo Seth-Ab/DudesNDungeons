@@ -6,10 +6,11 @@ import type {
   LootState,
   MonsterState,
   RoomState,
+  TrapState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
-import type { AuthoredDungeon, ItemDefinition, MonsterType } from "../content/schema.js";
+import type { AuthoredDungeon, ItemDefinition, MonsterType, TrapType } from "../content/schema.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -41,6 +42,17 @@ export function monsterInstance(type: MonsterType, position: Vector2, id: string
     health: type.maxHealth,
     maxHealth: type.maxHealth,
     alive: true,
+  };
+}
+
+export function trapInstance(type: TrapType, position: Vector2, id: string): TrapState {
+  return {
+    id,
+    typeId: type.id,
+    name: type.name,
+    position: { ...position },
+    radius: type.radius,
+    phase: "armed",
   };
 }
 
@@ -108,6 +120,13 @@ export function buildAuthoredDungeon(
     return lootInstance(item, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
   });
 
+  const traps: TrapState[] = definition.traps.map((placed) => {
+    const type = content.traps.get(placed.typeId);
+    if (!type) throw new Error(`Dungeon "${definition.id}" places unknown trap "${placed.typeId}"`);
+
+    return trapInstance(type, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
+  });
+
   const doors: DoorState[] = definition.doors.map((placed) => ({
     id: authoredId(placed.entityId, rng),
     position: { x: placed.x, y: placed.y },
@@ -145,6 +164,7 @@ export function buildAuthoredDungeon(
       rooms,
       monsters,
       loot,
+      traps,
       doors,
       exits,
       lightSources,

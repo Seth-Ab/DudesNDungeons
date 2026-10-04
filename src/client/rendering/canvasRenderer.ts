@@ -54,6 +54,8 @@ const colors = {
   downedPlayer: "#6c4d5f",
   monster: "#b8584c",
   loot: "#d6a84c",
+  trapArmed: "#b5452f",
+  trapSpent: "#4a3c36",
   door: "#8f6335",
   openDoor: "#3d3a2d",
   exit: "#6aa36f",
@@ -580,6 +582,11 @@ export function createCanvasRenderer(getScene: () => Scene) {
         : drawWorldRect(exit.position, 1.6, colors.exit, camera),
     );
     scene.dungeon.doors.forEach((door) => drawDoor(scene.dungeon.map, door, camera));
+    // Placeholder footprints until trap art exists; a spent trap is drawn dull so a party can see
+    // which plates are safe to cross.
+    scene.dungeon.traps.forEach((trap) =>
+      drawWorldRect(trap.position, 1.1, trap.phase === "armed" ? colors.trapArmed : colors.trapSpent, camera),
+    );
     scene.dungeon.lightSources.forEach((light) => drawLightSource(light, camera));
     scene.dungeon.loot.filter((loot) => !loot.pickedUp).forEach((loot) => drawLoot(loot, camera));
     scene.dungeon.monsters

@@ -8,6 +8,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 - `items/`: live item definitions. Keys, tonics, wards, and skill scrolls use the three-slot
   inventory. Torches equip separately and must be deliberately picked up in the hub or dungeon.
 - `monsters/`: monster stats used by authored and generated dungeons.
+- `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
+  delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `dungeons/templates/`: reusable rooms for procedural generation.
 - `dungeons/`: authored dungeons and generated-dungeon profiles.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.

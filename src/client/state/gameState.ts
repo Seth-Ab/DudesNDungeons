@@ -81,6 +81,7 @@ export function createPlaceholderDungeon(): DungeonState {
     ],
     rooms: [],
     loot: [],
+    traps: [],
     doors: [],
     exits: [],
   };

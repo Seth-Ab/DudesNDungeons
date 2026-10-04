@@ -10,7 +10,18 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: the carrying slice of Backend/Frontend step 12 (issue #34). A standing
+- Last completed work: server-authoritative traps, the traps item of Backend step 12 (issue #33),
+  under protocol v12. Trap types live in `content/traps/` (radius, `damage`, `resistanceLoss`,
+  `staminaDrain`, optional `rearmMs`) and are validated at startup; room templates spawn them with
+  `traps` rules and authored dungeons place them. `src/server/game/traps.ts` fires an armed trap
+  when a standing, connected player is within reach, evaluated on the simulation tick and straight
+  after each accepted move. Damage goes through `damagePlayer` (resistance-aware); resistance loss
+  and stamina drain use new `reduceResistance`/`loseStamina` vitals helpers. A rearming trap waits
+  for its footprint to clear (one hit per entry); a single-use trap ends `disabled`. Snapshots carry
+  `dungeon.traps` with a `phase` (armed/triggered/disabled) only for visible tiles. The Collapsing
+  Span trap room now uses spike plates, ember vents, and snare wires. The client draws flat
+  placeholder footprints; final trap art/audio is out of scope.
+- Before that: the carrying slice of Backend/Frontend step 12 (issue #34). A standing
   player can lift a downed party member within `INTERACT_RANGE`, spending `LIFT_STAMINA_COST` and
   then `CARRY_STAMINA_DRAIN_PER_SECOND` continuously in place of stamina regen; carrying halves
   movement speed (`CARRY_MOVE_SPEED_MULTIPLIER`) and drags the target's position along the
@@ -224,7 +235,9 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
 
-- [ ] Add traps as server-resolved triggers.
+- [x] Add traps as server-resolved triggers. `content/traps/`, `src/server/game/traps.ts`; the
+  Collapsing Span room uses them. Trigger kind is movement/proximity only; interaction-based
+  disarming is future work.
 - [ ] Add puzzle objects that need two or more players at once.
 - [ ] Add boss monsters and rooms that gate on them.
 - [x] Add lifting and carrying for downed players, spending step 7's stamina costs and paying a

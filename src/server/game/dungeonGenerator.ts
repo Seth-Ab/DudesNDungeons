@@ -5,11 +5,12 @@ import type {
   LootState,
   MonsterState,
   RoomState,
+  TrapState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
-import { lootInstance, monsterInstance, type BuiltDungeon } from "./dungeonBuilder.js";
+import { lootInstance, monsterInstance, trapInstance, type BuiltDungeon } from "./dungeonBuilder.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -399,7 +400,7 @@ function populate(
   content: GameContent,
   rng: Rng,
   reserved: Set<string>,
-): { monsters: MonsterState[]; loot: LootState[] } {
+): { monsters: MonsterState[]; loot: LootState[]; traps: TrapState[] } {
   const key = (tile: Vector2): string => `${tile.x},${tile.y}`;
   const open = rng.shuffle(floorTilesOf(room).filter((tile) => !reserved.has(key(tile))));
   let cursor = 0;
@@ -445,7 +446,20 @@ function populate(
     }
   }
 
-  return { monsters, loot };
+  const traps: TrapState[] = [];
+  for (const rule of room.template.traps) {
+    const type = content.traps.get(rule.typeId);
+    if (!type) throw new Error(`Template "${room.template.id}" spawns unknown trap "${rule.typeId}"`);
+
+    const count = rng.int(rule.min, rule.max);
+    for (let index = 0; index < count; index += 1) {
+      const tile = take();
+      if (!tile) break;
+      traps.push(trapInstance(type, tile, rng.uuid()));
+    }
+  }
+
+  return { monsters, loot, traps };
 }
 
 export function generateDungeon(
@@ -463,6 +477,7 @@ export function generateDungeon(
   const reserved = new Set<string>();
   const monsters: MonsterState[] = [];
   const loot: LootState[] = [];
+  const traps: TrapState[] = [];
   const lightSources: LightSourceState[] = [];
   const corridorTiles: Vector2[] = [];
 
@@ -494,6 +509,7 @@ export function generateDungeon(
     const populated = populate(room, content, rng, reserved);
     monsters.push(...populated.monsters);
     loot.push(...populated.loot);
+    traps.push(...populated.traps);
   }
 
   const light = definition.corridorLight;
@@ -548,6 +564,7 @@ export function generateDungeon(
       rooms: rooms.map((room) => room.state),
       monsters,
       loot,
+      traps,
       doors,
       exits,
       lightSources,

@@ -78,6 +78,7 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
       position: copyVector(monster.position),
     })),
     loot: dungeon.loot.map((loot) => ({ ...loot, position: copyVector(loot.position) })),
+    traps: dungeon.traps.map((trap) => ({ ...trap, position: copyVector(trap.position) })),
     doors: dungeon.doors.map((door) => ({ ...door, position: copyVector(door.position) })),
     exits: dungeon.exits.map((exit) => ({ ...exit, position: copyVector(exit.position) })),
     lightSources: dungeon.lightSources.map((light) => ({
