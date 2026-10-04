@@ -876,3 +876,22 @@ Complete on `feature/hub-run-flow`.
     The pre-decay countdown toast ("starts falling in Ns") is unchanged.
   - Not verified visually in a live session: the browser checks cover layout only (e2e smoke passes);
     the animations were not captured.
+
+- HUD redesign Phase 3 for issue #48: hotbar and contextual action prompt (Frontend step 8). No
+  protocol change; the server stays authoritative.
+  - Bottom-centre hotbar: three slots with the `1`/`2`/`3` hint printed in-slot, a sprite per
+    `ItemKind` (the loot sprite map moved from `canvasRenderer.ts` to `LOOT_SPRITES` in
+    `rendering/tiles.ts` so both draw from one table), and a dashed empty style. Slots are
+    clickable; the "Use 1-3" buttons are gone. A separate torch pip sits beside the bar, since
+    torches take no slot.
+  - Contextual prompt above the hotbar (`actionPrompt` in `state/hudView.ts`, reach helpers in
+    `state/reach.ts`): `[F] Pick up Tonic`, `[E] Open door`, `[E] Enter the dungeon`, `[C] Lift Ana`,
+    and `[C] Drop Ana` while carrying. Priority is drop, lift, loot, then door/exit. It hides when
+    nothing is in reach and is clickable. A wrong guess still goes to the server and surfaces as the
+    existing `actionRejected` message; the prompt holds no state of its own.
+  - Pickup/Interact/Carry buttons removed. Attack stays as a mouse/touch fallback because there is
+    no attack prompt (monsters in reach are outside this issue's prompt list).
+  - Key hints come from one table, `input/keyBindings.ts`, read by the input controller, the
+    controls menu, and the prompt.
+  - Not verified visually in a live session: a screenshot of the empty hotbar confirmed layout, but
+    item icons and the prompt were not captured. Tests cover the view-model logic.

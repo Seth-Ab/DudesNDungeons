@@ -1,5 +1,4 @@
-import { INTERACT_RANGE } from "../shared/constants/game.js";
-import { distance, distanceToDoor, MOVE_INTERVAL_MS } from "../shared/game/movement.js";
+import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
 import type { EntityId, Vector2 } from "../shared/types/core.js";
 import { requestMicrophonePreview } from "./audio/proximityAudio.js";
 import { createInputController, type GameplayAction } from "./input/inputController.js";
@@ -27,6 +26,7 @@ import {
   updateRemoteInterpolation,
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
+import { nearestDownedAlly, nearestInteraction, nearestLoot } from "./state/reach.js";
 import { entranceMessage, entranceStatus, gatePrompt } from "./state/runFlow.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createHud } from "./ui/hud.js";
@@ -103,9 +103,7 @@ const hud = createHud({
     lobby.focus();
   },
   onAttack: () => performAction("attack"),
-  onPickup: () => performAction("pickup"),
-  onInteract: () => performAction("interact"),
-  onCarry: () => performAction("carry"),
+  onAction: (action) => performAction(action),
   onUseSlot: (slot) => useInventorySlot(slot),
   onOpenControls: () => controlsMenu.open(),
 });
@@ -273,50 +271,13 @@ function isExit(targetId: EntityId): boolean {
 }
 
 function nearestDownedPlayerId(): EntityId | null {
-  return nearest(
-    othersOf(view)
-      .filter((player) => player.health <= 0 && !player.carriedByPlayerId)
-      .map((player) => ({ id: player.id, gap: distance(localPosition, player.position) })),
-  );
+  return nearestDownedAlly(view, localPosition)?.id ?? null;
 }
 
 function nearestLootId(): EntityId | null {
-  if (!view.dungeon) return null;
-
-  return nearest(
-    view.dungeon.loot
-      .filter((loot) => !loot.pickedUp)
-      .map((loot) => ({ id: loot.id, gap: distance(localPosition, loot.position) })),
-  );
+  return nearestLoot(view, localPosition)?.id ?? null;
 }
 
-/**
- * A door is measured to the nearest point of its span, the way the server judges the reach it is
- * about to be sent. Measured to the centre, the client refused to send an interact for any door at
- * all: a doorway is a `TILE_SCALE` block, so its centre is two world units past the face a player
- * stands at and `INTERACT_RANGE` is a body's reach. No locked door could be opened from the UI.
- */
 function nearestInteractionTargetId(): EntityId | null {
-  if (!view.dungeon) return null;
-
-  return nearest([
-    ...view.dungeon.doors
-      .filter((door) => !door.open)
-      .map((door) => ({ id: door.id, gap: distanceToDoor(localPosition, door) })),
-    ...view.dungeon.exits.map((exit) => ({
-      id: exit.id,
-      gap: distance(localPosition, exit.position),
-    })),
-  ]);
-}
-
-function nearest(targets: { id: EntityId; gap: number }[]): EntityId | null {
-  const self = selfOf(view);
-  if (!self) return null;
-
-  const reachable = targets
-    .filter((target) => target.gap <= INTERACT_RANGE)
-    .sort((a, b) => a.gap - b.gap);
-
-  return reachable[0]?.id ?? null;
+  return nearestInteraction(view, localPosition)?.id ?? null;
 }

@@ -159,27 +159,88 @@ button:disabled {
   font-style: italic;
 }
 
-.hud__inventory {
+/* Bottom-centre: contextual prompt over the hotbar. Clear of the party and action corners. */
+.hud__hotbar {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.hud__inventory-slot {
-  width: 6.5rem;
-  min-height: 2rem;
+.hud__prompt {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #6a5a36;
+  border-radius: 6px;
+  background: rgba(27, 28, 31, 0.9);
+  color: #f1dfa6;
+  font-size: 0.9rem;
+}
+
+.hud__prompt[hidden] {
+  display: none;
+}
+
+.hud__hotbar-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.hud__slot {
+  position: relative;
+  width: 3.6rem;
+  height: 3.6rem;
   display: grid;
   place-items: center;
-  padding: 0.25rem 0.4rem;
+  padding: 0;
   border: 1px solid #3c3630;
   border-radius: 6px;
   background: #121417;
+}
+
+.hud__slot--empty {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.hud__slot-key {
+  position: absolute;
+  top: 0.1rem;
+  left: 0.25rem;
   color: #d8ceb1;
-  font-size: 0.78rem;
-  text-align: center;
-  overflow-wrap: anywhere;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.hud__slot-icon,
+.hud__torch-icon {
+  display: block;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+}
+
+.hud__torch {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid #3c3630;
+  border-radius: 50%;
+  background: #121417;
+  opacity: 0.4;
+}
+
+.hud__torch--lit {
+  border-color: #c98a2b;
+  opacity: 1;
+}
+
+.hud__torch-icon {
+  transform: scale(0.5);
 }
 
 /* The lobby sits over the canvas so the dungeon stays visible behind the join form. */
@@ -616,10 +677,9 @@ button:disabled {
     width: 7rem;
   }
 
-  .hud__inventory-slot {
-    width: 4.5rem;
-    min-height: 1.6rem;
-    font-size: 0.7rem;
+  .hud__slot {
+    width: 3rem;
+    height: 3rem;
   }
 
   .hud__bank-heading {

@@ -1,14 +1,8 @@
 import type { Vector2 } from "../../shared/types/core.js";
+import { actionKeyMap, type GameplayAction } from "./keyBindings.js";
 import { headingFrom, type MoveDirection } from "../state/gameState.js";
 
-export type GameplayAction =
-  | "attack"
-  | "pickup"
-  | "interact"
-  | "carry"
-  | "useSlot1"
-  | "useSlot2"
-  | "useSlot3";
+export type { GameplayAction };
 
 interface InputControllerOptions {
   onAction?: (action: GameplayAction) => void;
@@ -25,15 +19,7 @@ const movementKeys = new Map<string, MoveDirection>([
   ["d", "east"],
 ]);
 
-const actionKeys = new Map<string, GameplayAction>([
-  [" ", "attack"],
-  ["e", "interact"],
-  ["f", "pickup"],
-  ["c", "carry"],
-  ["1", "useSlot1"],
-  ["2", "useSlot2"],
-  ["3", "useSlot3"],
-]);
+const actionKeys = actionKeyMap();
 
 /** Keys typed into a form field belong to that field, such as a player name containing "w". */
 export function isTypingTarget(target: EventTarget | null): boolean {
