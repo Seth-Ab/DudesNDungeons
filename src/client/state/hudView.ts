@@ -15,6 +15,7 @@ import {
   roomAt,
   torchNotice,
 } from "./runFlow.js";
+import type { ToastSeverity } from "./toastQueue.js";
 
 /**
  * What each HUD element shows for a given session view, kept free of the DOM so the node test
@@ -127,6 +128,33 @@ export function noticesView(view: SessionView, self: PlayerState | null): Notice
     // action line has moved on to whatever they did next.
     outcome: inSession && inHub && view.runOutcome ? outcomeMessage(view.runOutcome) : "",
   };
+}
+
+export interface ToastMessage {
+  key: string;
+  text: string;
+  severity: ToastSeverity;
+  /** Overrides the severity's default lifetime. */
+  ttlMs?: number;
+}
+
+/** What the outcome banner showed, kept up longer than a warning: it is the last trip's result. */
+const OUTCOME_TOAST_TTL_MS = 12000;
+
+/**
+ * Every transient message source, in display order, with its current text. An empty text means the
+ * source has nothing to say, which is how the toast queue knows to forget it.
+ */
+export function toastMessages(view: SessionView, self: PlayerState | null): ToastMessage[] {
+  const notices = noticesView(view, self);
+
+  return [
+    { key: "error", text: actionableError(view), severity: "error" },
+    { key: "decay", text: notices.decay, severity: "warning" },
+    { key: "torch", text: notices.torch, severity: "warning" },
+    { key: "gate", text: notices.gate, severity: "info" },
+    { key: "outcome", text: notices.outcome, severity: "info", ttlMs: OUTCOME_TOAST_TTL_MS },
+  ];
 }
 
 export interface ControlsView {

@@ -112,7 +112,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
   const ctx = context;
   canvas.className = "game-canvas";
   let viewportWidth = window.innerWidth;
-  let viewportHeight = Math.max(window.innerHeight - 58, 320);
+  let viewportHeight = window.innerHeight;
 
   // Redrawn once the sheet arrives, so the first painted frame is not left flat until something
   // else happens to ask for a render.
@@ -122,7 +122,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
     const pixelRatio = window.devicePixelRatio || 1;
     const bounds = canvas.getBoundingClientRect();
     const width = bounds.width > 0 ? bounds.width : window.innerWidth;
-    const height = Math.max(bounds.height > 0 ? bounds.height : window.innerHeight - 58, 320);
+    const height = bounds.height > 0 ? bounds.height : window.innerHeight;
     viewportWidth = width;
     viewportHeight = height;
 

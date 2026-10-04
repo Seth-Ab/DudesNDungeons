@@ -10,7 +10,10 @@ interface SessionOptions {
   onOpenControls: () => void;
 }
 
-/** Connection, room, position, and voice stats plus the ready/leave/controls/voice buttons. */
+/**
+ * Connection, room, position, and voice stats plus the ready/leave/controls/voice buttons. The
+ * position is a debug readout: the HUD shows it only while the debug toggle is on.
+ */
 export function createSession(options: SessionOptions) {
   const connection = createStat("Connection", "offline");
   const room = createStat("Room", "-");
@@ -30,9 +33,9 @@ export function createSession(options: SessionOptions) {
     connectionElement: connection.element,
     roomElement: room.element,
     positionElement: position.element,
-    // Appended in this order by the HUD, after the action buttons.
-    buttons: [readyButton, leaveButton, controlsButton],
-    voiceElements: [voice.element, voiceButton],
+    voiceElement: voice.element,
+    // Appended in this order by the HUD's session cluster.
+    buttons: [readyButton, leaveButton, controlsButton, voiceButton],
 
     setConnection(text: string) {
       connection.value.textContent = text;

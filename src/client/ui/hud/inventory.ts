@@ -17,8 +17,10 @@ export function createInventory() {
   bank.className = "hud__bank";
 
   return {
-    // Appended in this order by the HUD: slots, torch, bank heading, bank.
-    elements: [slots, torchStatus.element, bankHeading, bank] as const,
+    slotsElement: slots,
+    torchElement: torchStatus.element,
+    // Appended in this order by the HUD: bank heading, bank.
+    bankElements: [bankHeading, bank] as const,
 
     update(self: PlayerState | null) {
       slots.replaceChildren(

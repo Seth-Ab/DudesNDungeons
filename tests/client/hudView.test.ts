@@ -15,6 +15,7 @@ import {
   readyLabel,
   rosterEntries,
   roomCodeLabel,
+  toastMessages,
   torchStatusLabel,
   vitalsView,
 } from "../../src/client/state/hudView.js";
@@ -154,6 +155,42 @@ describe("notices", () => {
       gate: "",
       torch: "",
       outcome: "",
+    });
+  });
+});
+
+describe("toast messages", () => {
+  it("offers every source, empty when it has nothing to say", () => {
+    expect(toastMessages(view(), null).map(({ key, text }) => [key, text])).toEqual([
+      ["error", ""],
+      ["decay", ""],
+      ["torch", ""],
+      ["gate", ""],
+      ["outcome", ""],
+    ]);
+  });
+
+  it("carries the error and decay text with their severities", () => {
+    const self = player("Maya", { id: SELF_ID, carryingTorch: true });
+    const messages = toastMessages(
+      view({
+        phase: "inSession",
+        location: "dungeon",
+        selfId: SELF_ID,
+        players: [self],
+        lastError: { code: "rateLimited", message: "Too fast." },
+        run: run({ decaying: true, decayStartsInMs: 0 }),
+      }),
+      self,
+    );
+
+    expect(messages.find((message) => message.key === "error")).toMatchObject({
+      text: "Too fast.",
+      severity: "error",
+    });
+    expect(messages.find((message) => message.key === "decay")).toMatchObject({
+      text: "Resistance is falling. Get out of the dungeon.",
+      severity: "warning",
     });
   });
 });

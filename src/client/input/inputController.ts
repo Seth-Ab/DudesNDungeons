@@ -36,7 +36,7 @@ const actionKeys = new Map<string, GameplayAction>([
 ]);
 
 /** Keys typed into a form field belong to that field, such as a player name containing "w". */
-function isTypingTarget(target: EventTarget | null): boolean {
+export function isTypingTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))

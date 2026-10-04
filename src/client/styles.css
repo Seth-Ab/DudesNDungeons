@@ -35,33 +35,75 @@ button:focus-visible {
   outline: none;
 }
 
+/* The canvas fills the viewport; the HUD floats over it as overlay panels. */
 #app {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 100vh;
-  max-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(18, 20, 23, 0.8), rgba(18, 20, 23, 0.95)),
-    #151314;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #151314;
 }
 
 .hud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #332f2b;
-  background: #1b1c1f;
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
 }
 
-.hud__group {
+/* Only the interactive controls take the pointer; the rest of the HUD lets clicks reach the canvas. */
+.hud button {
+  pointer-events: auto;
+}
+
+.hud__panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: calc(100vw - 1rem);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #332f2b;
+  border-radius: 8px;
+  background: rgba(27, 28, 31, 0.82);
+}
+
+.hud__panel--status {
+  top: 0.5rem;
+  left: 0.5rem;
+}
+
+/* The session cluster: room, connection, voice, and the buttons that leave or configure the session. */
+.hud__panel--session {
+  top: 0.5rem;
+  right: 0.5rem;
+  align-items: flex-end;
+  width: 15rem;
+}
+
+.hud__panel--party {
+  bottom: 0.5rem;
+  left: 0.5rem;
+  max-width: calc(50vw - 0.75rem);
+}
+
+.hud__panel--actions {
+  bottom: 0.5rem;
+  right: 0.5rem;
+  align-items: flex-end;
+  max-width: calc(50vw - 0.75rem);
+}
+
+.hud__buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.hud__panel[hidden],
+.hud__stat[hidden] {
+  display: none;
 }
 
 .hud__title {
@@ -71,7 +113,6 @@ button:focus-visible {
 }
 
 .hud__stat {
-  min-width: 8rem;
   color: #d8ceb1;
   font-size: 0.88rem;
 }
@@ -80,7 +121,6 @@ button:focus-visible {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 0;
   image-rendering: pixelated;
   background: #101114;
 }
@@ -145,7 +185,7 @@ button:disabled {
 /* The lobby sits over the canvas so the dungeon stays visible behind the join form. */
 .lobby {
   position: fixed;
-  inset: 58px 0 0;
+  inset: 0;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -203,23 +243,11 @@ button:disabled {
   font-size: 0.85rem;
 }
 
-.hud__error {
-  flex-basis: 100%;
-  margin: 0;
-  color: #e2a0a0;
-  font-size: 0.82rem;
-}
-
-.hud__error[hidden] {
-  display: none;
-}
-
 .hud__vitals {
   display: flex;
-  flex-basis: 100%;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.3rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.2rem;
 }
 
 .hud__bar {
@@ -263,42 +291,41 @@ button:disabled {
   text-align: right;
 }
 
-/* Louder than .hud__error: this one is a countdown the player can still act on. */
-.hud__warning {
-  flex-basis: 100%;
-  margin: 0;
-  color: #e0b64f;
-  font-size: 0.82rem;
+/* One stack for every transient message. Severity sets the colour; the queue sets the lifetime. */
+.hud__toasts {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+  width: min(30rem, calc(100vw - 33rem));
+  min-width: 14rem;
+  transform: translateX(-50%);
 }
 
-.hud__warning[hidden] {
-  display: none;
-}
-
-/* Quieter than .hud__warning: the gate is a state of the party, not something going wrong. */
-.hud__notice {
-  flex-basis: 100%;
+.hud__toast {
   margin: 0;
-  color: #9fd0a6;
-  font-size: 0.82rem;
-}
-
-/* What the last run came to. Boxed, because it outlives the action that caused it. */
-.hud__outcome {
-  flex-basis: 100%;
-  margin: 0;
-  padding: 0.3rem 0.5rem;
+  padding: 0.35rem 0.7rem;
   border: 1px solid #4a5a46;
   border-radius: 6px;
-  background: #1a201b;
+  background: rgba(26, 32, 27, 0.92);
   color: #d8e6cf;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
-.hud__notice[hidden],
-.hud__outcome[hidden],
-.hud__bank[hidden] {
-  display: none;
+.hud__toast--warning {
+  border-color: #6b5524;
+  background: rgba(40, 33, 18, 0.94);
+  color: #e0b64f;
+}
+
+.hud__toast--error {
+  border-color: #6b3434;
+  background: rgba(42, 22, 22, 0.94);
+  color: #e2a0a0;
 }
 
 .hud__bank-heading {
@@ -423,4 +450,51 @@ button:disabled {
   margin: 0;
   color: #d8ceb1;
   font-size: 0.88rem;
+}
+
+/* Small windows (about 1024x600): tighter panels so the corners leave the middle of the canvas clear. */
+@media (max-width: 1100px), (max-height: 640px) {
+  .hud__panel {
+    gap: 0.25rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .hud button {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .hud__title {
+    font-size: 0.85rem;
+  }
+
+  .hud__stat {
+    font-size: 0.78rem;
+  }
+
+  .hud__panel--session {
+    width: 12.5rem;
+  }
+
+  .hud__toasts {
+    width: min(26rem, calc(100vw - 27rem));
+  }
+
+  .hud__bar-track {
+    width: 5rem;
+  }
+
+  .hud__bar-label {
+    min-width: 4rem;
+  }
+
+  .hud__inventory-slot {
+    width: 4.5rem;
+    min-height: 1.6rem;
+    font-size: 0.7rem;
+  }
+
+  .hud__bank-heading {
+    display: none;
+  }
 }
