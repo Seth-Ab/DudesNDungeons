@@ -1,3 +1,4 @@
+import type { ItemKind } from "../../shared/types/core.js";
 /**
  * What the tilesheet contains and which cell a given tile draws with.
  *
@@ -85,6 +86,19 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
 ];
 
 export type SpriteName = string;
+
+/**
+ * Loot sprite per item kind. Exhaustive rather than defaulted: a new `itemKind` should fail the
+ * client build and get its own art, not quietly spawn on the floor wearing something else's.
+ */
+export const LOOT_SPRITES: Record<ItemKind, SpriteName> = {
+  key: "loot-key",
+  tonic: "loot-tonic",
+  ward: "loot-ward",
+  skillScroll: "loot-skill-scroll",
+  torch: "loot-torch",
+};
+
 
 /**
  * Packs the sprites into a sheet.

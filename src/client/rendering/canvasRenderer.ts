@@ -4,7 +4,6 @@ import type {
   DoorState,
   DungeonMapState,
   DungeonState,
-  ItemKind,
   LightSourceState,
   LootState,
   MonsterState,
@@ -16,6 +15,7 @@ import type {
 import {
   doorOrientation,
   floorSprite,
+  LOOT_SPRITES,
   tileLook,
   wallMask,
   wallSprite,
@@ -75,18 +75,6 @@ const tileColors: Record<string, string> = {
   "+": colors.discoveredWall,
   ",": colors.discoveredFloor,
   " ": colors.unknown,
-};
-
-/**
- * Loot sprite per item kind. Exhaustive rather than defaulted: a new `itemKind` should fail the
- * client build and get its own art, not quietly spawn on the floor wearing something else's.
- */
-const lootSprites: Record<ItemKind, SpriteName> = {
-  key: "loot-key",
-  tonic: "loot-tonic",
-  ward: "loot-ward",
-  skillScroll: "loot-skill-scroll",
-  torch: "loot-torch",
 };
 
 export interface Scene {
@@ -432,7 +420,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     // A whole world unit rather than the 0.55 the flat marker used. Loot sits at the centre of a
     // 4x4 block now, and a marker half a tile across was a speck in the middle of a large room.
-    drawSprite(lootSprites[loot.kind], loot.position, 1, 1, camera);
+    drawSprite(LOOT_SPRITES[loot.kind], loot.position, 1, 1, camera);
   };
 
   /**

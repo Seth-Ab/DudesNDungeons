@@ -5,7 +5,7 @@ import {
   PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
-import type { InventoryItem, PlayerState, RunState } from "../../shared/types/core.js";
+import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
   entranceMessage,
@@ -15,6 +15,9 @@ import {
   roomAt,
   torchNotice,
 } from "./runFlow.js";
+import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
+import { LOOT_SPRITES, type SpriteName } from "../rendering/tiles.js";
+import { carriedAlly, nearestDownedAlly, nearestInteraction, nearestLoot } from "./reach.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
 /**
@@ -208,8 +211,6 @@ export interface ControlsView {
   /** Ready and Leave only mean something once the session has started. */
   sessionControlsDisabled: boolean;
   actionsDisabled: boolean;
-  carryLabel: string;
-  useDisabled: boolean[];
 }
 
 export function controlsView(view: SessionView, self: PlayerState | null): ControlsView {
@@ -219,8 +220,6 @@ export function controlsView(view: SessionView, self: PlayerState | null): Contr
   return {
     sessionControlsDisabled: !inSession,
     actionsDisabled: !canAct,
-    carryLabel: self?.carryingPlayerId ? "Drop" : "Carry",
-    useDisabled: Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => !canAct || !self?.inventory[slot]),
   };
 }
 
@@ -235,10 +234,6 @@ export function readyLabel(ready: boolean): string {
  */
 export function newServerAction(view: SessionView, lastShown: string | null): string | null {
   return view.lastAction && view.lastAction !== lastShown ? view.lastAction : null;
-}
-
-export function inventorySlotLabels(items: readonly InventoryItem[]): string[] {
-  return Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => items[slot]?.name ?? "-");
 }
 
 /**
@@ -287,4 +282,75 @@ export function rosterEntries(view: SessionView): RosterEntryView[] {
       self: player.id === view.selfId,
     };
   });
+}
+
+export interface HotbarSlotView {
+  /** The key hint printed in the slot, from the shared key-binding table. */
+  keyHint: string;
+  action: GameplayAction;
+  empty: boolean;
+  name: string;
+  icon: SpriteName | null;
+  disabled: boolean;
+}
+
+/** Three slots, always: an empty one is drawn as such so the bar does not change shape. */
+export function hotbarView(view: SessionView, self: PlayerState | null): HotbarSlotView[] {
+  const canAct = view.phase === "inSession" && (self?.health ?? 0) > 0;
+
+  return Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => {
+    const item = self?.inventory[slot];
+    const action = USE_SLOT_ACTIONS[slot] as GameplayAction;
+    return {
+      keyHint: keyLabel(action),
+      action,
+      empty: !item,
+      name: item?.name ?? "Empty",
+      icon: item ? LOOT_SPRITES[item.kind] : null,
+      disabled: !canAct || !item,
+    };
+  });
+}
+
+export interface ActionPromptView {
+  action: GameplayAction;
+  keyHint: string;
+  text: string;
+}
+
+/**
+ * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
+ * the local position only; the server still decides, and a wrong guess comes back as
+ * `actionRejected`. Priority: dropping a carried ally, lifting a downed one, loot, then doors and
+ * exits.
+ */
+export function actionPrompt(
+  view: SessionView,
+  self: PlayerState | null,
+  position: Vector2,
+): ActionPromptView | null {
+  if (view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return null;
+
+  const prompt = (action: GameplayAction, text: string): ActionPromptView => ({
+    action,
+    keyHint: keyLabel(action),
+    text,
+  });
+
+  const carried = carriedAlly(view, self);
+  if (carried) return prompt("carry", `Drop ${carried.name}`);
+
+  const downed = nearestDownedAlly(view, position);
+  if (downed) return prompt("carry", `Lift ${downed.name}`);
+
+  const loot = nearestLoot(view, position);
+  if (loot) return prompt("pickup", `Pick up ${loot.name}`);
+
+  const target = nearestInteraction(view, position);
+  if (target?.kind === "door") return prompt("interact", "Open door");
+  if (target?.kind === "exit") {
+    return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
+  }
+
+  return null;
 }

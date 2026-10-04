@@ -11,7 +11,7 @@ import { SHEET_HEIGHT, SHEET_WIDTH, spriteRect, type SpriteName } from "./tiles.
  * Vite rewrites this to the hashed asset URL at build time and serves it from the repo at dev time,
  * so `assets/sprites/` stays the one place the art lives, per `AGENTS.md`.
  */
-const SHEET_URL = new URL("../../../assets/sprites/dungeon.png", import.meta.url).href;
+export const SHEET_URL = new URL("../../../assets/sprites/dungeon.png", import.meta.url).href;
 
 /**
  * How far discovered-but-unlit geometry is knocked back.
