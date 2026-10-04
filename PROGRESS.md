@@ -860,3 +860,19 @@ Complete on `feature/hub-run-flow`.
     treated as the spec.
   - Tests: `tests/client/toastQueue.test.ts`, `toastMessages` in `tests/client/hudView.test.ts`, and
     Playwright layout/debug-toggle specs in `tests/e2e/browser/smoke.spec.ts`.
+
+- HUD redesign Phase 2 for issue #47: vitals cluster (Frontend step 8). Own-player vitals only; the
+  hotbar, prompt, party frames, and run clock are later phases. No protocol change.
+  - The bars moved from the top-left status panel to the top of the bottom-left party panel.
+    Health is the thickest bar with a `current/max` readout, a ghost trail that drains after a hit,
+    and a pulse below `LOW_HEALTH_RATIO` (25%) while alive. Resistance is thinner and shows a `▼`
+    glyph with a slow pulse while `RunState.decaying`. Stamina is the thinnest, with no number.
+    Glyphs (`♥`, `◆`, `»`) and thickness distinguish the bars, not hue alone.
+  - Damage/heal flashes come from `vitalChange` on consecutive local-player snapshots; the stamina
+    flash comes from the new `SessionView.staminaRefusals` counter, bumped by an `exhausted`
+    `actionRejected`. All of it is pure functions in `state/hudView.ts` with tests; `ui/hud/vitals.ts`
+    only applies classes. `prefers-reduced-motion` turns off the looping pulses and the ghost lag.
+  - Behavior change to note: the "Resistance is falling" toast is gone, since the bar now says it.
+    The pre-decay countdown toast ("starts falling in Ns") is unchanged.
+  - Not verified visually in a live session: the browser checks cover layout only (e2e smoke passes);
+    the animations were not captured.

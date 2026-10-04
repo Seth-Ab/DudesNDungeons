@@ -81,27 +81,74 @@ export function barView(current: number, max: number): BarView {
   return { ratio, text: `${Math.round(current)}` };
 }
 
+/** Health below this fraction (while still alive) puts the bar in its pulsing warning state. */
+export const LOW_HEALTH_RATIO = 0.25;
+
+export interface HealthBarView extends BarView {
+  low: boolean;
+}
+
+export interface ResistanceBarView extends BarView {
+  /** Resistance is draining on the server's run clock. */
+  decaying: boolean;
+}
+
 export interface VitalsView {
-  health: BarView;
-  resistance: BarView;
+  health: HealthBarView;
+  resistance: ResistanceBarView;
   stamina: BarView;
 }
 
-export function vitalsView(self: PlayerState | null): VitalsView {
+/** Label glyphs, so the three bars differ by more than hue. */
+export const VITAL_GLYPHS = { health: "♥", resistance: "◆", stamina: "»", decaying: "▼" } as const;
+
+/** Health reads as `current/max`; resistance is a modifier, so it keeps the bare number. */
+export function healthBarView(current: number, max: number): HealthBarView {
+  const bar = barView(current, max);
   return {
-    health: barView(self?.health ?? 0, PLAYER_MAX_HEALTH),
-    resistance: barView(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE),
-    stamina: barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA),
+    ratio: bar.ratio,
+    text: `${Math.round(Math.max(0, current))}/${Math.round(max)}`,
+    low: current > 0 && bar.ratio < LOW_HEALTH_RATIO,
   };
 }
 
+export function vitalsView(self: PlayerState | null, run: RunState | null = null): VitalsView {
+  const resistance = barView(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE);
+  return {
+    health: healthBarView(self?.health ?? 0, PLAYER_MAX_HEALTH),
+    resistance: { ...resistance, decaying: self !== null && run?.decaying === true && resistance.ratio > 0 },
+    // No number: stamina is felt in the moment, not read.
+    stamina: { ...barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA), text: "" },
+  };
+}
+
+export type VitalChange = "damage" | "heal" | null;
+
 /**
- * What to say about resistance decay. Silent until the server says decay is close, so the warning
+ * What changed between two consecutive snapshots of the local player's health, for the flash.
+ * `previous` is null on the first snapshot and after the player disappears, so joining or
+ * respawning is not reported as a heal.
+ */
+export function vitalChange(previous: number | null, current: number | null): VitalChange {
+  if (previous === null || current === null) return null;
+  if (current < previous) return "damage";
+  if (current > previous) return "heal";
+  return null;
+}
+
+/** True when the server has refused another action for lack of stamina since `previous`. */
+export function staminaRefused(previous: number, current: number): boolean {
+  return current > previous;
+}
+
+/**
+ * What to say about resistance decay before it starts. Silent until the server says decay is close, so the warning
  * means something when it does appear.
  */
 export function decayMessage(run: RunState | null): string {
   if (!run) return "";
-  if (run.decaying) return "Resistance is falling. Get out of the dungeon.";
+  // While it is falling the resistance bar says so; a toast on top would only repeat it.
+  if (run.decaying) return "";
   if (run.decayStartsInMs > RESISTANCE_DECAY_WARNING_MS) return "";
 
   return `Resistance starts falling in ${Math.ceil(run.decayStartsInMs / 1000)}s.`;

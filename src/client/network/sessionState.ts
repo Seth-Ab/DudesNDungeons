@@ -45,6 +45,11 @@ export interface SessionView {
   runOutcome: RunOutcome | null;
   lastError: SessionError | null;
   lastAction: string | null;
+  /**
+   * How many actions the server has refused for lack of stamina. A counter rather than a flag so
+   * two refusals in a row are two events; the HUD flashes the stamina bar when it goes up.
+   */
+  staminaRefusals: number;
 }
 
 export const initialSessionView: SessionView = {
@@ -61,6 +66,7 @@ export const initialSessionView: SessionView = {
   runOutcome: null,
   lastError: null,
   lastAction: null,
+  staminaRefusals: 0,
 };
 
 /**
@@ -180,7 +186,11 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
       };
 
     case "actionRejected":
-      return { ...view, lastAction: rejectionMessage(message.reason) };
+      return {
+        ...view,
+        lastAction: rejectionMessage(message.reason),
+        staminaRefusals: view.staminaRefusals + (message.reason === "exhausted" ? 1 : 0),
+      };
 
     // Voice feedback lands in later steps; ignoring it keeps the view honest rather than inventing
     // state the client cannot yet act on.

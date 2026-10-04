@@ -243,11 +243,12 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+/* Vitals sit bottom-left. Health is the big bar; resistance and stamina are thinner. */
 .hud__vitals {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  margin-top: 0.2rem;
+  gap: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .hud__bar {
@@ -259,19 +260,61 @@ button:disabled {
 }
 
 .hud__bar-label {
-  min-width: 5rem;
+  min-width: 1.6rem;
+  text-align: center;
+  line-height: 1;
 }
 
 .hud__bar-track {
-  width: 7rem;
-  height: 0.55rem;
+  position: relative;
+  width: 11rem;
+  height: 0.5rem;
   border: 1px solid #332f2b;
   background: #101114;
 }
 
-.hud__bar-fill {
+.hud__bar--health .hud__bar-track {
+  height: 1.05rem;
+}
+
+.hud__bar--resistance .hud__bar-track {
+  height: 0.5rem;
+}
+
+.hud__bar--stamina .hud__bar-track {
+  height: 0.3rem;
+}
+
+.hud__bar--health .hud__bar-label {
+  font-size: 1.05rem;
+  color: #d9625c;
+}
+
+.hud__bar--resistance .hud__bar-label {
+  color: #6f9fd3;
+}
+
+.hud__bar--stamina .hud__bar-label {
+  color: #bcc86a;
+}
+
+.hud__bar-fill,
+.hud__bar-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
+}
+
+.hud__bar-fill {
   transition: width 120ms linear;
+}
+
+/* Lags the fill: it holds the old width for a beat, then drains down to it. */
+.hud__bar-ghost {
+  background: #e8c3a8;
+  opacity: 0.75;
+  transition: width 500ms ease-out 300ms;
 }
 
 .hud__bar-fill--health {
@@ -286,9 +329,98 @@ button:disabled {
   background: #a9b54c;
 }
 
+.hud__bar--resistance .hud__bar-ghost,
+.hud__bar--stamina .hud__bar-ghost {
+  display: none;
+}
+
 .hud__bar-value {
-  min-width: 2rem;
-  text-align: right;
+  min-width: 3.6rem;
+  text-align: left;
+}
+
+.hud__bar--low .hud__bar-track {
+  animation: hud-low-health 0.8s ease-in-out infinite;
+}
+
+.hud__bar--decaying .hud__bar-track {
+  animation: hud-decay 2.4s ease-in-out infinite;
+}
+
+.hud__bar--decaying .hud__bar-label {
+  color: #d9a35c;
+}
+
+.hud__bar-track--damage {
+  animation: hud-flash-damage 400ms ease-out;
+}
+
+.hud__bar-track--heal {
+  animation: hud-flash-heal 400ms ease-out;
+}
+
+.hud__bar-track--refused {
+  animation: hud-flash-refused 350ms ease-out;
+}
+
+@keyframes hud-low-health {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 98, 92, 0);
+  }
+  50% {
+    box-shadow: 0 0 6px 2px rgba(217, 98, 92, 0.9);
+  }
+}
+
+@keyframes hud-decay {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes hud-flash-damage {
+  from {
+    box-shadow: 0 0 8px 3px rgba(255, 90, 80, 0.95);
+  }
+  to {
+    box-shadow: 0 0 0 0 rgba(255, 90, 80, 0);
+  }
+}
+
+@keyframes hud-flash-heal {
+  from {
+    box-shadow: 0 0 8px 3px rgba(120, 220, 130, 0.95);
+  }
+  to {
+    box-shadow: 0 0 0 0 rgba(120, 220, 130, 0);
+  }
+}
+
+@keyframes hud-flash-refused {
+  from {
+    box-shadow: 0 0 6px 3px rgba(230, 240, 120, 0.95);
+    background: #5b5a2a;
+  }
+  to {
+    box-shadow: 0 0 0 0 rgba(230, 240, 120, 0);
+    background: #101114;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud__bar--low .hud__bar-track,
+  .hud__bar--decaying .hud__bar-track {
+    animation: none;
+  }
+
+  .hud__bar-ghost {
+    transition: none;
+  }
 }
 
 /* One stack for every transient message. Severity sets the colour; the queue sets the lifetime. */
@@ -481,11 +613,7 @@ button:disabled {
   }
 
   .hud__bar-track {
-    width: 5rem;
-  }
-
-  .hud__bar-label {
-    min-width: 4rem;
+    width: 7rem;
   }
 
   .hud__inventory-slot {

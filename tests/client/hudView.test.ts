@@ -7,6 +7,10 @@ import {
   connectionLabel,
   controlsView,
   decayMessage,
+  healthBarView,
+  LOW_HEALTH_RATIO,
+  staminaRefused,
+  vitalChange,
   inventorySlotLabels,
   newServerAction,
   noticesView,
@@ -21,6 +25,7 @@ import {
 } from "../../src/client/state/hudView.js";
 import {
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
 import type { InventoryItem, PlayerState, RunState } from "../../src/shared/types/core.js";
@@ -95,7 +100,7 @@ describe("vitals", () => {
 
   it("shows empty bars without a self player", () => {
     const vitals = vitalsView(null);
-    expect(vitals.health).toEqual({ ratio: 0, text: "0" });
+    expect(vitals.health).toEqual({ ratio: 0, text: `0/${PLAYER_MAX_HEALTH}`, low: false });
     expect(vitals.resistance.ratio).toBe(0);
     expect(vitals.stamina.ratio).toBe(0);
   });
@@ -103,6 +108,46 @@ describe("vitals", () => {
   it("reads the self player's numbers", () => {
     const vitals = vitalsView(player("Maya", { health: PLAYER_MAX_HEALTH }));
     expect(vitals.health.ratio).toBe(1);
+  });
+
+  it("shows health as current/max and flags low health below the threshold", () => {
+    expect(healthBarView(80, 100)).toEqual({ ratio: 0.8, text: "80/100", low: false });
+    expect(healthBarView(25, 100).low).toBe(false);
+    expect(healthBarView(24, 100)).toMatchObject({ text: "24/100", low: true });
+    expect(healthBarView(LOW_HEALTH_RATIO * 100 - 0.1, 100).low).toBe(true);
+  });
+
+  it("does not pulse for a downed player", () => {
+    expect(healthBarView(0, 100)).toEqual({ ratio: 0, text: "0/100", low: false });
+    expect(healthBarView(-3, 100).text).toBe("0/100");
+    expect(vitalsView(null).health.low).toBe(false);
+  });
+
+  it("marks resistance as decaying only while the run says so and there is resistance left", () => {
+    const self = player("Maya", { resistance: 10 });
+    expect(vitalsView(self, run({ decaying: true })).resistance.decaying).toBe(true);
+    expect(vitalsView(self, run()).resistance.decaying).toBe(false);
+    expect(vitalsView(self, null).resistance.decaying).toBe(false);
+    expect(vitalsView(player("Maya", { resistance: 0 }), run({ decaying: true })).resistance.decaying).toBe(false);
+    expect(vitalsView(null, run({ decaying: true })).resistance.decaying).toBe(false);
+  });
+
+  it("shows stamina without a number", () => {
+    expect(vitalsView(player("Maya", { stamina: PLAYER_MAX_STAMINA / 2 })).stamina).toEqual({ ratio: 0.5, text: "" });
+  });
+
+  it("reports damage and heals from consecutive health readings", () => {
+    expect(vitalChange(100, 80)).toBe("damage");
+    expect(vitalChange(80, 100)).toBe("heal");
+    expect(vitalChange(80, 80)).toBeNull();
+    expect(vitalChange(null, 80)).toBeNull();
+    expect(vitalChange(80, null)).toBeNull();
+  });
+
+  it("flags a stamina refusal only when the counter goes up", () => {
+    expect(staminaRefused(0, 1)).toBe(true);
+    expect(staminaRefused(2, 2)).toBe(false);
+    expect(staminaRefused(2, 0)).toBe(false);
   });
 
   it("formats position to two decimals", () => {
@@ -117,9 +162,8 @@ describe("notices", () => {
     expect(decayMessage(run({ decayStartsInMs: RESISTANCE_DECAY_WARNING_MS }))).toBe(
       `Resistance starts falling in ${RESISTANCE_DECAY_WARNING_MS / 1000}s.`,
     );
-    expect(decayMessage(run({ decaying: true, decayStartsInMs: 0 }))).toBe(
-      "Resistance is falling. Get out of the dungeon.",
-    );
+    // Once it is falling the resistance bar shows it, so there is no toast.
+    expect(decayMessage(run({ decaying: true, decayStartsInMs: 0 }))).toBe("");
   });
 
   it("shows hub notices only in the hub and decay only in a run", () => {
@@ -133,10 +177,10 @@ describe("notices", () => {
     expect(hub.torch).toContain("No torch");
 
     const dungeon = noticesView(
-      view({ phase: "inSession", location: "dungeon", players: [self], selfId: SELF_ID, run: run({ decaying: true }) }),
+      view({ phase: "inSession", location: "dungeon", players: [self], selfId: SELF_ID, run: run({ decayStartsInMs: 30000 }) }),
       self,
     );
-    expect(dungeon.decay).toContain("Resistance is falling");
+    expect(dungeon.decay).toContain("Resistance starts falling in 30s");
     expect(dungeon.gate).toBe("");
     expect(dungeon.outcome).toBe("");
   });
@@ -179,7 +223,7 @@ describe("toast messages", () => {
         selfId: SELF_ID,
         players: [self],
         lastError: { code: "rateLimited", message: "Too fast." },
-        run: run({ decaying: true, decayStartsInMs: 0 }),
+        run: run({ decayStartsInMs: 30000 }),
       }),
       self,
     );
@@ -189,7 +233,7 @@ describe("toast messages", () => {
       severity: "error",
     });
     expect(messages.find((message) => message.key === "decay")).toMatchObject({
-      text: "Resistance is falling. Get out of the dungeon.",
+      text: "Resistance starts falling in 30s.",
       severity: "warning",
     });
   });

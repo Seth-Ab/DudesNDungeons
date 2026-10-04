@@ -66,7 +66,7 @@ export function createHud(options: HudOptions) {
   const toasts = createToasts();
 
   const statusPanel = createPanel("hud__panel hud__panel--status");
-  statusPanel.append(title, placeStatus.element, actionStatus.element, vitals.element);
+  statusPanel.append(title, placeStatus.element, actionStatus.element);
 
   const sessionPanel = createPanel("hud__panel hud__panel--session");
   const sessionButtons = document.createElement("div");
@@ -81,7 +81,7 @@ export function createHud(options: HudOptions) {
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
-  partyPanel.append(roster.element, ...inventory.bankElements);
+  partyPanel.append(vitals.element, roster.element, ...inventory.bankElements);
 
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
@@ -125,7 +125,7 @@ export function createHud(options: HudOptions) {
       session.setRoom(roomCodeLabel(view));
       session.update(controls, self ? self.ready : null);
       placeStatus.value.textContent = placeStatusLabel(view, self);
-      vitals.update(vitalsView(self));
+      vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 
       toasts.update(toastMessages(view, self));
 
