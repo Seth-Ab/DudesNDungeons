@@ -18,17 +18,8 @@ export function createButton(label: string, onClick: () => void): HTMLButtonElem
   return button;
 }
 
-/** A paragraph that is hidden while it has nothing to say. */
-export function createLine(className: string) {
-  const element = document.createElement("p");
+export function createPanel(className: string): HTMLElement {
+  const element = document.createElement("section");
   element.className = className;
-  element.hidden = true;
-
-  return {
-    element,
-    set(text: string) {
-      element.textContent = text;
-      element.hidden = text === "";
-    },
-  };
+  return element;
 }

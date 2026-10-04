@@ -824,3 +824,24 @@ Complete on `feature/hub-run-flow`.
     (connection label, vitals bars, notices, control enablement, roster, inventory, bank),
     covered by `tests/client/hudView.test.ts`. There were no prior HUD tests to move.
   - No visual or functional change; the redesign phases are separate follow-ups.
+
+- HUD redesign Phase 1 for issue #46: overlay layout shell and session cluster (Frontend step 8).
+  Layout and messaging only; vitals, hotbar, and party-frame redesigns are later phases.
+  - The DOM `<header>` is now an overlay (`.hud`, `pointer-events: none` except buttons) of four
+    corner panels over a full-viewport canvas. `canvasRenderer.ts` no longer subtracts the
+    hard-coded 58px header height, and the lobby backdrop covers the whole viewport.
+  - Room, connection, voice, Ready, Leave, Controls, and Enable Voice sit in a top-right session
+    cluster. A compact media query (`max-width: 1100px` or `max-height: 640px`) keeps the panels
+    clear of each other at about 1024x600.
+  - The Position readout is hidden by default; the backquote key toggles it and `?debug` starts it on.
+  - The gate notice, torch and decay warnings, outcome banner, and error box are one auto-expiring
+    toast stack (`state/toastQueue.ts`, `ui/hud/toasts.ts`, sources in `toastMessages`). The queue
+    de-dupes per source on text, so a snapshot repeating the same text neither re-queues nor extends
+    it, and a source that clears shows again when it recurs. The `lastServerAction` de-dupe for the
+    Action status is unchanged.
+  - Behavior change to note: these messages now expire (6-12s) instead of staying while their
+    condition holds, so a long-lived state like the hub gate prompt disappears until its text changes.
+  - `docs/hud-redesign-plan.md`, cited by the issue, is not in the repository; the issue text was
+    treated as the spec.
+  - Tests: `tests/client/toastQueue.test.ts`, `toastMessages` in `tests/client/hudView.test.ts`, and
+    Playwright layout/debug-toggle specs in `tests/e2e/browser/smoke.spec.ts`.

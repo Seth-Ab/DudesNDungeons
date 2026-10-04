@@ -37,6 +37,10 @@ const CONTROL_GROUPS: ControlGroup[] = [
       { input: "Leave", action: "Exit the current room" },
     ],
   },
+  {
+    title: "Debug",
+    controls: [{ input: "`", action: "Show or hide the position readout" }],
+  },
 ];
 
 export function createControlsMenu() {

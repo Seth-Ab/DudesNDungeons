@@ -1,22 +1,23 @@
 import type { VoiceStatus } from "../audio/proximityAudio.js";
+import { isTypingTarget } from "../input/inputController.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import {
-  actionableError,
   connectionLabel,
   controlsView,
   newServerAction,
-  noticesView,
   placeStatusLabel,
   positionLabel,
   roomCodeLabel,
+  toastMessages,
   vitalsView,
 } from "../state/hudView.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
-import { createLine, createStat } from "./hud/dom.js";
+import { createPanel, createStat } from "./hud/dom.js";
 import { createInventory } from "./hud/inventory.js";
 import { createRoster } from "./hud/roster.js";
 import { createSession } from "./hud/session.js";
+import { createToasts } from "./hud/toasts.js";
 import { createVitals } from "./hud/vitals.js";
 
 interface HudOptions {
@@ -31,9 +32,16 @@ interface HudOptions {
   onOpenControls: () => void;
 }
 
-/** Composes the HUD from the modules under `hud/`; what each element shows lives in `state/hudView.ts`. */
+/** Backquote toggles the debug readouts; `?debug` in the URL starts with them on. */
+const DEBUG_KEY = "`";
+
+/**
+ * Composes the HUD from the modules under `hud/`; what each element shows lives in
+ * `state/hudView.ts`. The HUD is a set of overlay panels over the full-viewport canvas: the root
+ * ignores the pointer, and only the panels' own buttons take it.
+ */
 export function createHud(options: HudOptions) {
-  const element = document.createElement("header");
+  const element = document.createElement("div");
   element.className = "hud";
 
   /**
@@ -53,44 +61,46 @@ export function createHud(options: HudOptions) {
   const roster = createRoster();
   const inventory = createInventory();
   const actions = createActions(options);
+  // Everything that used to be its own message line: the hub gate, the run outcome, the torch and
+  // decay warnings, and the error box.
+  const toasts = createToasts();
 
-  // What the hub is waiting for, and what the last run cost. Neither is an error and neither is a
-  // refused action, so each gets its own line rather than fighting over the action status. Decay is
-  // a timer running out, not a failed action.
-  const gateNotice = createLine("hud__notice");
-  const torchWarning = createLine("hud__warning");
-  const decayWarning = createLine("hud__warning");
-  const outcomeBanner = createLine("hud__outcome");
-  const errorBox = createLine("hud__error");
+  const statusPanel = createPanel("hud__panel hud__panel--status");
+  statusPanel.append(title, placeStatus.element, actionStatus.element, vitals.element);
 
-  const leftGroup = document.createElement("div");
-  leftGroup.className = "hud__group";
-  leftGroup.append(
-    title,
-    session.connectionElement,
+  const sessionPanel = createPanel("hud__panel hud__panel--session");
+  const sessionButtons = document.createElement("div");
+  sessionButtons.className = "hud__buttons";
+  sessionButtons.append(...session.buttons);
+  sessionPanel.append(
     session.roomElement,
-    placeStatus.element,
+    session.connectionElement,
+    session.voiceElement,
     session.positionElement,
-    actionStatus.element,
-    vitals.element,
-    gateNotice.element,
-    torchWarning.element,
-    decayWarning.element,
-    outcomeBanner.element,
-    errorBox.element,
+    sessionButtons,
   );
 
-  const rightGroup = document.createElement("div");
-  rightGroup.className = "hud__group";
-  rightGroup.append(
-    roster.element,
-    ...inventory.elements,
-    ...actions.elements,
-    ...session.buttons,
-    ...session.voiceElements,
-  );
+  const partyPanel = createPanel("hud__panel hud__panel--party");
+  partyPanel.append(roster.element, ...inventory.bankElements);
 
-  element.append(leftGroup, rightGroup);
+  const actionPanel = createPanel("hud__panel hud__panel--actions");
+  const actionButtons = document.createElement("div");
+  actionButtons.className = "hud__buttons";
+  actionButtons.append(...actions.elements);
+  actionPanel.append(inventory.slotsElement, inventory.torchElement, actionButtons);
+
+  element.append(statusPanel, toasts.element, sessionPanel, partyPanel, actionPanel);
+
+  const setDebug = (on: boolean): void => {
+    sessionPanel.classList.toggle("hud__panel--debug", on);
+    session.positionElement.hidden = !on;
+  };
+  setDebug(new URLSearchParams(window.location.search).has("debug"));
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== DEBUG_KEY || event.repeat || isTypingTarget(event.target)) return;
+    setDebug(session.positionElement.hidden);
+  });
 
   return {
     element,
@@ -110,19 +120,14 @@ export function createHud(options: HudOptions) {
     syncTo(view: SessionView) {
       const self = selfOf(view);
       const controls = controlsView(view, self);
-      const notices = noticesView(view, self);
 
       session.setConnection(connectionLabel(view));
       session.setRoom(roomCodeLabel(view));
       session.update(controls, self ? self.ready : null);
       placeStatus.value.textContent = placeStatusLabel(view, self);
-      errorBox.set(actionableError(view));
       vitals.update(vitalsView(self));
 
-      gateNotice.set(notices.gate);
-      torchWarning.set(notices.torch);
-      decayWarning.set(notices.decay);
-      outcomeBanner.set(notices.outcome);
+      toasts.update(toastMessages(view, self));
 
       actions.update(controls);
 
