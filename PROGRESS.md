@@ -380,6 +380,14 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+### 2026-10-03
+
+- Upgraded Vitest from 2.1.9 to 5.0.3 for issue #22, removing the critical/high/moderate advisory
+  chain through Vitest, vite-node, its bundled Vite, and esbuild. No test or config changes were
+  needed; all 390 tests pass. Vitest 5 requires Node `^22.12.0 || >=24.0.0`, so the `engines`
+  floor and README requirement rose from 20.19 (CI already runs Node 24). `npm audit` still reports
+  one high `brace-expansion` advisory through the ESLint tree, which is outside this issue.
+
 ### 2026-09-22
 
 - Reconciled stale status for issue #36. Backend step 6 environment documentation, production

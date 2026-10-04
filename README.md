@@ -21,7 +21,7 @@ Hub/run transitions, downed-player loss, and deliberate torches are recorded in
 
 ## Requirements
 
-- Node.js 20.19 or newer.
+- Node.js 22.12 or newer (Vitest 5 requires `^22.12.0 || >=24.0.0`).
 
 ## Getting Started
 
