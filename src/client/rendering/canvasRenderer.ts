@@ -1,10 +1,9 @@
-import { PLAYER_TORCH_LIGHT_RADIUS, TILE_SCALE } from "../../shared/constants/game.js";
+import { TILE_SCALE } from "../../shared/constants/game.js";
 import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
 import type {
   DoorState,
   DungeonMapState,
   DungeonState,
-  ItemKind,
   LightSourceState,
   LootState,
   MonsterState,
@@ -16,12 +15,14 @@ import type {
 import {
   doorOrientation,
   floorSprite,
+  LOOT_SPRITES,
   tileLook,
   wallMask,
   wallSprite,
   UNKNOWN,
   type SpriteName,
 } from "./tiles.js";
+import { tileDarkness, type SceneLight } from "./lighting.js";
 import { loadTileset } from "./tileset.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 
@@ -44,9 +45,7 @@ const figureHeight = PLAYER_RADIUS * 2.6;
 
 const colors = {
   floor: "#2d3033",
-  discoveredFloor: "#17191c",
   wall: "#0e0f12",
-  discoveredWall: "#090a0d",
   unknown: "#050609",
   grid: "#3a3329",
   localPlayer: "#d9b85f",
@@ -72,25 +71,18 @@ const colors = {
   boss: "#8e2f3a",
 };
 
-/** Flat fills, used for the frames before the tilesheet has decoded and if it never does. */
+/**
+ * Flat fills, used for the frames before the tilesheet has decoded and if it never does. Remembered
+ * tiles share the lit colours, because the lightmap shades them just as it shades the sprites.
+ */
 const tileColors: Record<string, string> = {
   "#": colors.wall,
-  "+": colors.discoveredWall,
-  ",": colors.discoveredFloor,
+  "+": colors.wall,
   " ": colors.unknown,
 };
 
-/**
- * Loot sprite per item kind. Exhaustive rather than defaulted: a new `itemKind` should fail the
- * client build and get its own art, not quietly spawn on the floor wearing something else's.
- */
-const lootSprites: Record<ItemKind, SpriteName> = {
-  key: "loot-key",
-  tonic: "loot-tonic",
-  ward: "loot-ward",
-  skillScroll: "loot-skill-scroll",
-  torch: "loot-torch",
-};
+/** The lightmap's shade, as RGB. Close to `colors.unknown`, so full shade matches the void. */
+const SHADE_RGB = [6, 7, 10] as const;
 
 export interface Scene {
   dungeon: DungeonState;
@@ -158,7 +150,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
     width: number,
     height: number,
     camera: Vector2,
-    dim = false,
   ): void => {
     const topLeft = worldToScreen({ x: center.x - width / 2, y: center.y - height / 2 }, camera);
     tileset.draw(
@@ -168,7 +159,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
       topLeft.y,
       width * pixelsPerWorldUnit,
       height * pixelsPerWorldUnit,
-      dim,
     );
   };
 
@@ -226,7 +216,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
           topLeft.y,
           pixelsPerWorldUnit,
           pixelsPerWorldUnit,
-          look.dim,
         );
       }
     }
@@ -398,8 +387,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
   /**
    * A warm halo under a light source, so a torch reads as the thing lighting the room.
    *
-   * Drawn before the darkness mask rather than after, so a torch at the edge of the screen is
-   * knocked back by distance like everything else. This is decoration on top of the server's
+   * Drawn before the lightmap rather than after, so a torch at the edge of its light is shaded
+   * like everything else. This is decoration on top of the server's
    * lighting, not a second opinion about it: what a player can see is still decided server-side.
    */
   const drawLightGlow = (light: LightSourceState, camera: Vector2): void => {
@@ -446,7 +435,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     // A whole world unit rather than the 0.55 the flat marker used. Loot sits at the centre of a
     // 4x4 block now, and a marker half a tile across was a speck in the middle of a large room.
-    drawSprite(lootSprites[loot.kind], loot.position, 1, 1, camera);
+    drawSprite(LOOT_SPRITES[loot.kind], loot.position, 1, 1, camera);
   };
 
   /**
@@ -490,10 +479,9 @@ export function createCanvasRenderer(getScene: () => Scene) {
   /**
    * Signage: area names and what the gate is waiting for.
    *
-   * Drawn after the light mask, unlike every other label, because it is the one thing in the hub a
-   * player needs to read from across the room. The mask is a vignette around the player rather than
-   * the server's lighting, so leaving these under it would fade out the sign pointing at the torches
-   * exactly when a player is far enough away to need it.
+   * Drawn after the lightmap, unlike every other label, because it is the one thing in the hub a
+   * player needs to read from across the room. Leaving these under it would fade out the sign
+   * pointing at the torches exactly when a player is far enough away to need it.
    */
   const drawSigns = (scene: Scene, camera: Vector2): void => {
     ctx.textAlign = "center";
@@ -557,23 +545,84 @@ export function createCanvasRenderer(getScene: () => Scene) {
     }
   };
 
-  const drawLightMask = (camera: Vector2): void => {
-    const center = worldToScreen(camera, camera);
-    const radius = PLAYER_TORCH_LIGHT_RADIUS * pixelsPerWorldUnit;
-    const gradient = ctx.createRadialGradient(
-      center.x,
-      center.y,
-      radius * 0.3,
-      center.x,
-      center.y,
-      radius,
-    );
-    gradient.addColorStop(0, "rgba(6, 7, 10, 0)");
-    gradient.addColorStop(0.68, "rgba(6, 7, 10, 0.18)");
-    gradient.addColorStop(1, "rgba(6, 7, 10, 0.78)");
+  /**
+   * Where each light in the snapshot stands this frame.
+   *
+   * A carried torch follows its bearer as drawn, not as last sent: the local player is drawn at
+   * the predicted position and remote players are interpolated, so a torch pinned to the snapshot
+   * position would leave the pool of light trailing a step behind whoever carries it.
+   */
+  const sceneLights = (scene: Scene): SceneLight[] =>
+    scene.dungeon.lightSources.map((light) => {
+      if (light.kind !== "carriedTorch") return light;
+      if (scene.self && light.id === scene.self.id) {
+        return { position: scene.localPosition, radius: light.radius };
+      }
+      const bearer = scene.others.find((player) => player.id === light.id);
+      return bearer ? { position: bearer.position, radius: light.radius } : light;
+    });
 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+  // One pixel per world tile, rebuilt every frame and stretched over the screen.
+  const lightmap = document.createElement("canvas");
+  const lightmapContext = lightmap.getContext("2d");
+
+  /**
+   * Shades the frame by the server's lighting: lit tiles by their distance from a light, remembered
+   * tiles at a flat dim, and unseen ones solid black.
+   *
+   * Drawn as one image of one pixel per tile and stretched with smoothing on, so the falloff is a
+   * gradient rather than a staircase of square tiles. Pixel centres land on tile centres, so the
+   * blend runs between neighbouring tiles and stops within half a tile of any wall that blocked
+   * the light.
+   */
+  const drawLightmap = (scene: Scene, camera: Vector2): void => {
+    if (!lightmapContext) return;
+
+    const { map } = scene.dungeon;
+    const lights = sceneLights(scene);
+    // A tile of slack past each edge, so the smoothing never clamps against the border on screen.
+    const halfX = viewportWidth / 2 / pixelsPerWorldUnit;
+    const halfY = viewportHeight / 2 / pixelsPerWorldUnit;
+    const minX = Math.floor(camera.x - halfX) - 1;
+    const minY = Math.floor(camera.y - halfY) - 1;
+    const columns = Math.ceil(camera.x + halfX) + 1 - minX + 1;
+    const rows = Math.ceil(camera.y + halfY) + 1 - minY + 1;
+
+    if (lightmap.width !== columns || lightmap.height !== rows) {
+      lightmap.width = columns;
+      lightmap.height = rows;
+    }
+
+    const image = lightmapContext.createImageData(columns, rows);
+    const pixels = image.data;
+    const [red, green, blue] = SHADE_RGB;
+
+    for (let row = 0; row < rows; row += 1) {
+      const y = minY + row;
+      for (let column = 0; column < columns; column += 1) {
+        const x = minX + column;
+        const offset = (row * columns + column) * 4;
+        pixels[offset] = red;
+        pixels[offset + 1] = green;
+        pixels[offset + 2] = blue;
+        pixels[offset + 3] = Math.round(tileDarkness(tileAt(map, x, y), x, y, lights) * 255);
+      }
+    }
+
+    lightmapContext.putImageData(image, 0, 0);
+
+    const topLeft = worldToScreen({ x: minX - 0.5, y: minY - 0.5 }, camera);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(
+      lightmap,
+      topLeft.x,
+      topLeft.y,
+      columns * pixelsPerWorldUnit,
+      rows * pixelsPerWorldUnit,
+    );
+    ctx.restore();
   };
 
   function render(): void {
@@ -633,7 +682,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
       drawFigure(scene.localPosition, carryLabel(scene.self), color, false, camera);
     }
 
-    drawLightMask(camera);
+    drawLightmap(scene, camera);
     drawSigns(scene, camera);
   }
 

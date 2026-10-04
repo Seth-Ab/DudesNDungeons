@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 5173;
+const SERVER_PORT = 8080;
 
 export default defineConfig({
   testDir: "tests/e2e/browser",
@@ -18,10 +19,20 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run dev:client",
-    url: `http://127.0.0.1:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: "npm run dev:client",
+      url: `http://127.0.0.1:${PORT}`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      // Only the jev-gated semantic specs need a live session; the rest of this suite never
+      // opens a socket. Reusing an already-running dev:server (e.g. from `npm run dev`) is fine.
+      command: "npm run dev:server",
+      url: `http://127.0.0.1:${SERVER_PORT}/health`,
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+  ],
 });

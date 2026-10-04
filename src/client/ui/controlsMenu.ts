@@ -1,3 +1,5 @@
+import { keyLabel } from "../input/keyBindings.js";
+
 interface ControlGroup {
   title: string;
   controls: { input: string; action: string }[];
@@ -14,18 +16,18 @@ const CONTROL_GROUPS: ControlGroup[] = [
   {
     title: "Dungeon",
     controls: [
-      { input: "Space", action: "Attack (costs stamina)" },
-      { input: "F", action: "Pick up nearby loot" },
-      { input: "E", action: "Interact with doors and exits" },
-      { input: "C", action: "Carry a downed party member, or drop who you're carrying" },
-      { input: "1 / 2 / 3", action: "Use inventory slot" },
+      { input: keyLabel("attack"), action: "Attack (costs stamina)" },
+      { input: keyLabel("pickup"), action: "Pick up nearby loot" },
+      { input: keyLabel("interact"), action: "Interact with doors and exits" },
+      { input: keyLabel("carry"), action: "Carry a downed party member, or drop who you're carrying" },
+      { input: `${keyLabel("useSlot1")} / ${keyLabel("useSlot2")} / ${keyLabel("useSlot3")}`, action: "Use inventory slot" },
     ],
   },
   {
     title: "The Hub",
     controls: [
-      { input: "F", action: "Take a torch from the Torch Supply" },
-      { input: "E", action: "Use the Dungeon Gate to start a run" },
+      { input: keyLabel("pickup"), action: "Take a torch from the Torch Supply" },
+      { input: keyLabel("interact"), action: "Use the Dungeon Gate to start a run" },
       { input: "Ready", action: "Required from every member before the gate opens" },
     ],
   },

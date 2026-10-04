@@ -883,3 +883,64 @@ Complete on `feature/hub-run-flow`.
     treated as the spec.
   - Tests: `tests/client/toastQueue.test.ts`, `toastMessages` in `tests/client/hudView.test.ts`, and
     Playwright layout/debug-toggle specs in `tests/e2e/browser/smoke.spec.ts`.
+
+- HUD redesign Phase 2 for issue #47: vitals cluster (Frontend step 8). Own-player vitals only; the
+  hotbar, prompt, party frames, and run clock are later phases. No protocol change.
+  - The bars moved from the top-left status panel to the top of the bottom-left party panel.
+    Health is the thickest bar with a `current/max` readout, a ghost trail that drains after a hit,
+    and a pulse below `LOW_HEALTH_RATIO` (25%) while alive. Resistance is thinner and shows a `▼`
+    glyph with a slow pulse while `RunState.decaying`. Stamina is the thinnest, with no number.
+    Glyphs (`♥`, `◆`, `»`) and thickness distinguish the bars, not hue alone.
+  - Damage/heal flashes come from `vitalChange` on consecutive local-player snapshots; the stamina
+    flash comes from the new `SessionView.staminaRefusals` counter, bumped by an `exhausted`
+    `actionRejected`. All of it is pure functions in `state/hudView.ts` with tests; `ui/hud/vitals.ts`
+    only applies classes. `prefers-reduced-motion` turns off the looping pulses and the ghost lag.
+  - Behavior change to note: the "Resistance is falling" toast is gone, since the bar now says it.
+    The pre-decay countdown toast ("starts falling in Ns") is unchanged.
+  - Not verified visually in a live session: the browser checks cover layout only (e2e smoke passes);
+    the animations were not captured.
+
+- HUD redesign Phase 3 for issue #48: hotbar and contextual action prompt (Frontend step 8). No
+  protocol change; the server stays authoritative.
+  - Bottom-centre hotbar: three slots with the `1`/`2`/`3` hint printed in-slot, a sprite per
+    `ItemKind` (the loot sprite map moved from `canvasRenderer.ts` to `LOOT_SPRITES` in
+    `rendering/tiles.ts` so both draw from one table), and a dashed empty style. Slots are
+    clickable; the "Use 1-3" buttons are gone. A separate torch pip sits beside the bar, since
+    torches take no slot.
+  - Contextual prompt above the hotbar (`actionPrompt` in `state/hudView.ts`, reach helpers in
+    `state/reach.ts`): `[F] Pick up Tonic`, `[E] Open door`, `[E] Enter the dungeon`, `[C] Lift Ana`,
+    and `[C] Drop Ana` while carrying. Priority is drop, lift, loot, then door/exit. It hides when
+    nothing is in reach and is clickable. A wrong guess still goes to the server and surfaces as the
+    existing `actionRejected` message; the prompt holds no state of its own.
+  - Pickup/Interact/Carry buttons removed. Attack stays as a mouse/touch fallback because there is
+    no attack prompt (monsters in reach are outside this issue's prompt list).
+  - Key hints come from one table, `input/keyBindings.ts`, read by the input controller, the
+    controls menu, and the prompt.
+  - Not verified visually in a live session: a screenshot of the empty hotbar confirmed layout, but
+    item icons and the prompt were not captured. Tests cover the view-model logic.
+
+- Playtest fixes for map, lighting, and pacing. No protocol change; the server stays authoritative.
+  - Walls: a wall tile was only revealed when a ray reached its exact centre, so at shallow angles
+    the ray clipped the neighbouring wall first. Corridors drew as floor with no walls, and rooms
+    lost long stretches of wall. `visibility.ts` now also reveals every wall touching a lit floor
+    tile (safe because scaled walls are at least four tiles thick).
+  - Server cost: what a fixed light reveals is cached per map and door arrangement instead of
+    raycast per viewer per tick. The hub's hearth lights the whole hall, so this cut hub visibility
+    from ~8.4ms to ~2.4ms per player per tick.
+  - Shadows: the camera-centred vignette and the pre-dimmed tilesheet copy are gone. The renderer
+    now builds a lightmap with one pixel per tile from the snapshot's light sources
+    (`rendering/lighting.ts`) and stretches it with smoothing, so light falls off around each torch,
+    stops at walls, and remembered geometry stays readable instead of near-black.
+  - Pacing: the client redrew on every snapshot and every predicted move as well as every animation
+    frame. That main-thread load starved the movement timer, so players slowed to ~2.2 units/s the
+    longer they played. It now draws only in the rAF loop.
+  - Prediction: shared `isFloor` accepts remembered floor (`,`), so a client no longer freezes when
+    stepping into floor it can't currently see.
+  - Wipes: the killing blow and the return to the hub landed in the same tick, so clients never saw
+    themselves downed and announced every wipe as "You made it out". The tick now publishes the
+    downed snapshot before moving the party home.
+  - Test flake: the carry e2e asserted exact stamina, and a tick sometimes landed first; it now
+    allows that drain. A rare 2s timeout in "starts only when the whole connected party is ready"
+    was seen under heavy machine load (dev servers and browsers running alongside); not reproduced
+    in later runs.
+  - Verified live with a scripted browser in a generated run (hub → torch → gate → dungeon).

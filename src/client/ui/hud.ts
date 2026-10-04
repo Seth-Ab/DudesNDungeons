@@ -1,9 +1,12 @@
 import type { VoiceStatus } from "../audio/proximityAudio.js";
 import { isTypingTarget } from "../input/inputController.js";
+import type { GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import {
   connectionLabel,
+  actionPrompt,
   controlsView,
+  hotbarView,
   newServerAction,
   placeStatusLabel,
   positionLabel,
@@ -14,6 +17,7 @@ import {
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
 import { createPanel, createStat } from "./hud/dom.js";
+import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
 import { createRoster } from "./hud/roster.js";
 import { createSession } from "./hud/session.js";
@@ -25,9 +29,7 @@ interface HudOptions {
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
   onAttack: () => void;
-  onPickup: () => void;
-  onInteract: () => void;
-  onCarry: () => void;
+  onAction: (action: GameplayAction) => void;
   onUseSlot: (slot: number) => void;
   onOpenControls: () => void;
 }
@@ -61,12 +63,13 @@ export function createHud(options: HudOptions) {
   const roster = createRoster();
   const inventory = createInventory();
   const actions = createActions(options);
+  const hotbar = createHotbar(options);
   // Everything that used to be its own message line: the hub gate, the run outcome, the torch and
   // decay warnings, and the error box.
   const toasts = createToasts();
 
   const statusPanel = createPanel("hud__panel hud__panel--status");
-  statusPanel.append(title, placeStatus.element, actionStatus.element, vitals.element);
+  statusPanel.append(title, placeStatus.element, actionStatus.element);
 
   const sessionPanel = createPanel("hud__panel hud__panel--session");
   const sessionButtons = document.createElement("div");
@@ -81,15 +84,24 @@ export function createHud(options: HudOptions) {
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
-  partyPanel.append(roster.element, ...inventory.bankElements);
+  partyPanel.append(vitals.element, roster.element, ...inventory.bankElements);
 
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
   actionButtons.className = "hud__buttons";
   actionButtons.append(...actions.elements);
-  actionPanel.append(inventory.slotsElement, inventory.torchElement, actionButtons);
+  actionPanel.append(actionButtons);
 
-  element.append(statusPanel, toasts.element, sessionPanel, partyPanel, actionPanel);
+  element.append(statusPanel, toasts.element, sessionPanel, partyPanel, actionPanel, hotbar.element);
+
+  // The prompt follows the predicted position, which moves between snapshots.
+  let currentView: SessionView | null = null;
+  let currentPosition: Vector2 = { x: 0, y: 0 };
+  const refreshPrompt = (): void => {
+    hotbar.updatePrompt(
+      currentView ? actionPrompt(currentView, selfOf(currentView), currentPosition) : null,
+    );
+  };
 
   const setDebug = (on: boolean): void => {
     sessionPanel.classList.toggle("hud__panel--debug", on);
@@ -111,6 +123,8 @@ export function createHud(options: HudOptions) {
 
     setPosition(position: Vector2) {
       session.setPosition(positionLabel(position));
+      currentPosition = position;
+      refreshPrompt();
     },
 
     setActionStatus(status: string) {
@@ -125,7 +139,7 @@ export function createHud(options: HudOptions) {
       session.setRoom(roomCodeLabel(view));
       session.update(controls, self ? self.ready : null);
       placeStatus.value.textContent = placeStatusLabel(view, self);
-      vitals.update(vitalsView(self));
+      vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 
       toasts.update(toastMessages(view, self));
 
@@ -136,6 +150,11 @@ export function createHud(options: HudOptions) {
         lastServerAction = serverAction;
         actionStatus.value.textContent = serverAction;
       }
+
+      currentView = view;
+      hotbar.updateSlots(hotbarView(view, self));
+      hotbar.updateTorch(self);
+      refreshPrompt();
 
       inventory.update(self);
       roster.update(view);

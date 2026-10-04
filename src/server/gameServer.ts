@@ -464,17 +464,24 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       // Dungeon simulation advances even with nobody watching, so a reconnecting party returns to
       // a world that kept its timers rather than one frozen mid-fight.
       const monsterAttacks = simulate(session, at);
+      const hasAudience = [...session.players.values()].some((player) => player.connected);
+      if (hasAudience) {
+        for (const attack of monsterAttacks) broadcast(session, attack);
+      }
+
       if (partyWiped(session)) {
+        // The party is shown going down before it is moved home. A client tells a wipe from an
+        // escape by whether it saw itself downed, and the blow that wipes a party lands in the same
+        // tick as the return, so without this snapshot every wipe was announced as an escape.
+        // A tick of its own, since a client drops any snapshot not newer than the last.
+        if (hasAudience) publish(session);
         returnToHub(session, false);
         // A wipe costs everyone their carry, which is a profile change like any other.
         profiles.flush();
       }
       session.tick += 1;
 
-      const hasAudience = [...session.players.values()].some((player) => player.connected);
       if (!hasAudience) continue;
-
-      for (const attack of monsterAttacks) broadcast(session, attack);
       broadcastSnapshots(session);
     }
   }, tickIntervalMs);

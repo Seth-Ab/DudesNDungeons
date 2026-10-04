@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
 import {
   actionableError,
+  actionPrompt,
+  hotbarView,
   barView,
   bankEntries,
   connectionLabel,
   controlsView,
   decayMessage,
-  inventorySlotLabels,
+  healthBarView,
+  LOW_HEALTH_RATIO,
+  staminaRefused,
+  vitalChange,
   newServerAction,
   noticesView,
   placeStatusLabel,
@@ -21,9 +26,10 @@ import {
 } from "../../src/client/state/hudView.js";
 import {
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
-import type { InventoryItem, PlayerState, RunState } from "../../src/shared/types/core.js";
+import type { DungeonState, InventoryItem, LootState, PlayerState, RunState } from "../../src/shared/types/core.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const OTHER_ID = "9a2e7c1f-7b5b-4a3f-8e2d-3c4b5d6e7f80";
@@ -95,7 +101,7 @@ describe("vitals", () => {
 
   it("shows empty bars without a self player", () => {
     const vitals = vitalsView(null);
-    expect(vitals.health).toEqual({ ratio: 0, text: "0" });
+    expect(vitals.health).toEqual({ ratio: 0, text: `0/${PLAYER_MAX_HEALTH}`, low: false });
     expect(vitals.resistance.ratio).toBe(0);
     expect(vitals.stamina.ratio).toBe(0);
   });
@@ -103,6 +109,46 @@ describe("vitals", () => {
   it("reads the self player's numbers", () => {
     const vitals = vitalsView(player("Maya", { health: PLAYER_MAX_HEALTH }));
     expect(vitals.health.ratio).toBe(1);
+  });
+
+  it("shows health as current/max and flags low health below the threshold", () => {
+    expect(healthBarView(80, 100)).toEqual({ ratio: 0.8, text: "80/100", low: false });
+    expect(healthBarView(25, 100).low).toBe(false);
+    expect(healthBarView(24, 100)).toMatchObject({ text: "24/100", low: true });
+    expect(healthBarView(LOW_HEALTH_RATIO * 100 - 0.1, 100).low).toBe(true);
+  });
+
+  it("does not pulse for a downed player", () => {
+    expect(healthBarView(0, 100)).toEqual({ ratio: 0, text: "0/100", low: false });
+    expect(healthBarView(-3, 100).text).toBe("0/100");
+    expect(vitalsView(null).health.low).toBe(false);
+  });
+
+  it("marks resistance as decaying only while the run says so and there is resistance left", () => {
+    const self = player("Maya", { resistance: 10 });
+    expect(vitalsView(self, run({ decaying: true })).resistance.decaying).toBe(true);
+    expect(vitalsView(self, run()).resistance.decaying).toBe(false);
+    expect(vitalsView(self, null).resistance.decaying).toBe(false);
+    expect(vitalsView(player("Maya", { resistance: 0 }), run({ decaying: true })).resistance.decaying).toBe(false);
+    expect(vitalsView(null, run({ decaying: true })).resistance.decaying).toBe(false);
+  });
+
+  it("shows stamina without a number", () => {
+    expect(vitalsView(player("Maya", { stamina: PLAYER_MAX_STAMINA / 2 })).stamina).toEqual({ ratio: 0.5, text: "" });
+  });
+
+  it("reports damage and heals from consecutive health readings", () => {
+    expect(vitalChange(100, 80)).toBe("damage");
+    expect(vitalChange(80, 100)).toBe("heal");
+    expect(vitalChange(80, 80)).toBeNull();
+    expect(vitalChange(null, 80)).toBeNull();
+    expect(vitalChange(80, null)).toBeNull();
+  });
+
+  it("flags a stamina refusal only when the counter goes up", () => {
+    expect(staminaRefused(0, 1)).toBe(true);
+    expect(staminaRefused(2, 2)).toBe(false);
+    expect(staminaRefused(2, 0)).toBe(false);
   });
 
   it("formats position to two decimals", () => {
@@ -117,9 +163,8 @@ describe("notices", () => {
     expect(decayMessage(run({ decayStartsInMs: RESISTANCE_DECAY_WARNING_MS }))).toBe(
       `Resistance starts falling in ${RESISTANCE_DECAY_WARNING_MS / 1000}s.`,
     );
-    expect(decayMessage(run({ decaying: true, decayStartsInMs: 0 }))).toBe(
-      "Resistance is falling. Get out of the dungeon.",
-    );
+    // Once it is falling the resistance bar shows it, so there is no toast.
+    expect(decayMessage(run({ decaying: true, decayStartsInMs: 0 }))).toBe("");
   });
 
   it("shows hub notices only in the hub and decay only in a run", () => {
@@ -133,10 +178,10 @@ describe("notices", () => {
     expect(hub.torch).toContain("No torch");
 
     const dungeon = noticesView(
-      view({ phase: "inSession", location: "dungeon", players: [self], selfId: SELF_ID, run: run({ decaying: true }) }),
+      view({ phase: "inSession", location: "dungeon", players: [self], selfId: SELF_ID, run: run({ decayStartsInMs: 30000 }) }),
       self,
     );
-    expect(dungeon.decay).toContain("Resistance is falling");
+    expect(dungeon.decay).toContain("Resistance starts falling in 30s");
     expect(dungeon.gate).toBe("");
     expect(dungeon.outcome).toBe("");
   });
@@ -179,7 +224,7 @@ describe("toast messages", () => {
         selfId: SELF_ID,
         players: [self],
         lastError: { code: "rateLimited", message: "Too fast." },
-        run: run({ decaying: true, decayStartsInMs: 0 }),
+        run: run({ decayStartsInMs: 30000 }),
       }),
       self,
     );
@@ -189,7 +234,7 @@ describe("toast messages", () => {
       severity: "error",
     });
     expect(messages.find((message) => message.key === "decay")).toMatchObject({
-      text: "Resistance is falling. Get out of the dungeon.",
+      text: "Resistance starts falling in 30s.",
       severity: "warning",
     });
   });
@@ -200,7 +245,6 @@ describe("controls", () => {
     const controls = controlsView(view({ phase: "connected" }), null);
     expect(controls.sessionControlsDisabled).toBe(true);
     expect(controls.actionsDisabled).toBe(true);
-    expect(controls.useDisabled).toEqual([true, true, true]);
   });
 
   it("disables actions for a downed player but keeps ready and leave", () => {
@@ -208,19 +252,6 @@ describe("controls", () => {
     const controls = controlsView(view({ phase: "inSession", selfId: SELF_ID, players: [self] }), self);
     expect(controls.sessionControlsDisabled).toBe(false);
     expect(controls.actionsDisabled).toBe(true);
-  });
-
-  it("enables only the occupied use slots", () => {
-    const self = player("Maya", { id: SELF_ID, inventory: [item("Tonic")] });
-    const controls = controlsView(view({ phase: "inSession", selfId: SELF_ID, players: [self] }), self);
-    expect(controls.actionsDisabled).toBe(false);
-    expect(controls.useDisabled).toEqual([false, true, true]);
-  });
-
-  it("flips Carry to Drop while carrying", () => {
-    const carrying = player("Maya", { id: SELF_ID, carryingPlayerId: OTHER_ID });
-    expect(controlsView(view({ phase: "inSession" }), carrying).carryLabel).toBe("Drop");
-    expect(controlsView(view({ phase: "inSession" }), player("Maya")).carryLabel).toBe("Carry");
   });
 
   it("labels the ready button", () => {
@@ -239,11 +270,6 @@ describe("server action text", () => {
 });
 
 describe("inventory and bank", () => {
-  it("always shows three slots", () => {
-    expect(inventorySlotLabels([])).toEqual(["-", "-", "-"]);
-    expect(inventorySlotLabels([item("Tonic"), item("Salve")])).toEqual(["Tonic", "Salve", "-"]);
-  });
-
   it("reports the torch", () => {
     expect(torchStatusLabel(null)).toBe("none");
     expect(torchStatusLabel(player("Maya", { carryingTorch: true }))).toBe("carried");
@@ -290,5 +316,131 @@ describe("roster", () => {
 describe("place", () => {
   it("is a dash without a dungeon", () => {
     expect(placeStatusLabel(view(), null)).toBe("-");
+  });
+});
+
+const inSession = { phase: "inSession" as const, selfId: SELF_ID };
+
+function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
+  return {
+    map: { name: "Test", width: 4, height: 4, tiles: [] },
+    monsters: [],
+    loot: [],
+    doors: [],
+    exits: [],
+    rooms: [],
+    ...overrides,
+  } as unknown as DungeonState;
+}
+
+function loot(name: string, x: number): LootState {
+  return { id: `loot-${name}`, name, kind: "tonic", position: { x, y: 0 }, pickedUp: false };
+}
+
+describe("hotbar", () => {
+  it("always shows three slots with key hints, and marks empty ones", () => {
+    const self = player("Maya", { id: SELF_ID, inventory: [item("Tonic")] });
+    const slots = hotbarView(view({ ...inSession, players: [self] }), self);
+
+    expect(slots.map((slot) => slot.keyHint)).toEqual(["1", "2", "3"]);
+    expect(slots.map((slot) => slot.empty)).toEqual([false, true, true]);
+    expect(slots[0]?.name).toBe("Tonic");
+    expect(slots[0]?.icon).toBe("loot-tonic");
+    expect(slots[1]?.icon).toBeNull();
+    expect(slots.map((slot) => slot.disabled)).toEqual([false, true, true]);
+  });
+
+  it("picks the icon from the item kind", () => {
+    const scroll: InventoryItem = {
+      id: "b2222222-2222-4222-8222-222222222222",
+      name: "Scroll",
+      kind: "skillScroll",
+      skillId: "iron-will",
+    };
+    const self = player("Maya", { id: SELF_ID, inventory: [scroll, { ...item("Key"), kind: "key" }] });
+    const slots = hotbarView(view({ ...inSession, players: [self] }), self);
+    expect(slots.map((slot) => slot.icon)).toEqual(["loot-skill-scroll", "loot-key", null]);
+  });
+
+  it("disables every slot when outside a session or downed", () => {
+    const self = player("Maya", { id: SELF_ID, health: 0, inventory: [item("Tonic")] });
+    expect(hotbarView(view({ ...inSession, players: [self] }), self)[0]?.disabled).toBe(true);
+    const alive = player("Maya", { id: SELF_ID, inventory: [item("Tonic")] });
+    expect(hotbarView(view({ phase: "connected" }), alive)[0]?.disabled).toBe(true);
+  });
+});
+
+describe("action prompt", () => {
+  const self = player("Maya", { id: SELF_ID });
+  const origin = { x: 0, y: 0 };
+
+  it("is hidden when nothing is in reach", () => {
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [loot("Tonic", 5)] }) });
+    expect(actionPrompt(v, self, origin)).toBeNull();
+  });
+
+  it("is hidden outside a session, without a dungeon, or while downed", () => {
+    const d = dungeon({ loot: [loot("Tonic", 0.5)] });
+    expect(actionPrompt(view({ phase: "connected", dungeon: d }), self, origin)).toBeNull();
+    expect(actionPrompt(view({ ...inSession, players: [self] }), self, origin)).toBeNull();
+    const downed = player("Maya", { id: SELF_ID, health: 0 });
+    expect(actionPrompt(view({ ...inSession, players: [downed], dungeon: d }), downed, origin)).toBeNull();
+  });
+
+  it("names loot and its key", () => {
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [loot("Tonic", 0.5)] }) });
+    expect(actionPrompt(v, self, origin)).toEqual({ action: "pickup", keyHint: "F", text: "Pick up Tonic" });
+  });
+
+  it("ignores picked-up loot", () => {
+    const taken = { ...loot("Tonic", 0.5), pickedUp: true };
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [taken] }) });
+    expect(actionPrompt(v, self, origin)).toBeNull();
+  });
+
+  it("offers a door and an exit with the interact key", () => {
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, locked: false };
+    const doorView = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
+    expect(actionPrompt(doorView, self, origin)).toEqual({ action: "interact", keyHint: "E", text: "Open door" });
+
+    const exit = { id: "exit", position: { x: 0.5, y: 0 } };
+    const exitView = view({
+      ...inSession,
+      location: "hub",
+      players: [self],
+      dungeon: dungeon({ exits: [exit] } as Partial<DungeonState>),
+    });
+    expect(actionPrompt(exitView, self, origin)?.text).toBe("Enter the dungeon");
+    expect(actionPrompt({ ...exitView, location: "dungeon" }, self, origin)?.text).toBe("Leave the dungeon");
+  });
+
+  it("skips an open door", () => {
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: true, locked: false };
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
+    expect(actionPrompt(v, self, origin)).toBeNull();
+  });
+
+  it("offers to lift a downed ally, and prefers that over loot", () => {
+    const ana = player("Ana", { health: 0, position: { x: 0.4, y: 0 } });
+    const v = view({
+      ...inSession,
+      players: [self, ana],
+      dungeon: dungeon({ loot: [loot("Tonic", 0.5)] }),
+    });
+    expect(actionPrompt(v, self, origin)).toEqual({ action: "carry", keyHint: "C", text: "Lift Ana" });
+  });
+
+  it("does not offer a standing or already-carried ally", () => {
+    const standing = player("Ana", { position: { x: 0.4, y: 0 } });
+    const carried = player("Bo", { id: "c3333333-3333-4333-8333-333333333333", health: 0, carriedByPlayerId: "x" });
+    const v = view({ ...inSession, players: [self, standing, carried], dungeon: dungeon() });
+    expect(actionPrompt(v, self, origin)).toBeNull();
+  });
+
+  it("offers to drop whoever is being carried", () => {
+    const ana = player("Ana", { health: 0, carriedByPlayerId: SELF_ID });
+    const carrier = player("Maya", { id: SELF_ID, carryingPlayerId: ana.id });
+    const v = view({ ...inSession, players: [carrier, ana], dungeon: dungeon() });
+    expect(actionPrompt(v, carrier, origin)).toEqual({ action: "carry", keyHint: "C", text: "Drop Ana" });
   });
 });

@@ -1,14 +1,8 @@
-import { bankEntries, inventorySlotLabels, torchStatusLabel } from "../../state/hudView.js";
+import { bankEntries } from "../../state/hudView.js";
 import type { PlayerState } from "../../../shared/types/core.js";
-import { createStat } from "./dom.js";
 
-/** The item slots, the torch indicator, and the bank panel. */
+/** The bank panel; the item slots and torch live in the hotbar. */
 export function createInventory() {
-  const slots = document.createElement("ol");
-  slots.className = "hud__inventory";
-
-  const torchStatus = createStat("Torch", "none");
-
   const bankHeading = document.createElement("p");
   bankHeading.className = "hud__bank-heading";
   bankHeading.textContent = "Banked this session";
@@ -17,23 +11,10 @@ export function createInventory() {
   bank.className = "hud__bank";
 
   return {
-    slotsElement: slots,
-    torchElement: torchStatus.element,
     // Appended in this order by the HUD: bank heading, bank.
     bankElements: [bankHeading, bank] as const,
 
     update(self: PlayerState | null) {
-      slots.replaceChildren(
-        ...inventorySlotLabels(self?.inventory ?? []).map((label) => {
-          const item = document.createElement("li");
-          item.className = "hud__inventory-slot";
-          item.textContent = label;
-          return item;
-        }),
-      );
-
-      torchStatus.value.textContent = torchStatusLabel(self);
-
       bank.replaceChildren(
         ...bankEntries(self?.bankedItems ?? []).map((entry) => {
           const item = document.createElement("li");

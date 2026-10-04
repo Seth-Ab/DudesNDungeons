@@ -5,7 +5,7 @@ import {
   PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
-import type { InventoryItem, PlayerState, RunState } from "../../shared/types/core.js";
+import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
   entranceMessage,
@@ -15,6 +15,9 @@ import {
   roomAt,
   torchNotice,
 } from "./runFlow.js";
+import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
+import { LOOT_SPRITES, type SpriteName } from "../rendering/tiles.js";
+import { carriedAlly, nearestDownedAlly, nearestInteraction, nearestLoot } from "./reach.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
 /**
@@ -81,27 +84,74 @@ export function barView(current: number, max: number): BarView {
   return { ratio, text: `${Math.round(current)}` };
 }
 
+/** Health below this fraction (while still alive) puts the bar in its pulsing warning state. */
+export const LOW_HEALTH_RATIO = 0.25;
+
+export interface HealthBarView extends BarView {
+  low: boolean;
+}
+
+export interface ResistanceBarView extends BarView {
+  /** Resistance is draining on the server's run clock. */
+  decaying: boolean;
+}
+
 export interface VitalsView {
-  health: BarView;
-  resistance: BarView;
+  health: HealthBarView;
+  resistance: ResistanceBarView;
   stamina: BarView;
 }
 
-export function vitalsView(self: PlayerState | null): VitalsView {
+/** Label glyphs, so the three bars differ by more than hue. */
+export const VITAL_GLYPHS = { health: "♥", resistance: "◆", stamina: "»", decaying: "▼" } as const;
+
+/** Health reads as `current/max`; resistance is a modifier, so it keeps the bare number. */
+export function healthBarView(current: number, max: number): HealthBarView {
+  const bar = barView(current, max);
   return {
-    health: barView(self?.health ?? 0, PLAYER_MAX_HEALTH),
-    resistance: barView(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE),
-    stamina: barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA),
+    ratio: bar.ratio,
+    text: `${Math.round(Math.max(0, current))}/${Math.round(max)}`,
+    low: current > 0 && bar.ratio < LOW_HEALTH_RATIO,
   };
 }
 
+export function vitalsView(self: PlayerState | null, run: RunState | null = null): VitalsView {
+  const resistance = barView(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE);
+  return {
+    health: healthBarView(self?.health ?? 0, PLAYER_MAX_HEALTH),
+    resistance: { ...resistance, decaying: self !== null && run?.decaying === true && resistance.ratio > 0 },
+    // No number: stamina is felt in the moment, not read.
+    stamina: { ...barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA), text: "" },
+  };
+}
+
+export type VitalChange = "damage" | "heal" | null;
+
 /**
- * What to say about resistance decay. Silent until the server says decay is close, so the warning
+ * What changed between two consecutive snapshots of the local player's health, for the flash.
+ * `previous` is null on the first snapshot and after the player disappears, so joining or
+ * respawning is not reported as a heal.
+ */
+export function vitalChange(previous: number | null, current: number | null): VitalChange {
+  if (previous === null || current === null) return null;
+  if (current < previous) return "damage";
+  if (current > previous) return "heal";
+  return null;
+}
+
+/** True when the server has refused another action for lack of stamina since `previous`. */
+export function staminaRefused(previous: number, current: number): boolean {
+  return current > previous;
+}
+
+/**
+ * What to say about resistance decay before it starts. Silent until the server says decay is close, so the warning
  * means something when it does appear.
  */
 export function decayMessage(run: RunState | null): string {
   if (!run) return "";
-  if (run.decaying) return "Resistance is falling. Get out of the dungeon.";
+  // While it is falling the resistance bar says so; a toast on top would only repeat it.
+  if (run.decaying) return "";
   if (run.decayStartsInMs > RESISTANCE_DECAY_WARNING_MS) return "";
 
   return `Resistance starts falling in ${Math.ceil(run.decayStartsInMs / 1000)}s.`;
@@ -161,8 +211,6 @@ export interface ControlsView {
   /** Ready and Leave only mean something once the session has started. */
   sessionControlsDisabled: boolean;
   actionsDisabled: boolean;
-  carryLabel: string;
-  useDisabled: boolean[];
 }
 
 export function controlsView(view: SessionView, self: PlayerState | null): ControlsView {
@@ -172,8 +220,6 @@ export function controlsView(view: SessionView, self: PlayerState | null): Contr
   return {
     sessionControlsDisabled: !inSession,
     actionsDisabled: !canAct,
-    carryLabel: self?.carryingPlayerId ? "Drop" : "Carry",
-    useDisabled: Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => !canAct || !self?.inventory[slot]),
   };
 }
 
@@ -188,10 +234,6 @@ export function readyLabel(ready: boolean): string {
  */
 export function newServerAction(view: SessionView, lastShown: string | null): string | null {
   return view.lastAction && view.lastAction !== lastShown ? view.lastAction : null;
-}
-
-export function inventorySlotLabels(items: readonly InventoryItem[]): string[] {
-  return Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => items[slot]?.name ?? "-");
 }
 
 /**
@@ -240,4 +282,75 @@ export function rosterEntries(view: SessionView): RosterEntryView[] {
       self: player.id === view.selfId,
     };
   });
+}
+
+export interface HotbarSlotView {
+  /** The key hint printed in the slot, from the shared key-binding table. */
+  keyHint: string;
+  action: GameplayAction;
+  empty: boolean;
+  name: string;
+  icon: SpriteName | null;
+  disabled: boolean;
+}
+
+/** Three slots, always: an empty one is drawn as such so the bar does not change shape. */
+export function hotbarView(view: SessionView, self: PlayerState | null): HotbarSlotView[] {
+  const canAct = view.phase === "inSession" && (self?.health ?? 0) > 0;
+
+  return Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => {
+    const item = self?.inventory[slot];
+    const action = USE_SLOT_ACTIONS[slot] as GameplayAction;
+    return {
+      keyHint: keyLabel(action),
+      action,
+      empty: !item,
+      name: item?.name ?? "Empty",
+      icon: item ? LOOT_SPRITES[item.kind] : null,
+      disabled: !canAct || !item,
+    };
+  });
+}
+
+export interface ActionPromptView {
+  action: GameplayAction;
+  keyHint: string;
+  text: string;
+}
+
+/**
+ * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
+ * the local position only; the server still decides, and a wrong guess comes back as
+ * `actionRejected`. Priority: dropping a carried ally, lifting a downed one, loot, then doors and
+ * exits.
+ */
+export function actionPrompt(
+  view: SessionView,
+  self: PlayerState | null,
+  position: Vector2,
+): ActionPromptView | null {
+  if (view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return null;
+
+  const prompt = (action: GameplayAction, text: string): ActionPromptView => ({
+    action,
+    keyHint: keyLabel(action),
+    text,
+  });
+
+  const carried = carriedAlly(view, self);
+  if (carried) return prompt("carry", `Drop ${carried.name}`);
+
+  const downed = nearestDownedAlly(view, position);
+  if (downed) return prompt("carry", `Lift ${downed.name}`);
+
+  const loot = nearestLoot(view, position);
+  if (loot) return prompt("pickup", `Pick up ${loot.name}`);
+
+  const target = nearestInteraction(view, position);
+  if (target?.kind === "door") return prompt("interact", "Open door");
+  if (target?.kind === "exit") {
+    return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
+  }
+
+  return null;
 }

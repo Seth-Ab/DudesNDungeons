@@ -5,6 +5,7 @@ import {
 } from "../../shared/constants/game.js";
 import { coversTile, distance, tileAt, tileOf } from "../../shared/game/movement.js";
 import type {
+  DungeonMapState,
   DungeonState,
   LightSourceState,
   PlayerId,
@@ -171,30 +172,94 @@ export function visibleTilesForPlayer(
   sources = activeLightSourcesForPlayer(session, viewer),
 ): Set<string> {
   const visible = new Set<string>();
-  const { map } = session.dungeon;
+  const doors = doorSignature(session.dungeon);
 
   for (const source of sources) {
-    const minX = Math.max(0, Math.floor(source.origin.x - source.radius));
-    const maxX = Math.min(map.width - 1, Math.ceil(source.origin.x + source.radius));
-    const minY = Math.max(0, Math.floor(source.origin.y - source.radius));
-    const maxY = Math.min(map.height - 1, Math.ceil(source.origin.y + source.radius));
-
-    for (let y = minY; y <= maxY; y += 1) {
-      for (let x = minX; x <= maxX; x += 1) {
-        const key = tileKey(x, y);
-        // Another source already lit it, and the raycast is the expensive part.
-        if (visible.has(key)) continue;
-
-        const center = { x, y };
-        if (distance(source.origin, center) > source.radius) continue;
-        if (!hasLineOfSight(session.dungeon, source.origin, center)) continue;
-
-        visible.add(key);
-      }
+    if (source.kind === "fixed") {
+      for (const key of fixedLightTiles(session.dungeon, source, doors)) visible.add(key);
+    } else {
+      lightFrom(session.dungeon, source, visible);
     }
   }
 
   return visible;
+}
+
+/**
+ * What each fixed light reveals, per dungeon and per arrangement of open doors.
+ *
+ * A fixed light never moves, so what it lights changes only when a door does. Raycasting it afresh
+ * for every viewer on every tick was the single largest cost on the server: the hub's hearth lights
+ * the entire hall, and recomputing that took several milliseconds per player, twenty times a second.
+ * Keyed weakly by the map, so a rebuilt world drops its cache along with itself.
+ */
+const fixedLightCache = new WeakMap<DungeonMapState, Map<string, readonly string[]>>();
+
+function doorSignature(dungeon: DungeonState): string {
+  return dungeon.doors.map((door) => (door.open ? "1" : "0")).join("");
+}
+
+function fixedLightTiles(
+  dungeon: DungeonState,
+  source: ActiveLightSource,
+  doors: string,
+): readonly string[] {
+  let cache = fixedLightCache.get(dungeon.map);
+  if (!cache) {
+    cache = new Map();
+    fixedLightCache.set(dungeon.map, cache);
+  }
+
+  const key = `${source.id}|${doors}`;
+  let tiles = cache.get(key);
+  if (!tiles) {
+    const lit = new Set<string>();
+    lightFrom(dungeon, source, lit);
+    tiles = [...lit];
+    cache.set(key, tiles);
+  }
+
+  return tiles;
+}
+
+/**
+ * Adds what one light reveals to `visible`: every tile in its radius with a clear line to it, and
+ * every wall bordering one of those floor tiles.
+ *
+ * The walls are the second half for a reason. A ray aimed at a wall tile's centre only clears when it
+ * meets that tile head on; down a corridor it grazes along the wall and enters the wall row a tile or
+ * two early. Judged by rays alone, the walls a few tiles ahead were never lit, so corridors drew as
+ * floor hanging in the void and rooms lost every stretch of wall seen at a shallow angle. A wall
+ * bordering lit floor is the face of that floor's boundary, and at `TILE_SCALE` every wall is at
+ * least four tiles thick, so this never reveals anything on the far side of one.
+ */
+function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: Set<string>): void {
+  const { map } = dungeon;
+  const minX = Math.max(0, Math.floor(source.origin.x - source.radius));
+  const maxX = Math.min(map.width - 1, Math.ceil(source.origin.x + source.radius));
+  const minY = Math.max(0, Math.floor(source.origin.y - source.radius));
+  const maxY = Math.min(map.height - 1, Math.ceil(source.origin.y + source.radius));
+
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const key = tileKey(x, y);
+      // Another source already lit it, and its walls with it; the raycast is the expensive part.
+      if (visible.has(key)) continue;
+
+      const center = { x, y };
+      if (distance(source.origin, center) > source.radius) continue;
+      if (!hasLineOfSight(dungeon, source.origin, center)) continue;
+
+      visible.add(key);
+      if (tileAt(map, x, y) === "#") continue;
+
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (tileAt(map, x + dx, y + dy) === "#") visible.add(tileKey(x + dx, y + dy));
+        }
+      }
+    }
+  }
 }
 
 function tileVisible(visible: Set<string>, position: Vector2): boolean {

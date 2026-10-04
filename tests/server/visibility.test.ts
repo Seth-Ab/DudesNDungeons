@@ -92,6 +92,34 @@ describe("line of sight", () => {
     expect(visible.has("3,1")).toBe(false);
   });
 
+  it("lights the walls of a corridor all the way along, not only beside the viewer", () => {
+    // A ray aimed at a wall far down a corridor grazes the wall row and enters it a tile early, so
+    // judged by line of sight alone, a corridor drew as a strip of floor with no walls at all.
+    const viewer = testPlayer("viewer", { position: { x: 1, y: 3 } });
+    const session = testSession([viewer]);
+    session.dungeon.map = flatMap([
+      "##############",
+      "##############",
+      "#............#",
+      "#............#",
+      "#............#",
+      "#............#",
+      "##############",
+      "##############",
+    ]);
+    session.dungeon.doors = [];
+    session.dungeon.lightSources = [];
+    const visible = visibleTilesForPlayer(session, viewer);
+
+    for (let x = 0; x <= 10; x += 1) {
+      expect(visible.has(`${x},1`), `north wall at ${x}`).toBe(true);
+      expect(visible.has(`${x},6`), `south wall at ${x}`).toBe(true);
+    }
+    // Only the face: the wall's far side is not lit through the wall.
+    expect(visible.has("8,0")).toBe(false);
+    expect(visible.has("8,7")).toBe(false);
+  });
+
   /**
    * A closed door standing in a corridor, four world tiles across, exactly as `TILE_SCALE` makes
    * one authored doorway. The viewer stands two tiles west of its near edge.
