@@ -70,6 +70,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.simulatedAt = null;
   session.monsterCooldowns.clear();
   session.trapRearmAt.clear();
+  session.puzzleHeldSince.clear();
 
   for (const player of session.players.values()) {
     resetPlayerForWorld(player);

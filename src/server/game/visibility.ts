@@ -292,6 +292,16 @@ function visibleDungeon(
     traps: session.dungeon.traps
       .filter((trap) => tileVisible(visible, trap.position))
       .map((trap) => ({ ...trap, position: { ...trap.position } })),
+    // A puzzle is sent once any plate is in view, but only with the plates the viewer can see: the
+    // far half of a paired puzzle is not on their map until they have looked at it.
+    puzzles: session.dungeon.puzzles
+      .map((puzzle) => ({
+        ...puzzle,
+        plates: puzzle.plates
+          .filter((plate) => tileVisible(visible, plate.position))
+          .map((plate) => ({ ...plate, position: { ...plate.position } })),
+      }))
+      .filter((puzzle) => puzzle.plates.length > 0),
     doors: session.dungeon.doors
       .filter((door) => viewer.discoveredTiles.has(tileKey(tileOf(door.position).x, tileOf(door.position).y)))
       .map((door) => ({ ...door, position: { ...door.position } })),

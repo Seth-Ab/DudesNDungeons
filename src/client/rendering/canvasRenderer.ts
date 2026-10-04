@@ -56,6 +56,9 @@ const colors = {
   loot: "#d6a84c",
   trapArmed: "#b5452f",
   trapSpent: "#4a3c36",
+  plateIdle: "#5b6f8c",
+  plateHeld: "#d9b44a",
+  plateSolved: "#4f8a5b",
   door: "#8f6335",
   openDoor: "#3d3a2d",
   exit: "#6aa36f",
@@ -586,6 +589,17 @@ export function createCanvasRenderer(getScene: () => Scene) {
     // which plates are safe to cross.
     scene.dungeon.traps.forEach((trap) =>
       drawWorldRect(trap.position, 1.1, trap.phase === "armed" ? colors.trapArmed : colors.trapSpent, camera),
+    );
+    // Placeholder plates until puzzle art exists: blue while free, gold while held, green once solved.
+    scene.dungeon.puzzles.forEach((puzzle) =>
+      puzzle.plates.forEach((plate) =>
+        drawWorldRect(
+          plate.position,
+          1.4,
+          puzzle.phase === "solved" ? colors.plateSolved : plate.held ? colors.plateHeld : colors.plateIdle,
+          camera,
+        ),
+      ),
     );
     scene.dungeon.lightSources.forEach((light) => drawLightSource(light, camera));
     scene.dungeon.loot.filter((loot) => !loot.pickedUp).forEach((loot) => drawLoot(loot, camera));

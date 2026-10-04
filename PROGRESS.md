@@ -10,7 +10,18 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: server-authoritative traps, the traps item of Backend step 12 (issue #33),
+- Last completed work: server-authoritative cooperative puzzles, the puzzle item of Backend step 12
+  (issue #32), under protocol v13. Puzzle types live in `content/puzzles/` (`plateRadius`,
+  `holdMs`, `minHoldMs`, `holdReductionMsPerPower`, `rewardItemId`); room templates spawn them with
+  `puzzles` rules and authored dungeons place them. `src/server/game/puzzles.ts` assigns each
+  plate its nearest standing, connected player (one plate per player), and a puzzle completes when
+  every plate is held at once for the required time. Stepping off, going down, or disconnecting
+  resets the hold to zero. `puzzlePowerBonus` is consumed here: the summed bonus of the current
+  holders shortens the hold per point, floored at `minHoldMs` (new Lever Sense skill grants it).
+  Solving drops the reward item on the first plate and leaves the puzzle `solved` for the run.
+  Snapshots carry `dungeon.puzzles` with held plates and progress, only plates on visible tiles.
+  Paired Levers now uses it instead of a static key; the client draws placeholder plates.
+- Before that: server-authoritative traps, the traps item of Backend step 12 (issue #33),
   under protocol v12. Trap types live in `content/traps/` (radius, `damage`, `resistanceLoss`,
   `staminaDrain`, optional `rearmMs`) and are validated at startup; room templates spawn them with
   `traps` rules and authored dungeons place them. `src/server/game/traps.ts` fires an armed trap
@@ -238,7 +249,9 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 - [x] Add traps as server-resolved triggers. `content/traps/`, `src/server/game/traps.ts`; the
   Collapsing Span room uses them. Trigger kind is movement/proximity only; interaction-based
   disarming is future work.
-- [ ] Add puzzle objects that need two or more players at once.
+- [x] Add puzzle objects that need two or more players at once. `content/puzzles/`,
+  `src/server/game/puzzles.ts`; held pressure plates, the Paired Levers room uses them. Paired
+  levers and puzzle gates beyond a loot reward (e.g. unlocking a door) are future work.
 - [ ] Add boss monsters and rooms that gate on them.
 - [x] Add lifting and carrying for downed players, spending step 7's stamina costs and paying a
   movement penalty. `src/server/game/carrying.ts`. Carryable objects have no content yet (nothing

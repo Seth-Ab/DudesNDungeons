@@ -208,6 +208,36 @@ export const trapStateSchema = z.object({
 });
 export type TrapState = z.infer<typeof trapStateSchema>;
 
+/** `idle` is still waiting on its plates; `solved` has paid out its reward for the rest of the run. */
+export const puzzlePhaseSchema = z.enum(["idle", "solved"]);
+export type PuzzlePhase = z.infer<typeof puzzlePhaseSchema>;
+
+export const puzzlePlateStateSchema = z.object({
+  position: vector2Schema,
+  /** True while a standing, connected player is on this plate. */
+  held: z.boolean(),
+});
+export type PuzzlePlateState = z.infer<typeof puzzlePlateStateSchema>;
+
+/**
+ * A server-resolved cooperative puzzle: every plate must be held by a different player at once,
+ * and kept held for a while. The client sees the plates, whether each is held, and how far the
+ * hold has got; the hold time, the reward, and who counts as holding are the server's.
+ */
+export const puzzleStateSchema = z.object({
+  id: entityIdSchema,
+  typeId: contentIdSchema,
+  name: z.string().min(1),
+  /** Reach of each plate in world units, so a client can draw the footprint to stand in. */
+  radius: z.number().positive(),
+  phase: puzzlePhaseSchema,
+  /** Only plates on tiles the viewer can currently see. */
+  plates: z.array(puzzlePlateStateSchema),
+  /** Fraction of the required hold completed, 0 to 1. Resets to 0 the moment a plate is released. */
+  progress: z.number().min(0).max(1),
+});
+export type PuzzleState = z.infer<typeof puzzleStateSchema>;
+
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
   /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
@@ -218,6 +248,8 @@ export const dungeonStateSchema = z.object({
   exits: z.array(exitStateSchema),
   /** Only traps on tiles the viewer can currently see, like loot. */
   traps: z.array(trapStateSchema),
+  /** Only puzzles with a plate on a tile the viewer can currently see. */
+  puzzles: z.array(puzzleStateSchema),
   lightSources: z.array(lightSourceStateSchema),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;

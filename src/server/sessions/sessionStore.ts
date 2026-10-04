@@ -117,6 +117,8 @@ export interface Session {
   monsterCooldowns: Map<EntityId, number>;
   /** When each triggered, rearming trap may be armed again. Server-side only. */
   trapRearmAt: Map<EntityId, number>;
+  /** When each puzzle's plates all became held at once. Absent while any plate is free. */
+  puzzleHeldSince: Map<EntityId, number>;
 }
 
 export interface JoinRequest {
@@ -223,6 +225,7 @@ export class SessionStore {
       simulatedAt: null,
       monsterCooldowns: new Map(),
       trapRearmAt: new Map(),
+      puzzleHeldSince: new Map(),
     };
     this.#sessions.set(roomCode, session);
     return session;

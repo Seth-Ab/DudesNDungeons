@@ -33,6 +33,7 @@ function authoredCorridor(): BuiltDungeon {
       monsters: [],
       loot: [],
       traps: [],
+      puzzles: [],
       doors: [
         {
           id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
