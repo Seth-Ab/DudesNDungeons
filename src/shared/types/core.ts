@@ -186,6 +186,28 @@ export const lightSourceStateSchema = z.object({
 });
 export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
 
+/**
+ * `armed` can fire when a standing player is in reach, `triggered` has fired and is waiting to
+ * rearm, and `disabled` is spent for the rest of the run.
+ */
+export const trapPhaseSchema = z.enum(["armed", "triggered", "disabled"]);
+export type TrapPhase = z.infer<typeof trapPhaseSchema>;
+
+/**
+ * A server-resolved hazard. The client sees where it is and what phase it is in, never what it does:
+ * damage, resistance loss, and stamina drain are content the server applies on a trigger.
+ */
+export const trapStateSchema = z.object({
+  id: entityIdSchema,
+  typeId: contentIdSchema,
+  name: z.string().min(1),
+  position: vector2Schema,
+  /** Reach of the trigger in world units, so a client can draw the footprint it must avoid. */
+  radius: z.number().positive(),
+  phase: trapPhaseSchema,
+});
+export type TrapState = z.infer<typeof trapStateSchema>;
+
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
   /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
@@ -194,6 +216,8 @@ export const dungeonStateSchema = z.object({
   loot: z.array(lootStateSchema),
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),
+  /** Only traps on tiles the viewer can currently see, like loot. */
+  traps: z.array(trapStateSchema),
   lightSources: z.array(lightSourceStateSchema),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;

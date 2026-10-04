@@ -289,6 +289,9 @@ function visibleDungeon(
     loot: session.dungeon.loot
       .filter((loot) => !loot.pickedUp && tileVisible(visible, loot.position))
       .map((loot) => ({ ...loot, position: { ...loot.position } })),
+    traps: session.dungeon.traps
+      .filter((trap) => tileVisible(visible, trap.position))
+      .map((trap) => ({ ...trap, position: { ...trap.position } })),
     doors: session.dungeon.doors
       .filter((door) => viewer.discoveredTiles.has(tileKey(tileOf(door.position).x, tileOf(door.position).y)))
       .map((door) => ({ ...door, position: { ...door.position } })),

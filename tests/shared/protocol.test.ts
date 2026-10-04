@@ -332,6 +332,7 @@ describe("parseServerMessage", () => {
             pickedUp: false,
           },
         ],
+        traps: [],
         doors: [],
         exits: [],
         lightSources: [

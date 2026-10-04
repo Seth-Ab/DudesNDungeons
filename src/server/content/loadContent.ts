@@ -8,12 +8,14 @@ import {
   monsterTypeSchema,
   roomTemplateSchema,
   skillDefinitionSchema,
+  trapTypeSchema,
   upgradeDefinitionSchema,
   type DungeonDefinition,
   type ItemDefinition,
   type MonsterType,
   type RoomTemplate,
   type SkillDefinition,
+  type TrapType,
   type UpgradeDefinition,
 } from "./schema.js";
 
@@ -32,6 +34,7 @@ export interface GameContent {
   items: ReadonlyMap<string, ItemDefinition>;
   skills: ReadonlyMap<string, SkillDefinition>;
   upgrades: ReadonlyMap<string, UpgradeDefinition>;
+  traps: ReadonlyMap<string, TrapType>;
   templates: ReadonlyMap<string, RoomTemplate>;
   dungeons: ReadonlyMap<string, DungeonDefinition>;
 }
@@ -229,6 +232,12 @@ function validateReferences(content: GameContent): void {
       }
     }
 
+    for (const rule of template.traps) {
+      if (!content.traps.has(rule.typeId)) {
+        throw new Error(`${label} spawns unknown trap type "${rule.typeId}"`);
+      }
+    }
+
     for (const rule of template.loot) {
       if (!content.items.has(rule.itemId)) {
         throw new Error(`${label} spawns unknown item "${rule.itemId}"`);
@@ -245,6 +254,11 @@ function validateReferences(content: GameContent): void {
       for (const placed of dungeon.monsters) {
         if (!content.monsters.has(placed.typeId)) {
           throw new Error(`${label} places unknown monster type "${placed.typeId}"`);
+        }
+      }
+      for (const placed of dungeon.traps) {
+        if (!content.traps.has(placed.typeId)) {
+          throw new Error(`${label} places unknown trap type "${placed.typeId}"`);
         }
       }
       for (const placed of dungeon.loot) {
@@ -272,6 +286,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
     upgrades: loadCollection(join(contentRoot, "upgrades"), upgradeDefinitionSchema),
+    traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     templates: loadCollection(join(contentRoot, "dungeons", "templates"), roomTemplateSchema),
     dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema),
   };

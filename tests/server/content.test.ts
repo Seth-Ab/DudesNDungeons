@@ -48,6 +48,8 @@ describe("the shipped content", () => {
     });
     expect(content.upgrades.has("iron-will-steeled")).toBe(true);
     expect(content.templates.size).toBeGreaterThan(0);
+    expect(content.traps.has("spike-plate")).toBe(true);
+    expect(content.templates.get("collapsing-span")?.traps.length).toBeGreaterThan(0);
     expect(content.items.get("travelers-torch")?.kind).toBe("torch");
     expect(content.dungeons.has("hub")).toBe(true);
     expect(content.dungeons.has("ember-vault")).toBe(true);
@@ -193,6 +195,29 @@ describe("rejecting bad content", () => {
     });
 
     expect(() => loadContent(root)).toThrow(/unknown monster type "no-such-monster"/);
+  });
+
+  it("refuses a template spawning a trap that does not exist", () => {
+    const root = contentRoot({
+      "dungeons/templates/hall.json": {
+        id: "hall",
+        name: "Hall",
+        kind: "trap",
+        tiles: ["###", "#.#", "###"],
+        doorways: [{ x: 0, y: 1, side: "west" }],
+        traps: [{ typeId: "no-such-trap", min: 1, max: 1 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/unknown trap type "no-such-trap"/);
+  });
+
+  it("refuses a trap with no effect", () => {
+    const root = contentRoot({
+      "traps/dud.json": { id: "dud", name: "Dud", radius: 1 },
+    });
+
+    expect(() => loadContent(root)).toThrow(/at least one effect/);
   });
 
   it("refuses a ragged map, which collision would read past the end of", () => {

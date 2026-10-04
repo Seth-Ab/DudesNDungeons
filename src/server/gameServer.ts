@@ -18,6 +18,7 @@ import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
+import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
 import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
@@ -332,6 +333,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
+        // A step onto a plate fires it now rather than at the next tick, so the snapshot this move
+        // publishes already carries the result.
+        resolveTraps(member.session, now());
         publish(member.session);
         return;
       }

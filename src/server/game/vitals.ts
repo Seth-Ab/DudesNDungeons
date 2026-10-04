@@ -65,6 +65,20 @@ export function restoreResistance(
   return true;
 }
 
+/** Removes resistance outright, floored at zero. It never comes back by resting. */
+export function reduceResistance(player: SessionPlayer, amount: number): number {
+  const lost = Math.min(Math.max(0, amount), player.resistance);
+  player.resistance -= lost;
+  return lost;
+}
+
+/** Removes stamina outright, floored at zero. Unlike `spendStamina` it cannot be refused. */
+export function loseStamina(player: SessionPlayer, amount: number): number {
+  const lost = Math.min(Math.max(0, amount), player.stamina);
+  player.stamina -= lost;
+  return lost;
+}
+
 /** Pays a one-off stamina cost. Returns false and spends nothing when the player cannot afford it. */
 export function spendStamina(player: SessionPlayer, cost: number): boolean {
   if (cost <= 0) return true;

@@ -17,5 +17,10 @@
   ],
   "lights": [],
   "monsters": [{ "typeId": "cinder-slime", "min": 0, "max": 2 }],
-  "loot": [{ "itemId": "warding-salve", "min": 1, "max": 1 }]
+  "loot": [{ "itemId": "warding-salve", "min": 1, "max": 1 }],
+  "traps": [
+    { "typeId": "spike-plate", "min": 1, "max": 2 },
+    { "typeId": "ember-vent", "min": 1, "max": 1 },
+    { "typeId": "snare-wire", "min": 1, "max": 2 }
+  ]
 }
