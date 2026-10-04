@@ -287,6 +287,17 @@ describe("the run lifecycle", () => {
 
     expect(view.lastAction).toBe("Not enough stamina.");
   });
+
+  it("counts stamina refusals, and only those", () => {
+    const refuse = (view: SessionView, reason: "exhausted" | "blocked") =>
+      applyServerMessage(view, { type: "actionRejected", sequence: null, reason });
+
+    let view = refuse(joinedView(), "exhausted");
+    view = refuse(view, "exhausted");
+    view = refuse(view, "blocked");
+
+    expect(view.staminaRefusals).toBe(2);
+  });
 });
 
 describe("errors", () => {
