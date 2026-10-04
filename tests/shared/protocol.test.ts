@@ -364,6 +364,7 @@ describe("parseServerMessage", () => {
             health: 12,
             maxHealth: 12,
             alive: true,
+            boss: false,
           },
         ],
         loot: [
@@ -378,7 +379,14 @@ describe("parseServerMessage", () => {
         traps: [],
         puzzles: [],
         doors: [],
-        exits: [],
+        exits: [
+          {
+            id: "88888888-8888-4888-8888-888888888888",
+            position: { x: 1, y: 1 },
+            destination: "hub",
+            sealed: true,
+          },
+        ],
         lightSources: [
           {
             id: "77777777-7777-4777-8777-777777777777",

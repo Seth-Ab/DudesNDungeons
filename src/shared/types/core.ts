@@ -65,6 +65,11 @@ export const monsterStateSchema = z.object({
   health: z.number().int().nonnegative(),
   maxHealth: z.number().int().positive(),
   alive: z.boolean(),
+  /**
+   * A boss seals every exit in its dungeon until it falls. Only ever sent for a monster the viewer
+   * can see, so it says what this monster is, never where an unseen boss is waiting.
+   */
+  boss: z.boolean(),
 });
 export type MonsterState = z.infer<typeof monsterStateSchema>;
 
@@ -139,6 +144,11 @@ export const exitStateSchema = z.object({
   id: entityIdSchema,
   position: vector2Schema,
   destination: z.string().min(1),
+  /**
+   * True while a boss in this dungeon still lives, and the server refuses the escape. It says the
+   * way out is barred, not by what or from where: a boss is only on a client's map once seen.
+   */
+  sealed: z.boolean(),
 });
 export type ExitState = z.infer<typeof exitStateSchema>;
 

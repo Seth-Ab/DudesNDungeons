@@ -7,7 +7,10 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 
 - `items/`: live item definitions. Keys, tonics, wards, and skill scrolls use the three-slot
   inventory. Torches equip separately and must be deliberately picked up in the hub or dungeon.
-- `monsters/`: monster stats used by authored and generated dungeons.
+- `monsters/`: monster stats used by authored and generated dungeons. A monster with `boss: true`
+  seals every exit in its dungeon until it is defeated. It may only spawn in a `boss` room
+  template (or inside an authored room of kind `boss`), and every `boss` template must have a boss
+  rule with `min` of at least 1.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
   delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a

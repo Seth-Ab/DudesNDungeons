@@ -49,6 +49,7 @@ export function monsterInstance(type: MonsterType, position: Vector2, id: string
     health: type.maxHealth,
     maxHealth: type.maxHealth,
     alive: true,
+    boss: type.boss,
   };
 }
 
@@ -166,6 +167,7 @@ export function buildAuthoredDungeon(
     id: authoredId(placed.entityId, rng),
     position: { x: placed.x, y: placed.y },
     destination: placed.destination,
+    sealed: false,
   }));
 
   const lightSources: LightSourceState[] = definition.lights.map((placed) => ({

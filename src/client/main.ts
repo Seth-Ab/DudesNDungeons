@@ -27,7 +27,12 @@ import {
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
 import { nearestDownedAlly, nearestInteraction, nearestLoot } from "./state/reach.js";
-import { entranceMessage, entranceStatus, gatePrompt } from "./state/runFlow.js";
+import {
+  entranceMessage,
+  entranceStatus,
+  gatePrompt,
+  SEALED_EXIT_MESSAGE,
+} from "./state/runFlow.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createHud } from "./ui/hud.js";
 import { createLobby } from "./ui/lobby.js";
@@ -225,6 +230,13 @@ function performAction(action: GameplayAction): void {
         }
       }
 
+      // The other refusal worth a sentence: a living boss seals the way out. Same mirror, same
+      // rule that the server still decides.
+      if (view.location === "dungeon" && isSealedExit(targetId)) {
+        hud.setActionStatus(SEALED_EXIT_MESSAGE);
+        return;
+      }
+
       client.interact(targetId);
       return;
     }
@@ -267,6 +279,10 @@ function useInventorySlot(slot: number): void {
 
 function isExit(targetId: EntityId): boolean {
   return view.dungeon?.exits.some((exit) => exit.id === targetId) ?? false;
+}
+
+function isSealedExit(targetId: EntityId): boolean {
+  return view.dungeon?.exits.some((exit) => exit.id === targetId && exit.sealed) ?? false;
 }
 
 function nearestDownedPlayerId(): EntityId | null {

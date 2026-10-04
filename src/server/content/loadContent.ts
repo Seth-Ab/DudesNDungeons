@@ -236,9 +236,23 @@ function validateReferences(content: GameContent): void {
     }
 
     for (const rule of template.monsters) {
-      if (!content.monsters.has(rule.typeId)) {
+      const type = content.monsters.get(rule.typeId);
+      if (!type) {
         throw new Error(`${label} spawns unknown monster type "${rule.typeId}"`);
       }
+      // A boss seals the exit wherever it stands, so one loose in a hall would gate the run on a
+      // fight the party was never told was a boss fight.
+      if (type.boss && template.kind !== "boss") {
+        throw new Error(`${label} spawns boss "${rule.typeId}" outside a boss room`);
+      }
+    }
+
+    // And the other way round: a boss room that can roll no boss is an empty room with a big name.
+    if (
+      template.kind === "boss" &&
+      !template.monsters.some((rule) => rule.min > 0 && content.monsters.get(rule.typeId)?.boss)
+    ) {
+      throw new Error(`${label} is a boss room that does not always spawn a boss`);
     }
 
     for (const rule of template.traps) {
@@ -272,8 +286,20 @@ function validateReferences(content: GameContent): void {
       assertRectangular(label, dungeon.tiles);
 
       for (const placed of dungeon.monsters) {
-        if (!content.monsters.has(placed.typeId)) {
+        const type = content.monsters.get(placed.typeId);
+        if (!type) {
           throw new Error(`${label} places unknown monster type "${placed.typeId}"`);
+        }
+        const inBossRoom = dungeon.rooms.some(
+          (room) =>
+            room.kind === "boss" &&
+            placed.x >= room.x &&
+            placed.x < room.x + room.width &&
+            placed.y >= room.y &&
+            placed.y < room.y + room.height,
+        );
+        if (type.boss && !inBossRoom) {
+          throw new Error(`${label} places boss "${placed.typeId}" outside a boss room`);
         }
       }
       for (const placed of dungeon.traps) {

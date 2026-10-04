@@ -59,6 +59,7 @@ export function createPlaceholderDungeon(): DungeonState {
         health: 10,
         maxHealth: 10,
         alive: true,
+        boss: false,
       },
       {
         id: "22222222-2222-4222-8222-222222222222",
@@ -68,6 +69,7 @@ export function createPlaceholderDungeon(): DungeonState {
         health: 14,
         maxHealth: 14,
         alive: true,
+        boss: false,
       },
     ],
     lightSources: [

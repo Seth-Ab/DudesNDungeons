@@ -1,6 +1,7 @@
 import { tileOf } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
+  ExitState,
   InventoryItem,
   PlayerState,
   RoomState,
@@ -54,6 +55,21 @@ export function gatePrompt(players: readonly PlayerState[]): string {
 
   return `Waiting on ${status.waitingOn.length} of ${players.length}`;
 }
+
+/**
+ * What the sign over an exit says. A sealed exit is the server refusing the escape while a boss
+ * lives, so it is named before the party walks up to it rather than after a bare `notPermitted`.
+ * It says nothing about where the boss is: the client only learns that from seeing it.
+ */
+export function exitCaption(location: SessionLocation | null, exit: ExitState): string {
+  if (location === "hub") return "Dungeon Gate";
+  return exit.sealed ? "Way Out (Sealed)" : "Way Out";
+}
+
+export const SEALED_EXIT_PROMPT = "Defeat the boss to escape";
+
+/** The interact refusal for a sealed exit, answered locally like an unready party at the gate. */
+export const SEALED_EXIT_MESSAGE = "The way out is sealed. Defeat the boss to escape.";
 
 /** "Maya", "Maya and Sam", "Maya, Sam and Iris". */
 function nameList(names: readonly string[]): string {

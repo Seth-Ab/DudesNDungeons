@@ -115,6 +115,7 @@ describe("predictMove", () => {
       name: "Imp",
       health: 5,
       maxHealth: 5,
+      boss: false,
     };
     const living = dungeon({ monsters: [{ ...monster, position: ahead, alive: true }] });
     const dead = dungeon({ monsters: [{ ...monster, position: ahead, alive: false }] });

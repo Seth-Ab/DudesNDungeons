@@ -9,6 +9,7 @@ import { distance, isOpen, normalizeDirection } from "../../shared/game/movement
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor } from "./dungeonState.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
@@ -103,6 +104,8 @@ export function resolvePlayerAttack(
   const dealt = Math.min(damage, target.health);
   target.health -= dealt;
   target.alive = target.health > 0;
+  // The last boss falling is what unseals the way out.
+  if (target.boss && !target.alive) refreshExitSeals(session.dungeon);
 
   return {
     ok: true,

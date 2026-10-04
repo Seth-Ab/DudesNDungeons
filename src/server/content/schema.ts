@@ -40,7 +40,10 @@ export const monsterTypeSchema = z.object({
   attackCooldownMs: z.number().int().positive(),
   /** Light a living monster gives off, in world units. Omitted for monsters that do not glow. */
   glowRadius: z.number().positive().optional(),
-  /** Bosses gate their room. The gating itself is Backend step 12; this marks which ones do it. */
+  /**
+   * A boss seals every exit in its dungeon until it is defeated (`src/server/game/bosses.ts`). It
+   * may only spawn in a boss room, and every boss room must always spawn one.
+   */
   boss: z.boolean().default(false),
 });
 export type MonsterType = z.infer<typeof monsterTypeSchema>;
