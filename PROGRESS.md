@@ -811,3 +811,16 @@ Complete on `feature/hub-run-flow`.
   - Not done here, and the rest of Backend step 11: unlocking skills and applying their effects.
     `unlockedSkillIds` and `unlockedUpgradeIds` persist but stay empty. Frontend step 10 is their
     visible half and should follow that, not this.
+
+### 2026-10-03
+
+- Split `src/client/ui/hud.ts` into modules for issue #45, groundwork for the HUD redesign in
+  Frontend step 8. Behavior-preserving: same `createHud(options)` interface, DOM structure, and
+  classes.
+  - `src/client/ui/hud.ts` now only composes; DOM wiring lives in `src/client/ui/hud/`
+    (`vitals`, `inventory` for slots/torch/bank, `roster`, `actions`, `session` for connection
+    stats and ready/leave/controls/voice, `dom` helpers).
+  - What each element shows is decided by pure functions in `src/client/state/hudView.ts`
+    (connection label, vitals bars, notices, control enablement, roster, inventory, bank),
+    covered by `tests/client/hudView.test.ts`. There were no prior HUD tests to move.
+  - No visual or functional change; the redesign phases are separate follow-ups.
