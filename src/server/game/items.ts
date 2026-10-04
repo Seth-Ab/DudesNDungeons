@@ -129,6 +129,9 @@ export function interact(
   if (exit) {
     if (!withinReach(player, exit.position)) return reject("outOfRange");
     if (session.location === "hub") return startRun(session, now);
+    // A living boss bars the way out. Refused before anything is banked or rebuilt, so trying the
+    // exit early costs nothing and changes nothing.
+    if (exit.sealed) return reject("notPermitted");
 
     returnToHub(session, true);
     return OK;

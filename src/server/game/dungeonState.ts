@@ -9,6 +9,7 @@ import type { DungeonState, MonsterState, PlayerId, Vector2 } from "../../shared
 import { gameContent, type GameContent } from "../content/loadContent.js";
 import type { MonsterType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { refreshExitSeals } from "./bosses.js";
 import { buildAuthoredDungeon, type BuiltDungeon } from "./dungeonBuilder.js";
 import { generateDungeon } from "./dungeonGenerator.js";
 import { randomSeed } from "./random.js";
@@ -55,7 +56,10 @@ export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
 
   // Content is authored small and played large. Every session gets the scaled world; nothing
   // downstream of here ever sees authored tile coordinates.
-  return scaleDungeon(built);
+  const scaled = scaleDungeon(built);
+  // Builders leave every exit open; whether a boss bars it is decided here, once, for every layout.
+  refreshExitSeals(scaled.dungeon);
+  return scaled;
 }
 
 export type MoveResult =

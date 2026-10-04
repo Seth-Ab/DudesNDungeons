@@ -276,6 +276,62 @@ describe("rejecting bad content", () => {
   });
 });
 
+describe("boss content", () => {
+  const WARDEN = { ...ASH_IMP, id: "warden", name: "Warden", boss: true };
+  const room = (kind: string, monsters: unknown[]) => ({
+    id: "room",
+    name: "Room",
+    kind,
+    tiles: ["###", "#.#", "###"],
+    doorways: [{ x: 0, y: 1, side: "west" }],
+    monsters,
+  });
+
+  it("ships the Ember Warden as the boss of the Warden Crucible", () => {
+    const content = gameContent();
+    expect(content.monsters.get("ember-warden")?.boss).toBe(true);
+    expect(content.templates.get("warden-crucible")?.kind).toBe("boss");
+    expect(content.templates.get("warden-crucible")?.monsters).toContainEqual(
+      expect.objectContaining({ typeId: "ember-warden", min: 1 }),
+    );
+  });
+
+  it("refuses a boss spawning outside a boss room", () => {
+    const root = contentRoot({
+      "monsters/warden.json": WARDEN,
+      "dungeons/templates/room.json": room("hall", [{ typeId: "warden", min: 1, max: 1 }]),
+    });
+
+    expect(() => loadContent(root)).toThrow(/spawns boss "warden" outside a boss room/);
+  });
+
+  it("refuses a boss room that can roll no boss", () => {
+    const root = contentRoot({
+      "monsters/warden.json": WARDEN,
+      "dungeons/templates/room.json": room("boss", [{ typeId: "warden", min: 0, max: 1 }]),
+    });
+
+    expect(() => loadContent(root)).toThrow(/does not always spawn a boss/);
+  });
+
+  it("refuses an authored dungeon placing a boss outside a boss room", () => {
+    const root = contentRoot({
+      "monsters/warden.json": WARDEN,
+      "dungeons/keep.json": {
+        id: "keep",
+        name: "Keep",
+        layout: "authored",
+        tiles: ["#####", "#...#", "#####"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        rooms: [{ id: "hall", name: "Hall", kind: "hall", x: 0, y: 0, width: 5, height: 3 }],
+        monsters: [{ typeId: "warden", x: 3, y: 1 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/places boss "warden" outside a boss room/);
+  });
+});
+
 describe("puzzle content", () => {
   it("ships paired levers in the puzzle room template", () => {
     expect(gameContent().puzzles.has("paired-levers")).toBe(true);

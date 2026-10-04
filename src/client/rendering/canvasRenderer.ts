@@ -23,6 +23,7 @@ import {
   type SpriteName,
 } from "./tiles.js";
 import { loadTileset } from "./tileset.js";
+import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 
 /**
  * Screen pixels per world unit.
@@ -67,6 +68,8 @@ const colors = {
   areaBorder: "#6b5a3e",
   areaLabel: "#c9b184",
   gateLabel: "#9fd0a6",
+  sealedLabel: "#d0806a",
+  boss: "#8e2f3a",
 };
 
 /** Flat fills, used for the frames before the tilesheet has decoded and if it never does. */
@@ -309,12 +312,16 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.globalAlpha = 1;
   };
 
+  /**
+   * A boss is the same placeholder drawn bigger, darker, and named, until it has art of its own.
+   * Its name is the one monster label worth the clutter: it is the fight that holds the exit shut.
+   */
   const drawMonster = (monster: MonsterState, camera: Vector2): void => {
     const center = worldToScreen(monster.position, camera);
-    const side = figureWidth * 1.15 * pixelsPerWorldUnit;
+    const side = figureWidth * (monster.boss ? 1.9 : 1.15) * pixelsPerWorldUnit;
     const eye = Math.max(2, side * 0.18);
 
-    ctx.fillStyle = colors.monster;
+    ctx.fillStyle = monster.boss ? colors.boss : colors.monster;
     ctx.fillRect(center.x - side / 2, center.y - side / 2, side, side);
     ctx.fillStyle = "#2b0f0f";
     ctx.fillRect(center.x - side * 0.22 - eye / 2, center.y - side * 0.12, eye, eye);
@@ -327,6 +334,13 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.fillRect(center.x - barWidth / 2, barY, barWidth, 4);
     ctx.fillStyle = "#caa85a";
     ctx.fillRect(center.x - barWidth / 2, barY, healthWidth, 4);
+
+    if (monster.boss) {
+      ctx.fillStyle = colors.sealedLabel;
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(monster.name, center.x, barY - 6);
+    }
   };
 
   /**
@@ -524,19 +538,21 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     for (const exit of scene.dungeon.exits) {
       const center = worldToScreen(exit.position, camera);
-      const caption = scene.location === "hub" ? "Dungeon Gate" : "Way Out";
+      const caption = exitCaption(scene.location, exit);
       // Above the stairs rather than below them. Below is where a player stands to use them, and
       // the caption was drawn straight through their own name the moment they arrived.
       const captionY = center.y - (TILE_SCALE / 2) * pixelsPerWorldUnit - 8;
 
-      ctx.fillStyle = colors.gateLabel;
+      ctx.fillStyle = exit.sealed ? colors.sealedLabel : colors.gateLabel;
       ctx.font = "14px sans-serif";
       ctx.fillText(caption, center.x, captionY);
 
-      if (scene.location === "hub" && scene.gatePrompt) {
+      const prompt =
+        scene.location === "hub" ? scene.gatePrompt : exit.sealed ? SEALED_EXIT_PROMPT : null;
+      if (prompt) {
         ctx.fillStyle = colors.label;
         ctx.font = "12px sans-serif";
-        ctx.fillText(scene.gatePrompt, center.x, captionY - 16);
+        ctx.fillText(prompt, center.x, captionY - 16);
       }
     }
   };

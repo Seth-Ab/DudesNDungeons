@@ -10,7 +10,16 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: server-authoritative cooperative puzzles, the puzzle item of Backend step 12
+- Last completed work: boss encounters and escape gating, the boss item of Backend step 12
+  (issue #31), under protocol v14. A boss is monster content with `boss: true` (the Ember Warden);
+  content validation keeps bosses inside boss rooms and requires every boss room to always spawn
+  one. While any boss in the dungeon lives, every exit is `sealed` and `interact` refuses it with
+  `notPermitted` before anything is banked; the killing blow unseals it through
+  `src/server/game/bosses.ts`. Boss health, attacks, and defeat run on the existing monster model.
+  Snapshots carry `monster.boss` and `exit.sealed`, each only for entities the viewer can see. The
+  client draws the boss larger, darker, and named, captions a sealed exit, and answers a sealed
+  interact locally. Boss defeat lives on the session's dungeon, so it survives a reconnect.
+- Before that: server-authoritative cooperative puzzles, the puzzle item of Backend step 12
   (issue #32), under protocol v13. Puzzle types live in `content/puzzles/` (`plateRadius`,
   `holdMs`, `minHoldMs`, `holdReductionMsPerPower`, `rewardItemId`); room templates spawn them with
   `puzzles` rules and authored dungeons place them. `src/server/game/puzzles.ts` assigns each
@@ -252,7 +261,9 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 - [x] Add puzzle objects that need two or more players at once. `content/puzzles/`,
   `src/server/game/puzzles.ts`; held pressure plates, the Paired Levers room uses them. Paired
   levers and puzzle gates beyond a loot reward (e.g. unlocking a door) are future work.
-- [ ] Add boss monsters and rooms that gate on them.
+- [x] Add boss monsters and rooms that gate on them. `src/server/game/bosses.ts`; a living boss
+  seals every exit in its dungeon. One boss encounter (Ember Warden in the Warden Crucible) ships;
+  boss-specific attacks, art, and further bosses are future work.
 - [x] Add lifting and carrying for downed players, spending step 7's stamina costs and paying a
   movement penalty. `src/server/game/carrying.ts`. Carryable objects have no content yet (nothing
   in `content/` is marked liftable), so this covers the downed-player half of the item only; a
@@ -382,6 +393,18 @@ Complete on `feature/hub-run-flow`.
 
 ### 2026-10-03
 
+- Implemented boss encounters and gated escape on boss defeat for issue #31, under protocol v14.
+  Monster state carries `boss` from content and exits carry `sealed`; `refreshExitSeals` sets the
+  seal when a dungeon is built and again when a boss falls, and `interact` refuses a sealed exit
+  before `returnToHub` runs, so an early attempt banks and counts nothing. Content loading now
+  rejects a boss in a non-boss template or outside an authored boss room, and a boss template
+  whose boss rule can roll zero. A wipe rebuilds the run, so the next one has a fresh boss and a
+  sealed exit again. Visibility is unchanged in kind: the boss, its room, and the exit reach a
+  client only once seen, and `sealed` says the way out is barred without saying where the boss is.
+  The client draws the boss as a larger, darker, named placeholder (no boss art, per scope),
+  captions the exit "Way Out (Sealed)" with a prompt, and refuses a sealed interact locally. New
+  `tests/server/bosses.test.ts` covers placement across 60 seeds, premature escape, a wounded
+  boss, boss defeat, a non-boss kill, a wipe, a reconnect, a successful escape, and visibility.
 - Capped inbound WebSocket messages for issue #28. The server now sets `maxPayload` to
   `MAX_CLIENT_MESSAGE_BYTES` (48 KiB, three UTF-8 bytes per allowed UTF-16 code unit) instead of
   `ws`'s 100 MiB default, so an oversized frame closes the socket with 1009 before any decoding or

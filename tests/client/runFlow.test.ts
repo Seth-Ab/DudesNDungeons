@@ -3,12 +3,14 @@ import {
   bankSummary,
   entranceMessage,
   entranceStatus,
+  exitCaption,
   gatePrompt,
   outcomeMessage,
   placeLabel,
   rejectionMessage,
   roomAt,
   runOutcome,
+  SEALED_EXIT_MESSAGE,
   torchNotice,
 } from "../../src/client/state/runFlow.js";
 import { TILE_SCALE } from "../../src/shared/constants/game.js";
@@ -175,6 +177,26 @@ describe("what the player is carrying", () => {
       ["Minor Tonic x2", "Copper Key"],
     );
     expect(bankSummary([])).toEqual([]);
+  });
+});
+
+describe("the way out", () => {
+  const exit = {
+    id: "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e70",
+    position: { x: 0, y: 0 },
+    destination: "hub",
+    sealed: false,
+  };
+
+  it("names the hub gate and a dungeon exit apart", () => {
+    expect(exitCaption("hub", exit)).toBe("Dungeon Gate");
+    expect(exitCaption("dungeon", exit)).toBe("Way Out");
+  });
+
+  it("says a sealed exit is sealed, and why, without saying where the boss is", () => {
+    expect(exitCaption("dungeon", { ...exit, sealed: true })).toBe("Way Out (Sealed)");
+    expect(SEALED_EXIT_MESSAGE).toMatch(/boss/i);
+    expect(SEALED_EXIT_MESSAGE.endsWith(".")).toBe(true);
   });
 });
 

@@ -550,7 +550,12 @@ export function generateDungeon(
   reserved.add(`${exitTile.x},${exitTile.y}`);
 
   const exits: ExitState[] = [
-    { id: rng.uuid(), position: { ...exitTile }, destination: definition.exitDestination },
+    {
+      id: rng.uuid(),
+      position: { ...exitTile },
+      destination: definition.exitDestination,
+      sealed: false,
+    },
   ];
 
   // A locked door on the way into the exit room, so the keys the puzzle and boss rooms drop are
