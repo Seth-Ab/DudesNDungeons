@@ -173,3 +173,16 @@ export const MAX_VOICE_SIGNAL_LENGTH = 8192;
 
 /** Cap on a single inbound frame, measured in UTF-16 code units rather than bytes. */
 export const MAX_CLIENT_MESSAGE_CHARS = 16384;
+
+/**
+ * Transport-level ceiling on one inbound WebSocket message, in bytes, enforced as the server's
+ * `maxPayload` so an oversized frame is refused (close code 1009) before it is buffered whole,
+ * decoded, or parsed. Without it `ws` accepts up to 100 MiB.
+ *
+ * Every UTF-16 code unit encodes to at most three UTF-8 bytes, so this is the largest frame that
+ * could still pass the `MAX_CLIENT_MESSAGE_CHARS` check. Deriving it that way means no message the
+ * protocol accepts - the largest is a voice signal carrying `MAX_VOICE_SIGNAL_LENGTH` characters of
+ * SDP - is ever cut off by the transport. Frame headers are not counted against it; with
+ * per-message deflate it bounds the inflated size, which also caps compression bombs.
+ */
+export const MAX_CLIENT_MESSAGE_BYTES = MAX_CLIENT_MESSAGE_CHARS * 3;

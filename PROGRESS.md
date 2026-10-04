@@ -382,6 +382,13 @@ Complete on `feature/hub-run-flow`.
 
 ### 2026-10-03
 
+- Capped inbound WebSocket messages for issue #28. The server now sets `maxPayload` to
+  `MAX_CLIENT_MESSAGE_BYTES` (48 KiB, three UTF-8 bytes per allowed UTF-16 code unit) instead of
+  `ws`'s 100 MiB default, so an oversized frame closes the socket with 1009 before any decoding or
+  JSON/schema parsing; with per-message deflate the cap applies to the inflated size. Binary frames
+  are refused with `invalidMessage` and the connection stays open, like malformed JSON. No protocol
+  version change: every message the schema accepts still fits, including a maximum-length voice
+  signal in multi-byte characters.
 - Upgraded Vitest from 2.1.9 to 5.0.3 for issue #22, removing the critical/high/moderate advisory
   chain through Vitest, vite-node, its bundled Vite, and esbuild. No test or config changes were
   needed; all 390 tests pass. Vitest 5 requires Node `^22.12.0 || >=24.0.0`, so the `engines`

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_CLIENT_MESSAGE_BYTES,
   MAX_CLIENT_MESSAGE_CHARS,
   MAX_PLAYER_NAME_LENGTH,
+  MAX_VOICE_SIGNAL_LENGTH,
   PROTOCOL_VERSION,
 } from "../../src/shared/constants/game.js";
 import {
@@ -163,6 +165,47 @@ describe("parseClientMessage", () => {
     if (!result.ok) {
       expect(result.error).toMatch(/maximum allowed size/);
     }
+  });
+
+  it("fits the largest valid join and voice frames inside the transport byte limit", () => {
+    // Three-byte characters in every free-text field: the worst case for UTF-8 size.
+    const frames = [
+      JSON.stringify({
+        type: "joinSession",
+        protocolVersion: PROTOCOL_VERSION,
+        roomCode: "BCDFGH",
+        playerName: "€".repeat(MAX_PLAYER_NAME_LENGTH),
+        resumeToken: RESUME_TOKEN,
+        profileSecret: RESUME_TOKEN,
+      }),
+      JSON.stringify({
+        type: "voiceSignal",
+        targetPlayerId: PLAYER_ID,
+        signal: { kind: "answer", sdp: "€".repeat(MAX_VOICE_SIGNAL_LENGTH) },
+      }),
+      JSON.stringify({
+        type: "voiceSignal",
+        targetPlayerId: PLAYER_ID,
+        signal: {
+          kind: "iceCandidate",
+          candidate: "€".repeat(MAX_VOICE_SIGNAL_LENGTH),
+          sdpMid: "€".repeat(256),
+          sdpMLineIndex: 0,
+        },
+      }),
+    ];
+
+    for (const frame of frames) {
+      expect(parseClientMessage(frame).ok).toBe(true);
+      expect(Buffer.byteLength(frame)).toBeLessThanOrEqual(MAX_CLIENT_MESSAGE_BYTES);
+    }
+  });
+
+  it("derives the byte limit from the character cap at three UTF-8 bytes per code unit", () => {
+    // Three bytes is the most any UTF-16 code unit costs (a surrogate pair is four for two units).
+    const frame = "￿".repeat(MAX_CLIENT_MESSAGE_CHARS);
+
+    expect(Buffer.byteLength(frame)).toBe(MAX_CLIENT_MESSAGE_BYTES);
   });
 
   it("rejects a voice signal of an unknown kind", () => {
