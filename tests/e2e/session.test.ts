@@ -573,6 +573,26 @@ describe("hub and run lifecycle", () => {
     expect(hub.players[0]).toMatchObject({ health: 100, inventory: [], bankedItems: [] });
   });
 
+  it("shows the party downed before a wipe moves it home", async () => {
+    // A client tells a wipe from an escape by seeing itself downed. The wipe lands in the same tick
+    // as the return to the hub, so without a snapshot of its own every wipe read as an escape.
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, alpha.client);
+
+    server.store.getSession(roomCode)!.players.get(alpha.joined.playerId)!.health = 0;
+
+    const downed = await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.location === "dungeon" && message.players[0]?.health === 0,
+    );
+    const hub = await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.location === "hub",
+    );
+    expect(hub.tick).toBeGreaterThan(downed.tick);
+  });
+
   it("lifts, carries, and extracts a downed party member through the exit", async () => {
     const roomCode = await createRoom();
     const alpha = await joinRoom(roomCode, "Alpha");
@@ -601,7 +621,10 @@ describe("hub and run lifecycle", () => {
     // is asserted there. The snapshot is only used to synchronize on the tick that applied the lift.
     await alpha.client.nextWhere("stateSnapshot", () => downed.carriedByPlayerId === carrier.id);
     expect(downed.carriedByPlayerId).toBe(carrier.id);
-    expect(carrier.stamina).toBe(PLAYER_MAX_STAMINA - LIFT_STAMINA_COST);
+    // The lift's cost, less whatever carry drain a server tick took before this line ran: the
+    // tick is on a real timer, and asserting the exact figure failed whenever one slipped in.
+    expect(carrier.stamina).toBeLessThanOrEqual(PLAYER_MAX_STAMINA - LIFT_STAMINA_COST);
+    expect(carrier.stamina).toBeGreaterThan(PLAYER_MAX_STAMINA - LIFT_STAMINA_COST - 1);
 
     // Walking the carrier moves the downed party member along with them.
     const beforeMove = carrier.position.x;

@@ -84,9 +84,15 @@ export function tileAt(map: DungeonMapState, x: number, y: number): string | nul
   return map.tiles[y - map.originY]?.[x - map.originX] ?? null;
 }
 
+/**
+ * `,` is floor a client remembers but cannot currently see; the server's map never contains it.
+ * Without it, a client predicting a step into the dark refused a move the server would accept and
+ * froze in place until reconciliation snapped it forward.
+ */
 export function isFloor(dungeon: DungeonState, position: Vector2): boolean {
   const { x, y } = tileOf(position);
-  return tileAt(dungeon.map, x, y) === ".";
+  const tile = tileAt(dungeon.map, x, y);
+  return tile === "." || tile === ",";
 }
 
 export function distance(a: Vector2, b: Vector2): number {

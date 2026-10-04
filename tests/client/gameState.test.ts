@@ -74,6 +74,18 @@ describe("predictMove", () => {
     });
   });
 
+  // Regression: remembered floor arrives as `,`, and prediction treated it as wall, freezing the
+  // player at the edge of the light until reconciliation snapped them forward.
+  it("predicts a step onto floor the viewer remembers but cannot see", () => {
+    const dim = dungeon();
+    dim.map = { ...dim.map, tiles: ["######", "#..,,#", "#..,,#", "######"] };
+
+    expect(predictMove(dim, [], { x: 2.45, y: 1.5 }, { x: 1, y: 0 })).toEqual({
+      x: 2.45 + PLAYER_STEP_DISTANCE,
+      y: 1.5,
+    });
+  });
+
   // Regression: whole-tile prediction indexed tiles by fractional positions and froze once the
   // server moved the player off a tile boundary.
   it("keeps predicting from a fractional position", () => {
