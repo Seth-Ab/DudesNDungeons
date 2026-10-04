@@ -256,32 +256,65 @@ export function bankEntries(items: readonly InventoryItem[]): BankEntryView[] {
   return lines.map((text) => ({ text, empty: false }));
 }
 
-export interface RosterEntryView {
-  text: string;
-  offline: boolean;
-  self: boolean;
+export type PartyMemberState = "ready" | "waiting" | "carrying" | "downed" | "beingCarried" | "disconnected";
+
+/** One glyph per state, so the states differ by shape and not only by hue. */
+export const PARTY_STATE_ICONS: Record<PartyMemberState, string> = {
+  ready: "✓",
+  waiting: "○",
+  carrying: "↑",
+  downed: "✖",
+  beingCarried: "↓",
+  disconnected: "⊘",
+};
+
+export const PARTY_STATE_LABELS: Record<PartyMemberState, string> = {
+  ready: "ready",
+  waiting: "waiting",
+  carrying: "carrying an ally",
+  downed: "downed",
+  beingCarried: "downed, being carried",
+  disconnected: "disconnected",
+};
+
+export interface PartyFrameView {
+  id: string;
+  name: string;
+  state: PartyMemberState;
+  icon: string;
+  stateLabel: string;
+  health: HealthBarView;
+  resistance: BarView;
 }
 
-export function rosterEntries(view: SessionView): RosterEntryView[] {
-  return view.players.map((player) => {
-    const standing =
-      player.health > 0
-        ? player.carryingPlayerId
-          ? "carrying"
-          : player.ready
-            ? "ready"
-            : "waiting"
-        : player.carriedByPlayerId
-          ? "down, being carried"
-          : "down";
-    const state = player.connected ? standing : "disconnected";
+export function partyMemberState(player: PlayerState): PartyMemberState {
+  if (!player.connected) return "disconnected";
+  if (player.health <= 0) return player.carriedByPlayerId ? "beingCarried" : "downed";
+  if (player.carryingPlayerId) return "carrying";
+  return player.ready ? "ready" : "waiting";
+}
 
-    return {
-      text: `${player.name} · ${player.health}hp · ${state}`,
-      offline: !player.connected,
-      self: player.id === view.selfId,
-    };
-  });
+/**
+ * One frame per other player in the latest snapshot. The server only lists players on tiles this
+ * player can see, so an ally who leaves sight is simply absent from the next snapshot and loses
+ * their frame; nothing here remembers last-known state. Self is left out: the vitals cluster
+ * already covers it.
+ */
+export function partyFrames(view: SessionView): PartyFrameView[] {
+  return view.players
+    .filter((player) => player.id !== view.selfId)
+    .map((player) => {
+      const state = partyMemberState(player);
+      return {
+        id: player.id,
+        name: player.name,
+        state,
+        icon: PARTY_STATE_ICONS[state],
+        stateLabel: PARTY_STATE_LABELS[state],
+        health: healthBarView(player.health, PLAYER_MAX_HEALTH),
+        resistance: barView(player.resistance, PLAYER_MAX_RESISTANCE),
+      };
+    });
 }
 
 export interface HotbarSlotView {

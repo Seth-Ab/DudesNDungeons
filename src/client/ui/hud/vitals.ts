@@ -17,7 +17,7 @@ function flash(element: HTMLElement, className: string): void {
  * A bar with a glyph label. The ghost sits under the fill and lags behind it (a CSS transition),
  * which is what shows how much a hit just took. The server owns the numbers; this only draws them.
  */
-function createBar(glyph: string, name: string, modifier: string) {
+export function createBar(glyph: string, name: string, modifier: string) {
   const element = document.createElement("div");
   element.className = `hud__bar hud__bar--${modifier}`;
 

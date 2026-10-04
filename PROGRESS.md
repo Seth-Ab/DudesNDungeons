@@ -919,6 +919,18 @@ Complete on `feature/hub-run-flow`.
   - Not verified visually in a live session: a screenshot of the empty hotbar confirmed layout, but
     item icons and the prompt were not captured. Tests cover the view-model logic.
 
+- HUD redesign Phase 4 for issue #49: visible-only party frames (Frontend step 8). No protocol
+  change; the server already filters `players` to those on visible tiles.
+  - Replaces the text-pill roster with one frame per other player in the latest snapshot, top-left
+    under the status panel: name, health bar (`current/max`), thin resistance bar, and a state icon
+    distinguished by shape (`✓` ready, `○` waiting, `↑` carrying, `✖` downed, `↓` being carried,
+    `⊘` disconnected) with a title/aria-label. Self is omitted; the vitals cluster covers it.
+  - An ally who leaves sight is absent from the next snapshot, so their frame is removed; nothing
+    keeps last-known state. `partyFrames` in `state/hudView.ts` is tested for that case and for each
+    state; `ui/hud/partyFrames.ts` keys frames by player id and reuses the vitals bar.
+  - Not verified visually in a live session: the e2e layout smoke passes, but no screenshot of
+    populated frames was captured. Out of scope: always-on status for out-of-sight allies.
+
 - Playtest fixes for map, lighting, and pacing. No protocol change; the server stays authoritative.
   - Walls: a wall tile was only revealed when a ray reached its exact centre, so at shallow angles
     the ray clipped the neighbouring wall first. Corridors drew as floor with no walls, and rooms
