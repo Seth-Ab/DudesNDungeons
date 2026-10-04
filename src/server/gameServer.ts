@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
+  MAX_CLIENT_MESSAGE_BYTES,
   MAX_PARTY_SIZE,
   PROTOCOL_VERSION,
   SERVER_TICK_MS,
@@ -175,6 +176,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
    */
   const wss = new WebSocketServer({
     server: httpServer,
+    // Sized to the largest message the protocol accepts; see `MAX_CLIENT_MESSAGE_BYTES`. `ws` closes
+    // the socket with 1009 as soon as a frame exceeds it, so no "message" event (and no parse) runs.
+    maxPayload: MAX_CLIENT_MESSAGE_BYTES,
     perMessageDeflate: {
       zlibDeflateOptions: { level: 6 },
       // Small frames cost more in framing overhead than they save.
@@ -188,7 +192,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     // separates "has not joined" from "is in a dungeon".
     let playerId: PlayerId | null = null;
 
-    socket.on("message", (data) => {
+    socket.on("message", (data, isBinary) => {
+      // The protocol is JSON text. Refused like malformed JSON, so the connection stays usable,
+      // but without decoding the bytes as if they were text.
+      if (isBinary) {
+        note("[ws] rejected message: binary frame");
+        sendError(socket, "invalidMessage", "Binary frames are not supported");
+        return;
+      }
+
       const result = parseClientMessage(data.toString());
 
       if (!result.ok) {

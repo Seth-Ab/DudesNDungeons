@@ -3,6 +3,9 @@ import { WebSocket } from "ws";
 import {
   ATTACK_STAMINA_COST,
   LIFT_STAMINA_COST,
+  MAX_CLIENT_MESSAGE_BYTES,
+  MAX_CLIENT_MESSAGE_CHARS,
+  MAX_VOICE_SIGNAL_LENGTH,
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_STAMINA,
   PROTOCOL_VERSION,
@@ -49,6 +52,22 @@ class TestClient {
 
   send(message: unknown): void {
     this.#ws.send(JSON.stringify(message));
+  }
+
+  /** Sends exactly these bytes: a text frame for a string, a binary frame for a Buffer. */
+  sendRaw(data: string | Buffer): void {
+    this.#ws.send(data);
+  }
+
+  /** Resolves with the close code once the server has dropped the connection. */
+  closed(timeoutMs = 2000): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("timed out waiting for close")), timeoutMs);
+      this.#ws.once("close", (code) => {
+        clearTimeout(timer);
+        resolve(code);
+      });
+    });
   }
 
   join(roomCode: string, playerName: string, resumeToken?: string): void {
@@ -274,6 +293,79 @@ describe("joining a dungeon", () => {
 
     client.send({ type: "setReady", ready: true });
     await expect(client.next("playerReadyChanged")).resolves.toBeDefined();
+  });
+
+  it("rejects a frame that is not JSON without dropping the connection", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+
+    client.sendRaw("{not json");
+    const error = await client.next("sessionError");
+    expect(error.code).toBe("invalidMessage");
+    expect(error.message).toMatch(/not valid JSON/);
+
+    client.send({ type: "setReady", ready: true });
+    await expect(client.next("playerReadyChanged")).resolves.toBeDefined();
+  });
+
+  it("rejects a binary frame without decoding it, keeping the connection", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+
+    // A well-formed message, so only the frame type can be the reason it is refused.
+    client.sendRaw(Buffer.from(JSON.stringify({ type: "setReady", ready: true })));
+    const error = await client.next("sessionError");
+    expect(error.code).toBe("invalidMessage");
+    expect(error.message).toMatch(/Binary frames/);
+    expect(client.received("playerReadyChanged")).toHaveLength(0);
+
+    client.send({ type: "setReady", ready: true });
+    await expect(client.next("playerReadyChanged")).resolves.toBeDefined();
+  });
+
+  it("carries the largest valid voice signal through the transport limit", async () => {
+    const roomCode = await createRoom();
+    const { client, joined } = await joinRoom(roomCode, "Alpha");
+
+    // Three UTF-8 bytes per character: the most bytes a schema-valid signal can occupy, and more
+    // than a limit counted in characters would allow.
+    const frame = JSON.stringify({
+      type: "voiceSignal",
+      targetPlayerId: joined.playerId,
+      signal: { kind: "offer", sdp: "€".repeat(MAX_VOICE_SIGNAL_LENGTH) },
+    });
+    expect(Buffer.byteLength(frame)).toBeGreaterThan(MAX_CLIENT_MESSAGE_CHARS);
+    expect(Buffer.byteLength(frame)).toBeLessThanOrEqual(MAX_CLIENT_MESSAGE_BYTES);
+
+    client.sendRaw(frame);
+
+    // Relay is not built yet, so passing validation is what reaches this reply.
+    expect((await client.next("sessionError")).code).toBe("notImplemented");
+  });
+
+  it("parses a frame of exactly the byte limit instead of dropping the connection", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+
+    client.sendRaw("x".repeat(MAX_CLIENT_MESSAGE_BYTES));
+    const error = await client.next("sessionError");
+    expect(error.code).toBe("invalidMessage");
+    expect(error.message).toMatch(/maximum allowed size/);
+
+    client.send({ type: "setReady", ready: true });
+    await expect(client.next("playerReadyChanged")).resolves.toBeDefined();
+  });
+
+  it("closes the connection on an oversized frame without parsing it", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+    const closed = client.closed();
+
+    client.sendRaw("x".repeat(MAX_CLIENT_MESSAGE_BYTES + 1));
+
+    // 1009 is "message too big"; the transport refuses it before the protocol layer sees it.
+    expect(await closed).toBe(1009);
+    expect(client.received("sessionError")).toHaveLength(0);
   });
 
   it("accepts movement intent and broadcasts the authoritative position", async () => {
