@@ -1,0 +1,9 @@
+{
+  "id": "paired-levers",
+  "name": "Paired Levers",
+  "plateRadius": 1.8,
+  "holdMs": 5000,
+  "minHoldMs": 1500,
+  "holdReductionMsPerPower": 1000,
+  "rewardItemId": "copper-key"
+}

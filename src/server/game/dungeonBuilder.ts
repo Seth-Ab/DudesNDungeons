@@ -6,11 +6,18 @@ import type {
   LootState,
   MonsterState,
   RoomState,
+  PuzzleState,
   TrapState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
-import type { AuthoredDungeon, ItemDefinition, MonsterType, TrapType } from "../content/schema.js";
+import type {
+  AuthoredDungeon,
+  ItemDefinition,
+  MonsterType,
+  PuzzleType,
+  TrapType,
+} from "../content/schema.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -53,6 +60,18 @@ export function trapInstance(type: TrapType, position: Vector2, id: string): Tra
     position: { ...position },
     radius: type.radius,
     phase: "armed",
+  };
+}
+
+export function puzzleInstance(type: PuzzleType, plates: Vector2[], id: string): PuzzleState {
+  return {
+    id,
+    typeId: type.id,
+    name: type.name,
+    radius: type.plateRadius,
+    phase: "idle",
+    plates: plates.map((position) => ({ position: { ...position }, held: false })),
+    progress: 0,
   };
 }
 
@@ -127,6 +146,13 @@ export function buildAuthoredDungeon(
     return trapInstance(type, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
   });
 
+  const puzzles: PuzzleState[] = definition.puzzles.map((placed) => {
+    const type = content.puzzles.get(placed.typeId);
+    if (!type) throw new Error(`Dungeon "${definition.id}" places unknown puzzle "${placed.typeId}"`);
+
+    return puzzleInstance(type, placed.plates, authoredId(placed.entityId, rng));
+  });
+
   const doors: DoorState[] = definition.doors.map((placed) => ({
     id: authoredId(placed.entityId, rng),
     position: { x: placed.x, y: placed.y },
@@ -165,6 +191,7 @@ export function buildAuthoredDungeon(
       monsters,
       loot,
       traps,
+      puzzles,
       doors,
       exits,
       lightSources,

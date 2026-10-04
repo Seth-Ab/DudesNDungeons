@@ -8,6 +8,7 @@ import {
   monsterTypeSchema,
   roomTemplateSchema,
   skillDefinitionSchema,
+  puzzleTypeSchema,
   trapTypeSchema,
   upgradeDefinitionSchema,
   type DungeonDefinition,
@@ -15,6 +16,7 @@ import {
   type MonsterType,
   type RoomTemplate,
   type SkillDefinition,
+  type PuzzleType,
   type TrapType,
   type UpgradeDefinition,
 } from "./schema.js";
@@ -35,6 +37,7 @@ export interface GameContent {
   skills: ReadonlyMap<string, SkillDefinition>;
   upgrades: ReadonlyMap<string, UpgradeDefinition>;
   traps: ReadonlyMap<string, TrapType>;
+  puzzles: ReadonlyMap<string, PuzzleType>;
   templates: ReadonlyMap<string, RoomTemplate>;
   dungeons: ReadonlyMap<string, DungeonDefinition>;
 }
@@ -178,6 +181,12 @@ function validateReferences(content: GameContent): void {
     }
   }
 
+  for (const puzzle of content.puzzles.values()) {
+    if (!content.items.has(puzzle.rewardItemId)) {
+      throw new Error(`Puzzle "${puzzle.id}" rewards unknown item "${puzzle.rewardItemId}"`);
+    }
+  }
+
   const skillTiers = new Set<string>();
   for (const upgrade of content.upgrades.values()) {
     const label = `Upgrade "${upgrade.id}"`;
@@ -238,6 +247,17 @@ function validateReferences(content: GameContent): void {
       }
     }
 
+    for (const rule of template.puzzles) {
+      if (!content.puzzles.has(rule.typeId)) {
+        throw new Error(`${label} spawns unknown puzzle type "${rule.typeId}"`);
+      }
+      for (const plate of rule.plates) {
+        if (template.tiles[plate.y]?.[plate.x] !== ".") {
+          throw new Error(`${label} has a puzzle plate at (${plate.x}, ${plate.y}) that is not on floor`);
+        }
+      }
+    }
+
     for (const rule of template.loot) {
       if (!content.items.has(rule.itemId)) {
         throw new Error(`${label} spawns unknown item "${rule.itemId}"`);
@@ -259,6 +279,11 @@ function validateReferences(content: GameContent): void {
       for (const placed of dungeon.traps) {
         if (!content.traps.has(placed.typeId)) {
           throw new Error(`${label} places unknown trap type "${placed.typeId}"`);
+        }
+      }
+      for (const placed of dungeon.puzzles) {
+        if (!content.puzzles.has(placed.typeId)) {
+          throw new Error(`${label} places unknown puzzle type "${placed.typeId}"`);
         }
       }
       for (const placed of dungeon.loot) {
@@ -287,6 +312,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
     upgrades: loadCollection(join(contentRoot, "upgrades"), upgradeDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
+    puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     templates: loadCollection(join(contentRoot, "dungeons", "templates"), roomTemplateSchema),
     dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema),
   };

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
+import { gameContent, loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
 
 const roots: string[] = [];
 
@@ -273,5 +273,76 @@ describe("rejecting bad content", () => {
     });
 
     expect(() => loadContent(root)).toThrow(/needs a template of kind boss/);
+  });
+});
+
+describe("puzzle content", () => {
+  it("ships paired levers in the puzzle room template", () => {
+    expect(gameContent().puzzles.has("paired-levers")).toBe(true);
+    expect(gameContent().templates.get("paired-levers")?.puzzles[0]?.plates).toHaveLength(2);
+  });
+
+  it("refuses a template spawning a puzzle that does not exist", () => {
+    const root = contentRoot({
+      "dungeons/templates/hall.json": {
+        id: "hall",
+        name: "Hall",
+        kind: "puzzle",
+        tiles: ["###", "#..", "###"],
+        doorways: [{ x: 0, y: 1, side: "west" }],
+        puzzles: [{ typeId: "no-such-puzzle", plates: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+      },
+    });
+    expect(() => loadContent(root)).toThrow(/unknown puzzle type "no-such-puzzle"/);
+  });
+
+  it("refuses a puzzle with fewer than two plates", () => {
+    const root = contentRoot({
+      "puzzles/solo.json": {
+        id: "solo",
+        name: "Solo",
+        plateRadius: 1,
+        holdMs: 1000,
+        minHoldMs: 500,
+        rewardItemId: "copper-key",
+      },
+      "dungeons/templates/hall.json": {
+        id: "hall",
+        name: "Hall",
+        kind: "puzzle",
+        tiles: ["###", "#..", "###"],
+        doorways: [{ x: 0, y: 1, side: "west" }],
+        puzzles: [{ typeId: "solo", plates: [{ x: 1, y: 1 }] }],
+      },
+    });
+    expect(() => loadContent(root)).toThrow(/plates/);
+  });
+
+  it("refuses a puzzle rewarding an unknown item", () => {
+    const root = contentRoot({
+      "puzzles/bad.json": {
+        id: "bad",
+        name: "Bad",
+        plateRadius: 1,
+        holdMs: 1000,
+        minHoldMs: 500,
+        rewardItemId: "no-such-item",
+      },
+    });
+    expect(() => loadContent(root)).toThrow(/rewards unknown item "no-such-item"/);
+  });
+
+  it("refuses a minimum hold longer than the hold", () => {
+    const root = contentRoot({
+      "puzzles/bad.json": {
+        id: "bad",
+        name: "Bad",
+        plateRadius: 1,
+        holdMs: 500,
+        minHoldMs: 1000,
+        rewardItemId: "copper-key",
+      },
+    });
+    expect(() => loadContent(root)).toThrow(/minHoldMs/);
   });
 });

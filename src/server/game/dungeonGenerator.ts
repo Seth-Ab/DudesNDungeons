@@ -5,12 +5,13 @@ import type {
   LootState,
   MonsterState,
   RoomState,
+  PuzzleState,
   TrapState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
-import { lootInstance, monsterInstance, trapInstance, type BuiltDungeon } from "./dungeonBuilder.js";
+import { lootInstance, monsterInstance, puzzleInstance, trapInstance, type BuiltDungeon } from "./dungeonBuilder.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -478,6 +479,7 @@ export function generateDungeon(
   const monsters: MonsterState[] = [];
   const loot: LootState[] = [];
   const traps: TrapState[] = [];
+  const puzzles: PuzzleState[] = [];
   const lightSources: LightSourceState[] = [];
   const corridorTiles: Vector2[] = [];
 
@@ -492,6 +494,18 @@ export function generateDungeon(
         position,
         radius: light.radius,
       });
+    }
+  }
+
+  // Plates are fixed by the template, so they are claimed before anything is scattered around them.
+  for (const room of rooms) {
+    for (const rule of room.template.puzzles) {
+      const type = content.puzzles.get(rule.typeId);
+      if (!type) throw new Error(`Template "${room.template.id}" spawns unknown puzzle "${rule.typeId}"`);
+
+      const plates = rule.plates.map((plate) => ({ x: room.origin.x + plate.x, y: room.origin.y + plate.y }));
+      for (const plate of plates) reserved.add(`${plate.x},${plate.y}`);
+      puzzles.push(puzzleInstance(type, plates, rng.uuid()));
     }
   }
 
@@ -565,6 +579,7 @@ export function generateDungeon(
       monsters,
       loot,
       traps,
+      puzzles,
       doors,
       exits,
       lightSources,

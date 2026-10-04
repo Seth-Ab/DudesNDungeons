@@ -51,6 +51,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     monsters: [],
     loot: [],
     traps: [],
+    puzzles: [],
     doors: [],
     exits: [],
     lightSources: [],

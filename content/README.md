@@ -10,6 +10,11 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 - `monsters/`: monster stats used by authored and generated dungeons.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
   delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
+- `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a
+  different player, for `holdMs`. `plateRadius` is in world units. Each point of `puzzlePowerBonus`
+  among the players holding a plate shortens the hold by `holdReductionMsPerPower`, never below
+  `minHoldMs`. Solving drops `rewardItemId` on the first plate. Templates spawn puzzles with a
+  `puzzles` rule list (`typeId` plus two or more local `plates`) and authored dungeons place them.
 - `dungeons/templates/`: reusable rooms for procedural generation.
 - `dungeons/`: authored dungeons and generated-dungeon profiles.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
@@ -36,8 +41,8 @@ A skill scroll is an item with `kind: "skillScroll"` and a `skillId` naming one 
 definitions. It occupies an inventory slot and is consumed on use. In a dungeon, the unlock and its
 effect are provisional until that player extracts; in the hub, it is permanent immediately. A
 scroll for an already-known skill is refused without being consumed, so it remains available to
-give away or to support a later upgrade rule. Upgrade acquisition and puzzle effects remain future
-work. Clients must never submit trusted skill, upgrade, item, or profile state.
+give away or to support a later upgrade rule. Upgrade acquisition remains future work. `puzzlePowerBonus` is consumed by `puzzles/`
+(see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, upgrade, item, or profile state.
 
 Room-template loot rules accept an optional `chance` from 0 to 1 before their inclusive `min`/`max`
 count is rolled. It defaults to 1 for existing loot; rare scrolls can therefore ask for one item at

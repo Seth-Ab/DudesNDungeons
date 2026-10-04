@@ -178,3 +178,24 @@ describe("generated dungeons", () => {
     ).toThrow(/does not fit/);
   });
 });
+
+describe("generated puzzles", () => {
+  it("places every puzzle's plates on reachable floor, clear of loot, with a reward in content", () => {
+    let seen = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const { dungeon, spawnPoints } = generate(seed);
+      const reachable = reachableFrom(dungeon, spawnPoints[0]!);
+      for (const puzzle of dungeon.puzzles) {
+        seen += 1;
+        expect(puzzle.plates.length).toBeGreaterThanOrEqual(2);
+        expect(content.puzzles.has(puzzle.typeId)).toBe(true);
+        for (const plate of puzzle.plates) {
+          expect(isFloor(dungeon, plate.position)).toBe(true);
+          expect(reachable.has(tileKey(plate.position))).toBe(true);
+          expect(dungeon.loot.some((loot) => tileKey(loot.position) === tileKey(plate.position))).toBe(false);
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});

@@ -71,6 +71,32 @@ export const trapTypeSchema = z
   });
 export type TrapType = z.infer<typeof trapTypeSchema>;
 
+/**
+ * A kind of cooperative puzzle: a set of pressure plates that must all be held at the same time,
+ * each by a different standing, connected player, for `holdMs`. Releasing any plate (stepping off,
+ * going down, disconnecting) resets the hold to zero. Solving it drops `rewardItemId` on the first
+ * plate and leaves the puzzle solved for the rest of the run.
+ *
+ * Puzzle power is where `puzzlePowerBonus` skills land: the bonus of every player currently
+ * holding a plate is summed, and each point shortens the required hold by `holdReductionMsPerPower`,
+ * never below `minHoldMs`.
+ */
+export const puzzleTypeSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    /** World units, like a trap radius: it is not scaled with the map. */
+    plateRadius: z.number().positive(),
+    holdMs: z.number().int().positive(),
+    minHoldMs: z.number().int().positive(),
+    holdReductionMsPerPower: z.number().int().nonnegative().default(0),
+    rewardItemId: contentIdSchema,
+  })
+  .refine((puzzle) => puzzle.minHoldMs <= puzzle.holdMs, {
+    message: "minHoldMs must not exceed holdMs",
+  });
+export type PuzzleType = z.infer<typeof puzzleTypeSchema>;
+
 const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -179,6 +205,12 @@ export const monsterSpawnRuleSchema = spawnCountSchema.and(z.object({ typeId: co
 
 export const trapSpawnRuleSchema = spawnCountSchema.and(z.object({ typeId: contentIdSchema }));
 
+/** A puzzle in a room template: two or more plates, in authored tiles local to the template. */
+export const puzzleSpawnRuleSchema = z.object({
+  typeId: contentIdSchema,
+  plates: z.array(localPointSchema).min(2),
+});
+
 export const lootSpawnRuleSchema = spawnCountSchema.and(
   z.object({
     itemId: contentIdSchema,
@@ -198,6 +230,7 @@ export const roomTemplateSchema = z.object({
   monsters: z.array(monsterSpawnRuleSchema).default([]),
   loot: z.array(lootSpawnRuleSchema).default([]),
   traps: z.array(trapSpawnRuleSchema).default([]),
+  puzzles: z.array(puzzleSpawnRuleSchema).default([]),
 });
 export type RoomTemplate = z.infer<typeof roomTemplateSchema>;
 
@@ -219,6 +252,12 @@ const placedMonsterSchema = placedEntitySchema.extend({ typeId: contentIdSchema 
 const placedLootSchema = placedEntitySchema.extend({ itemId: contentIdSchema });
 
 const placedTrapSchema = placedEntitySchema.extend({ typeId: contentIdSchema });
+
+const placedPuzzleSchema = z.object({
+  typeId: contentIdSchema,
+  plates: z.array(z.object({ x: z.number(), y: z.number() })).min(2),
+  entityId: z.string().uuid().optional(),
+});
 
 const placedDoorSchema = placedEntitySchema.extend({ locked: z.boolean().default(false) });
 
@@ -256,6 +295,7 @@ export const authoredDungeonSchema = z.object({
   monsters: z.array(placedMonsterSchema).default([]),
   loot: z.array(placedLootSchema).default([]),
   traps: z.array(placedTrapSchema).default([]),
+  puzzles: z.array(placedPuzzleSchema).default([]),
   doors: z.array(placedDoorSchema).default([]),
   exits: z.array(placedExitSchema).default([]),
   lights: z.array(placedLightSchema).default([]),

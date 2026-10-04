@@ -75,6 +75,11 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
       loot: dungeon.loot.map((loot) => ({ ...loot, position: point(loot.position) })),
       // A trap's radius is a distance in world units, so only its position scales.
       traps: dungeon.traps.map((trap) => ({ ...trap, position: point(trap.position) })),
+      // Like a trap, a plate's reach is in world units and only its position scales.
+      puzzles: dungeon.puzzles.map((puzzle) => ({
+        ...puzzle,
+        plates: puzzle.plates.map((plate) => ({ ...plate, position: point(plate.position) })),
+      })),
       // A door spans its whole authored tile, so its span grows with the tile. Scaling the centre
       // alone would leave a locked door plugging one world tile of the sixteen it used to fill.
       doors: dungeon.doors.map((door) => ({

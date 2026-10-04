@@ -10,6 +10,7 @@ import type { RejectionReason, ServerMessage } from "../../shared/protocol/index
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown, monsterStatsFor } from "./dungeonState.js";
+import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
 import { advanceVitals, damagePlayer, spendStamina } from "./vitals.js";
@@ -131,6 +132,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
 
   advanceVitals(session, now, elapsedMs);
   resolveTraps(session, now);
+  resolvePuzzles(session, now);
 
   const events: AttackEvent[] = [];
   for (const monster of session.dungeon.monsters) {

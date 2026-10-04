@@ -137,6 +137,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     simulatedAt: null,
     monsterCooldowns: new Map(),
     trapRearmAt: new Map(),
+    puzzleHeldSince: new Map(),
   };
 }
 

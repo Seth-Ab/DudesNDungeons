@@ -333,6 +333,7 @@ describe("parseServerMessage", () => {
           },
         ],
         traps: [],
+        puzzles: [],
         doors: [],
         exits: [],
         lightSources: [
