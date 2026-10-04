@@ -1,10 +1,13 @@
-import { SHEET_HEIGHT, SHEET_WIDTH, spriteRect, type SpriteName } from "./tiles.js";
+import { spriteRect, type SpriteName } from "./tiles.js";
 
 /**
  * Loads the baked tilesheet and stamps sprites out of it.
  *
  * Split from `tiles.ts` on purpose: everything here touches the DOM, and `tiles.ts` is imported by
  * both the node test environment and `scripts/buildSprites.ts`, neither of which has one.
+ *
+ * Sprites are always stamped at full brightness. How dark a tile is - lit, remembered, or unseen -
+ * is the renderer's lightmap's job, laid over the whole frame in one pass.
  */
 
 /**
@@ -12,16 +15,6 @@ import { SHEET_HEIGHT, SHEET_WIDTH, spriteRect, type SpriteName } from "./tiles.
  * so `assets/sprites/` stays the one place the art lives, per `AGENTS.md`.
  */
 export const SHEET_URL = new URL("../../../assets/sprites/dungeon.png", import.meta.url).href;
-
-/**
- * How far discovered-but-unlit geometry is knocked back.
- *
- * Applied once at load to a second copy of the sheet rather than per draw. A per-tile
- * `globalAlpha` over a black background would do the same thing, but it costs a state change on
- * every tile in the viewport, and remembered geometry is most of the screen once a party has
- * explored a wing.
- */
-const DIM_OVERLAY = "rgba(6, 7, 10, 0.74)";
 
 export interface Tileset {
   /**
@@ -37,38 +30,16 @@ export interface Tileset {
     y: number,
     width: number,
     height: number,
-    dim?: boolean,
   ): void;
 }
 
-function bakeDimmedCopy(sheet: CanvasImageSource): HTMLCanvasElement | null {
-  const canvas = document.createElement("canvas");
-  canvas.width = SHEET_WIDTH;
-  canvas.height = SHEET_HEIGHT;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sheet, 0, 0);
-  // `source-atop` leaves transparent pixels transparent, so a torch flame keeps its shape when the
-  // player is only remembering the torch rather than looking at it.
-  ctx.globalCompositeOperation = "source-atop";
-  ctx.fillStyle = DIM_OVERLAY;
-  ctx.fillRect(0, 0, SHEET_WIDTH, SHEET_HEIGHT);
-
-  return canvas;
-}
-
 export function loadTileset(onReady?: () => void): Tileset {
-  let lit: CanvasImageSource | null = null;
-  let dimmed: CanvasImageSource | null = null;
+  let sheet: CanvasImageSource | null = null;
 
   const image = new Image();
   image.decoding = "async";
   image.onload = (): void => {
-    lit = image;
-    dimmed = bakeDimmedCopy(image) ?? image;
+    sheet = image;
     onReady?.();
   };
   image.onerror = (): void => {
@@ -80,11 +51,10 @@ export function loadTileset(onReady?: () => void): Tileset {
 
   return {
     get ready(): boolean {
-      return lit !== null;
+      return sheet !== null;
     },
 
-    draw(ctx, name, x, y, width, height, dim = false): void {
-      const sheet = dim ? dimmed : lit;
+    draw(ctx, name, x, y, width, height): void {
       if (!sheet) return;
 
       const rect = spriteRect(name);

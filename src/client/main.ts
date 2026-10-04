@@ -140,7 +140,6 @@ setInterval(() => {
   lastIntentAt = performance.now();
   localPosition = predictMove(view.dungeon, othersOf(view), localPosition, heading);
   hud.setPosition(localPosition);
-  renderer.render();
 }, MOVE_INTERVAL_MS);
 
 client.subscribe((next) => {
@@ -173,14 +172,14 @@ client.subscribe((next) => {
 
   hud.syncTo(view);
   lobby.syncTo(view);
-  renderer.render();
 });
 
 input.start();
 lobby.focus();
 
-// Snapshots and predicted moves only redraw on their own schedule (server tick or intent send);
-// this keeps remote players sliding smoothly toward their latest target on every animation frame.
+// The one place a frame is drawn. Snapshots and predicted moves only update state; drawing them as
+// they arrived as well put two or three full redraws into each display frame, and that main-thread
+// load starved the movement timer, so a player slowed down the longer they played.
 function renderLoop(): void {
   renderer.render();
   requestAnimationFrame(renderLoop);
