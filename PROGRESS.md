@@ -13,6 +13,13 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Last completed work: smoother remote player movement (issue #62). Remote players are drawn
   100 ms in the past from a buffer of authoritative positions spaced one move interval apart, so
   jitter and back-to-back snapshots no longer stop-start them; no protocol change.
+- Before that: the WebRTC signaling relay (issue #26), which closes Backend step 5. The
+  server relays `voiceSignal` offers, answers, and ICE candidates to a connected member of the
+  sender's own dungeon as `voiceSignalRelay`, under a per-player rate limit. The only contract
+  change is a new `signalTargetUnavailable` error code; no protocol version bump. The browser side
+  (microphone capture, peer connections, audio) is still Frontend step 5.
+- Before that: rebindable controls (issue #69), client only, no protocol change. See the
+  2026-10-04 activity log.
 - Before that: darker lighting from playtests (issue #60). Every light radius was cut to
   roughly half its old value, each pool now tapers smoothly to black, and remembered geometry is
   fully dark; no protocol change. See the 2026-10-04 activity log for the values.
@@ -68,9 +75,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the new item kind and its skill id.
 - Next recommended step: expose the progression catalog plus active and permanent unlock state to
   the owning client, then build Frontend step 10. Upgrade-scroll acquisition, duplicate-to-upgrade
-  behavior, transfer/drop, monster drops, chests, and hub shops remain follow-ups. Backend step 5
-  (voice signaling, half done) also remains open, as does verifying Backend step 6 on a real
-  deployment.
+  behavior, transfer/drop, monster drops, chests, and hub shops remain follow-ups. Verifying
+  Backend step 6 on a real deployment also remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
 ## Opinion Checkpoints
@@ -172,12 +178,12 @@ Conflicts resolved by Backend step 10:
 
 ### 5. Voice Signaling and Proximity Data
 
-Half done: the proximity half landed with Backend step 8, the signaling relay has not been built.
+Done: the proximity half landed with Backend step 8, the signaling relay with issue #26 on 2026-10-04.
 
-- [ ] Use the WebSocket server for WebRTC signaling. `voiceSignal` is still answered with `notImplemented`.
+- [x] Use the WebSocket server for WebRTC signaling. `voiceSignal` is relayed as `voiceSignalRelay` to a connected member of the sender's dungeon; `src/server/voice/signalRelay.ts`.
 - [x] Track pairwise player distances inside each dungeon instance. `voiceRangeForPlayer` in `src/server/game/visibility.ts`.
 - [x] Send proximity updates to clients for audio volume attenuation. `voiceRangeUpdated`, gated on visibility, sent with each snapshot.
-- [ ] Add limits and validation for signaling messages. The schema and `MAX_VOICE_SIGNAL_LENGTH` exist; no rate limiting yet.
+- [x] Add limits and validation for signaling messages. Schema and `MAX_VOICE_SIGNAL_LENGTH`, plus a per-player token bucket (`VOICE_SIGNAL_BURST` 48, refilling `VOICE_SIGNAL_REFILL_PER_SECOND` 8) answered with `rateLimited`.
 
 ### 6. Deployment Readiness
 
@@ -1077,3 +1083,44 @@ Complete on `feature/hub-run-flow`.
     render clock (steady, jittered, a late burst, a dry buffer, settling, stopping, starting from
     rest, a brief absence) and checks no frame moves faster than walking speed and steady windows
     move at exactly walking speed.
+- Built the WebRTC signaling relay for issue #26, closing Backend step 5. No protocol version bump.
+  - A `voiceSignal` is relayed as `voiceSignalRelay { fromPlayerId, signal }` only to a connected
+    member of the sender's own session. The sender itself, an unknown id, and a disconnected member
+    are refused with the new `sessionError` code `signalTargetUnavailable`. A player in another
+    dungeon gets exactly the same reply as an unknown id, so a client cannot probe other parties.
+  - Routing is read from the session store and socket map when the signal arrives. There is no
+    routing table to go stale on disconnect, reconnect, leave, or timeout; a reconnected player is
+    reached on their new socket.
+  - Rate limit: a per-player token bucket of 48 signals, refilling at 8 per second, charged before
+    the target is checked. Past it the sender gets `sessionError` `rateLimited`, "Too many voice
+    signals; slow down". Keyed by player, so reconnecting does not refill it; dropped on leave and
+    on timeout.
+  - The relayed signal is rebuilt through `voiceSignalSchema`, so nothing the client sent beside
+    the handshake (tokens, secrets, extra keys) reaches the peer. `MAX_VOICE_SIGNAL_LENGTH` is still
+    enforced by the schema.
+  - Every client message is now handled, so the server's `notImplemented` fallback became a
+    compile-time exhaustiveness check.
+  - Tests: `tests/server/voiceSignaling.test.ts` (targets, relay shape, token bucket) and a
+    "voice signaling" suite in `tests/e2e/session.test.ts` covering offer/answer/ICE over real
+    sockets, credential absence, every rejection path, a reconnect, leave, timeout, oversize, and a
+    flood.
+  - Not done (out of scope): browser microphone capture, `RTCPeerConnection` management, and audio
+    controls, which belong to Frontend step 5. The client still ignores `voiceSignalRelay`.
+- Added a rebindable Controls menu for issue #69 (Frontend steps 3 and 8). Client only; no protocol
+  or server change.
+  - `input/keyBindings.ts` is now runtime state: `KEY_BINDINGS` is mutated in place by
+    `setBinding`/`resetBindings`, with `onBindingsChange`, and movement (`moveNorth`...) is in the
+    same table. `setBinding` rejects reserved keys (Escape, the debug key, arrows), modifiers, and
+    keys another action holds. `keyLabel()` stays the single source for on-screen key text and
+    derives labels from the key (" " is "Space").
+  - Key resolution moved to the DOM-free `input/keyInput.ts`, which looks keys up in the live table
+    on every press, so the old key stops working at once. Arrow keys stay fixed movement aliases.
+  - The Controls menu rows for gameplay and movement are buttons: click, press a key, Escape
+    cancels, a held key shows a message naming its action, "Reset to defaults" restores all. While
+    capturing, a capture-phase keydown listener swallows the key so nothing moves or fires. Rows,
+    including the Hub rows, refresh on every change; the prompt and hotbar already read `keyLabel()`.
+  - Tests: `tests/client/keyBindings.test.ts`, `inputController.test.ts` (key input), the
+    rebound-key cases in `hudView.test.ts`, and `tests/e2e/browser/rebindControls.spec.ts`.
+  - Not done: persistence between sessions (follow-up, reuse `dnd.hudSettings` storage), and the
+    two-real-clients manual check (bindings are module state per page, so clients cannot share them
+    by construction). If #51's Accessibility section and this menu were ever split, keep one menu.

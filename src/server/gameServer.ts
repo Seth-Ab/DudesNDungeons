@@ -27,6 +27,7 @@ import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
 import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
+import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
 
@@ -74,6 +75,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const now = options.now ?? (() => performance.now());
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
+  const signalLimiter = new SignalRateLimiter();
 
   const note = (message: string): void => {
     if (log) console.log(message);
@@ -301,6 +303,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (message.type === "leaveSession") {
         const member = store.leave(playerId);
         socketsByPlayer.delete(playerId);
+        signalLimiter.forget(playerId);
         playerId = null;
 
         if (member) {
@@ -428,10 +431,41 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         return;
       }
 
+      if (message.type === "voiceSignal") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        // Charged before the target is checked, so refused signals cannot be used to flood either.
+        if (!signalLimiter.tryConsume(playerId, now())) {
+          sendError(socket, "rateLimited", "Too many voice signals; slow down");
+          return;
+        }
+
+        const target = resolveSignalTarget(member.session, playerId, message.targetPlayerId);
+        const targetSocket = target.ok ? socketsByPlayer.get(target.target.id) : undefined;
+        if (!target.ok || !targetSocket) {
+          sendError(
+            socket,
+            "signalTargetUnavailable",
+            target.ok ? "That player is disconnected" : target.message,
+          );
+          return;
+        }
+
+        send(targetSocket, signalRelayFor(playerId, message.signal));
+        return;
+      }
+
+      // Every client message is handled above. A message added to the protocol fails to compile
+      // here until it is handled, and answers `notImplemented` if a build skipped the check.
+      const unhandled: never = message;
       sendError(
         socket,
         "notImplemented",
-        `"${message.type}" is accepted by the protocol but not handled yet`,
+        `"${(unhandled as { type: string }).type}" is accepted by the protocol but not handled yet`,
       );
     });
 
@@ -492,6 +526,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
     for (const member of store.sweep()) {
       socketsByPlayer.delete(member.player.id);
+      signalLimiter.forget(member.player.id);
       broadcast(member.session, {
         type: "playerLeft",
         playerId: member.player.id,
@@ -529,6 +564,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       for (const socket of socketsByPlayer.values()) socket.terminate();
       for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();
+      signalLimiter.clear();
       return new Promise((resolve) => {
         wss.close(() => httpServer.close(() => resolve()));
       });

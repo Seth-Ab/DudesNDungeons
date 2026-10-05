@@ -1,49 +1,76 @@
-import { keyLabel } from "../input/keyBindings.js";
+import {
+  ACTION_NAMES,
+  bindingMessage,
+  DEBUG_KEY,
+  keyLabel,
+  onBindingsChange,
+  resetBindings,
+  setBinding,
+  type BindableAction,
+} from "../input/keyBindings.js";
 import type { HudSettingsStore } from "../state/hudSettings.js";
 import { createHudSettingsSection } from "./hudSettings.js";
 
+/** A row's key cell: `rebind` names the action whose binding it edits, none for read-only text. */
+interface ControlRow {
+  input: () => string;
+  action: string;
+  rebind?: BindableAction;
+}
+
 interface ControlGroup {
   title: string;
-  controls: { input: string; action: string }[];
+  controls: ControlRow[];
 }
+
+const bound = (action: BindableAction) => (): string => keyLabel(action);
 
 const CONTROL_GROUPS: ControlGroup[] = [
   {
     title: "Movement",
     controls: [
-      { input: "W A S D", action: "Move" },
-      { input: "Arrow Keys", action: "Move" },
+      { input: bound("moveNorth"), action: ACTION_NAMES.moveNorth, rebind: "moveNorth" },
+      { input: bound("moveWest"), action: ACTION_NAMES.moveWest, rebind: "moveWest" },
+      { input: bound("moveSouth"), action: ACTION_NAMES.moveSouth, rebind: "moveSouth" },
+      { input: bound("moveEast"), action: ACTION_NAMES.moveEast, rebind: "moveEast" },
+      { input: () => "Arrow Keys", action: "Move (always available)" },
     ],
   },
   {
     title: "Dungeon",
     controls: [
-      { input: keyLabel("attack"), action: "Attack (costs stamina)" },
-      { input: keyLabel("pickup"), action: "Pick up nearby loot" },
-      { input: keyLabel("interact"), action: "Interact with doors and exits" },
-      { input: keyLabel("carry"), action: "Carry a downed party member, or drop who you're carrying" },
-      { input: `${keyLabel("useSlot1")} / ${keyLabel("useSlot2")} / ${keyLabel("useSlot3")}`, action: "Use inventory slot" },
+      { input: bound("attack"), action: "Attack (costs stamina)", rebind: "attack" },
+      { input: bound("pickup"), action: "Pick up nearby loot", rebind: "pickup" },
+      { input: bound("interact"), action: "Interact with doors and exits", rebind: "interact" },
+      {
+        input: bound("carry"),
+        action: "Carry a downed party member, or drop who you're carrying",
+        rebind: "carry",
+      },
+      { input: bound("useSlot1"), action: "Use inventory slot 1", rebind: "useSlot1" },
+      { input: bound("useSlot2"), action: "Use inventory slot 2", rebind: "useSlot2" },
+      { input: bound("useSlot3"), action: "Use inventory slot 3", rebind: "useSlot3" },
     ],
   },
   {
     title: "The Hub",
     controls: [
-      { input: keyLabel("pickup"), action: "Take a torch from the Torch Supply" },
-      { input: keyLabel("interact"), action: "Use the Dungeon Gate to start a run" },
-      { input: "Ready", action: "Required from every member before the gate opens" },
+      { input: bound("pickup"), action: "Take a torch from the Torch Supply" },
+      { input: bound("interact"), action: "Use the Dungeon Gate to start a run" },
+      { input: () => "Ready", action: "Required from every member before the gate opens" },
     ],
   },
   {
     title: "Party",
     controls: [
-      { input: "Ready", action: "Toggle ready state" },
-      { input: "Enable Voice", action: "Request microphone preview" },
-      { input: "Leave", action: "Exit the current room" },
+      { input: () => "Ready", action: "Toggle ready state" },
+      { input: () => "Enable Voice", action: "Request microphone preview" },
+      { input: () => "Leave", action: "Exit the current room" },
     ],
   },
   {
     title: "Debug",
-    controls: [{ input: "`", action: "Show or hide the position readout" }],
+    controls: [{ input: () => DEBUG_KEY, action: "Show or hide the position readout" }],
   },
 ];
 
@@ -73,9 +100,59 @@ export function createControlsMenu(settingsStore: HudSettingsStore) {
 
   const groups = document.createElement("div");
   groups.className = "controls-menu__groups";
-  groups.append(...CONTROL_GROUPS.map(renderGroup), createHudSettingsSection(settingsStore).element);
+  const message = document.createElement("p");
+  message.className = "controls-menu__message";
+  message.setAttribute("role", "status");
+  message.hidden = true;
 
-  panel.append(header, groups);
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "controls-menu__reset";
+  resetButton.textContent = "Reset to defaults";
+
+  // The key being chosen for an action, or null. While set, `onCapture` swallows every keypress.
+  let capturing: { action: BindableAction; button: HTMLButtonElement } | null = null;
+
+  const showMessage = (text: string): void => {
+    message.textContent = text;
+    message.hidden = text === "";
+  };
+
+  const refreshers: (() => void)[] = [];
+  const renderBinding = (button: HTMLButtonElement, action: BindableAction): void => {
+    const active = capturing?.action === action;
+    button.textContent = active ? "Press a key..." : keyLabel(action);
+    button.setAttribute("aria-label", `${ACTION_NAMES[action]}: ${active ? "press a key" : keyLabel(action)}`);
+    button.classList.toggle("controls-menu__key--capturing", active);
+  };
+
+  const endCapture = (): void => {
+    const was = capturing;
+    capturing = null;
+    if (was) renderBinding(was.button, was.action);
+  };
+
+  groups.append(
+    ...CONTROL_GROUPS.map((group) =>
+      renderGroup(group, refreshers, (action, button) => {
+        endCapture();
+        capturing = { action, button };
+        showMessage("");
+        renderBinding(button, action);
+      }, renderBinding),
+    ),
+    createHudSettingsSection(settingsStore).element,
+  );
+  const refresh = (): void => refreshers.forEach((fn) => fn());
+  onBindingsChange(refresh);
+
+  resetButton.addEventListener("click", () => {
+    endCapture();
+    resetBindings();
+    showMessage("Controls reset to defaults.");
+  });
+
+  panel.append(header, message, groups, resetButton);
   element.append(panel);
 
   function open(): void {
@@ -84,8 +161,37 @@ export function createControlsMenu(settingsStore: HudSettingsStore) {
   }
 
   function close(): void {
+    endCapture();
     element.hidden = true;
   }
+
+  // Capture phase on window, ahead of the input controller and the Escape handler below, so the
+  // key chosen for a binding neither moves the player nor fires its old action.
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (!capturing) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return;
+
+      const { action } = capturing;
+      if (event.key === "Escape") {
+        endCapture();
+        showMessage("");
+        return;
+      }
+
+      const result = setBinding(action, event.key);
+      if (result.ok) {
+        endCapture();
+        showMessage(`${ACTION_NAMES[action]} is now ${keyLabel(action)}.`);
+      } else {
+        showMessage(bindingMessage(event.key, result));
+      }
+    },
+    true,
+  );
 
   element.addEventListener("click", (event) => {
     if (event.target === element) close();
@@ -98,7 +204,12 @@ export function createControlsMenu(settingsStore: HudSettingsStore) {
   return { element, open, close };
 }
 
-function renderGroup(group: ControlGroup): HTMLElement {
+function renderGroup(
+  group: ControlGroup,
+  refreshers: (() => void)[],
+  startCapture: (action: BindableAction, button: HTMLButtonElement) => void,
+  renderBinding: (button: HTMLButtonElement, action: BindableAction) => void,
+): HTMLElement {
   const section = document.createElement("section");
   section.className = "controls-menu__group";
 
@@ -110,7 +221,21 @@ function renderGroup(group: ControlGroup): HTMLElement {
 
   for (const control of group.controls) {
     const input = document.createElement("dt");
-    input.textContent = control.input;
+    const { rebind } = control;
+    if (rebind) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "controls-menu__key";
+      button.addEventListener("click", () => startCapture(rebind, button));
+      refreshers.push(() => renderBinding(button, rebind));
+      renderBinding(button, rebind);
+      input.append(button);
+    } else {
+      input.textContent = control.input();
+      refreshers.push(() => {
+        input.textContent = control.input();
+      });
+    }
 
     const action = document.createElement("dd");
     action.textContent = control.action;

@@ -1,6 +1,6 @@
 import type { VoiceStatus } from "../audio/proximityAudio.js";
 import { isTypingTarget } from "../input/inputController.js";
-import type { GameplayAction } from "../input/keyBindings.js";
+import { DEBUG_KEY, type GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import {
   connectionLabel,
@@ -38,9 +38,6 @@ interface HudOptions {
   onUseSlot: (slot: number) => void;
   onOpenControls: () => void;
 }
-
-/** Backquote toggles the debug readouts; `?debug` in the URL starts with them on. */
-const DEBUG_KEY = "`";
 
 /**
  * Composes the HUD from the modules under `hud/`; what each element shows lives in
@@ -128,6 +125,7 @@ export function createHud(options: HudOptions) {
   };
   setDebug(new URLSearchParams(window.location.search).has("debug"));
 
+  // `?debug` in the URL starts with the readouts on.
   window.addEventListener("keydown", (event) => {
     if (event.key !== DEBUG_KEY || event.repeat || isTypingTarget(event.target)) return;
     setDebug(session.positionElement.hidden);
