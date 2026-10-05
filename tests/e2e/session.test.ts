@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import {
   ATTACK_STAMINA_COST,
@@ -10,6 +11,7 @@ import {
   PLAYER_MAX_STAMINA,
   PROTOCOL_VERSION,
   RESISTANCE_DECAY_GRACE_MS,
+  VOICE_SIGNAL_BURST,
 } from "../../src/shared/constants/game.js";
 import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
@@ -325,22 +327,24 @@ describe("joining a dungeon", () => {
 
   it("carries the largest valid voice signal through the transport limit", async () => {
     const roomCode = await createRoom();
-    const { client, joined } = await joinRoom(roomCode, "Alpha");
+    const { client } = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
 
     // Three UTF-8 bytes per character: the most bytes a schema-valid signal can occupy, and more
     // than a limit counted in characters would allow.
     const frame = JSON.stringify({
       type: "voiceSignal",
-      targetPlayerId: joined.playerId,
+      targetPlayerId: beta.joined.playerId,
       signal: { kind: "offer", sdp: "€".repeat(MAX_VOICE_SIGNAL_LENGTH) },
     });
     expect(Buffer.byteLength(frame)).toBeGreaterThan(MAX_CLIENT_MESSAGE_CHARS);
     expect(Buffer.byteLength(frame)).toBeLessThanOrEqual(MAX_CLIENT_MESSAGE_BYTES);
 
+    const relayed = beta.client.next("voiceSignalRelay");
     client.sendRaw(frame);
 
-    // Relay is not built yet, so passing validation is what reaches this reply.
-    expect((await client.next("sessionError")).code).toBe("notImplemented");
+    const relay = await relayed;
+    expect(relay.signal.kind === "offer" && relay.signal.sdp.length).toBe(MAX_VOICE_SIGNAL_LENGTH);
   });
 
   it("parses a frame of exactly the byte limit instead of dropping the connection", async () => {
@@ -682,6 +686,201 @@ describe("hub and run lifecycle", () => {
     await new Promise((resolve) => setTimeout(resolve, GRACE_MS + SWEEP_MS * 3));
 
     expect(downed.carriedByPlayerId).toBeNull();
+  });
+});
+
+describe("voice signaling", () => {
+  const offer = { kind: "offer", sdp: "v=0 offer" } as const;
+
+  function signal(client: TestClient, targetPlayerId: string, payload: unknown = offer): void {
+    client.send({ type: "voiceSignal", targetPlayerId, signal: payload });
+  }
+
+  it("relays an offer, answer, and ICE candidates between party members", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const candidate = {
+      kind: "iceCandidate",
+      candidate: "candidate:1 1 udp 2122260223 192.0.2.1 54400 typ host",
+      sdpMid: "0",
+      sdpMLineIndex: 0,
+    };
+
+    const gotOffer = beta.client.next("voiceSignalRelay");
+    signal(alpha.client, beta.joined.playerId);
+    expect(await gotOffer).toEqual({
+      type: "voiceSignalRelay",
+      fromPlayerId: alpha.joined.playerId,
+      signal: offer,
+    });
+
+    const gotAnswer = alpha.client.next("voiceSignalRelay");
+    signal(beta.client, alpha.joined.playerId, { kind: "answer", sdp: "v=0 answer" });
+    expect(await gotAnswer).toEqual({
+      type: "voiceSignalRelay",
+      fromPlayerId: beta.joined.playerId,
+      signal: { kind: "answer", sdp: "v=0 answer" },
+    });
+
+    const gotCandidate = alpha.client.next("voiceSignalRelay");
+    signal(beta.client, alpha.joined.playerId, candidate);
+    expect((await gotCandidate).signal).toEqual(candidate);
+
+    // An end-of-candidates marker has no mid or line index.
+    const gotEnd = beta.client.next("voiceSignalRelay");
+    signal(alpha.client, beta.joined.playerId, {
+      kind: "iceCandidate",
+      candidate: "",
+      sdpMid: null,
+      sdpMLineIndex: null,
+    });
+    expect((await gotEnd).signal).toMatchObject({ sdpMid: null, sdpMLineIndex: null });
+
+    expect(alpha.client.received("sessionError")).toHaveLength(0);
+    expect(beta.client.received("sessionError")).toHaveLength(0);
+  });
+
+  it("sends the relay to the target alone, carrying no credentials", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const gamma = await joinRoom(roomCode, "Gamma");
+
+    const gotOffer = beta.client.next("voiceSignalRelay");
+    alpha.client.send({
+      type: "voiceSignal",
+      targetPlayerId: beta.joined.playerId,
+      signal: { ...offer, resumeToken: alpha.joined.resumeToken },
+      resumeToken: alpha.joined.resumeToken,
+    });
+    const relay = await gotOffer;
+    const wire = JSON.stringify(relay);
+
+    expect(Object.keys(relay).sort()).toEqual(["fromPlayerId", "signal", "type"]);
+    expect(relay.signal).toEqual(offer);
+    expect(wire).not.toContain(alpha.joined.resumeToken);
+    expect(wire).not.toContain(beta.joined.resumeToken);
+    if (alpha.joined.profileSecret) expect(wire).not.toContain(alpha.joined.profileSecret);
+    expect(gamma.client.received("voiceSignalRelay")).toHaveLength(0);
+    expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("refuses a signal to the sender itself", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+
+    signal(alpha.client, alpha.joined.playerId);
+
+    expect((await alpha.client.next("sessionError")).code).toBe("signalTargetUnavailable");
+    expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("refuses an unknown player and a player in another dungeon alike", async () => {
+    const alpha = await joinRoom(await createRoom(), "Alpha");
+    const outsider = await joinRoom(await createRoom(), "Outsider");
+
+    signal(alpha.client, randomUUID());
+    const unknown = await alpha.client.next("sessionError");
+    signal(alpha.client, outsider.joined.playerId);
+    const crossSession = await alpha.client.next("sessionError");
+
+    expect(unknown.code).toBe("signalTargetUnavailable");
+    expect(crossSession).toEqual(unknown);
+    expect(outsider.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("refuses a disconnected target and routes to it again after it reconnects", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const dropped = alpha.client.next("playerConnectionChanged");
+    beta.client.close();
+    await dropped;
+
+    signal(alpha.client, beta.joined.playerId);
+    const refused = await alpha.client.next("sessionError");
+    expect(refused.code).toBe("signalTargetUnavailable");
+    expect(refused.message).toMatch(/disconnected/);
+
+    const returned = alpha.client.next("playerConnectionChanged");
+    const resumed = await joinRoom(roomCode, "Beta", beta.joined.resumeToken);
+    await returned;
+
+    const gotOffer = resumed.client.next("voiceSignalRelay");
+    signal(alpha.client, beta.joined.playerId);
+    expect((await gotOffer).fromPlayerId).toBe(alpha.joined.playerId);
+    expect(beta.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("stops routing to a player who left, and lets one who left signal nobody", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const left = alpha.client.next("playerLeft");
+    beta.client.send({ type: "leaveSession" });
+    await left;
+
+    signal(alpha.client, beta.joined.playerId);
+    expect((await alpha.client.next("sessionError")).code).toBe("signalTargetUnavailable");
+
+    signal(beta.client, alpha.joined.playerId);
+    expect((await beta.client.next("sessionError")).code).toBe("notInSession");
+    expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("stops routing to a player whose slot timed out", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    beta.client.close();
+    await alpha.client.next("playerLeft", 3000);
+
+    signal(alpha.client, beta.joined.playerId);
+    const refused = await alpha.client.next("sessionError");
+    expect(refused.code).toBe("signalTargetUnavailable");
+    expect(refused.message).not.toMatch(/disconnected/);
+  });
+
+  it("refuses an oversized signal without relaying it", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    signal(alpha.client, beta.joined.playerId, {
+      kind: "offer",
+      sdp: "x".repeat(MAX_VOICE_SIGNAL_LENGTH + 1),
+    });
+
+    expect((await alpha.client.next("sessionError")).code).toBe("invalidMessage");
+    expect(beta.client.received("voiceSignalRelay")).toHaveLength(0);
+  });
+
+  it("rate-limits a flooding sender with a stable error, without touching the party", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    for (let sent = 0; sent <= VOICE_SIGNAL_BURST; sent += 1) {
+      signal(alpha.client, beta.joined.playerId);
+    }
+
+    expect(await alpha.client.next("sessionError")).toEqual({
+      type: "sessionError",
+      code: "rateLimited",
+      message: "Too many voice signals; slow down",
+    });
+
+    // Every signal inside the burst still arrived, and the target's own budget is untouched.
+    await vi.waitFor(() =>
+      expect(beta.client.received("voiceSignalRelay")).toHaveLength(VOICE_SIGNAL_BURST),
+    );
+    const answered = alpha.client.next("voiceSignalRelay");
+    signal(beta.client, alpha.joined.playerId, { kind: "answer", sdp: "v=0 answer" });
+    await expect(answered).resolves.toBeDefined();
   });
 });
 

@@ -184,6 +184,15 @@ export const EMPTY_SESSION_TTL_MS = 10 * 60_000;
 
 export const MAX_VOICE_SIGNAL_LENGTH = 8192;
 
+/**
+ * Per-player voice signaling budget, as a token bucket: up to `VOICE_SIGNAL_BURST` signals at once,
+ * refilled at `VOICE_SIGNAL_REFILL_PER_SECOND`. Connecting to a full party is an offer or answer
+ * plus a trickle of ICE candidates per peer, usually well under ten each, so the burst covers a
+ * whole mesh setup with room for a renegotiation. Past that, a client is flooding its peers.
+ */
+export const VOICE_SIGNAL_BURST = 48;
+export const VOICE_SIGNAL_REFILL_PER_SECOND = 8;
+
 /** Cap on a single inbound frame, measured in UTF-16 code units rather than bytes. */
 export const MAX_CLIENT_MESSAGE_CHARS = 16384;
 
