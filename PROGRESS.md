@@ -165,7 +165,7 @@ Conflicts resolved by Backend step 10:
 - [x] Start with one fixed dungeon map. Each session clones the Ember Vault map from `src/server/game/dungeonState.ts`.
 - [x] Validate player movement against walls, bounds, and occupied tiles. `movePlayer` handles zero intent, map collision, player occupancy, monsters, and closed doors.
 - [x] Store monsters, loot, doors, exits, and room metadata server-side. The dungeon instance hangs off `Session.dungeon`.
-- [x] Broadcast state changes after validated actions. Valid `playerMoveIntent` messages increment the session tick and fan out a `stateSnapshot`.
+- [x] Broadcast state changes after validated actions. Accepted actions mutate authoritative state and the 20Hz tick sends the `stateSnapshot` (issue #29); only the tick advances `session.tick`.
 
 ### 4. Combat and Game Rules
 
@@ -577,7 +577,7 @@ Complete on `feature/hub-run-flow`.
 - Recommended code changes, none applied yet, ordered by how much more expensive they get if deferred:
   1. Per-player snapshots. `snapshotOf(session)` in `src/server/gameServer.ts` builds one frame for the whole party, so every client holds the full map, roster, and monster list. Darkness cannot be a client-side effect on top of that: anyone can read the unlit world straight out of the socket, which defeats the pillar. Needed before anything else is built on the current shared-snapshot assumption.
   2. Stop sending the map in every snapshot. Still open, and now measured rather than predicted: a generated 96x64 map is about 115 kB/s per player of uncompressed JSON, or 600 kB/s for a four-player party. Backend step 9 mitigated it by enabling WebSocket permessage-deflate, which takes it to 1.6 kB/s on the wire because the withheld tiles are nearly all blanks, but the real fix is unchanged: send the map once on join, then only newly discovered tiles.
-  3. Decouple broadcast rate from action rate. `publish()` fans out a full snapshot on every accepted move, so four players moving at 20Hz produce roughly a hundred snapshots a second per session on top of the tick's twenty. Mark the session dirty and let the tick flush it. Visibility work then computes once per tick instead of once per action.
+  3. (Done in issue #29: `publish()` is gone and only the tick sends snapshots.) Decouple broadcast rate from action rate. `publish()` fans out a full snapshot on every accepted move, so four players moving at 20Hz produce roughly a hundred snapshots a second per session on top of the tick's twenty. Mark the session dirty and let the tick flush it. Visibility work then computes once per tick instead of once per action.
   4. Make dungeon content data-driven before it grows. `FIXED_DUNGEON` is a literal with hand-written UUIDs, and `MONSTER_STATS` is keyed by display name, which breaks as soon as two monsters share one. Move both into `content/` and key monsters by type id.
   5. Introduce rooms into the data model. Everything the description wants from level design (unseen players in other rooms, per-room templates, boss gating) needs a room to exist; today there is only a tile grid.
   6. Widen player vitals once. Health is a bare number on `SessionPlayer` and `playerStateSchema`; adding resistance, stamina, and decay across three separate changes will cost more than one vitals module and one protocol bump.
@@ -1124,3 +1124,20 @@ Complete on `feature/hub-run-flow`.
   - Not done: persistence between sessions (follow-up, reuse `dnd.hudSettings` storage), and the
     two-real-clients manual check (bindings are module state per page, so clients cannot share them
     by construction). If #51's Accessibility section and this menu were ever split, keep one menu.
+
+### 2026-10-05
+
+- Coalesced action-driven snapshots into the 20Hz server tick for issue #29 (Backend step 3). No
+  protocol change.
+  - Removed `publish()` from `src/server/gameServer.ts`. Move, attack, pickup, use, interact, lift,
+    and drop now only mutate state; the tick loop is the sole sender of `stateSnapshot` and the sole
+    place `session.tick` advances, so ticks stay strictly increasing and a session emits at most one
+    snapshot per tick interval. `attackResolved` and `actionRejected` still go out immediately.
+  - A total wipe used to publish a second, extra snapshot so the client could see itself downed. It
+    now shows the party downed in that tick's snapshot and returns to the hub on the next tick
+    (`wipeAnnounced`), which keeps the one-snapshot-per-tick rule.
+  - Measured with four players each sending a move every 50ms for 3s against one session: before,
+    265 snapshots/s and 265 visibility frames/s (about 66 per client); after, 78 and 79 (about 20
+    per client, the tick rate). Roughly a 3.4x reduction in snapshot fanout and visibility work.
+  - Tests: `tests/e2e/snapshotCoalescing.test.ts` covers no per-action snapshot, one snapshot per
+    tick across several players, monotonic ticks, immediate rejection, and the wipe transition.

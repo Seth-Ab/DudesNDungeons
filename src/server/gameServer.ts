@@ -76,6 +76,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
   const signalLimiter = new SignalRateLimiter();
+  /** Parties whose downed state has been snapshotted but who are not yet returned to the hub. */
+  const wipeAnnounced = new WeakSet<Session>();
 
   const note = (message: string): void => {
     if (log) console.log(message);
@@ -130,12 +132,6 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     for (const player of session.players.values()) {
       sendSnapshot(session, player.id);
     }
-  }
-
-  /** After an action changes the dungeon, advance the tick and send everyone the new state now. */
-  function publish(session: Session): void {
-    session.tick += 1;
-    broadcastSnapshots(session);
   }
 
   const httpServer = createServer((request, response) => {
@@ -349,11 +345,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
-        // A step onto a plate fires it now rather than at the next tick, so the snapshot this move
-        // publishes already carries the result.
+        // A step onto a plate fires it now rather than at the next tick, so the snapshot the tick
+        // sends already carries the result. The action only mutates state; the 20 Hz tick below is
+        // the sole sender of snapshots, so input rate never multiplies visibility work.
         resolveTraps(member.session, now());
         resolvePuzzles(member.session, now());
-        publish(member.session);
         return;
       }
 
@@ -377,7 +373,6 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         }
 
         broadcast(member.session, attack.event);
-        publish(member.session);
         return;
       }
 
@@ -407,7 +402,6 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         // The dungeon exit lives behind `playerInteract`, so this is where an escape banks. A
         // no-op unless something actually changed a profile, which opening a door does not.
         profiles.flush();
-        publish(member.session);
         return;
       }
 
@@ -427,7 +421,6 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
-        publish(member.session);
         return;
       }
 
@@ -506,12 +499,16 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (partyWiped(session)) {
         // The party is shown going down before it is moved home. A client tells a wipe from an
         // escape by whether it saw itself downed, and the blow that wipes a party lands in the same
-        // tick as the return, so without this snapshot every wipe was announced as an escape.
-        // A tick of its own, since a client drops any snapshot not newer than the last.
-        if (hasAudience) publish(session);
-        returnToHub(session, false);
-        // A wipe costs everyone their carry, which is a profile change like any other.
-        profiles.flush();
+        // tick as the return, so the return waits one tick: this tick's snapshot shows the party
+        // downed, the next one shows the hub.
+        if (hasAudience && !wipeAnnounced.has(session)) {
+          wipeAnnounced.add(session);
+        } else {
+          wipeAnnounced.delete(session);
+          returnToHub(session, false);
+          // A wipe costs everyone their carry, which is a profile change like any other.
+          profiles.flush();
+        }
       }
       session.tick += 1;
 
