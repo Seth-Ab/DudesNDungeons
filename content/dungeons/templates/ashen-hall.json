@@ -19,8 +19,8 @@
     { "x": 7, "y": 7, "side": "south" }
   ],
   "lights": [
-    { "x": 2, "y": 2, "name": "Hall Torch", "radius": 9.6 },
-    { "x": 11, "y": 5, "name": "Hall Torch", "radius": 9.6 }
+    { "x": 2, "y": 2, "name": "Hall Torch", "radius": 5 },
+    { "x": 11, "y": 5, "name": "Hall Torch", "radius": 5 }
   ],
   "monsters": [
     { "typeId": "cinder-slime", "min": 1, "max": 3 },

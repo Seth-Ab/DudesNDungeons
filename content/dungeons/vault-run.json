@@ -11,6 +11,6 @@
     { "kinds": ["hall", "trap"], "min": 1, "max": 2 },
     { "kinds": ["boss"], "min": 1, "max": 1 }
   ],
-  "corridorLight": { "name": "Corridor Torch", "radius": 8.4, "everyTiles": 7 },
+  "corridorLight": { "name": "Corridor Torch", "radius": 4.5, "everyTiles": 7 },
   "exitDestination": "hub"
 }

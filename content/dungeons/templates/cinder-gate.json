@@ -14,5 +14,5 @@
     { "x": 8, "y": 2, "side": "east" },
     { "x": 4, "y": 5, "side": "south" }
   ],
-  "lights": [{ "x": 4, "y": 2, "name": "Gate Brazier", "radius": 12.6 }]
+  "lights": [{ "x": 4, "y": 2, "name": "Gate Brazier", "radius": 7 }]
 }
