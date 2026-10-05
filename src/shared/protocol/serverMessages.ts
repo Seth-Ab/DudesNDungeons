@@ -27,6 +27,11 @@ export const errorCodeSchema = z.enum([
    * loot be banked twice, or lost twice, so the second join is refused rather than reconciled.
    */
   "profileInUse",
+  /**
+   * A voice signal named a player it cannot reach: the sender, a disconnected party member, or
+   * nobody in the sender's dungeon. Players in other dungeons are reported exactly like unknown ids.
+   */
+  "signalTargetUnavailable",
   "rateLimited",
   "notImplemented",
   "internalError",
