@@ -214,6 +214,53 @@ describe("ready state", () => {
   });
 });
 
+describe("voice", () => {
+  it("relays a handshake to the named party member's signal listeners only", async () => {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    const hostView = await until(host, inSession);
+
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    const guestView = await until(guest, inSession);
+
+    const heardByHost = new Promise<unknown>((resolve) => {
+      host.onVoiceSignal((fromPlayerId, signal) => resolve({ fromPlayerId, signal }));
+    });
+    const echoes: unknown[] = [];
+    guest.onVoiceSignal((fromPlayerId, signal) => echoes.push({ fromPlayerId, signal }));
+
+    expect(guest.sendVoiceSignal(hostView.selfId!, { kind: "offer", sdp: "v=0" })).toBe(true);
+
+    expect(await heardByHost).toEqual({
+      fromPlayerId: guestView.selfId,
+      signal: { kind: "offer", sdp: "v=0" },
+    });
+    expect(echoes).toEqual([]);
+    // A handshake is an event, not state: it never reaches the view.
+    expect(JSON.stringify(host.view)).not.toContain("v=0");
+  });
+
+  it("keeps the latest proximity update in the view", async () => {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    await until(host, inSession);
+
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    const guestView = await until(guest, inSession);
+
+    // Both start together in the lit hub, so each hears the other.
+    const view = await until(host, (v) =>
+      v.voiceRange.some((peer) => peer.playerId === guestView.selfId),
+    );
+    const peer = view.voiceRange.find((entry) => entry.playerId === guestView.selfId);
+    expect(peer?.volume).toBeGreaterThan(0);
+  });
+});
+
 describe("snapshots", () => {
   it("keeps receiving authoritative snapshots after joining", async () => {
     const client = newClient();

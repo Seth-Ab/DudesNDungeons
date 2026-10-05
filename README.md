@@ -152,6 +152,11 @@ Set `VITE_WS_URL` to point the client at a different backend, for example
 `VITE_WS_URL=ws://192.168.1.20:8080`. It defaults to `ws://localhost:8080`, and the HTTP origin for
 `POST /sessions` is derived from it, so the two can never disagree.
 
+Proximity voice is peer to peer over WebRTC. `VITE_ICE_SERVERS` takes a comma-separated list of
+STUN/TURN URLs; left unset, the client uses `stun:stun.l.google.com:19302`, and set to an empty value
+it uses none, which still works for players on one LAN. No TURN server is bundled, so players behind
+strict NATs may not connect. Browsers only allow the microphone on `localhost` or HTTPS.
+
 Because the dev client and the API are on different ports, the server sends
 `Access-Control-Allow-Origin` on its HTTP routes. It allows any origin by default; set `CORS_ORIGIN`
 to restrict it. WebSocket connections are not subject to CORS and need no such setting.

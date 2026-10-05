@@ -59,7 +59,14 @@ export interface SessionView {
   recentAttacks: AttackRecord[];
   /** Sequence of the newest entry in `recentAttacks`. */
   attackSeq: number;
+  /**
+   * Per-peer voice volume from the latest `voiceRangeUpdated`. A party member missing from it is
+   * out of earshot or out of sight and must be silent.
+   */
+  voiceRange: VoicePeerRange[];
 }
+
+export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
 
 const MAX_RECENT_ATTACKS = 32;
 
@@ -80,6 +87,7 @@ export const initialSessionView: SessionView = {
   staminaRefusals: 0,
   recentAttacks: [],
   attackSeq: 0,
+  voiceRange: [],
 };
 
 /**
@@ -216,11 +224,34 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         staminaRefusals: view.staminaRefusals + (message.reason === "exhausted" ? 1 : 0),
       };
 
-    // Voice feedback lands in later steps; ignoring it keeps the view honest rather than inventing
-    // state the client cannot yet act on.
     case "voiceRangeUpdated":
+      return { ...view, voiceRange: message.peers };
+
+    // A handshake is an event for the voice mesh, not state: the session client hands it straight
+    // to its `onVoiceSignal` listeners.
     case "voiceSignalRelay":
       return view;
+  }
+}
+
+/**
+ * Whether the player still belongs to a party. True through a reconnect, so voice survives a
+ * dropped socket; false once they leave, the reconnect window closes, or the rejoin is refused.
+ */
+export function inParty(view: SessionView): boolean {
+  switch (view.phase) {
+    case "inSession":
+    case "reconnecting":
+    case "connecting":
+    case "joining":
+      return true;
+    // Also passed through for a moment on every reconnect, between the socket opening and the
+    // rejoin going out; only a refused join means the party is gone.
+    case "connected":
+      return view.lastError === null || !JOIN_REJECTIONS.has(view.lastError.code);
+    case "offline":
+    case "failed":
+      return false;
   }
 }
 

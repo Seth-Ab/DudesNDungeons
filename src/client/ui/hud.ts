@@ -1,4 +1,4 @@
-import type { VoiceStatus } from "../audio/proximityAudio.js";
+import type { VoiceState } from "../audio/voiceMesh.js";
 import { isTypingTarget } from "../input/inputController.js";
 import { DEBUG_KEY, type GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
@@ -28,9 +28,12 @@ import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
 import { createToasts } from "./hud/toasts.js";
 import { createVitals } from "./hud/vitals.js";
+import { createVoice } from "./hud/voice.js";
 
 interface HudOptions {
-  onEnableVoice: () => void;
+  onToggleVoice: () => void;
+  onToggleMute: () => void;
+  onToggleDeafen: () => void;
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
   onAttack: () => void;
@@ -59,6 +62,7 @@ export function createHud(options: HudOptions) {
   title.textContent = "DudesNDungeons";
 
   const session = createSession(options);
+  const voice = createVoice(options);
   const placeStatus = createStat("Place", "-");
   const actionStatus = createStat("Action", "-");
   const vitals = createVitals();
@@ -80,12 +84,17 @@ export function createHud(options: HudOptions) {
   const sessionButtons = document.createElement("div");
   sessionButtons.className = "hud__buttons";
   sessionButtons.append(...session.buttons, inventory.toggle);
+  const voiceButtons = document.createElement("div");
+  voiceButtons.className = "hud__buttons";
+  voiceButtons.append(...voice.buttons);
   sessionPanel.append(
     session.roomElement,
     session.connectionElement,
-    session.voiceElement,
+    voice.statusElement,
+    voice.meterElement,
     session.positionElement,
     sessionButtons,
+    voiceButtons,
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
@@ -134,8 +143,12 @@ export function createHud(options: HudOptions) {
   return {
     element,
 
-    setVoiceStatus(status: VoiceStatus) {
-      session.setVoiceStatus(status);
+    setVoiceState(state: VoiceState) {
+      voice.setState(state);
+    },
+
+    setVoiceLevel(level: number) {
+      voice.setLevel(level);
     },
 
     setPosition(position: Vector2) {
@@ -155,6 +168,7 @@ export function createHud(options: HudOptions) {
       session.setConnection(connectionLabel(view));
       session.setRoom(roomCodeLabel(view));
       session.update(controls, self ? self.ready : null);
+      voice.setInSession(!controls.sessionControlsDisabled);
       placeStatus.value.textContent = placeStatusLabel(view, self);
       vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 

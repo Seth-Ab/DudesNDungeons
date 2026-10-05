@@ -1,6 +1,11 @@
 import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
 import type { EntityId, Vector2 } from "../shared/types/core.js";
-import { requestMicrophonePreview } from "./audio/proximityAudio.js";
+import {
+  captureMicrophone,
+  createBrowserPeerLink,
+  iceServersFrom,
+} from "./audio/browserVoice.js";
+import { createVoiceMesh } from "./audio/voiceMesh.js";
 import { createInputController, type GameplayAction } from "./input/inputController.js";
 import {
   createLocalStorageProfileSecretStore,
@@ -16,6 +21,7 @@ import {
 import { createSessionClient } from "./network/sessionClient.js";
 import {
   initialSessionView,
+  inParty,
   othersOf,
   selfOf,
   visibleOthersOf,
@@ -114,11 +120,25 @@ const renderer = createCanvasRenderer(() => {
 
 const controlsMenu = createControlsMenu(hudSettingsStore());
 
+const iceServers = iceServersFrom(import.meta.env.VITE_ICE_SERVERS);
+
+const voice = createVoiceMesh({
+  capture: captureMicrophone,
+  createPeerLink: (_peerId, local, events) => createBrowserPeerLink(local, events, iceServers),
+  sendSignal: (targetId, signal) => client.sendVoiceSignal(targetId, signal),
+  onChange: (state) => hud.setVoiceState(state),
+});
+client.onVoiceSignal((fromPlayerId, signal) => void voice.handleSignal(fromPlayerId, signal));
+
 const hud = createHud({
-  onEnableVoice: async () => {
-    hud.setVoiceStatus("requesting microphone");
-    hud.setVoiceStatus(await requestMicrophonePreview());
+  // The microphone is requested here and nowhere else: only a click on Enable Voice captures it.
+  onToggleVoice: () => {
+    const { status } = voice.state();
+    if (status === "live" || status === "requesting") voice.disable();
+    else void voice.enable();
   },
+  onToggleMute: () => voice.setMuted(!voice.state().muted),
+  onToggleDeafen: () => voice.setDeafened(!voice.state().deafened),
   onToggleReady: (ready) => client.setReady(ready),
   onLeave: () => {
     client.leave();
@@ -174,7 +194,17 @@ client.subscribe((next) => {
   // Only a fresh snapshot carries new positions; a ready toggle or an attack must not count as one,
   // or it would read as confirmation that a moving player has stopped.
   const snapshotArrived = next.tick !== view.tick;
+  const rangeChanged = next.voiceRange !== view.voiceRange;
   view = next;
+
+  // Leaving, timing out, and a refused rejoin release the microphone and every peer link. A
+  // reconnect keeps them: the audio does not run through the server.
+  if (!inParty(view)) {
+    voice.disable();
+  } else if (view.phase === "inSession") {
+    voice.syncParty(view.selfId, view.players);
+  }
+  if (rangeChanged) voice.applyRange(view.voiceRange);
 
   if (view.dungeon) {
     renderedDungeon = view.dungeon;
@@ -227,6 +257,7 @@ lobby.focus();
 // load starved the movement timer, so a player slowed down the longer they played.
 function renderLoop(): void {
   renderer.render();
+  hud.setVoiceLevel(voice.inputLevel());
   requestAnimationFrame(renderLoop);
 }
 requestAnimationFrame(renderLoop);

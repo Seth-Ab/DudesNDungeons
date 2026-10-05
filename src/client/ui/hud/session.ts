@@ -1,24 +1,21 @@
-import type { VoiceStatus } from "../../audio/proximityAudio.js";
 import type { ControlsView } from "../../state/hudView.js";
 import { readyLabel } from "../../state/hudView.js";
 import { createButton, createStat } from "./dom.js";
 
 interface SessionOptions {
-  onEnableVoice: () => void;
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
   onOpenControls: () => void;
 }
 
 /**
- * Connection, room, position, and voice stats plus the ready/leave/controls/voice buttons. The
- * position is a debug readout: the HUD shows it only while the debug toggle is on.
+ * Connection, room, and position stats plus the ready/leave/controls buttons. The position is a
+ * debug readout: the HUD shows it only while the debug toggle is on.
  */
 export function createSession(options: SessionOptions) {
   const connection = createStat("Connection", "offline");
   const room = createStat("Room", "-");
   const position = createStat("Position", "-");
-  const voice = createStat("Voice", "voice disabled");
 
   let ready = false;
   const readyButton = createButton("Ready", () => {
@@ -27,15 +24,13 @@ export function createSession(options: SessionOptions) {
   });
   const leaveButton = createButton("Leave", options.onLeave);
   const controlsButton = createButton("Controls", options.onOpenControls);
-  const voiceButton = createButton("Enable Voice", options.onEnableVoice);
 
   return {
     connectionElement: connection.element,
     roomElement: room.element,
     positionElement: position.element,
-    voiceElement: voice.element,
     // Appended in this order by the HUD's session cluster.
-    buttons: [readyButton, leaveButton, controlsButton, voiceButton],
+    buttons: [readyButton, leaveButton, controlsButton],
 
     setConnection(text: string) {
       connection.value.textContent = text;
@@ -45,9 +40,6 @@ export function createSession(options: SessionOptions) {
     },
     setPosition(text: string) {
       position.value.textContent = text;
-    },
-    setVoiceStatus(status: VoiceStatus) {
-      voice.value.textContent = status;
     },
 
     update(view: ControlsView, selfReady: boolean | null) {
