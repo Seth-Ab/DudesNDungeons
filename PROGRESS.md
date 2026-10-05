@@ -10,7 +10,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: darker lighting from playtests (issue #60). Every light radius was cut to
+- Last completed work: smoother remote player movement (issue #62). Remote players are drawn
+  100 ms in the past from a buffer of authoritative positions spaced one move interval apart, so
+  jitter and back-to-back snapshots no longer stop-start them; no protocol change.
+- Before that: darker lighting from playtests (issue #60). Every light radius was cut to
   roughly half its old value, each pool now tapers smoothly to black, and remembered geometry is
   fully dark; no protocol change. See the 2026-10-04 activity log for the values.
 - Before that: boss encounters and escape gating, the boss item of Backend step 12
@@ -296,11 +299,12 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Send movement intent messages instead of direct position changes. Backend step 3 now resolves them authoritatively.
 - [x] Render remote players from server broadcasts.
-- [x] Add simple interpolation or step animation. `src/client/state/remoteInterpolation.ts` slides
-  each remote player between the last two authoritative positions over the server's tick interval,
-  fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is untouched.
-  A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE` snaps instead
-  of sliding. Monsters still draw at raw snapshot position; interpolation was scoped to players only.
+- [x] Add simple interpolation or step animation. `src/client/state/remoteInterpolation.ts` buffers
+  each remote player's authoritative positions and draws them `REMOTE_RENDER_DELAY_MS` in the past,
+  with steps spaced one move interval apart and brief capped extrapolation when the buffer runs dry
+  (issue #62), fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is
+  untouched. A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE`
+  snaps instead of sliding. Monsters still draw at raw snapshot position; interpolation was scoped to players only.
 - [x] Show connection, join, leave, and disconnect states.
 
 #### 2a. Client Networking
@@ -1050,3 +1054,26 @@ Complete on `feature/hub-run-flow`.
     colour-blindness simulator or a measured contrast audit. Floating damage numbers on the canvas
     are not covered by reduce motion. At 130% scale the toast stack can overlap the status panel at
     1280px wide. The skills strip is not included (Frontend step 10 has not shipped).
+
+- Buffered remote player interpolation (issue #62, follow-up to #35). An owner playtest saw a
+  friend's player stutter: the old slide lasted exactly one move interval and restarted on every
+  snapshot, so any jitter stopped the player and then lurched them, and an action snapshot landing
+  just after a tick snapshot restarted the slide almost at once. No protocol or server change.
+  - `src/client/state/remoteInterpolation.ts` now keeps a per-player buffer of authoritative
+    positions and draws each remote player `REMOTE_RENDER_DELAY_MS` (two move intervals, 100 ms)
+    in the past, interpolating between the samples that bracket that time.
+  - Each new position is scheduled one move interval after the previous one, clamped to between
+    25 ms before and 50 ms after its arrival. A late snapshot is absorbed, a burst is spaced out,
+    and the schedule still tracks arrivals so clock drift cannot pile up latency. Snapshots that
+    repeat a position (tick snapshots between move snapshots) only record that the player was heard.
+  - A dry buffer extrapolates along the last step for at most one move interval, unless a later
+    snapshot already confirmed the player stopped; whatever arrives next continues from where the
+    player is drawn. A player starting from rest makes their first step at full speed.
+  - A player missing from one frame keeps their track for 500 ms, so flickering at the edge of view
+    no longer snaps. First sight, `SNAP_DISTANCE` corrections, joins/resumes, and hub/run
+    transitions still snap. `main.ts` feeds the buffer only on a new snapshot tick, not on every
+    view change. Local prediction and reconciliation are untouched.
+  - Tests: `tests/client/remoteInterpolation.test.ts` replays arrival schedules against a 1 ms
+    render clock (steady, jittered, a late burst, a dry buffer, settling, stopping, starting from
+    rest, a brief absence) and checks no frame moves faster than walking speed and steady windows
+    move at exactly walking speed.
