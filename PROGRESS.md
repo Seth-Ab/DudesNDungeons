@@ -956,3 +956,30 @@ Complete on `feature/hub-run-flow`.
     was seen under heavy machine load (dev servers and browsers running alongside); not reproduced
     in later runs.
   - Verified live with a scripted browser in a generated run (hub → torch → gate → dungeon).
+
+### 2026-10-04
+
+- HUD redesign Phase 5 for issue #50: run clock, hub overlay, and combat feedback (Frontend step 8).
+  No protocol change; the server stays authoritative.
+  - Run clock (bottom right, dungeon only, hidden in the hub): elapsed time and a countdown to decay
+    from `RunState`. Neutral until `RESISTANCE_DECAY_WARNING_MS` remains, amber inside it, red with
+    "Resistance falling" while `RunState.decaying`. `runClockView`/`formatClock` in `state/hudView.ts`.
+  - Hub gate status (`hubStatusView`, `ui/hud/hubStatus.ts`) is a persistent banner under the toast
+    stack: "Party ready" or "Waiting on <names>". It replaces the expiring gate toast, which is gone.
+  - The bank is now a "Stash" panel toggled by a button in the session cluster (`aria-expanded`),
+    closed by default, instead of permanent text in the party panel.
+  - Floating damage numbers (`state/combatFeedback.ts`, drawn by the renderer) come from
+    `attackResolved`. Verified in `src/server/gameServer.ts`: the server broadcasts every
+    `attackResolved` to every session member regardless of visibility, so the client receives all
+    players' and monsters' attacks. It draws a number only when the target can be placed from the
+    visible snapshot (a monster in `dungeon.monsters`, the local player, or a visible ally); hits it
+    cannot place are dropped. Colour: gold for the local player's hits, red when hit, grey for allies.
+  - `SessionView` gains `recentAttacks`/`attackSeq` (capped at 32) so each attack is shown once.
+  - A red vignette flashes when the local player's health drops (`ui/hud/damageVignette.ts`, reduced
+    motion shortens it). Monster health bars gained an outline and turn red below 35%.
+  - Tests: `tests/client/combatFeedback.test.ts`, run clock/hub status/`formatClock` in
+    `tests/client/hudView.test.ts`, and `tests/e2e/browser/hubOverlay.spec.ts`. The layout smoke
+    spec now ignores the hidden Stash panel.
+  - Not verified visually in a live run: the hub banner and Stash were screenshotted, but the run
+    clock stages, damage numbers, vignette, and monster bars were not captured in a real dungeon.
+    They are covered by view-model tests only.
