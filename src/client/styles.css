@@ -558,12 +558,127 @@ button:disabled {
   color: #e2a0a0;
 }
 
-.hud__bank-heading {
+/* The run clock: neutral until the final warning window, amber inside it, red once resistance falls. */
+.hud__clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__clock-elapsed {
+  color: #e6dfcc;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.hud__clock-countdown {
+  color: #9a9486;
+  font-size: 0.78rem;
+}
+
+.hud__clock[data-stage="warning"] .hud__clock-elapsed,
+.hud__clock[data-stage="warning"] .hud__clock-countdown {
+  color: #e0b64f;
+}
+
+.hud__clock[data-stage="decaying"] .hud__clock-elapsed,
+.hud__clock[data-stage="decaying"] .hud__clock-countdown {
+  color: #e2625a;
+}
+
+/* Persistent hub gate status, under the toast stack so the two never overlap. */
+.hud__hub-status {
+  position: absolute;
+  top: 3.6rem;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  width: min(24rem, calc(100vw - 33rem));
+  min-width: 14rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #6b5524;
+  border-radius: 8px;
+  background: rgba(40, 33, 18, 0.92);
+  color: #e0b64f;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.hud__hub-status--ready {
+  border-color: #4a7a52;
+  background: rgba(22, 40, 27, 0.92);
+  color: #9fd8a8;
+}
+
+.hud__hub-status-text {
+  font-size: 1rem;
+}
+
+.hud__hub-status-detail {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+/* The Stash, toggled from the session buttons. */
+.hud__stash {
+  top: 50%;
+  left: 50%;
+  min-width: 14rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  transform: translate(-50%, -50%);
+}
+
+.hud__stash-heading {
+  margin: 0;
+  color: #e6dfcc;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hud__stash-hint {
   margin: 0;
   color: #8d8578;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.hud__clock[hidden],
+.hud__hub-status[hidden],
+.hud__stash[hidden] {
+  display: none;
+}
+
+/* Brief red edge flash when the local player loses health. */
+.hud__vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(200, 30, 30, 0.55) 100%);
+}
+
+.hud__vignette--flash {
+  animation: hud-vignette-flash 450ms ease-out;
+}
+
+@keyframes hud-vignette-flash {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud__vignette--flash {
+    animation-duration: 1ms;
+  }
 }
 
 .hud__bank {
@@ -719,7 +834,7 @@ button:disabled {
     height: 3rem;
   }
 
-  .hud__bank-heading {
-    display: none;
+  .hud__hub-status {
+    width: min(20rem, calc(100vw - 27rem));
   }
 }

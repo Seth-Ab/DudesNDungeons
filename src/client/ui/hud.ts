@@ -6,6 +6,8 @@ import {
   connectionLabel,
   actionPrompt,
   controlsView,
+  hubStatusView,
+  runClockView,
   hotbarView,
   newServerAction,
   placeStatusLabel,
@@ -16,6 +18,9 @@ import {
 } from "../state/hudView.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
+import { createDamageVignette } from "./hud/damageVignette.js";
+import { createHubStatus } from "./hud/hubStatus.js";
+import { createRunClock } from "./hud/runClock.js";
 import { createPanel, createStat } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
@@ -63,6 +68,9 @@ export function createHud(options: HudOptions) {
   const partyFrames = createPartyFrames();
   const inventory = createInventory();
   const actions = createActions(options);
+  const runClock = createRunClock();
+  const hubStatus = createHubStatus();
+  const vignette = createDamageVignette();
   const hotbar = createHotbar(options);
   // Everything that used to be its own message line: the hub gate, the run outcome, the torch and
   // decay warnings, and the error box.
@@ -74,7 +82,7 @@ export function createHud(options: HudOptions) {
   const sessionPanel = createPanel("hud__panel hud__panel--session");
   const sessionButtons = document.createElement("div");
   sessionButtons.className = "hud__buttons";
-  sessionButtons.append(...session.buttons);
+  sessionButtons.append(...session.buttons, inventory.toggle);
   sessionPanel.append(
     session.roomElement,
     session.connectionElement,
@@ -84,15 +92,26 @@ export function createHud(options: HudOptions) {
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
-  partyPanel.append(vitals.element, ...inventory.bankElements);
+  partyPanel.append(vitals.element);
 
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
   actionButtons.className = "hud__buttons";
   actionButtons.append(...actions.elements);
-  actionPanel.append(actionButtons);
+  actionPanel.append(runClock.element, actionButtons);
 
-  element.append(statusPanel, partyFrames.element, toasts.element, sessionPanel, partyPanel, actionPanel, hotbar.element);
+  element.append(
+    vignette.element,
+    statusPanel,
+    partyFrames.element,
+    toasts.element,
+    hubStatus.element,
+    sessionPanel,
+    partyPanel,
+    actionPanel,
+    hotbar.element,
+    inventory.panel,
+  );
 
   // The prompt follows the predicted position, which moves between snapshots.
   let currentView: SessionView | null = null;
@@ -141,6 +160,9 @@ export function createHud(options: HudOptions) {
       placeStatus.value.textContent = placeStatusLabel(view, self);
       vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 
+      vignette.update(self ? self.health : null);
+      runClock.update(runClockView(view));
+      hubStatus.update(hubStatusView(view));
       toasts.update(toastMessages(view, self));
 
       actions.update(controls);

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue"
+  short_description: "Create deduplicated, labeled GitHub issues in the house format"
+  default_prompt: "Use $issue to draft and publish a GitHub issue for: <problem or work description>"

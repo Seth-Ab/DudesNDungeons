@@ -157,9 +157,68 @@ export function decayMessage(run: RunState | null): string {
   return `Resistance starts falling in ${Math.ceil(run.decayStartsInMs / 1000)}s.`;
 }
 
+/** "0:07", "12:03", "1:02:03": whole seconds, rounded down. */
+export function formatClock(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const seconds = total % 60;
+  const minutes = Math.floor(total / 60) % 60;
+  const hours = Math.floor(total / 3600);
+  const pad = (value: number): string => `${value}`.padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+/** Neutral until the final warning window, amber inside it, red once resistance is falling. */
+export type RunClockStage = "neutral" | "warning" | "decaying";
+
+export interface RunClockView {
+  elapsed: string;
+  /** What the second line says: the time left before decay, or that it has begun. */
+  countdown: string;
+  stage: RunClockStage;
+}
+
+/**
+ * The persistent run clock, from the server's own `RunState`. Null in the hub, before the first
+ * snapshot, and outside a session, so the HUD hides it rather than showing a stale clock.
+ */
+export function runClockView(view: SessionView): RunClockView | null {
+  if (view.phase !== "inSession" || view.location !== "dungeon" || !view.run) return null;
+
+  const { elapsedMs, decayStartsInMs, decaying } = view.run;
+  if (decaying) {
+    return { elapsed: formatClock(elapsedMs), countdown: "Resistance falling", stage: "decaying" };
+  }
+
+  return {
+    elapsed: formatClock(elapsedMs),
+    countdown: `Decay in ${formatClock(Math.ceil(decayStartsInMs / 1000) * 1000)}`,
+    stage: decayStartsInMs <= RESISTANCE_DECAY_WARNING_MS ? "warning" : "neutral",
+  };
+}
+
+export interface HubStatusView {
+  ready: boolean;
+  /** The headline: whether walking up to the gate is worth it. */
+  text: string;
+  /** Who it is waiting on, or how to start. */
+  detail: string;
+}
+
+/**
+ * The persistent hub gate status. Null outside the hub, where there is no gate to wait at.
+ * Replaces the gate toast, which expired while the party was still waiting.
+ */
+export function hubStatusView(view: SessionView): HubStatusView | null {
+  if (view.phase !== "inSession" || view.location !== "hub") return null;
+
+  const status = entranceStatus(view.players);
+  const detail = entranceMessage(status);
+  if (status.kind === "ready") return { ready: true, text: "Party ready", detail };
+  return { ready: false, text: "Waiting on the party", detail };
+}
+
 export interface NoticesView {
   decay: string;
-  gate: string;
   torch: string;
   outcome: string;
 }
@@ -170,9 +229,7 @@ export function noticesView(view: SessionView, self: PlayerState | null): Notice
   const inHub = view.location === "hub";
 
   return {
-    // Decay only runs in a dungeon, so the hub says what it is waiting for instead.
     decay: inSession && !inHub ? decayMessage(view.run) : "",
-    gate: inSession && inHub ? entranceMessage(entranceStatus(view.players)) : "",
     torch: inSession ? torchNotice(self, view.location) : "",
     // Kept up while the party is back in the hub, so the last trip is still readable after the
     // action line has moved on to whatever they did next.
@@ -202,7 +259,6 @@ export function toastMessages(view: SessionView, self: PlayerState | null): Toas
     { key: "error", text: actionableError(view), severity: "error" },
     { key: "decay", text: notices.decay, severity: "warning" },
     { key: "torch", text: notices.torch, severity: "warning" },
-    { key: "gate", text: notices.gate, severity: "info" },
     { key: "outcome", text: notices.outcome, severity: "info", ttlMs: OUTCOME_TOAST_TTL_MS },
   ];
 }

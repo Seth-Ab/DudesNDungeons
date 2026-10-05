@@ -19,7 +19,7 @@ test.describe("HUD overlay", () => {
       const canvas = await page.locator("#app canvas").boundingBox();
       expect(canvas).toMatchObject({ x: 0, y: 0, ...viewport });
 
-      const panels = await page.locator(".hud__panel").evaluateAll((elements) =>
+      const panels = await page.locator(".hud__panel:not([hidden])").evaluateAll((elements) =>
         elements.map((element) => {
           const { left, top, right, bottom } = element.getBoundingClientRect();
           return { left, top, right, bottom };

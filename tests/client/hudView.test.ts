@@ -9,6 +9,9 @@ import {
   connectionLabel,
   controlsView,
   decayMessage,
+  formatClock,
+  hubStatusView,
+  runClockView,
   healthBarView,
   LOW_HEALTH_RATIO,
   staminaRefused,
@@ -175,7 +178,6 @@ describe("notices", () => {
       self,
     );
     expect(hub.decay).toBe("");
-    expect(hub.gate).toContain("Waiting on Maya");
     expect(hub.torch).toContain("No torch");
 
     const dungeon = noticesView(
@@ -183,7 +185,6 @@ describe("notices", () => {
       self,
     );
     expect(dungeon.decay).toContain("Resistance starts falling in 30s");
-    expect(dungeon.gate).toBe("");
     expect(dungeon.outcome).toBe("");
   });
 
@@ -198,7 +199,6 @@ describe("notices", () => {
   it("shows nothing before the session starts", () => {
     expect(noticesView(view({ phase: "connected", location: "hub" }), null)).toEqual({
       decay: "",
-      gate: "",
       torch: "",
       outcome: "",
     });
@@ -211,7 +211,6 @@ describe("toast messages", () => {
       ["error", ""],
       ["decay", ""],
       ["torch", ""],
-      ["gate", ""],
       ["outcome", ""],
     ]);
   });
@@ -480,5 +479,83 @@ describe("action prompt", () => {
     const carrier = player("Maya", { id: SELF_ID, carryingPlayerId: ana.id });
     const v = view({ ...inSession, players: [carrier, ana], dungeon: dungeon() });
     expect(actionPrompt(v, carrier, origin)).toEqual({ action: "carry", keyHint: "C", text: "Drop Ana" });
+  });
+});
+
+describe("formatClock", () => {
+  it("formats whole seconds as m:ss, and h:mm:ss past an hour", () => {
+    expect(formatClock(0)).toBe("0:00");
+    expect(formatClock(7_999)).toBe("0:07");
+    expect(formatClock(125_000)).toBe("2:05");
+    expect(formatClock(3_725_000)).toBe("1:02:05");
+    expect(formatClock(-5)).toBe("0:00");
+  });
+});
+
+describe("run clock", () => {
+  const inRun = (overrides: Partial<RunState>): SessionView =>
+    view({ phase: "inSession", location: "dungeon", run: run(overrides) });
+
+  it("is hidden in the hub, before a snapshot, and outside a session", () => {
+    expect(runClockView(view({ phase: "inSession", location: "hub", run: run() }))).toBeNull();
+    expect(runClockView(view({ phase: "inSession", location: "dungeon", run: null }))).toBeNull();
+    expect(runClockView(view({ phase: "connected", location: "dungeon", run: run() }))).toBeNull();
+  });
+
+  it("is neutral while decay is far off", () => {
+    expect(runClockView(inRun({ elapsedMs: 65_000, decayStartsInMs: 300_000 }))).toEqual({
+      elapsed: "1:05",
+      countdown: "Decay in 5:00",
+      stage: "neutral",
+    });
+  });
+
+  it("turns amber from the warning window and rounds the countdown up", () => {
+    expect(runClockView(inRun({ decayStartsInMs: RESISTANCE_DECAY_WARNING_MS + 1 }))?.stage).toBe("neutral");
+
+    const warning = runClockView(inRun({ decayStartsInMs: RESISTANCE_DECAY_WARNING_MS }));
+    expect(warning?.stage).toBe("warning");
+    expect(runClockView(inRun({ decayStartsInMs: 29_100 }))?.countdown).toBe("Decay in 0:30");
+  });
+
+  it("turns red once resistance is falling", () => {
+    expect(runClockView(inRun({ elapsedMs: 700_000, decayStartsInMs: 0, decaying: true }))).toEqual({
+      elapsed: "11:40",
+      countdown: "Resistance falling",
+      stage: "decaying",
+    });
+  });
+});
+
+describe("hub status", () => {
+  it("is null outside the hub", () => {
+    expect(hubStatusView(view({ phase: "inSession", location: "dungeon" }))).toBeNull();
+    expect(hubStatusView(view({ phase: "connected", location: "hub" }))).toBeNull();
+  });
+
+  it("names who the party is waiting on", () => {
+    const status = hubStatusView(
+      view({ phase: "inSession", location: "hub", players: [player("Maya", { ready: false })] }),
+    );
+    expect(status).toEqual({
+      ready: false,
+      text: "Waiting on the party",
+      detail: "Waiting on Maya to ready up.",
+    });
+  });
+
+  it("treats a disconnected player as not ready", () => {
+    const status = hubStatusView(
+      view({ phase: "inSession", location: "hub", players: [player("Maya", { ready: true, connected: false })] }),
+    );
+    expect(status?.ready).toBe(false);
+  });
+
+  it("is ready when everyone connected is ready", () => {
+    const status = hubStatusView(
+      view({ phase: "inSession", location: "hub", players: [player("Maya", { ready: true })] }),
+    );
+    expect(status?.ready).toBe(true);
+    expect(status?.text).toBe("Party ready");
   });
 });

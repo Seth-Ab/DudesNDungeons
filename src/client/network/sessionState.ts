@@ -1,4 +1,5 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
+import type { AttackRecord } from "../state/combatFeedback.js";
 import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
@@ -50,7 +51,17 @@ export interface SessionView {
    * two refusals in a row are two events; the HUD flashes the stamina bar when it goes up.
    */
   staminaRefusals: number;
+  /**
+   * The latest resolved attacks, newest last, for floating damage numbers. The server sends every
+   * attack in the session to every member, so this includes fights the player cannot see; the
+   * consumer decides which have a visible target. Capped so a long run does not grow it.
+   */
+  recentAttacks: AttackRecord[];
+  /** Sequence of the newest entry in `recentAttacks`. */
+  attackSeq: number;
 }
+
+const MAX_RECENT_ATTACKS = 32;
 
 export const initialSessionView: SessionView = {
   phase: "offline",
@@ -67,6 +78,8 @@ export const initialSessionView: SessionView = {
   lastError: null,
   lastAction: null,
   staminaRefusals: 0,
+  recentAttacks: [],
+  attackSeq: 0,
 };
 
 /**
@@ -179,6 +192,17 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
     case "attackResolved":
       return {
         ...view,
+        attackSeq: view.attackSeq + 1,
+        recentAttacks: [
+          ...view.recentAttacks,
+          {
+            seq: view.attackSeq + 1,
+            attackerId: message.attackerId,
+            targetId: message.targetId,
+            damage: message.damage,
+            targetDefeated: message.targetDefeated,
+          },
+        ].slice(-MAX_RECENT_ATTACKS),
         lastAction:
           message.damage > 0
             ? `${message.targetDefeated ? "Defeated target" : "Hit target"} for ${message.damage}`

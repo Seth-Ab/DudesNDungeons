@@ -24,6 +24,12 @@ import {
 } from "./tiles.js";
 import { tileDarkness, type SceneLight } from "./lighting.js";
 import { loadTileset } from "./tileset.js";
+import {
+  monsterBarView,
+  POPUP_RISE,
+  type ActivePopup,
+  type DamagePopupKind,
+} from "../state/combatFeedback.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 
 /**
@@ -69,6 +75,14 @@ const colors = {
   gateLabel: "#9fd0a6",
   sealedLabel: "#d0806a",
   boss: "#8e2f3a",
+  monsterBar: "#caa85a",
+  monsterBarLow: "#d2503f",
+};
+
+const POPUP_COLORS: Record<DamagePopupKind, string> = {
+  dealt: "#f4d27a",
+  taken: "#ff6b5a",
+  ally: "#cfd6dc",
 };
 
 /**
@@ -94,6 +108,8 @@ export interface Scene {
   location: SessionLocation | null;
   /** One line under the hub gate saying whether it will open. Null outside the hub. */
   gatePrompt: string | null;
+  /** Damage numbers currently floating, positioned in world units. */
+  popups: readonly ActivePopup[];
 }
 
 export function createCanvasRenderer(getScene: () => Scene) {
@@ -316,13 +332,17 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.fillRect(center.x - side * 0.22 - eye / 2, center.y - side * 0.12, eye, eye);
     ctx.fillRect(center.x + side * 0.22 - eye / 2, center.y - side * 0.12, eye, eye);
 
+    const bar = monsterBarView(monster.health, monster.maxHealth);
     const barWidth = side * 1.15;
-    const healthWidth = Math.max(0, (monster.health / monster.maxHealth) * barWidth);
-    const barY = center.y - side / 2 - 10;
-    ctx.fillStyle = "#161616";
-    ctx.fillRect(center.x - barWidth / 2, barY, barWidth, 4);
-    ctx.fillStyle = "#caa85a";
-    ctx.fillRect(center.x - barWidth / 2, barY, healthWidth, 4);
+    const barHeight = monster.boss ? 6 : 5;
+    const barY = center.y - side / 2 - 11;
+    const barX = center.x - barWidth / 2;
+    ctx.fillStyle = "#0b0b0b";
+    ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+    ctx.fillStyle = "#3a2323";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.fillStyle = bar.low ? colors.monsterBarLow : colors.monsterBar;
+    ctx.fillRect(barX, barY, barWidth * bar.ratio, barHeight);
 
     if (monster.boss) {
       ctx.fillStyle = colors.sealedLabel;
@@ -339,6 +359,26 @@ export function createCanvasRenderer(getScene: () => Scene) {
    * span is four tiles and one sprite stretched across it would be drawn at four times its size.
    * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
    */
+  /** Numbers rise and fade; red when the local player is hit, gold for their own hits. */
+  const drawPopups = (popups: readonly ActivePopup[], camera: Vector2): void => {
+    ctx.textAlign = "center";
+    ctx.lineJoin = "round";
+    for (const popup of popups) {
+      const at = worldToScreen(
+        { x: popup.position.x, y: popup.position.y - POPUP_RISE * popup.progress - 0.9 },
+        camera,
+      );
+      ctx.globalAlpha = Math.max(0, 1 - popup.progress * popup.progress);
+      ctx.font = popup.kind === "ally" ? "bold 14px sans-serif" : "bold 18px sans-serif";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#0b0b0b";
+      ctx.strokeText(popup.text, at.x, at.y);
+      ctx.fillStyle = POPUP_COLORS[popup.kind];
+      ctx.fillText(popup.text, at.x, at.y);
+    }
+    ctx.globalAlpha = 1;
+  };
+
   const drawDoor = (map: DungeonMapState, door: DoorState, camera: Vector2): void => {
     const horizontal =
       doorOrientation(
@@ -684,6 +724,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     drawLightmap(scene, camera);
     drawSigns(scene, camera);
+    drawPopups(scene.popups, camera);
   }
 
   window.addEventListener("resize", resize);
