@@ -10,9 +10,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: darker lighting from a playtest (issue #60). Every light radius was cut to
-  about 0.63 of its old value and the client lightmap's rim was darkened, so lit pools are small
-  and dim at the edge; no protocol change. See the 2026-10-04 activity log for the values.
+- Last completed work: darker lighting from playtests (issue #60). Every light radius was cut to
+  roughly half its old value, each pool now tapers smoothly to black, and remembered geometry is
+  fully dark; no protocol change. See the 2026-10-04 activity log for the values.
 - Before that: boss encounters and escape gating, the boss item of Backend step 12
   (issue #31), under protocol v14. A boss is monster content with `boss: true` (the Ember Warden);
   content validation keeps bosses inside boss rooms and requires every boss room to always spawn
@@ -95,7 +95,7 @@ Resolved:
 - Target run length: 15-20 minutes for a full dungeon run.
 - World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
 - Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
-- Light reach at that scale: Light and voice grow by three rather than four, so a torch covers less of a room than it used to and a party that splits up loses each other sooner. Retuned darker on 2026-10-04 (issue #60) after a playtest: a torch now reaches 8 world units, about two authored tiles.
+- Light reach at that scale: Light and voice grow by three rather than four, so a torch covers less of a room than it used to and a party that splits up loses each other sooner. Retuned darker on 2026-10-04 (issue #60) after a playtest: a torch now reaches 6 world units, one and a half authored tiles.
 - Hub/run lifecycle: The whole reserved party must be connected and ready before a standing player
   can use the entrance. Fresh joins wait during a run; reconnects reclaim their slot.
 - Torch supply: Torches are deliberate, separate-from-inventory pickups in the hub and rare dungeon
@@ -988,28 +988,39 @@ Complete on `feature/hub-run-flow`.
     They are covered by view-model tests only.
 
 - Darker lighting from a playtest (issue #60). The owner found torches and fixed lights lit so
-  much that a party stayed in sight of each other too easily. No protocol change.
-  - Radii, all cut to about 0.63 of their old value, so a pool is a small spot in a dark room
-    rather than most of it (a generated hall is 56x32 world tiles):
-    - Carried torch `PLAYER_TORCH_LIGHT_RADIUS` 12.6 → 8, about two authored tiles.
-    - `FIXED_LIGHT_RADIUS` 9.6 → 6 and `MONSTER_GLOW_LIGHT_RADIUS` 7.2 → 4.5 in
+  much that a party stayed in sight of each other too easily. No protocol change. A first pass cut
+  every radius to about 0.63 of its old value; two further owner playtests on the branch asked for
+  it darker still, a smaller carried torch, remembered geometry fully dark, and a soft rim.
+  - Radii, all cut to roughly half their old value (0.48-0.58), so a pool is a small spot in a
+    dark room rather than most of it (a generated hall is 56x32 world tiles):
+    - Carried torch `PLAYER_TORCH_LIGHT_RADIUS` 12.6 → 6, one and a half authored tiles.
+    - `FIXED_LIGHT_RADIUS` 9.6 → 5 and `MONSTER_GLOW_LIGHT_RADIUS` 7.2 → 4 in
       `src/shared/constants/game.ts`.
-    - Template lights: hall torches 9.6 → 6, gate brazier and stair beacon 12.6 → 8, lever sconces
-      and the maze lantern 7.8 → 5, the boss crucible 13.8 → 9 (kept the brightest, so the boss
-      room still reads as a set piece). The Ember Vault pillars 9.6 → 6.
-    - Corridor torches in `vault-run.json` 8.4 → 5, still every 7 authored tiles, so a corridor
+    - Template lights: hall torches 9.6 → 5, gate brazier and stair beacon 12.6 → 7, lever sconces
+      and the maze lantern 7.8 → 4.5, the boss crucible 13.8 → 7.5 (kept the brightest, so the boss
+      room still reads as a set piece). The Ember Vault pillars 9.6 → 5.
+    - Corridor torches in `vault-run.json` 8.4 → 4.5, still every 7 authored tiles, so a corridor
       is now dark between pools instead of lit almost end to end.
-    - Monster glow: ash imp 7.2 → 4.5, Ember Warden 10.2 → 6.5.
+    - Monster glow: ash imp 7.2 → 4, Ember Warden 10.2 → 5.5.
     - The hub's Great Hearth stays at 100, so the hub is fully lit.
-  - Torchbearer `sightRadiusBonus` 1 → 1.5. On the old 12.6 torch, +1 was 8% more reach; on 8,
-    +1.5 is 19% (about 40% more lit area): worth a skill slot, still well short of the old torch.
-  - Client lightmap (`src/client/rendering/lighting.ts`): `LIT_EDGE_DARKNESS` 0.42 → 0.72 and
-    the falloff exponent 2 → 1.4 (new `LIGHT_FALLOFF_EXPONENT`), so shade starts sooner and the
-    outer half of a pool reads dim. `REMEMBERED_DARKNESS` 0.66 → 0.8 keeps remembered geometry
-    darker than anything lit but still readable. A lit tile no light accounts for is 0.3 → 0.5.
-  - Voice: `VOICE_FULL_VOLUME_DISTANCE` 9 → 6 and `VOICE_SILENCE_DISTANCE` 42 → 28, keeping
-    both in the same ratio to the torch as before. Full volume ends just inside your own light;
-    a torch seen far down a hall is faint and then silent. Voice remains gated on visibility.
+  - Torchbearer `sightRadiusBonus` 1 → 1.5. On the old 12.6 torch, +1 was 8% more reach; on 6,
+    +1.5 is 25% (about 56% more lit area): worth a skill slot, still well short of the old torch.
+  - Client lightmap (`src/client/rendering/lighting.ts`):
+    - The linear rim (`LIT_EDGE_DARKNESS` and a falloff exponent) is replaced by a taper:
+      brightness is `(1 - reach²) ^ LIGHT_TAPER_EXPONENT` (1.5), which reaches full darkness exactly
+      at the rim with no slope left, so a pool fades into the black instead of ending at an edge.
+    - `REMEMBERED_DARKNESS` 0.66 → 1, at the owner's request: geometry out of the light goes back
+      to black once a light moves on, so a party has to remember its own way. This deliberately
+      overrides the issue's "remembered geometry stays readable" criterion.
+    - A lit tile up to `RIM_SLACK_TILES` (3) past a light's rim is drawn at the rim's darkness
+      rather than as unattributed (0.5). The server also lights walls bordering lit floor, up to
+      about 1.4 tiles past the radius, and a carried torch draws at the predicted position while
+      lit tiles trail by a snapshot; both used to glow at 0.5 just outside a faded pool, and
+      flickered at the snapshot rate as the player moved.
+  - Voice: `VOICE_FULL_VOLUME_DISTANCE` 9 → 6 and `VOICE_SILENCE_DISTANCE` 42 → 28, set on the
+    first pass and deliberately left on the later ones. Full volume now ends at the rim of your own
+    light; silence is about four and a half torch radii out, so another player's torch seen far
+    down a hall is faint before it is silent. Voice remains gated on visibility.
   - Test: from the middle of each room of a pinned-seed generated run, no light reaches a player
     standing in the next room. It also passed on the old radii, because adjacent room middles are
     56-68 world units apart. What still lets players see each other across rooms is the sight rule:

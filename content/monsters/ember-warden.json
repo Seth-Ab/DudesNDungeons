@@ -7,6 +7,6 @@
   "attackRange": 1.4,
   "damage": 22,
   "attackCooldownMs": 1800,
-  "glowRadius": 6.5,
+  "glowRadius": 5.5,
   "boss": true
 }

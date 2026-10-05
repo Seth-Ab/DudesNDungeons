@@ -100,20 +100,20 @@ export const INTERACT_RANGE = 1.2;
 /**
  * Radius, in world units, visible around a player carrying a deliberately picked-up torch.
  *
- * Two authored tiles. A generated hall is 56 world tiles across, so a torch lights well under a
+ * One and a half authored tiles. A generated hall is 56 world tiles across, so a torch lights well under a
  * third of it and a party member at the far wall stays in the dark. It was 12.6 until a playtest
  * found the party kept each other in sight far too easily.
  */
-export const PLAYER_TORCH_LIGHT_RADIUS = 8;
+export const PLAYER_TORCH_LIGHT_RADIUS = 6;
 
 /**
  * Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. Smaller than a
  * carried torch, so a pillar marks a spot in the dark rather than lighting the room around it.
  */
-export const FIXED_LIGHT_RADIUS = 6;
+export const FIXED_LIGHT_RADIUS = 5;
 
 /** Radius for monsters that glow enough to reveal nearby geometry: the monster and a step past it. */
-export const MONSTER_GLOW_LIGHT_RADIUS = 4.5;
+export const MONSTER_GLOW_LIGHT_RADIUS = 4;
 
 /**
  * How far either side of a player a snapshot carries map tiles.
@@ -136,15 +136,14 @@ export const TONIC_HEAL_AMOUNT = 35;
 /**
  * Distance in world units. Peers closer than this play at full volume.
  *
- * Shrunk alongside the torch so hearing keeps pace with sight: full volume ends a little inside
- * `PLAYER_TORCH_LIGHT_RADIUS`, so someone at the edge of your light is already a touch quieter.
+ * Shrunk alongside the torch so hearing keeps pace with sight: full volume ends at the rim of
+ * `PLAYER_TORCH_LIGHT_RADIUS`, so someone fading out of your light starts fading out of earshot too.
  * Voice is also gated on visibility, so a peer you cannot see is silent at any distance.
  */
 export const VOICE_FULL_VOLUME_DISTANCE = 6;
 /**
- * Distance in world units at which a peer is fully attenuated. About three and a half torch radii,
- * the ratio it had before the lights were dimmed, so a torch seen down a long hall fades out rather
- * than talking at full volume from across the room.
+ * Distance in world units at which a peer is fully attenuated. About four and a half torch radii,
+ * so a torch seen down a long hall fades out rather than talking at full volume from across the room.
  */
 export const VOICE_SILENCE_DISTANCE = 28;
 
