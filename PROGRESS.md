@@ -983,3 +983,23 @@ Complete on `feature/hub-run-flow`.
   - Not verified visually in a live run: the hub banner and Stash were screenshotted, but the run
     clock stages, damage numbers, vignette, and monster bars were not captured in a real dungeon.
     They are covered by view-model tests only.
+
+- HUD redesign Phase 6 for issue #51: accessibility and visual polish (Frontend step 8). No protocol
+  change. This closes out the HUD redesign (#46-#50).
+  - Not by colour alone: low health adds a "!" to the heart label and a striped fill; falling
+    resistance already had "▼" and now also a striped fill; party states keep their distinct icons
+    and `aria-label`s; bars differ in height and glyph. The pulse stays as an extra cue.
+  - New "Accessibility" section in the Controls menu (`ui/hudSettings.ts`): a reduce-motion checkbox
+    and a UI scale (85%-130%, applied as the root font size, so every rem-sized element scales).
+    Settings persist in local storage under `dnd.hudSettings` (`state/hudSettings.ts`, falling back
+    to memory when storage is blocked); reduce motion defaults to the OS preference until chosen.
+    Reduced motion (`:root[data-reduced-motion="true"]`) stops pulses, bar flashes, and the ghost
+    trail, and softens the damage vignette to one gentle fade. It replaced the older
+    `prefers-reduced-motion` media queries.
+  - Tests: `tests/client/hudSettings.test.ts`; `tests/e2e/browser/hudAccessibility.spec.ts` checks the
+    clusters sit in the viewport over a clear canvas centre, vitals have distinct glyphs, and the
+    settings apply and persist across a reload. Screenshots: `docs/hud-accessibility/`.
+  - Not done: the colour palette was reviewed by eye and by glyph/shape redundancy, not with a
+    colour-blindness simulator or a measured contrast audit. Floating damage numbers on the canvas
+    are not covered by reduce motion. At 130% scale the toast stack can overlap the status panel at
+    1280px wide. The skills strip is not included (Frontend step 10 has not shipped).

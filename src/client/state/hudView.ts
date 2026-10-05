@@ -103,7 +103,7 @@ export interface VitalsView {
 }
 
 /** Label glyphs, so the three bars differ by more than hue. */
-export const VITAL_GLYPHS = { health: "♥", resistance: "◆", stamina: "»", decaying: "▼" } as const;
+export const VITAL_GLYPHS = { health: "♥", resistance: "◆", stamina: "»", decaying: "▼", low: "!" } as const;
 
 /** Health reads as `current/max`; resistance is a modifier, so it keeps the bare number. */
 export function healthBarView(current: number, max: number): HealthBarView {
