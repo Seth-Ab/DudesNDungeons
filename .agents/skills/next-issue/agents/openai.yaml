@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next Issue"
+  short_description: "Pick the next GitHub issue that won't collide with in-flight work"
+  default_prompt: "Use $next-issue to pick an open issue that does not overlap with work already in progress, then start it with $ticket."
