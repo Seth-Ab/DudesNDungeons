@@ -3,7 +3,13 @@ import {
   VOICE_FULL_VOLUME_DISTANCE,
   VOICE_SILENCE_DISTANCE,
 } from "../../shared/constants/game.js";
-import { coversTile, distance, tileAt, tileOf } from "../../shared/game/movement.js";
+import {
+  coversTile,
+  distance,
+  PLAYER_RADIUS,
+  tileAt,
+  tileOf,
+} from "../../shared/game/movement.js";
 import type {
   DungeonMapState,
   DungeonState,
@@ -107,6 +113,65 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
   return true;
 }
 
+/**
+ * How far past a seen player's body they stay in view, in world units.
+ *
+ * Players are judged by their whole body rather than by the one tile their centre rounds into, and
+ * once seen they stay seen while sight or light still reaches within this much of it. Without the
+ * margin, someone walking along the ragged rim of a light or past a corner dropped out and back in
+ * every time their rounded tile changed (#61). It is less than the thinnest wall or door at
+ * `TILE_SCALE`, and only see-through tiles count, so the margin never reaches into the next room.
+ */
+const PLAYER_SIGHT_LINGER = 1;
+
+/**
+ * The players each viewer saw in their last frame, for the margin above. Keyed weakly by the viewer
+ * so a player who leaves takes the memory with them. A frame recomputed for unchanged positions
+ * gives the same answer, so computing one more than once a tick is harmless.
+ */
+const lastSeenPlayers = new WeakMap<SessionPlayer, ReadonlySet<PlayerId>>();
+
+/** How far around another player's centre counts as them, given whether the viewer saw them last. */
+function bodyReach(viewer: SessionPlayer, player: SessionPlayer): number {
+  const seen = lastSeenPlayers.get(viewer)?.has(player.id) ?? false;
+  return PLAYER_RADIUS + (seen ? PLAYER_SIGHT_LINGER : 0);
+}
+
+/** Whether `visit` holds for any see-through tile overlapping the box `reach` around `position`. */
+function someOpenTileNear(
+  dungeon: DungeonState,
+  position: Vector2,
+  reach: number,
+  visit: (x: number, y: number) => boolean,
+): boolean {
+  const low = tileOf({ x: position.x - reach, y: position.y - reach });
+  const high = tileOf({ x: position.x + reach, y: position.y + reach });
+
+  for (let y = low.y; y <= high.y; y += 1) {
+    for (let x = low.x; x <= high.x; x += 1) {
+      if (!isOpaque(dungeon, x, y) && visit(x, y)) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Whether two bodies have a clear line between them, judged the same from either end.
+ *
+ * `hasLineOfSight` aims from a point at the centre of a tile, so A-to-B and B-to-A are different
+ * rays, and near a corner or a door edge one can clear while the other is blocked. Used alone, that
+ * let one player see another's torch while the other could not see theirs back (#61). Here a ray
+ * from either eye to any open tile of the other's body counts, so the answer is the same from both
+ * ends. It also covers every tile one player's own torch could light on the other's body, which is
+ * what keeps two torch carriers seeing each other or neither.
+ */
+function bodiesInSight(dungeon: DungeonState, a: Vector2, b: Vector2, reach: number): boolean {
+  const sees = (eye: Vector2, body: Vector2) =>
+    someOpenTileNear(dungeon, body, reach, (x, y) => hasLineOfSight(dungeon, eye, { x, y }));
+  return sees(a, b) || sees(b, a);
+}
+
 function carriedTorchFor(session: Session, player: SessionPlayer): ActiveLightSource | null {
   if (!player.carryingTorch) return null;
 
@@ -130,11 +195,16 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
     sources.push({ ...light, position: { ...light.position }, origin: light.position });
   }
 
+  // A downed player's torch keeps burning where they fell, so the party can find them to revive or
+  // carry them, and so they light the same ground for others as they already did for themselves.
+  // A disconnected player's torch goes out with them.
   for (const player of session.players.values()) {
-    if (player.id === viewer.id || !player.connected || player.health <= 0) continue;
+    if (player.id === viewer.id || !player.connected) continue;
 
     const torch = carriedTorchFor(session, player);
-    if (!torch || !hasLineOfSight(session.dungeon, viewer.position, player.position)) continue;
+    if (!torch) continue;
+    const reach = bodyReach(viewer, player);
+    if (!bodiesInSight(session.dungeon, viewer.position, player.position, reach)) continue;
     sources.push(torch);
   }
 
@@ -387,14 +457,23 @@ export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer
   // the dungeon, and the frame needs the same answer three times.
   const sources = activeLightSourcesForPlayer(session, viewer);
   const visible = visibleTilesForPlayer(session, viewer, sources);
-  const visiblePlayers = rosterOf(session).filter(
-    (player) => player.id === viewer.id || tileVisible(visible, player.position),
-  );
+  // A player is seen when light falls on any open tile of their body, or near it if they were seen
+  // last frame. Their own torch lights their own tile, so a torch in sight is a player in sight.
+  const visiblePlayerIds = new Set<PlayerId>([viewer.id]);
+  for (const player of session.players.values()) {
+    if (player.id === viewer.id) continue;
+
+    const lit = someOpenTileNear(session.dungeon, player.position, bodyReach(viewer, player), (x, y) =>
+      visible.has(tileKey(x, y)),
+    );
+    if (lit) visiblePlayerIds.add(player.id);
+  }
+  lastSeenPlayers.set(viewer, visiblePlayerIds);
 
   return {
     dungeon: visibleDungeon(session, viewer, visible, sources),
-    players: visiblePlayers,
-    visiblePlayerIds: new Set(visiblePlayers.map((player) => player.id)),
+    players: rosterOf(session).filter((player) => visiblePlayerIds.has(player.id)),
+    visiblePlayerIds,
   };
 }
 
