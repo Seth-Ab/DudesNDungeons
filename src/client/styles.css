@@ -510,14 +510,44 @@ button:disabled {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hud__bar--low .hud__bar-track,
-  .hud__bar--decaying .hud__bar-track {
-    animation: none;
+/*
+ * Low health and decay never rely on colour: the label gains a "!" or "▼" glyph, and the fill gets
+ * a stripe pattern. The pulse is extra, and the reduced-motion setting removes it.
+ */
+.hud__bar--low .hud__bar-fill--health {
+  background: repeating-linear-gradient(135deg, #b5514c 0 4px, #5a2522 4px 8px);
+}
+
+.hud__bar--decaying .hud__bar-fill--resistance {
+  background: repeating-linear-gradient(135deg, #4c7fb5 0 4px, #264159 4px 8px);
+}
+
+/* Set from the in-game Accessibility setting, which defaults to the OS preference. */
+:root[data-reduced-motion="true"] .hud__bar--low .hud__bar-track,
+:root[data-reduced-motion="true"] .hud__bar--decaying .hud__bar-track,
+:root[data-reduced-motion="true"] .hud__bar-track--damage,
+:root[data-reduced-motion="true"] .hud__bar-track--heal,
+:root[data-reduced-motion="true"] .hud__bar-track--refused {
+  animation: none;
+}
+
+:root[data-reduced-motion="true"] .hud__bar-ghost,
+:root[data-reduced-motion="true"] .hud__bar-fill {
+  transition: none;
+}
+
+/* A hit still shows, as one soft fade instead of a flash. */
+:root[data-reduced-motion="true"] .hud__vignette--flash {
+  animation: hud-vignette-soft 700ms ease-out;
+}
+
+@keyframes hud-vignette-soft {
+  0% {
+    opacity: 0.35;
   }
 
-  .hud__bar-ghost {
-    transition: none;
+  100% {
+    opacity: 0;
   }
 }
 
@@ -675,12 +705,6 @@ button:disabled {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hud__vignette--flash {
-    animation-duration: 1ms;
-  }
-}
-
 .hud__bank {
   display: flex;
   flex-wrap: wrap;
@@ -795,6 +819,30 @@ button:disabled {
   margin: 0;
   color: #d8ceb1;
   font-size: 0.88rem;
+}
+
+.controls-menu__setting {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.45rem;
+  color: #d8ceb1;
+  font-size: 0.88rem;
+}
+
+.controls-menu__setting select {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #5f5132;
+  border-radius: 6px;
+  color: #f7f0da;
+  background: #2b2630;
+  font: inherit;
+}
+
+.controls-menu__setting input:focus-visible,
+.controls-menu__setting select:focus-visible {
+  outline: 2px solid #caa85a;
+  outline-offset: 2px;
 }
 
 /* Small windows (about 1024x600): tighter panels so the corners leave the middle of the canvas clear. */
