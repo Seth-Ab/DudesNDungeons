@@ -97,14 +97,23 @@ export const PLAYER_ATTACK_ARC_COS = 0.5;
 /** Reach for picking up loot, opening doors, and using exits. */
 export const INTERACT_RANGE = 1.2;
 
-/** Radius, in world units, visible around a player carrying a deliberately picked-up torch. */
-export const PLAYER_TORCH_LIGHT_RADIUS = 12.6;
+/**
+ * Radius, in world units, visible around a player carrying a deliberately picked-up torch.
+ *
+ * Two authored tiles. A generated hall is 56 world tiles across, so a torch lights well under a
+ * third of it and a party member at the far wall stays in the dark. It was 12.6 until a playtest
+ * found the party kept each other in sight far too easily.
+ */
+export const PLAYER_TORCH_LIGHT_RADIUS = 8;
 
-/** Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. */
-export const FIXED_LIGHT_RADIUS = 9.6;
+/**
+ * Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. Smaller than a
+ * carried torch, so a pillar marks a spot in the dark rather than lighting the room around it.
+ */
+export const FIXED_LIGHT_RADIUS = 6;
 
-/** Radius for monsters that glow enough to reveal nearby geometry. */
-export const MONSTER_GLOW_LIGHT_RADIUS = 7.2;
+/** Radius for monsters that glow enough to reveal nearby geometry: the monster and a step past it. */
+export const MONSTER_GLOW_LIGHT_RADIUS = 4.5;
 
 /**
  * How far either side of a player a snapshot carries map tiles.
@@ -115,7 +124,7 @@ export const MONSTER_GLOW_LIGHT_RADIUS = 7.2;
  * window sits with `originX`/`originY`.
  *
  * Sized so the window always outruns both the screen and the light: 129 tiles across is over
- * 4000px at the renderer's zoom, and ten times the torch radius, so no player can see or walk to
+ * 4000px at the renderer's zoom, and many times the torch radius, so no player can see or walk to
  * its edge within one snapshot.
  */
 export const SNAPSHOT_VIEW_RADIUS_TILES = 64;
@@ -127,12 +136,17 @@ export const TONIC_HEAL_AMOUNT = 35;
 /**
  * Distance in world units. Peers closer than this play at full volume.
  *
- * Grown by `LIGHT_SCALE` rather than `TILE_SCALE`, so hearing keeps pace with sight. Voice is
- * already gated on visibility, and someone lit at the edge of your torch should still be audible.
+ * Shrunk alongside the torch so hearing keeps pace with sight: full volume ends a little inside
+ * `PLAYER_TORCH_LIGHT_RADIUS`, so someone at the edge of your light is already a touch quieter.
+ * Voice is also gated on visibility, so a peer you cannot see is silent at any distance.
  */
-export const VOICE_FULL_VOLUME_DISTANCE = 9;
-/** Distance in world units at which a peer is fully attenuated. */
-export const VOICE_SILENCE_DISTANCE = 42;
+export const VOICE_FULL_VOLUME_DISTANCE = 6;
+/**
+ * Distance in world units at which a peer is fully attenuated. About three and a half torch radii,
+ * the ratio it had before the lights were dimmed, so a torch seen down a long hall fades out rather
+ * than talking at full volume from across the room.
+ */
+export const VOICE_SILENCE_DISTANCE = 28;
 
 export const ROOM_CODE_LENGTH = 6;
 /** Excludes vowels (no accidental words) and 0/O/1/I (unambiguous when read aloud over voice). */

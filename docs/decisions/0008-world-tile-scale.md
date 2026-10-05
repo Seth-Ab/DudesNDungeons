@@ -67,6 +67,9 @@ the dungeon feeling no darker; at three, a torch covers rather less of a room th
 falloff follows light rather than tiles for the same reason: it is already gated on visibility, so
 someone lit at the edge of a torch should still be audible.
 
+These light and voice values were later cut further after a playtest (issue #60, 2026-10-04): a
+torch now reaches 8 units. `PROGRESS.md` records the current values and the reasoning.
+
 ### A door carries the width of its opening
 
 `DoorState` gained `size`, the number of world tiles the doorway spans. A closed door is tested as a

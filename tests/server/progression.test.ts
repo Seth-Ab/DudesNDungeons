@@ -52,7 +52,7 @@ describe("active skill effects", () => {
       (light) => light.kind === "carriedTorch" && light.id === viewer.id,
     );
 
-    expect(ownTorch?.radius).toBe(PLAYER_TORCH_LIGHT_RADIUS + 1);
+    expect(ownTorch?.radius).toBe(PLAYER_TORCH_LIGHT_RADIUS + 1.5);
   });
 
   it("routes attack bonuses through the same effect resolver", () => {

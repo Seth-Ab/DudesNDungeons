@@ -39,6 +39,12 @@ describe("lit darkness", () => {
     expect(rim).toBeLessThanOrEqual(LIT_EDGE_DARKNESS);
   });
 
+  it("reads plainly dim across the outer part of a pool, not merely shaded", () => {
+    // The outer quarter of a light sits nearer remembered darkness than full brightness.
+    expect(litDarkness(7.5, 0, [torch])).toBeGreaterThan(REMEMBERED_DARKNESS / 2);
+    expect(litDarkness(9.99, 0, [torch])).toBeGreaterThan(REMEMBERED_DARKNESS * 0.85);
+  });
+
   it("takes the brightest of overlapping lights", () => {
     const pillar = { position: { x: 8, y: 0 }, radius: 4 };
 

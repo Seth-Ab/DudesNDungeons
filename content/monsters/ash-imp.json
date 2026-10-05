@@ -7,5 +7,5 @@
   "attackRange": 1,
   "damage": 8,
   "attackCooldownMs": 1000,
-  "glowRadius": 7.2
+  "glowRadius": 4.5
 }

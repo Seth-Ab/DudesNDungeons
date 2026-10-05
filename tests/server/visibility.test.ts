@@ -4,7 +4,9 @@ import {
   visibleTilesForPlayer,
   voiceRangeForPlayer,
 } from "../../src/server/game/visibility.js";
-import { tileAt, tileOf } from "../../src/shared/game/movement.js";
+import { PLAYER_TORCH_LIGHT_RADIUS } from "../../src/shared/constants/game.js";
+import { distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
+import type { RoomState, Vector2 } from "../../src/shared/types/core.js";
 import { at, testPlayer, testSession } from "./fixtures.js";
 
 /**
@@ -111,7 +113,8 @@ describe("line of sight", () => {
     session.dungeon.lightSources = [];
     const visible = visibleTilesForPlayer(session, viewer);
 
-    for (let x = 0; x <= 10; x += 1) {
+    // From x = 1, the torch reaches floor out to x = 8; the walls beside that floor are lit with it.
+    for (let x = 0; x <= Math.floor(PLAYER_TORCH_LIGHT_RADIUS); x += 1) {
       expect(visible.has(`${x},1`), `north wall at ${x}`).toBe(true);
       expect(visible.has(`${x},6`), `south wall at ${x}`).toBe(true);
     }
@@ -173,6 +176,47 @@ describe("line of sight", () => {
 
     expect(visible.has("4,3")).toBe(true);
     expect(visible.has("8,3")).toBe(false);
+  });
+});
+
+describe("a generated run", () => {
+  /** The floor tile nearest a room's middle, so a maze's centre wall does not hold the player. */
+  function middleOf(session: ReturnType<typeof testSession>, room: RoomState): Vector2 {
+    const centre = { x: room.x + room.width / 2, y: room.y + room.height / 2 };
+    let best: Vector2 | null = null;
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (!isFloor(session.dungeon, { x, y })) continue;
+        if (!best || distance({ x, y }, centre) < distance(best, centre)) best = { x, y };
+      }
+    }
+    return best!;
+  }
+
+  /**
+   * The viewer carries a torch and the other player does not, so the only thing that could reveal
+   * them is light reaching across from the viewer's room. A carried torch is itself seen from any
+   * distance with a clear line to it, which is a sight rule rather than a radius (see #61).
+   */
+  it("lights nothing of the next room from the middle of this one", () => {
+    const first = testPlayer("first");
+    const second = testPlayer("second");
+    const session = testSession([first, second], "vault-run");
+    const { rooms } = session.dungeon;
+    expect(rooms.length).toBeGreaterThan(1);
+
+    for (let index = 0; index + 1 < rooms.length; index += 1) {
+      first.position = middleOf(session, rooms[index]!);
+      second.position = middleOf(session, rooms[index + 1]!);
+
+      first.carryingTorch = true;
+      second.carryingTorch = false;
+      expect(visibilityFrameForPlayer(session, first).visiblePlayerIds.has("second")).toBe(false);
+
+      first.carryingTorch = false;
+      second.carryingTorch = true;
+      expect(visibilityFrameForPlayer(session, second).visiblePlayerIds.has("first")).toBe(false);
+    }
   });
 });
 
