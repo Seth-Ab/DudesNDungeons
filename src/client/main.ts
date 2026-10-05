@@ -83,7 +83,7 @@ let renderedDungeon = createPlaceholderDungeon();
 let localPosition: Vector2 = { x: 0, y: 0 };
 let lastIntentAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
-/** Where remote players are sliding from/to. Local prediction and reconciliation never touch this. */
+/** Buffered remote positions, drawn slightly in the past. Local prediction never touches this. */
 let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 /** Floating damage numbers, and the last attack sequence already turned into one. */
 const popupField = createPopupField();
@@ -171,6 +171,9 @@ client.subscribe((next) => {
   // slide in progress would cut across the whole map instead of tracking a step.
   const transitioned =
     view.location !== null && next.location !== null && view.location !== next.location;
+  // Only a fresh snapshot carries new positions; a ready toggle or an attack must not count as one,
+  // or it would read as confirmation that a moving player has stopped.
+  const snapshotArrived = next.tick !== view.tick;
   view = next;
 
   if (view.dungeon) {
@@ -178,10 +181,11 @@ client.subscribe((next) => {
   }
 
   const now = performance.now();
-  remoteInterpolation =
-    joinedNow || transitioned
-      ? resetRemoteInterpolation(visibleOthersOf(view), now)
-      : updateRemoteInterpolation(remoteInterpolation, visibleOthersOf(view), now);
+  if (joinedNow || transitioned) {
+    remoteInterpolation = resetRemoteInterpolation(visibleOthersOf(view), now);
+  } else if (snapshotArrived) {
+    remoteInterpolation = updateRemoteInterpolation(remoteInterpolation, visibleOthersOf(view), now);
+  }
 
   const self = selfOf(view);
   if (self) {
