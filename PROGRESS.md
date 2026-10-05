@@ -1027,5 +1027,26 @@ Complete on `feature/hub-run-flow`.
     another player's carried torch is visible at any distance along a clear line, for example down
     a straight corridor (seen in one room pair of the test seed). That is a sight rule, not a
     radius, and is left to #61.
-  - Before/after screenshots of the pinned seed were rendered from real visibility frames with
-    the real client renderer, not from a live session.
+  - Before/after screenshots of the pinned seed show the first pass only. They were rendered from
+    real visibility frames with the real client renderer, not from a live session. The final look
+    was checked by the owner in a live run.
+
+- HUD redesign Phase 6 for issue #51: accessibility and visual polish (Frontend step 8). No protocol
+  change. This closes out the HUD redesign (#46-#50).
+  - Not by colour alone: low health adds a "!" to the heart label and a striped fill; falling
+    resistance already had "▼" and now also a striped fill; party states keep their distinct icons
+    and `aria-label`s; bars differ in height and glyph. The pulse stays as an extra cue.
+  - New "Accessibility" section in the Controls menu (`ui/hudSettings.ts`): a reduce-motion checkbox
+    and a UI scale (85%-130%, applied as the root font size, so every rem-sized element scales).
+    Settings persist in local storage under `dnd.hudSettings` (`state/hudSettings.ts`, falling back
+    to memory when storage is blocked); reduce motion defaults to the OS preference until chosen.
+    Reduced motion (`:root[data-reduced-motion="true"]`) stops pulses, bar flashes, and the ghost
+    trail, and softens the damage vignette to one gentle fade. It replaced the older
+    `prefers-reduced-motion` media queries.
+  - Tests: `tests/client/hudSettings.test.ts`; `tests/e2e/browser/hudAccessibility.spec.ts` checks the
+    clusters sit in the viewport over a clear canvas centre, vitals have distinct glyphs, and the
+    settings apply and persist across a reload. Screenshots: `docs/hud-accessibility/`.
+  - Not done: the colour palette was reviewed by eye and by glyph/shape redundancy, not with a
+    colour-blindness simulator or a measured contrast audit. Floating damage numbers on the canvas
+    are not covered by reduce motion. At 130% scale the toast stack can overlap the status panel at
+    1280px wide. The skills strip is not included (Frontend step 10 has not shipped).

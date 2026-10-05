@@ -9,6 +9,10 @@ import {
   createSessionStorageTokenStore,
   resolveEndpoints,
 } from "./network/endpoints.js";
+import {
+  createLocalStorageHudSettingsStore,
+  createMemoryHudSettingsStore,
+} from "./state/hudSettings.js";
 import { createSessionClient } from "./network/sessionClient.js";
 import {
   initialSessionView,
@@ -65,6 +69,15 @@ function profileSecretStore() {
   }
 }
 
+function hudSettingsStore() {
+  const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  try {
+    return createLocalStorageHudSettingsStore(window.localStorage, prefersReducedMotion);
+  } catch {
+    return createMemoryHudSettingsStore(prefersReducedMotion);
+  }
+}
+
 let renderedDungeon = createPlaceholderDungeon();
 /** Locally predicted position. Only drawn once the server has placed this player. */
 let localPosition: Vector2 = { x: 0, y: 0 };
@@ -99,7 +112,7 @@ const renderer = createCanvasRenderer(() => {
   };
 });
 
-const controlsMenu = createControlsMenu();
+const controlsMenu = createControlsMenu(hudSettingsStore());
 
 const hud = createHud({
   onEnableVoice: async () => {

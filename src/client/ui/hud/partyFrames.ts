@@ -29,6 +29,7 @@ function createFrame() {
       element.dataset.state = frame.state;
       health.set(frame.health);
       health.element.classList.toggle("hud__bar--low", frame.health.low);
+      health.mark(frame.health.low ? VITAL_GLYPHS.low : "");
       resistance.set(frame.resistance);
     },
   };

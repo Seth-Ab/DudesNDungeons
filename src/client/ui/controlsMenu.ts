@@ -1,4 +1,6 @@
 import { keyLabel } from "../input/keyBindings.js";
+import type { HudSettingsStore } from "../state/hudSettings.js";
+import { createHudSettingsSection } from "./hudSettings.js";
 
 interface ControlGroup {
   title: string;
@@ -45,7 +47,7 @@ const CONTROL_GROUPS: ControlGroup[] = [
   },
 ];
 
-export function createControlsMenu() {
+export function createControlsMenu(settingsStore: HudSettingsStore) {
   const element = document.createElement("div");
   element.className = "controls-menu";
   element.hidden = true;
@@ -71,7 +73,7 @@ export function createControlsMenu() {
 
   const groups = document.createElement("div");
   groups.className = "controls-menu__groups";
-  groups.append(...CONTROL_GROUPS.map(renderGroup));
+  groups.append(...CONTROL_GROUPS.map(renderGroup), createHudSettingsSection(settingsStore).element);
 
   panel.append(header, groups);
   element.append(panel);

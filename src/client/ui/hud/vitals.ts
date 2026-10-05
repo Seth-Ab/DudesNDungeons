@@ -47,6 +47,10 @@ export function createBar(glyph: string, name: string, modifier: string) {
     element,
     label,
     track,
+    /** Appends a state glyph to the label, so a state shows by shape and not only by colour. */
+    mark(suffix: string) {
+      label.textContent = `${glyph}${suffix}`;
+    },
     set(bar: BarView) {
       const width = `${bar.ratio * 100}%`;
       fill.style.width = width;
@@ -80,9 +84,8 @@ export function createVitals() {
 
       health.element.classList.toggle("hud__bar--low", view.health.low);
       resistance.element.classList.toggle("hud__bar--decaying", view.resistance.decaying);
-      resistance.label.textContent = view.resistance.decaying
-        ? `${VITAL_GLYPHS.resistance}${VITAL_GLYPHS.decaying}`
-        : VITAL_GLYPHS.resistance;
+      health.mark(view.health.low ? VITAL_GLYPHS.low : "");
+      resistance.mark(view.resistance.decaying ? VITAL_GLYPHS.decaying : "");
 
       const change = vitalChange(previousHealth, rawHealth);
       if (change) flash(health.track, `hud__bar-track--${change}`);
