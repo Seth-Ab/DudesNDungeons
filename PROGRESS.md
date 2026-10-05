@@ -10,7 +10,11 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: smoother remote player movement (issue #62). Remote players are drawn
+- Last completed work: consistent, symmetric player-to-player sight (issue #61), server only, no
+  protocol change. Two torch carriers see each other or neither, judged by body rather than by
+  rounded tile, a seen player lingers for one tile past the light instead of flickering, and a
+  downed player's torch keeps burning. See the 2026-10-05 activity log and the sight checkpoint.
+- Before that: smoother remote player movement (issue #62). Remote players are drawn
   100 ms in the past from a buffer of authoritative positions spaced one move interval apart, so
   jitter and back-to-back snapshots no longer stop-start them; no protocol change.
 - Before that: the WebRTC signaling relay (issue #26), which closes Backend step 5. The
@@ -108,7 +112,25 @@ Resolved:
 - Hub/run lifecycle: The whole reserved party must be connected and ready before a standing player
   can use the entrance. Fresh joins wait during a run; reconnects reclaim their slot.
 - Torch supply: Torches are deliberate, separate-from-inventory pickups in the hub and rare dungeon
-  loot. Forgetting one means entering the run without personal light.
+  loot. Forgetting one means entering the run without personal light. The hub does not require a
+  torch to enter; it only warns (re-confirmed by issue #61 on 2026-10-05).
+- Player-to-player sight, decided for issue #61 on 2026-10-05 and implemented in
+  `src/server/game/visibility.ts`:
+  - Another player's carried torch is seen from any distance with a clear line between your body
+    and theirs, and a player is seen when light falls on any open tile of their body. Line of sight
+    between bodies counts a clear ray from either end, so it is the same answer both ways.
+  - Two torch carriers therefore see each other or neither. Light from fixed lights, monsters, or a
+    third player can still reveal one to the other alone; that is not the torch case.
+  - Torchless players: a deliberate asymmetry. They see a distant carrier by that carrier's torch,
+    and are seen only where someone's light reaches them, so a carrier sees a torchless ally only
+    inside their own light. Two torchless players see each other only by other light.
+  - Downed players: their torch keeps burning where they fell, so the party can find them and they
+    light the same ground for others as they already did for themselves. A disconnected player's
+    torch goes out.
+  - Hysteresis: once seen, a player stays seen while sight or light reaches within one tile
+    (`PLAYER_SIGHT_LINGER`) of their body, so walking the rim of a light or past a corner does not
+    flicker. Only see-through tiles count, so a closing door still hides them at once.
+  - Voice is gated on the same visible set, per listener.
 
 ## Direction Alignment
 
@@ -219,6 +241,8 @@ check remains.
 - [x] Track discovered tiles per player and keep sending them as unlit geometry.
 - [x] Gate proximity voice distances on the same visibility rules.
 - [x] Test that an unseen player is absent from the frame, not merely dimmed.
+- [x] Make player-to-player sight consistent and symmetric (issue #61, 2026-10-05). Rules are under
+  Opinion Checkpoints.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 
@@ -1126,6 +1150,28 @@ Complete on `feature/hub-run-flow`.
     by construction). If #51's Accessibility section and this menu were ever split, keep one menu.
 
 ### 2026-10-05
+
+- Made player-to-player visibility consistent and symmetric for issue #61 (Backend step 8). Server
+  only; no protocol change, and `visibilityFrameForPlayer` keeps its signature.
+  - Causes found: another player's torch counted only if a ray from the viewer's position to the
+    centre of the other's tile cleared, which differs from the reverse ray near corners and door
+    edges; players were kept by the one tile their centre rounds into, so they flickered as it
+    changed; and downed players gave no light to others, though their own view used it.
+  - `bodiesInSight` now counts a clear ray from either eye to any open tile of the other's body, so
+    it is symmetric, and it covers every tile one carrier's own torch could light on the other.
+    Players are judged by light on any open tile of their body. `lastSeenPlayers`, a per-viewer
+    weak map, widens that by `PLAYER_SIGHT_LINGER` (one tile) for whoever was seen last frame;
+    recomputing a frame at unchanged positions is idempotent, so frames computed more than once a
+    tick are harmless.
+  - A downed player's torch now burns for everyone; a disconnected player's does not. Torchless
+    entry stays allowed, as already recorded under Torch supply. Rules are under Opinion Checkpoints.
+  - Tests in `tests/server/visibility.test.ts`, all through `visibilityFrameForPlayer` for both
+    players: every pair of positions in an open room, a both-directions sweep of every floor
+    position pair around corners and a closed and an open door, walking the rim of a light, walking
+    out of it, walking two carriers around a corner, closing a door between two players, the
+    torchless cases, and the downed and disconnected cases. Voice peers are checked against the
+    visible set on every step of each walk. Against the old code, the symmetry sweeps, the rim walk,
+    and both downed cases fail.
 
 - Coalesced action-driven snapshots into the 20Hz server tick for issue #29 (Backend step 3). No
   protocol change.

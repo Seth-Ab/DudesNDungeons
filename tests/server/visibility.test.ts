@@ -5,7 +5,7 @@ import {
   voiceRangeForPlayer,
 } from "../../src/server/game/visibility.js";
 import { PLAYER_TORCH_LIGHT_RADIUS } from "../../src/shared/constants/game.js";
-import { distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
+import { coversTile, distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
 import type { RoomState, Vector2 } from "../../src/shared/types/core.js";
 import { at, testPlayer, testSession } from "./fixtures.js";
 
@@ -232,5 +232,292 @@ describe("voice range", () => {
     expect(range.peers.map((peer) => peer.playerId)).toEqual(["visible"]);
     expect(range.peers[0]?.distance).toBe(1);
     expect(range.peers[0]?.volume).toBe(1);
+  });
+});
+
+describe("player-to-player sight (#61)", () => {
+  /**
+   * A left room, a corridor east through a two-tile door, and a pocket south of the corridor's far
+   * end. Between them it has inside and outside corners, door edges, and long diagonals.
+   */
+  const ROOMS_AND_CORRIDOR = [
+    "##################",
+    "#......###########",
+    "#......###########",
+    "#................#",
+    "#................#",
+    "#......######....#",
+    "#......######....#",
+    "#......######....#",
+    "##################",
+  ];
+  const DOOR_ID = "55555555-5555-4555-8555-555555555555";
+
+  /** An open room far wider than two torches, so distance alone never hides anyone in it. */
+  const OPEN_ROOM = [
+    "##########################",
+    ...Array.from({ length: 16 }, () => "#........................#"),
+    "##########################",
+  ];
+
+  type Player = ReturnType<typeof testPlayer>;
+  type TestSession = ReturnType<typeof testSession>;
+
+  function world(tiles: string[], players: Player[]): TestSession {
+    const session = testSession(players);
+    session.dungeon.map = flatMap(tiles);
+    session.dungeon.doors = [];
+    session.dungeon.lightSources = [];
+    session.dungeon.monsters = [];
+    session.dungeon.rooms = [];
+    return session;
+  }
+
+  function sees(session: TestSession, viewer: Player, other: Player): boolean {
+    return visibilityFrameForPlayer(session, viewer).visiblePlayerIds.has(other.id);
+  }
+
+  /** Floor tile centres, each nudged off-centre so rays start from inside a tile too. */
+  function floorPositions(tiles: string[], skip: (x: number, y: number) => boolean = () => false) {
+    const positions: Vector2[] = [];
+    tiles.forEach((row, y) => {
+      [...row].forEach((tile, x) => {
+        if (tile !== "." || skip(x, y)) return;
+        const nudge = (x + y) % 2 === 0 ? { x: 0.3, y: -0.25 } : { x: -0.2, y: 0.3 };
+        positions.push({ x: x + nudge.x, y: y + nudge.y });
+      });
+    });
+    return positions;
+  }
+
+  /** Every unordered pair, each as fresh players so nothing seen for one pair lingers into the next. */
+  function eachPair(session: TestSession, positions: Vector2[], check: (a: Player, b: Player) => void) {
+    for (const [index, first] of positions.entries()) {
+      for (const second of positions.slice(index + 1)) {
+        const a = testPlayer("a", { position: first });
+        const b = testPlayer("b", { position: second });
+        session.players = new Map([
+          [a.id, a],
+          [b.id, b],
+        ]);
+        check(a, b);
+      }
+    }
+  }
+
+  const where = (player: Player) => `(${player.position.x}, ${player.position.y})`;
+
+  it("keeps two torch carriers in one open room in sight of each other everywhere in it", () => {
+    const positions = floorPositions(OPEN_ROOM).filter((_, index) => index % 7 === 0);
+    const session = world(OPEN_ROOM, []);
+
+    eachPair(session, positions, (a, b) => {
+      expect(sees(session, a, b), `${where(a)} sees ${where(b)}`).toBe(true);
+      expect(sees(session, b, a), `${where(b)} sees ${where(a)}`).toBe(true);
+    });
+  });
+
+  it.each([
+    ["closed", false],
+    ["open", true],
+  ])("gives the same answer from both ends around corners and a %s door", (_label, open) => {
+    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open, locked: false };
+    // Nobody stands inside a closed door.
+    const positions = floorPositions(ROOMS_AND_CORRIDOR, (x, y) => !open && coversTile(door, x, y));
+    const session = world(ROOMS_AND_CORRIDOR, []);
+    session.dungeon.doors = [door];
+
+    const mismatches: string[] = [];
+    let mutual = 0;
+    let hidden = 0;
+    eachPair(session, positions, (a, b) => {
+      const aSeesB = sees(session, a, b);
+      const bSeesA = sees(session, b, a);
+      if (aSeesB !== bSeesA) mismatches.push(`${where(a)} ${aSeesB ? "sees" : "misses"} ${where(b)}`);
+      if (aSeesB && bSeesA) mutual += 1;
+      if (!aSeesB && !bSeesA) hidden += 1;
+    });
+
+    expect(mismatches).toEqual([]);
+    // Both outcomes occur, so the sweep really went around corners rather than across open floor.
+    expect(mutual).toBeGreaterThan(0);
+    expect(hidden).toBeGreaterThan(0);
+  });
+
+  /** Walks one tick at a time, computing both players' frames each tick as the server does. */
+  function walk(session: TestSession, viewer: Player, walker: Player, path: Vector2[]) {
+    const seen: boolean[] = [];
+    const seenBack: boolean[] = [];
+    for (const position of path) {
+      walker.position = position;
+      const frame = visibilityFrameForPlayer(session, viewer);
+      const walkerFrame = visibilityFrameForPlayer(session, walker);
+      seen.push(frame.visiblePlayerIds.has(walker.id));
+      seenBack.push(walkerFrame.visiblePlayerIds.has(viewer.id));
+
+      // Voice follows exactly the same visible set, in both directions.
+      const heard = voiceRangeForPlayer(session, viewer, frame).peers.map((peer) => peer.playerId);
+      expect(heard).toEqual(seen.at(-1) ? [walker.id] : []);
+      const heardBack = voiceRangeForPlayer(session, walker, walkerFrame).peers.map(
+        (peer) => peer.playerId,
+      );
+      expect(heardBack).toEqual(seenBack.at(-1) ? [viewer.id] : []);
+    }
+    return { seen, seenBack };
+  }
+
+  function changes(states: boolean[]): number {
+    return states.slice(1).filter((state, index) => state !== states[index]).length;
+  }
+
+  /** Roughly one server tick of walking at `PLAYER_MOVE_SPEED`. */
+  const STEP = 0.3;
+
+  it("does not flicker a player walking along the rim of a torch's light", () => {
+    const centre = { x: 12, y: 8 };
+    const carrier = testPlayer("carrier", { position: centre });
+    const walker = testPlayer("walker", { position: centre, carryingTorch: false });
+    const session = world(OPEN_ROOM, [carrier, walker]);
+
+    // Step out to the rim, then around half a circle along it.
+    const path: Vector2[] = [];
+    for (let r = PLAYER_TORCH_LIGHT_RADIUS - 2; r < PLAYER_TORCH_LIGHT_RADIUS; r += STEP) {
+      path.push({ x: centre.x + r, y: centre.y });
+    }
+    for (let angle = 0; angle <= Math.PI; angle += STEP / PLAYER_TORCH_LIGHT_RADIUS) {
+      path.push({
+        x: centre.x + Math.cos(angle) * PLAYER_TORCH_LIGHT_RADIUS,
+        y: centre.y + Math.sin(angle) * PLAYER_TORCH_LIGHT_RADIUS,
+      });
+    }
+
+    const { seen, seenBack } = walk(session, carrier, walker, path);
+
+    expect(seen.every(Boolean)).toBe(true);
+    // The walker has no torch but stands in the carrier's light, so they see each other.
+    expect(seenBack.every(Boolean)).toBe(true);
+  });
+
+  it("lets a player walking out of the light go once, rather than lingering", () => {
+    const centre = { x: 6, y: 8 };
+    const carrier = testPlayer("carrier", { position: centre });
+    const walker = testPlayer("walker", { position: centre, carryingTorch: false });
+    const session = world(OPEN_ROOM, [carrier, walker]);
+
+    const path: Vector2[] = [];
+    for (let x = centre.x + 2; x <= centre.x + PLAYER_TORCH_LIGHT_RADIUS + 4; x += STEP) {
+      path.push({ x, y: centre.y + 0.4 });
+    }
+
+    const { seen, seenBack } = walk(session, carrier, walker, path);
+
+    expect(seen[0]).toBe(true);
+    expect(seen.at(-1)).toBe(false);
+    expect(changes(seen)).toBe(1);
+    // A torch is seen from any distance with a clear line to it, so the walker keeps the carrier.
+    expect(seenBack.every(Boolean)).toBe(true);
+  });
+
+  it("drops two torch carriers out of each other's sight together, once, around a corner", () => {
+    const watcher = testPlayer("watcher", { position: { x: 3, y: 6.5 } });
+    const walker = testPlayer("walker", { position: { x: 4, y: 3.5 } });
+    const session = world(ROOMS_AND_CORRIDOR, [watcher, walker]);
+
+    // East along the corridor, then south into the far pocket behind the wall block.
+    const path: Vector2[] = [];
+    for (let x = 4; x <= 15; x += STEP) path.push({ x, y: 3.6 });
+    for (let y = 3.6; y <= 7; y += STEP) path.push({ x: 15, y });
+
+    const { seen, seenBack } = walk(session, watcher, walker, path);
+
+    expect(seen).toEqual(seenBack);
+    expect(seen[0]).toBe(true);
+    expect(seen.at(-1)).toBe(false);
+    expect(changes(seen)).toBe(1);
+  });
+
+  it("hides a player at once when a door closes between them, despite the margin", () => {
+    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open: true, locked: false };
+    const near = testPlayer("near", { position: { x: 7, y: 3.5 } });
+    // Just past the door's far edge, well inside the margin around the door's own tiles.
+    const far = testPlayer("far", { position: { x: 11.4, y: 3.5 } });
+    const session = world(ROOMS_AND_CORRIDOR, [near, far]);
+    session.dungeon.doors = [door];
+
+    expect(sees(session, near, far)).toBe(true);
+    expect(sees(session, far, near)).toBe(true);
+
+    door.open = false;
+
+    expect(sees(session, near, far)).toBe(false);
+    expect(sees(session, far, near)).toBe(false);
+  });
+
+  describe("without a torch", () => {
+    it("is seen inside a carrier's light and sees the carrier back", () => {
+      const carrier = testPlayer("carrier", { position: { x: 6, y: 8 } });
+      const dark = testPlayer("dark", { position: { x: 10, y: 8 }, carryingTorch: false });
+      const session = world(OPEN_ROOM, [carrier, dark]);
+
+      expect(sees(session, carrier, dark)).toBe(true);
+      expect(sees(session, dark, carrier)).toBe(true);
+    });
+
+    it("sees a distant carrier by their torch while staying unseen in the dark", () => {
+      // The deliberate asymmetry: a torch shows from afar, someone standing in the dark does not.
+      const carrier = testPlayer("carrier", { position: { x: 4, y: 8 } });
+      const dark = testPlayer("dark", { position: { x: 20, y: 8 }, carryingTorch: false });
+      const session = world(OPEN_ROOM, [carrier, dark]);
+
+      expect(sees(session, dark, carrier)).toBe(true);
+      expect(sees(session, carrier, dark)).toBe(false);
+      expect(voiceRangeForPlayer(session, dark).peers.map((peer) => peer.playerId)).toEqual([
+        "carrier",
+      ]);
+      expect(voiceRangeForPlayer(session, carrier).peers).toEqual([]);
+    });
+
+    it("leaves two torchless players in the dark to each other", () => {
+      const first = testPlayer("first", { position: { x: 6, y: 8 }, carryingTorch: false });
+      const second = testPlayer("second", { position: { x: 8, y: 8 }, carryingTorch: false });
+      const session = world(OPEN_ROOM, [first, second]);
+
+      expect(sees(session, first, second)).toBe(false);
+      expect(sees(session, second, first)).toBe(false);
+    });
+  });
+
+  describe("when downed", () => {
+    it("keeps the downed player's torch burning, so the party can find them", () => {
+      const downed = testPlayer("downed", { position: { x: 20, y: 8 }, health: 0 });
+      const rescuer = testPlayer("rescuer", { position: { x: 4, y: 8 }, carryingTorch: false });
+      const session = world(OPEN_ROOM, [downed, rescuer]);
+
+      const frame = visibilityFrameForPlayer(session, rescuer);
+
+      expect(frame.visiblePlayerIds.has("downed")).toBe(true);
+      expect(frame.dungeon.lightSources.map((light) => light.id)).toEqual(["downed"]);
+      // It lights the ground around them for the rescuer, as it already did for the downed player.
+      expect(tileAt(frame.dungeon.map, 17, 8)).toBe(".");
+      // The rescuer has no torch and stands far outside the downed player's light.
+      expect(sees(session, downed, rescuer)).toBe(false);
+    });
+
+    it("sees and is seen by a torch-carrying ally, both ways", () => {
+      const downed = testPlayer("downed", { position: { x: 20, y: 8 }, health: 0 });
+      const ally = testPlayer("ally", { position: { x: 4, y: 8 } });
+      const session = world(OPEN_ROOM, [downed, ally]);
+
+      expect(sees(session, ally, downed)).toBe(true);
+      expect(sees(session, downed, ally)).toBe(true);
+    });
+
+    it("puts a disconnected player's torch out", () => {
+      const gone = testPlayer("gone", { position: { x: 20, y: 8 }, connected: false });
+      const other = testPlayer("other", { position: { x: 4, y: 8 }, carryingTorch: false });
+      const session = world(OPEN_ROOM, [gone, other]);
+
+      expect(sees(session, other, gone)).toBe(false);
+    });
   });
 });
