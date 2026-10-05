@@ -886,3 +886,42 @@ button:disabled {
     width: min(20rem, calc(100vw - 27rem));
   }
 }
+
+.controls-menu__list dt:has(.controls-menu__key) {
+  padding: 0;
+}
+
+.controls-menu__key {
+  width: 100%;
+  min-height: 1.9rem;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.controls-menu__key:hover {
+  background: #2f333a;
+}
+
+.controls-menu__key:focus-visible {
+  outline: 2px solid #caa85a;
+  outline-offset: 2px;
+}
+
+.controls-menu__key--capturing {
+  background: #4a3d1f;
+  color: #ffe9a8;
+}
+
+.controls-menu__message {
+  margin: 0.6rem 0 0;
+  color: #f0c97a;
+  font-size: 0.85rem;
+}
+
+.controls-menu__reset {
+  margin-top: 0.75rem;
+}

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { resetBindings, setBinding } from "../../src/client/input/keyBindings.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
 import {
   actionableError,
@@ -373,6 +374,34 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
 function loot(name: string, x: number): LootState {
   return { id: `loot-${name}`, name, kind: "tonic", position: { x, y: 0 }, pickedUp: false };
 }
+
+afterEach(() => resetBindings());
+
+describe("rebound keys", () => {
+  const self = player("Maya", { id: SELF_ID, inventory: [item("Tonic")] });
+  const origin = { x: 0, y: 0 };
+
+  it("show in the action prompt for doors, exits, and loot", () => {
+    setBinding("interact", "x");
+    setBinding("pickup", "g");
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, locked: false };
+    const doorView = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
+    expect(actionPrompt(doorView, self, origin)?.keyHint).toBe("X");
+
+    const exit = { id: "exit", position: { x: 0.5, y: 0 } };
+    const exitView = view({ ...inSession, players: [self], dungeon: dungeon({ exits: [exit] } as Partial<DungeonState>) });
+    expect(actionPrompt(exitView, self, origin)?.keyHint).toBe("X");
+
+    const lootView = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [loot("Tonic", 0.5)] }) });
+    expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
+  });
+
+  it("show on the hotbar slots", () => {
+    setBinding("useSlot1", "z");
+    const slots = hotbarView(view({ ...inSession, players: [self] }), self);
+    expect(slots.map((slot) => slot.keyHint)).toEqual(["Z", "2", "3"]);
+  });
+});
 
 describe("hotbar", () => {
   it("always shows three slots with key hints, and marks empty ones", () => {

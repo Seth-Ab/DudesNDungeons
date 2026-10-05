@@ -10,7 +10,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: darker lighting from playtests (issue #60). Every light radius was cut to
+- Last completed work: rebindable controls (issue #69), client only, no protocol change. See the
+  2026-10-04 activity log.
+- Before that: darker lighting from playtests (issue #60). Every light radius was cut to
   roughly half its old value, each pool now tapers smoothly to black, and remembered geometry is
   fully dark; no protocol change. See the 2026-10-04 activity log for the values.
 - Before that: boss encounters and escape gating, the boss item of Backend step 12
@@ -1050,3 +1052,22 @@ Complete on `feature/hub-run-flow`.
     colour-blindness simulator or a measured contrast audit. Floating damage numbers on the canvas
     are not covered by reduce motion. At 130% scale the toast stack can overlap the status panel at
     1280px wide. The skills strip is not included (Frontend step 10 has not shipped).
+
+- Added a rebindable Controls menu for issue #69 (Frontend steps 3 and 8). Client only; no protocol
+  or server change.
+  - `input/keyBindings.ts` is now runtime state: `KEY_BINDINGS` is mutated in place by
+    `setBinding`/`resetBindings`, with `onBindingsChange`, and movement (`moveNorth`...) is in the
+    same table. `setBinding` rejects reserved keys (Escape, the debug key, arrows), modifiers, and
+    keys another action holds. `keyLabel()` stays the single source for on-screen key text and
+    derives labels from the key (" " is "Space").
+  - Key resolution moved to the DOM-free `input/keyInput.ts`, which looks keys up in the live table
+    on every press, so the old key stops working at once. Arrow keys stay fixed movement aliases.
+  - The Controls menu rows for gameplay and movement are buttons: click, press a key, Escape
+    cancels, a held key shows a message naming its action, "Reset to defaults" restores all. While
+    capturing, a capture-phase keydown listener swallows the key so nothing moves or fires. Rows,
+    including the Hub rows, refresh on every change; the prompt and hotbar already read `keyLabel()`.
+  - Tests: `tests/client/keyBindings.test.ts`, `inputController.test.ts` (key input), the
+    rebound-key cases in `hudView.test.ts`, and `tests/e2e/browser/rebindControls.spec.ts`.
+  - Not done: persistence between sessions (follow-up, reuse `dnd.hudSettings` storage), and the
+    two-real-clients manual check (bindings are module state per page, so clients cannot share them
+    by construction). If #51's Accessibility section and this menu were ever split, keep one menu.
