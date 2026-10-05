@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyServerMessage,
   initialSessionView,
+  inParty,
   othersOf,
   selfOf,
   type SessionView,
@@ -355,15 +356,54 @@ describe("action feedback", () => {
   });
 });
 
-describe("messages for later steps", () => {
-  it("ignores voice traffic without corrupting the view", () => {
+describe("voice", () => {
+  it("keeps the latest proximity update, replacing rather than merging", () => {
     const view = joinedView();
+    expect(view.voiceRange).toEqual([]);
 
-    const afterVoice = applyServerMessage(view, {
+    const inRange = applyServerMessage(view, {
       type: "voiceRangeUpdated",
       peers: [{ playerId: ALLY_ID, distance: 2, volume: 0.9 }],
     });
+    expect(inRange.voiceRange).toEqual([{ playerId: ALLY_ID, distance: 2, volume: 0.9 }]);
+    expect(inRange.players).toBe(view.players);
 
-    expect(afterVoice).toBe(view);
+    // An ally the next update leaves out is gone from the range, so the mesh silences them.
+    const outOfSight = applyServerMessage(inRange, { type: "voiceRangeUpdated", peers: [] });
+    expect(outOfSight.voiceRange).toEqual([]);
+  });
+
+  it("leaves a relayed handshake out of the view", () => {
+    const view = joinedView();
+    const after = applyServerMessage(view, {
+      type: "voiceSignalRelay",
+      fromPlayerId: ALLY_ID,
+      signal: { kind: "offer", sdp: "v=0" },
+    });
+    expect(after).toBe(view);
+  });
+});
+
+describe("inParty", () => {
+  const at = (phase: SessionView["phase"], lastError: SessionView["lastError"] = null) => ({
+    ...joinedView(),
+    phase,
+    lastError,
+  });
+
+  it("holds through a reconnect", () => {
+    expect(inParty(at("inSession"))).toBe(true);
+    expect(inParty(at("reconnecting"))).toBe(true);
+    expect(inParty(at("connecting"))).toBe(true);
+    expect(inParty(at("connected"))).toBe(true);
+    expect(inParty(at("joining"))).toBe(true);
+    // A stale non-join error does not end the party.
+    expect(inParty(at("connected", { code: "rateLimited", message: "slow down" }))).toBe(true);
+  });
+
+  it("ends on leaving, a closed reconnect window, or a refused rejoin", () => {
+    expect(inParty(at("offline"))).toBe(false);
+    expect(inParty(at("failed"))).toBe(false);
+    expect(inParty(at("connected", { code: "sessionNotFound", message: "gone" }))).toBe(false);
   });
 });

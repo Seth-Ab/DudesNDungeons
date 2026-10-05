@@ -4,13 +4,19 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 
 ## Current Status
 
-- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 7, 9, and 11, plus
+- Overall phase: Backend Dev steps 7-10 and 13 complete, with Frontend steps 5, 7, 9, and 11, plus
   identity, persistence, and the first skill-scroll slice of Backend step 11. Sessions begin in a
   lit authored hub, unanimously ready parties generate a run, and escape or a total wipe returns
   the party to the hub
   under protocol v11. What a player banks now belongs to a device-local profile that survives a
   server restart. The dungeon is drawn as pixel art, and the hub reads as a place with named areas.
-- Last completed work: consistent, symmetric player-to-player sight (issue #61), server only, no
+- Last completed work: client proximity voice (issue #27), which closes Frontend step 5. Enable
+  Voice captures the microphone and joins a WebRTC mesh with one peer connection per party member,
+  negotiated over the existing signaling relay; each remote stream plays at the volume from
+  `voiceRangeUpdated`, and a peer it leaves out is silenced without dropping the link. Mute,
+  deafen, an input level meter, and a permission-refused state are in the session cluster. No
+  protocol change. See decision 0012 and the 2026-10-05 activity log.
+- Before that: consistent, symmetric player-to-player sight (issue #61), server only, no
   protocol change. Two torch carriers see each other or neither, judged by body rather than by
   rounded tile, a seen player lingers for one tile past the light instead of flickering, and a
   downed player's torch keeps burning. See the 2026-10-05 activity log and the sight checkpoint.
@@ -20,8 +26,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Before that: the WebRTC signaling relay (issue #26), which closes Backend step 5. The
   server relays `voiceSignal` offers, answers, and ICE candidates to a connected member of the
   sender's own dungeon as `voiceSignalRelay`, under a per-player rate limit. The only contract
-  change is a new `signalTargetUnavailable` error code; no protocol version bump. The browser side
-  (microphone capture, peer connections, audio) is still Frontend step 5.
+  change is a new `signalTargetUnavailable` error code; no protocol version bump.
 - Before that: rebindable controls (issue #69), client only, no protocol change. See the
   2026-10-04 activity log.
 - Before that: darker lighting from playtests (issue #60). Every light radius was cut to
@@ -370,10 +375,14 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 ### 5. Proximity Voice Chat
 
-- [ ] Request microphone access only after player intent.
-- [ ] Establish WebRTC mesh connections within each dungeon party.
-- [ ] Apply volume falloff based on server-provided distance data.
-- [ ] Add mute, deafened, input level, and permission-denied states.
+- [x] Request microphone access only after player intent. Only Enable Voice captures it
+  (`src/client/audio/browserVoice.ts`), and it is held until voice is disabled or the party is left.
+- [x] Establish WebRTC mesh connections within each dungeon party. One link per party member,
+  negotiated over `voiceSignal` with polite/impolite glare handling (`src/client/audio/voiceMesh.ts`).
+- [x] Apply volume falloff based on server-provided distance data. Each remote stream plays at its
+  `voiceRangeUpdated` volume; an omitted peer plays at 0 and keeps its link.
+- [x] Add mute, deafened, input level, and permission-denied states. Session cluster buttons, a
+  level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`).
 
 ### 6. Polish and Playtesting
 
@@ -1150,6 +1159,31 @@ Complete on `feature/hub-run-flow`.
     by construction). If #51's Accessibility section and this menu were ever split, keep one menu.
 
 ### 2026-10-05
+
+- Implemented client proximity voice for issue #27 (Frontend step 5). No protocol change; the
+  client uses the `voiceSignal` / `voiceSignalRelay` / `voiceRangeUpdated` contract as it stood.
+  - `src/client/audio/voiceMesh.ts` is the browser-free core: one peer link per connected party
+    member, serialized negotiation per peer, ICE candidates held until their description lands,
+    and glare resolved by id (higher id is polite). The impolite side re-sends its pending offer
+    when an offer crosses it, which fixes a deadlock found while writing the browser spec: an offer
+    sent to a player who had not enabled voice yet was dropped, and nobody ever answered.
+  - Volume comes from `voiceRangeUpdated`, now kept on the session view as `voiceRange`. An omitted
+    peer is silenced, not disconnected. Deafen zeroes every stream and mutes the microphone.
+  - Links close when a member leaves or times out, on disable, on leaving, when the reconnect
+    window closes, and when a rejoin is refused (`inParty` in `sessionState.ts`). A socket drop
+    keeps them. A failed link is re-offered no sooner than 5s after the last attempt.
+  - The session client hands `voiceSignalRelay` to `onVoiceSignal` listeners instead of the view,
+    and gains `sendVoiceSignal`. `proximityAudio.ts`, the permission-only preview, is gone.
+  - HUD: Enable/Disable Voice, Mute, Deafen, an input level meter, and a readout of "off",
+    "requesting microphone", "on, N peers" (connected only), "muted", "deafened", "microphone
+    blocked", or "no microphone", with a tooltip on how to recover.
+  - `VITE_ICE_SERVERS` configures STUN/TURN; unset uses one public STUN server. No TURN server.
+  - Tests: `tests/client/voiceMesh.test.ts` (capture, offers, answers, ICE ordering, both glare
+    roles, the late-enable deadlock across two meshes, volume, mute, deafen, cleanup, retry),
+    voice cases in `sessionState.test.ts` and `sessionClient.test.ts` (relay against the real
+    server), and `tests/e2e/browser/proximityVoice.spec.ts`, two Chromium players with fake
+    microphones reaching a real `connected` peer connection, server volume on the remote audio
+    element, mute, deafen, disable, re-enable, leave, and the refused-permission state.
 
 - Made player-to-player visibility consistent and symmetric for issue #61 (Backend step 8). Server
   only; no protocol change, and `visibilityFrameForPlayer` keeps its signature.

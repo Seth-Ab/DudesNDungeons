@@ -64,7 +64,9 @@ const CONTROL_GROUPS: ControlGroup[] = [
     title: "Party",
     controls: [
       { input: () => "Ready", action: "Toggle ready state" },
-      { input: () => "Enable Voice", action: "Request microphone preview" },
+      { input: () => "Enable Voice", action: "Talk to nearby party members you can see" },
+      { input: () => "Mute", action: "Stop sending your microphone" },
+      { input: () => "Deafen", action: "Silence everyone, and mute yourself" },
       { input: () => "Leave", action: "Exit the current room" },
     ],
   },

@@ -64,6 +64,7 @@ test.describe("contextual action prompt matches the real game state (jev)", () =
       staminaRefusals: 0,
       recentAttacks: [],
       attackSeq: 0,
+      voiceRange: [],
     };
 
     // Same priority order as src/client/state/hudView.ts's actionPrompt(): what reach.ts says is

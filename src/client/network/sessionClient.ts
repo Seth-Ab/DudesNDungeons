@@ -3,8 +3,9 @@ import {
   parseServerMessage,
   serializeClientMessage,
   type ClientMessage,
+  type VoiceSignal,
 } from "../../shared/protocol/index.js";
-import type { Vector2 } from "../../shared/types/core.js";
+import type { PlayerId, Vector2 } from "../../shared/types/core.js";
 import {
   applyServerMessage,
   initialSessionView,
@@ -77,6 +78,7 @@ export function createSessionClient(options: SessionClientOptions) {
   let view: SessionView = initialSessionView;
   let socket: SocketLike | null = null;
   let listeners: ((view: SessionView) => void)[] = [];
+  let signalListeners: ((fromPlayerId: PlayerId, signal: VoiceSignal) => void)[] = [];
   let moveSequence = 0;
   let attackSequence = 0;
   let retryIndex = 0;
@@ -134,6 +136,12 @@ export function createSessionClient(options: SessionClientOptions) {
         profileSecretStore.write(parsed.message.profileSecret);
       }
       retryIndex = 0;
+    }
+
+    if (parsed.message.type === "voiceSignalRelay") {
+      const { fromPlayerId, signal } = parsed.message;
+      for (const listener of signalListeners) listener(fromPlayerId, signal);
+      return;
     }
 
     update(applyServerMessage(view, parsed.message));
@@ -204,6 +212,14 @@ export function createSessionClient(options: SessionClientOptions) {
       listener(view);
       return () => {
         listeners = listeners.filter((candidate) => candidate !== listener);
+      };
+    },
+
+    /** Relayed WebRTC handshakes from party members, for the voice mesh. */
+    onVoiceSignal(listener: (fromPlayerId: PlayerId, signal: VoiceSignal) => void): () => void {
+      signalListeners.push(listener);
+      return () => {
+        signalListeners = signalListeners.filter((candidate) => candidate !== listener);
       };
     },
 
@@ -282,6 +298,10 @@ export function createSessionClient(options: SessionClientOptions) {
 
     dropCarry(): boolean {
       return send({ type: "dropCarry" });
+    },
+
+    sendVoiceSignal(targetPlayerId: PlayerId, signal: VoiceSignal): boolean {
+      return send({ type: "voiceSignal", targetPlayerId, signal });
     },
 
     disconnect(): void {
