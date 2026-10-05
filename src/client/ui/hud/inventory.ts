@@ -1,18 +1,41 @@
 import { bankEntries } from "../../state/hudView.js";
 import type { PlayerState } from "../../../shared/types/core.js";
 
-/** The bank panel; the item slots and torch live in the hotbar. */
+/**
+ * The Stash: what survived past escapes, in a panel a button toggles instead of text that is
+ * always on screen. The item slots and torch live in the hotbar.
+ */
 export function createInventory() {
-  const bankHeading = document.createElement("p");
-  bankHeading.className = "hud__bank-heading";
-  bankHeading.textContent = "Banked this session";
+  const heading = document.createElement("p");
+  heading.className = "hud__stash-heading";
+  heading.textContent = "Stash";
+
+  const hint = document.createElement("p");
+  hint.className = "hud__stash-hint";
+  hint.textContent = "Banked this session";
 
   const bank = document.createElement("ul");
   bank.className = "hud__bank";
 
+  const panel = document.createElement("section");
+  panel.className = "hud__panel hud__stash";
+  panel.hidden = true;
+  panel.append(heading, hint, bank);
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.textContent = "Stash";
+  toggle.setAttribute("aria-expanded", "false");
+
+  const setOpen = (open: boolean): void => {
+    panel.hidden = !open;
+    toggle.setAttribute("aria-expanded", `${open}`);
+  };
+  toggle.addEventListener("click", () => setOpen(panel.hidden));
+
   return {
-    // Appended in this order by the HUD: bank heading, bank.
-    bankElements: [bankHeading, bank] as const,
+    panel,
+    toggle,
 
     update(self: PlayerState | null) {
       bank.replaceChildren(

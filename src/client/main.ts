@@ -26,6 +26,7 @@ import {
   updateRemoteInterpolation,
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
+import { createPopupField, damagePopup, newAttacks } from "./state/combatFeedback.js";
 import { nearestDownedAlly, nearestInteraction, nearestLoot } from "./state/reach.js";
 import {
   entranceMessage,
@@ -71,6 +72,9 @@ let lastIntentAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
 /** Where remote players are sliding from/to. Local prediction and reconciliation never touch this. */
 let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
+/** Floating damage numbers, and the last attack sequence already turned into one. */
+const popupField = createPopupField();
+let lastAttackSeq = 0;
 
 const client = createSessionClient({
   httpUrl: endpoints.httpUrl,
@@ -91,6 +95,7 @@ const renderer = createCanvasRenderer(() => {
     })),
     location: view.location,
     gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
+    popups: popupField.active(now),
   };
 });
 
@@ -175,9 +180,27 @@ client.subscribe((next) => {
     hud.setPosition(localPosition);
   }
 
+  showDamageNumbers();
+
   hud.syncTo(view);
   lobby.syncTo(view);
 });
+
+/**
+ * Turns attacks the view has not shown yet into floating numbers. The server sends every attack in
+ * the session to every member, so only those whose target this client can place are drawn.
+ */
+function showDamageNumbers(): void {
+  // A fresh view (leaving a session) restarts the sequence.
+  if (view.attackSeq < lastAttackSeq) lastAttackSeq = 0;
+
+  const now = performance.now();
+  for (const attack of newAttacks(view, lastAttackSeq)) {
+    const popup = damagePopup(view, attack, localPosition);
+    if (popup) popupField.add(popup, now);
+  }
+  lastAttackSeq = view.attackSeq;
+}
 
 input.start();
 lobby.focus();
