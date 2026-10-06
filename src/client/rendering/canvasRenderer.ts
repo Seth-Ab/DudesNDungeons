@@ -14,15 +14,11 @@ import type {
 } from "../../shared/types/core.js";
 import {
   doorOrientation,
-  floorSprite,
   LOOT_SPRITES,
-  tileLook,
-  wallMask,
-  wallSprite,
-  UNKNOWN,
   type SpriteName,
 } from "./tiles.js";
 import { tileDarkness, type SceneLight } from "./lighting.js";
+import { createTileLayer } from "./tileLayer.js";
 import { loadTileset } from "./tileset.js";
 import {
   monsterBarView,
@@ -129,6 +125,25 @@ export function createCanvasRenderer(getScene: () => Scene) {
   // else happens to ask for a render.
   const tileset = loadTileset(() => render());
 
+  /**
+   * Floor and wall sprites, stamped into cached chunks and blitted. A wall picks its cell from its
+   * four neighbours, so a block of wall gets a lit lip wherever it meets floor, and a floor picks a
+   * variant from its coordinates; both depend only on what is known of the map, so the chunks are
+   * restamped when something is discovered rather than every frame. See `tileLayer.ts`.
+   */
+  const tileLayer = createTileLayer({
+    tileset,
+    createSurface: (size) => {
+      const surface = document.createElement("canvas");
+      surface.width = size;
+      surface.height = size;
+      const surfaceContext = surface.getContext("2d");
+      if (!surfaceContext) throw new Error("Canvas 2D context is unavailable.");
+      surfaceContext.imageSmoothingEnabled = false;
+      return { image: surface, context: surfaceContext };
+    },
+  });
+
   const resize = (): void => {
     const pixelRatio = window.devicePixelRatio || 1;
     const bounds = canvas.getBoundingClientRect();
@@ -197,44 +212,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
       minY: Math.max(map.originY, Math.floor(camera.y - halfY)),
       maxY: Math.min(map.originY + map.tiles.length - 1, Math.ceil(camera.y + halfY)),
     };
-  };
-
-  /**
-   * Stamps a floor or wall sprite for every tile on screen.
-   *
-   * A wall picks its cell from its four neighbours, so a block of wall gets a lit lip wherever it
-   * meets floor. That is what the authored 4x4 block buys here: the interior world tiles of a block
-   * come out plain and only its rim is drawn as an edge, without anybody authoring a rim.
-   *
-   * Floors pick a variant from their coordinates. At this scale a sparse hall is a couple of
-   * thousand tiles, and one repeated flagstone across all of it reads as wallpaper.
-   */
-  const drawTileSprites = (dungeon: DungeonState, camera: Vector2): void => {
-    const { map } = dungeon;
-    const { minX, maxX, minY, maxY } = visibleTileRange(dungeon, camera);
-    const readTile = (x: number, y: number): string | null => tileAt(map, x, y);
-
-    for (let y = minY; y <= maxY; y += 1) {
-      const row = map.tiles[y - map.originY];
-      if (row === undefined) continue;
-
-      for (let x = minX; x <= maxX; x += 1) {
-        const look = tileLook(row[x - map.originX] ?? UNKNOWN);
-        if (look === null) continue;
-
-        const sprite =
-          look.surface === "wall" ? wallSprite(wallMask(readTile, x, y)) : floorSprite(x, y);
-        const topLeft = worldToScreen({ x: x - 0.5, y: y - 0.5 }, camera);
-        tileset.draw(
-          ctx,
-          sprite,
-          topLeft.x,
-          topLeft.y,
-          pixelsPerWorldUnit,
-          pixelsPerWorldUnit,
-        );
-      }
-    }
   };
 
   /**
@@ -676,7 +653,20 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
     if (tileset.ready) {
-      drawTileSprites(scene.dungeon, camera);
+      tileLayer.sync(scene.dungeon.map, scene.location ?? "none");
+      const halfX = viewportWidth / 2 / pixelsPerWorldUnit;
+      const halfY = viewportHeight / 2 / pixelsPerWorldUnit;
+      tileLayer.draw(
+        ctx,
+        {
+          minX: Math.floor(camera.x - halfX),
+          maxX: Math.ceil(camera.x + halfX),
+          minY: Math.floor(camera.y - halfY),
+          maxY: Math.ceil(camera.y + halfY),
+        },
+        (x, y) => worldToScreen({ x, y }, camera),
+        pixelsPerWorldUnit,
+      );
     } else {
       drawFlatTiles(scene.dungeon, camera);
     }
