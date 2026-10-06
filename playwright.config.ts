@@ -27,7 +27,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      // The voice specs join a live session. Reusing an already-running dev:server is fine.
+      // Specs that create or join a room need a live server. Reusing a running dev:server is fine.
       command: "npm run dev:server",
       url: `http://127.0.0.1:${SERVER_PORT}/health`,
       reuseExistingServer: true,
