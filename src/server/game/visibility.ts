@@ -22,6 +22,7 @@ import type {
 import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
+import { opacityFor, type OpacityGrid } from "./opacity.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
 
 const UNKNOWN_TILE = " ";
@@ -42,13 +43,6 @@ function tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
-  const tile = tileAt(dungeon.map, x, y);
-  if (tile === null || tile === "#") return true;
-
-  return dungeon.doors.some((door) => !door.open && coversTile(door, x, y));
-}
-
 /**
  * Whether nothing solid stands between two points. The target's own tile is never in the way, so a
  * wall you are looking at is lit rather than hidden behind itself.
@@ -65,12 +59,11 @@ function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
  * crossed for no extra accuracy. This visits each tile the ray actually passes through, exactly
  * once, which is what keeps lighting affordable at the larger scale.
  */
-function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): boolean {
+function hasLineOfSight(opacity: OpacityGrid, from: Vector2, to: Vector2): boolean {
   const target = tileOf(to);
   // The closed door the ray is aimed at, if any. Every tile of that one door is the target.
-  const targetDoor = dungeon.doors.find(
-    (door) => !door.open && coversTile(door, target.x, target.y),
-  );
+  const targetDoorIndex = opacity.doorIndexAt(target.x, target.y);
+  const targetDoor = targetDoorIndex >= 0 ? opacity.doors[targetDoorIndex] : undefined;
   const reachedTarget = (tileX: number, tileY: number): boolean =>
     (tileX === target.x && tileY === target.y) ||
     (targetDoor !== undefined && coversTile(targetDoor, tileX, tileY));
@@ -80,7 +73,7 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
   if (reachedTarget(x, y)) return true;
 
   // A light buried in a wall lights nothing, which is how a fixed-interval walk behaved too.
-  if (isOpaque(dungeon, x, y)) return false;
+  if (opacity.isOpaque(x, y)) return false;
 
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -107,7 +100,7 @@ function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): bool
     }
 
     if (reachedTarget(x, y)) return true;
-    if (isOpaque(dungeon, x, y)) return false;
+    if (opacity.isOpaque(x, y)) return false;
   }
 
   return true;
@@ -139,7 +132,7 @@ function bodyReach(viewer: SessionPlayer, player: SessionPlayer): number {
 
 /** Whether `visit` holds for any see-through tile overlapping the box `reach` around `position`. */
 function someOpenTileNear(
-  dungeon: DungeonState,
+  opacity: OpacityGrid,
   position: Vector2,
   reach: number,
   visit: (x: number, y: number) => boolean,
@@ -149,7 +142,7 @@ function someOpenTileNear(
 
   for (let y = low.y; y <= high.y; y += 1) {
     for (let x = low.x; x <= high.x; x += 1) {
-      if (!isOpaque(dungeon, x, y) && visit(x, y)) return true;
+      if (!opacity.isOpaque(x, y) && visit(x, y)) return true;
     }
   }
 
@@ -166,9 +159,9 @@ function someOpenTileNear(
  * ends. It also covers every tile one player's own torch could light on the other's body, which is
  * what keeps two torch carriers seeing each other or neither.
  */
-function bodiesInSight(dungeon: DungeonState, a: Vector2, b: Vector2, reach: number): boolean {
+function bodiesInSight(opacity: OpacityGrid, a: Vector2, b: Vector2, reach: number): boolean {
   const sees = (eye: Vector2, body: Vector2) =>
-    someOpenTileNear(dungeon, body, reach, (x, y) => hasLineOfSight(dungeon, eye, { x, y }));
+    someOpenTileNear(opacity, body, reach, (x, y) => hasLineOfSight(opacity, eye, { x, y }));
   return sees(a, b) || sees(b, a);
 }
 
@@ -185,13 +178,17 @@ function carriedTorchFor(session: Session, player: SessionPlayer): ActiveLightSo
   };
 }
 
-function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): ActiveLightSource[] {
+function activeLightSourcesForPlayer(
+  session: Session,
+  viewer: SessionPlayer,
+  opacity: OpacityGrid,
+): ActiveLightSource[] {
   const sources: ActiveLightSource[] = [];
   const ownTorch = carriedTorchFor(session, viewer);
   if (ownTorch) sources.push(ownTorch);
 
   for (const light of session.dungeon.lightSources) {
-    if (!hasLineOfSight(session.dungeon, viewer.position, light.position)) continue;
+    if (!hasLineOfSight(opacity, viewer.position, light.position)) continue;
     sources.push({ ...light, position: { ...light.position }, origin: light.position });
   }
 
@@ -204,7 +201,7 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
     const torch = carriedTorchFor(session, player);
     if (!torch) continue;
     const reach = bodyReach(viewer, player);
-    if (!bodiesInSight(session.dungeon, viewer.position, player.position, reach)) continue;
+    if (!bodiesInSight(opacity, viewer.position, player.position, reach)) continue;
     sources.push(torch);
   }
 
@@ -213,7 +210,7 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
 
     const glowRadius = monsterStatsFor(monster).glowRadius;
     if (glowRadius === undefined) continue;
-    if (!hasLineOfSight(session.dungeon, viewer.position, monster.position)) continue;
+    if (!hasLineOfSight(opacity, viewer.position, monster.position)) continue;
 
     sources.push({
       id: monster.id,
@@ -239,16 +236,16 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
 export function visibleTilesForPlayer(
   session: Session,
   viewer: SessionPlayer,
-  sources = activeLightSourcesForPlayer(session, viewer),
+  sources?: ActiveLightSource[],
+  opacity: OpacityGrid = opacityFor(session.dungeon),
 ): Set<string> {
   const visible = new Set<string>();
-  const doors = doorSignature(session.dungeon);
 
-  for (const source of sources) {
+  for (const source of sources ?? activeLightSourcesForPlayer(session, viewer, opacity)) {
     if (source.kind === "fixed") {
-      for (const key of fixedLightTiles(session.dungeon, source, doors)) visible.add(key);
+      for (const key of fixedLightTiles(session.dungeon, opacity, source)) visible.add(key);
     } else {
-      lightFrom(session.dungeon, source, visible);
+      lightFrom(session.dungeon, opacity, source, visible);
     }
   }
 
@@ -265,14 +262,10 @@ export function visibleTilesForPlayer(
  */
 const fixedLightCache = new WeakMap<DungeonMapState, Map<string, readonly string[]>>();
 
-function doorSignature(dungeon: DungeonState): string {
-  return dungeon.doors.map((door) => (door.open ? "1" : "0")).join("");
-}
-
 function fixedLightTiles(
   dungeon: DungeonState,
+  opacity: OpacityGrid,
   source: ActiveLightSource,
-  doors: string,
 ): readonly string[] {
   let cache = fixedLightCache.get(dungeon.map);
   if (!cache) {
@@ -280,11 +273,11 @@ function fixedLightTiles(
     fixedLightCache.set(dungeon.map, cache);
   }
 
-  const key = `${source.id}|${doors}`;
+  const key = `${source.id}|${opacity.signature}`;
   let tiles = cache.get(key);
   if (!tiles) {
     const lit = new Set<string>();
-    lightFrom(dungeon, source, lit);
+    lightFrom(dungeon, opacity, source, lit);
     tiles = [...lit];
     cache.set(key, tiles);
   }
@@ -303,7 +296,12 @@ function fixedLightTiles(
  * bordering lit floor is the face of that floor's boundary, and at `TILE_SCALE` every wall is at
  * least four tiles thick, so this never reveals anything on the far side of one.
  */
-function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: Set<string>): void {
+function lightFrom(
+  dungeon: DungeonState,
+  opacity: OpacityGrid,
+  source: ActiveLightSource,
+  visible: Set<string>,
+): void {
   const { map } = dungeon;
   const minX = Math.max(0, Math.floor(source.origin.x - source.radius));
   const maxX = Math.min(map.width - 1, Math.ceil(source.origin.x + source.radius));
@@ -318,7 +316,7 @@ function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: Se
 
       const center = { x, y };
       if (distance(source.origin, center) > source.radius) continue;
-      if (!hasLineOfSight(dungeon, source.origin, center)) continue;
+      if (!hasLineOfSight(opacity, source.origin, center)) continue;
 
       visible.add(key);
       if (tileAt(map, x, y) === "#") continue;
@@ -455,15 +453,17 @@ function visibleDungeon(
 export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer): VisibilityFrame {
   // Computed once and threaded through: gathering sources walks every light, player, and monster in
   // the dungeon, and the frame needs the same answer three times.
-  const sources = activeLightSourcesForPlayer(session, viewer);
-  const visible = visibleTilesForPlayer(session, viewer, sources);
+  // Brought up to date with the doors once, then read by every ray this frame casts.
+  const opacity = opacityFor(session.dungeon);
+  const sources = activeLightSourcesForPlayer(session, viewer, opacity);
+  const visible = visibleTilesForPlayer(session, viewer, sources, opacity);
   // A player is seen when light falls on any open tile of their body, or near it if they were seen
   // last frame. Their own torch lights their own tile, so a torch in sight is a player in sight.
   const visiblePlayerIds = new Set<PlayerId>([viewer.id]);
   for (const player of session.players.values()) {
     if (player.id === viewer.id) continue;
 
-    const lit = someOpenTileNear(session.dungeon, player.position, bodyReach(viewer, player), (x, y) =>
+    const lit = someOpenTileNear(opacity, player.position, bodyReach(viewer, player), (x, y) =>
       visible.has(tileKey(x, y)),
     );
     if (lit) visiblePlayerIds.add(player.id);
