@@ -59,6 +59,7 @@ logged or shared.
 - `npm run build:server` - compile server and shared code to `dist/`.
 - `npm run build:client` - typecheck the client and build it to `dist/client/`.
 - `npm start` - run the compiled server from `dist/`.
+- `npm run bench:tick` - time one server tick (simulation, visibility, snapshot serialization) for a seeded four-player run. Use it to check that a performance change helps.
 - `npm test` - run the test suite once.
 - `npm run test:watch` - run tests in watch mode.
 - `npm run lint` - lint the project.

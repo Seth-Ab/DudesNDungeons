@@ -52,6 +52,7 @@ Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint
 - `npm run dev:server` starts the backend server with reload.
 - `npm run build` compiles the server and builds the frontend.
 - `npm run build:sprites` bakes `assets/sprites/source/` into the tilesheet the client draws with. Run it after editing the art and commit the PNG alongside the source; a test fails if they drift.
+- `npm run bench:tick` times one server tick against a seeded four-player run. Run it before and after a performance change and quote both results in the PR.
 - `npm run typecheck` runs TypeScript checks without emitting files.
 - `npm run lint` runs ESLint.
 - `npm test` runs the Vitest suite.

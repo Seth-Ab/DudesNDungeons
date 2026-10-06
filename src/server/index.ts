@@ -11,8 +11,11 @@ const host = process.env.HOST ?? "0.0.0.0";
 const profilesPath = profileFilePath();
 const profiles = new ProfileStore({ storage: createFileProfileStorage(profilesPath) });
 
+const slowTickMs = process.env.SLOW_TICK_MS === undefined ? undefined : Number(process.env.SLOW_TICK_MS);
+
 const server = createGameServer({
   profiles,
+  ...(slowTickMs === undefined || !Number.isFinite(slowTickMs) ? {} : { slowTickMs }),
   ...(process.env.CORS_ORIGIN === undefined ? {} : { allowedOrigin: process.env.CORS_ORIGIN }),
 });
 
