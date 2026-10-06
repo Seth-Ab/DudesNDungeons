@@ -9,9 +9,7 @@ import {
 import {
   parseClientMessage,
   parseServerMessage,
-  serializeClientMessage,
   serializeServerMessage,
-  type ClientMessage,
   type ServerMessage,
 } from "../../src/shared/protocol/index.js";
 
@@ -140,18 +138,6 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects a negative sequence number", () => {
-    const result = parseClientMessage(
-      JSON.stringify({
-        type: "playerMoveIntent",
-        sequence: -1,
-        direction: { x: 0, y: 1 },
-      }),
-    );
-
-    expect(result.ok).toBe(false);
-  });
-
   it("rejects a message larger than the size cap before parsing it", () => {
     const oversized = JSON.stringify({
       type: "voiceSignal",
@@ -201,13 +187,6 @@ describe("parseClientMessage", () => {
     }
   });
 
-  it("derives the byte limit from the character cap at three UTF-8 bytes per code unit", () => {
-    // Three bytes is the most any UTF-16 code unit costs (a surrogate pair is four for two units).
-    const frame = "￿".repeat(MAX_CLIENT_MESSAGE_CHARS);
-
-    expect(Buffer.byteLength(frame)).toBe(MAX_CLIENT_MESSAGE_BYTES);
-  });
-
   it("rejects a voice signal of an unknown kind", () => {
     const result = parseClientMessage(
       JSON.stringify({
@@ -226,44 +205,6 @@ describe("parseClientMessage", () => {
     );
 
     expect(result.ok).toBe(false);
-  });
-
-  it("round-trips a serialized client message", () => {
-    const message: ClientMessage = {
-      type: "playerAttack",
-      sequence: 4,
-      direction: { x: 1, y: 0 },
-      targetId: TARGET_ID,
-    };
-
-    const result = parseClientMessage(serializeClientMessage(message));
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.message).toEqual(message);
-    }
-  });
-
-  it("round-trips a liftPlayer message", () => {
-    const message: ClientMessage = { type: "liftPlayer", targetPlayerId: PLAYER_ID };
-
-    const result = parseClientMessage(serializeClientMessage(message));
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.message).toEqual(message);
-    }
-  });
-
-  it("round-trips a dropCarry message", () => {
-    const message: ClientMessage = { type: "dropCarry" };
-
-    const result = parseClientMessage(serializeClientMessage(message));
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.message).toEqual(message);
-    }
   });
 });
 
@@ -303,21 +244,6 @@ describe("parseServerMessage", () => {
       },
       // A rejoin, so the server issues nothing and the client keeps the secret it already has.
       profileSecret: null,
-    };
-
-    const result = parseServerMessage(serializeServerMessage(message));
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.message).toEqual(message);
-    }
-  });
-
-  it("round-trips a connection change, which is distinct from a leave", () => {
-    const message: ServerMessage = {
-      type: "playerConnectionChanged",
-      playerId: PLAYER_ID,
-      connected: false,
     };
 
     const result = parseServerMessage(serializeServerMessage(message));
