@@ -352,13 +352,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
     }
   };
 
-  /**
-   * A door is drawn across its whole opening, which is the span the server collides against.
-   *
-   * A closed door tiles its leaf over every world tile of that span, because at `TILE_SCALE` the
-   * span is four tiles and one sprite stretched across it would be drawn at four times its size.
-   * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
-   */
   /** Numbers rise and fade; red when the local player is hit, gold for their own hits. */
   const drawPopups = (popups: readonly ActivePopup[], camera: Vector2): void => {
     ctx.textAlign = "center";
@@ -379,6 +372,13 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.globalAlpha = 1;
   };
 
+  /**
+   * A door is drawn across its whole opening, which is the span the server collides against.
+   *
+   * A closed door tiles its leaf over every world tile of that span, because at `TILE_SCALE` the
+   * span is four tiles and one sprite stretched across it would be drawn at four times its size.
+   * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
+   */
   const drawDoor = (map: DungeonMapState, door: DoorState, camera: Vector2): void => {
     const horizontal =
       doorOrientation(

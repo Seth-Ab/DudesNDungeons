@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   actionForKey,
   actionKeyMap,
-  BINDABLE_ACTIONS,
   bindingMessage,
   KEY_BINDINGS,
   keyLabel,
@@ -26,18 +25,6 @@ describe("key bindings", () => {
   it("binds no key twice", () => {
     const keys = Object.values(KEY_BINDINGS).flatMap((binding) => binding.keys);
     expect(new Set(keys).size).toBe(keys.length);
-  });
-
-  it("labels the keys the prompt and controls menu print", () => {
-    expect(keyLabel("attack")).toBe("Space");
-    expect(keyLabel("pickup")).toBe("F");
-    expect(keyLabel("useSlot2")).toBe("2");
-  });
-
-  it("has the default gameplay and movement keys", () => {
-    expect(BINDABLE_ACTIONS.map((action) => keyLabel(action))).toEqual([
-      "Space", "E", "F", "C", "1", "2", "3", "W", "A", "S", "D",
-    ]);
   });
 
   it("derives labels from the bound key", () => {

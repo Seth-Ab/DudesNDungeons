@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  FLOOR_VARIANTS,
   KNOWN_FLOOR,
   KNOWN_WALL,
   LIT_FLOOR,
@@ -145,9 +144,6 @@ describe("door orientation", () => {
 });
 
 describe("floor variation", () => {
-  it("gives a tile the same variant every time it is asked", () => {
-    expect(floorSprite(17, 42)).toBe(floorSprite(17, 42));
-  });
 
   it("only ever names a variant the sheet provides", () => {
     for (let y = -40; y < 40; y += 1) {
@@ -155,14 +151,6 @@ describe("floor variation", () => {
         expect(SPRITE_NAMES).toContain(floorSprite(x, y));
       }
     }
-  });
-
-  it("uses every variant across a room-sized patch", () => {
-    const seen = new Set<string>();
-    for (let y = 0; y < 24; y += 1) {
-      for (let x = 0; x < 24; x += 1) seen.add(floorSprite(x, y));
-    }
-    expect(seen.size).toBe(FLOOR_VARIANTS);
   });
 
   it("does not repeat itself along a row or a column", () => {

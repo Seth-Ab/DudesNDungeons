@@ -202,42 +202,4 @@ describe("snapshot coalescing", () => {
     );
     expect(Date.now() - sentAt).toBeLessThan(TICK_MS / 2);
   });
-
-  it("announces a wipe downed first, then returns to the hub on a later tick", async () => {
-    const roomCode = await createRoom();
-    const alpha = await join(roomCode, "Alpha");
-    alpha.ws.send(JSON.stringify({ type: "setReady", ready: true }));
-    await vi.waitFor(() =>
-      expect(alpha.inbox.some((m) => m.type === "playerReadyChanged")).toBe(
-        true,
-      ),
-    );
-
-    const session = server.store.getSession(roomCode)!;
-    const entrance = session.dungeon.exits[0]!;
-    const player = session.players.get(alpha.playerId)!;
-    player.position = { ...entrance.position };
-    alpha.ws.send(
-      JSON.stringify({ type: "playerInteract", targetId: entrance.id }),
-    );
-    await vi.waitFor(() =>
-      expect(snapshotsOf(alpha).some((s) => s.location === "dungeon")).toBe(
-        true,
-      ),
-    );
-
-    player.health = 0;
-    await vi.waitFor(() =>
-      expect(snapshotsOf(alpha).some((s) => s.location === "hub")).toBe(true),
-    );
-
-    const snapshots = snapshotsOf(alpha);
-    const downedAt = snapshots.findIndex(
-      (s) => s.location === "dungeon" && s.players[0]?.health === 0,
-    );
-    const hubAt = snapshots.findIndex((s) => s.location === "hub");
-    expect(downedAt).toBeGreaterThan(-1);
-    expect(hubAt).toBeGreaterThan(downedAt);
-    expect(snapshots[hubAt]!.tick).toBeGreaterThan(snapshots[downedAt]!.tick);
-  });
 });

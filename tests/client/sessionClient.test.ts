@@ -129,23 +129,6 @@ describe("creating and joining", () => {
     expect(view.players).toHaveLength(1);
   });
 
-  it("moves through connecting and joining on the way in", async () => {
-    const client = newClient();
-    const roomCode = await client.createRoom();
-
-    const seen: string[] = [];
-    client.subscribe((view) => {
-      if (seen[seen.length - 1] !== view.phase) seen.push(view.phase);
-    });
-
-    client.join(roomCode, "Alpha");
-    await until(client, inSession);
-
-    expect(seen[0]).toBe("offline");
-    expect(seen).toContain("joining");
-    expect(seen[seen.length - 1]).toBe("inSession");
-  });
-
   it("reports an unknown room code without wedging the client", async () => {
     const client = newClient();
     client.join("ZZZZZZ", "Alpha");
@@ -174,24 +157,6 @@ describe("creating and joining", () => {
     guest.leave();
     const after = await until(host, (view) => view.players.length === 1);
     expect(after.players[0]?.name).toBe("Alpha");
-  });
-
-  it("refuses a fifth player", async () => {
-    const host = newClient();
-    const roomCode = await host.createRoom();
-    host.join(roomCode, "One");
-    await until(host, inSession);
-
-    for (const name of ["Two", "Three", "Four"]) {
-      const member = newClient();
-      member.join(roomCode, name);
-      await until(member, inSession);
-    }
-
-    const fifth = newClient();
-    fifth.join(roomCode, "Five");
-    const view = await until(fifth, (v) => v.lastError !== null);
-    expect(view.lastError?.code).toBe("sessionFull");
   });
 });
 

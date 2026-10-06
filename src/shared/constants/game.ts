@@ -112,9 +112,6 @@ export const PLAYER_TORCH_LIGHT_RADIUS = 6;
  */
 export const FIXED_LIGHT_RADIUS = 5;
 
-/** Radius for monsters that glow enough to reveal nearby geometry: the monster and a step past it. */
-export const MONSTER_GLOW_LIGHT_RADIUS = 4;
-
 /**
  * How far either side of a player a snapshot carries map tiles.
  *
@@ -153,8 +150,6 @@ export const ROOM_CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789";
 
 export const MAX_PLAYER_NAME_LENGTH = 24;
 
-/** Legacy fallback spawn for UI preview code before the first server snapshot arrives. */
-export const PLAYER_SPAWN_POSITION = { x: 0, y: 0 } as const;
 export const PLAYER_SPAWN_FACING = { x: 0, y: 1 } as const;
 
 /**
