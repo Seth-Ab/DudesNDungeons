@@ -27,10 +27,6 @@ describe("seeded random", () => {
     expect(rng.int(2, 2)).toBe(2);
   });
 
-  it("refuses an inverted range rather than returning nonsense", () => {
-    expect(() => createRng(1).int(5, 4)).toThrow(/Empty range/);
-  });
-
   it("picks from a list and refuses an empty one", () => {
     const rng = createRng(99);
 

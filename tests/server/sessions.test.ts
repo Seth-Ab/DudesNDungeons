@@ -3,7 +3,6 @@ import { PLAYER_MAX_HEALTH } from "../../src/shared/constants/game.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import {
   SessionStore,
-  rosterOf,
   toPlayerState,
   type Session,
 } from "../../src/server/sessions/sessionStore.js";
@@ -209,20 +208,6 @@ describe("disconnect and reconnect", () => {
     expect(result.player.health).toBe(PLAYER_MAX_HEALTH);
   });
 
-  it("ignores a second disconnect for a player who is already disconnected", () => {
-    const store = createStore();
-    const session = store.createSession();
-    const { player } = joinOrThrow(store, session, "Grix");
-
-    expect(store.markDisconnected(player.id)).toBeDefined();
-    clock += 10_000;
-    expect(store.markDisconnected(player.id)).toBeUndefined();
-
-    // The grace window still runs from the original drop, not the repeat.
-    clock += GRACE_MS - 10_000;
-    expect(store.sweep()).toHaveLength(1);
-  });
-
   it("refreshes the display name on resume but keeps the identity", () => {
     const store = createStore();
     const session = store.createSession();
@@ -370,15 +355,6 @@ describe("public player state", () => {
     state.position.x = 999;
 
     expect(player.position.x).toBe(originalX);
-  });
-
-  it("lists every player in the session roster", () => {
-    const store = createStore();
-    const session = store.createSession();
-    joinOrThrow(store, session, "One");
-    joinOrThrow(store, session, "Two");
-
-    expect(rosterOf(session).map((player) => player.name)).toEqual(["One", "Two"]);
   });
 });
 

@@ -17,7 +17,7 @@ import {
   LOOT_SPRITES,
   type SpriteName,
 } from "./tiles.js";
-import { tileDarkness, type SceneLight } from "./lighting.js";
+import { createLightShader, type SceneLight } from "./lighting.js";
 import { createTileLayer } from "./tileLayer.js";
 import { loadTileset } from "./tileset.js";
 import {
@@ -329,13 +329,6 @@ export function createCanvasRenderer(getScene: () => Scene) {
     }
   };
 
-  /**
-   * A door is drawn across its whole opening, which is the span the server collides against.
-   *
-   * A closed door tiles its leaf over every world tile of that span, because at `TILE_SCALE` the
-   * span is four tiles and one sprite stretched across it would be drawn at four times its size.
-   * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
-   */
   /** Numbers rise and fade; red when the local player is hit, gold for their own hits. */
   const drawPopups = (popups: readonly ActivePopup[], camera: Vector2): void => {
     ctx.textAlign = "center";
@@ -356,6 +349,13 @@ export function createCanvasRenderer(getScene: () => Scene) {
     ctx.globalAlpha = 1;
   };
 
+  /**
+   * A door is drawn across its whole opening, which is the span the server collides against.
+   *
+   * A closed door tiles its leaf over every world tile of that span, because at `TILE_SCALE` the
+   * span is four tiles and one sprite stretched across it would be drawn at four times its size.
+   * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
+   */
   const drawDoor = (map: DungeonMapState, door: DoorState, camera: Vector2): void => {
     const horizontal =
       doorOrientation(
@@ -579,9 +579,12 @@ export function createCanvasRenderer(getScene: () => Scene) {
       return bearer ? { position: bearer.position, radius: light.radius } : light;
     });
 
-  // One pixel per world tile, rebuilt every frame and stretched over the screen.
+  // One pixel per world tile, refilled every frame and stretched over the screen.
   const lightmap = document.createElement("canvas");
   const lightmapContext = lightmap.getContext("2d");
+  const shadeTiles = createLightShader();
+  /** The pixel buffer behind the lightmap, kept between frames and replaced only when the screen size changes. */
+  let lightImage: ImageData | null = null;
 
   /**
    * Shades the frame by the server's lighting: lit tiles by their distance from a light, remembered
@@ -610,23 +613,20 @@ export function createCanvasRenderer(getScene: () => Scene) {
       lightmap.height = rows;
     }
 
-    const image = lightmapContext.createImageData(columns, rows);
-    const pixels = image.data;
-    const [red, green, blue] = SHADE_RGB;
-
-    for (let row = 0; row < rows; row += 1) {
-      const y = minY + row;
-      for (let column = 0; column < columns; column += 1) {
-        const x = minX + column;
-        const offset = (row * columns + column) * 4;
-        pixels[offset] = red;
-        pixels[offset + 1] = green;
-        pixels[offset + 2] = blue;
-        pixels[offset + 3] = Math.round(tileDarkness(tileAt(map, x, y), x, y, lights) * 255);
+    if (lightImage === null || lightImage.width !== columns || lightImage.height !== rows) {
+      lightImage = lightmapContext.createImageData(columns, rows);
+      // The shade colour never changes; only the alpha channel is rewritten each frame.
+      const [red, green, blue] = SHADE_RGB;
+      for (let offset = 0; offset < lightImage.data.length; offset += 4) {
+        lightImage.data[offset] = red;
+        lightImage.data[offset + 1] = green;
+        lightImage.data[offset + 2] = blue;
       }
     }
 
-    lightmapContext.putImageData(image, 0, 0);
+    shadeTiles(lightImage.data, columns, rows, minX, minY, (x, y) => tileAt(map, x, y), lights);
+
+    lightmapContext.putImageData(lightImage, 0, 0);
 
     const topLeft = worldToScreen({ x: minX - 0.5, y: minY - 0.5 }, camera);
     ctx.save();

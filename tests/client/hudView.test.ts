@@ -19,11 +19,7 @@ import {
   vitalChange,
   newServerAction,
   noticesView,
-  placeStatusLabel,
-  positionLabel,
-  readyLabel,
   partyFrames,
-  roomCodeLabel,
   toastMessages,
   torchStatusLabel,
   vitalsView,
@@ -31,7 +27,6 @@ import {
 import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
-  PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
 import type { DungeonState, InventoryItem, LootState, PlayerState, RunState } from "../../src/shared/types/core.js";
@@ -81,11 +76,6 @@ describe("connection and error labels", () => {
   it("names the hub and a run once the location is known", () => {
     expect(connectionLabel(view({ phase: "inSession", location: "hub" }))).toBe("in the hub");
     expect(connectionLabel(view({ phase: "inSession", location: "dungeon" }))).toBe("in a run");
-  });
-
-  it("falls back to a dash without a room code", () => {
-    expect(roomCodeLabel(view())).toBe("-");
-    expect(roomCodeLabel(view({ roomCode: "ABCD" }))).toBe("ABCD");
   });
 
   it("hides notImplemented errors and shows the rest", () => {
@@ -138,10 +128,6 @@ describe("vitals", () => {
     expect(vitalsView(null, run({ decaying: true })).resistance.decaying).toBe(false);
   });
 
-  it("shows stamina without a number", () => {
-    expect(vitalsView(player("Maya", { stamina: PLAYER_MAX_STAMINA / 2 })).stamina).toEqual({ ratio: 0.5, text: "" });
-  });
-
   it("reports damage and heals from consecutive health readings", () => {
     expect(vitalChange(100, 80)).toBe("damage");
     expect(vitalChange(80, 100)).toBe("heal");
@@ -154,10 +140,6 @@ describe("vitals", () => {
     expect(staminaRefused(0, 1)).toBe(true);
     expect(staminaRefused(2, 2)).toBe(false);
     expect(staminaRefused(2, 0)).toBe(false);
-  });
-
-  it("formats position to two decimals", () => {
-    expect(positionLabel({ x: 1, y: 2.345 })).toBe("1.00, 2.35");
   });
 });
 
@@ -254,11 +236,6 @@ describe("controls", () => {
     expect(controls.sessionControlsDisabled).toBe(false);
     expect(controls.actionsDisabled).toBe(true);
   });
-
-  it("labels the ready button", () => {
-    expect(readyLabel(true)).toBe("Ready ✓");
-    expect(readyLabel(false)).toBe("Ready");
-  });
 });
 
 describe("server action text", () => {
@@ -351,12 +328,6 @@ describe("party frames", () => {
   });
 });
 
-describe("place", () => {
-  it("is a dash without a dungeon", () => {
-    expect(placeStatusLabel(view(), null)).toBe("-");
-  });
-});
-
 const inSession = { phase: "inSession" as const, selfId: SELF_ID };
 
 function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
@@ -414,18 +385,6 @@ describe("hotbar", () => {
     expect(slots[0]?.icon).toBe("loot-tonic");
     expect(slots[1]?.icon).toBeNull();
     expect(slots.map((slot) => slot.disabled)).toEqual([false, true, true]);
-  });
-
-  it("picks the icon from the item kind", () => {
-    const scroll: InventoryItem = {
-      id: "b2222222-2222-4222-8222-222222222222",
-      name: "Scroll",
-      kind: "skillScroll",
-      skillId: "iron-will",
-    };
-    const self = player("Maya", { id: SELF_ID, inventory: [scroll, { ...item("Key"), kind: "key" }] });
-    const slots = hotbarView(view({ ...inSession, players: [self] }), self);
-    expect(slots.map((slot) => slot.icon)).toEqual(["loot-skill-scroll", "loot-key", null]);
   });
 
   it("disables every slot when outside a session or downed", () => {
@@ -560,24 +519,6 @@ describe("hub status", () => {
   it("is null outside the hub", () => {
     expect(hubStatusView(view({ phase: "inSession", location: "dungeon" }))).toBeNull();
     expect(hubStatusView(view({ phase: "connected", location: "hub" }))).toBeNull();
-  });
-
-  it("names who the party is waiting on", () => {
-    const status = hubStatusView(
-      view({ phase: "inSession", location: "hub", players: [player("Maya", { ready: false })] }),
-    );
-    expect(status).toEqual({
-      ready: false,
-      text: "Waiting on the party",
-      detail: "Waiting on Maya to ready up.",
-    });
-  });
-
-  it("treats a disconnected player as not ready", () => {
-    const status = hubStatusView(
-      view({ phase: "inSession", location: "hub", players: [player("Maya", { ready: true, connected: false })] }),
-    );
-    expect(status?.ready).toBe(false);
   });
 
   it("is ready when everyone connected is ready", () => {

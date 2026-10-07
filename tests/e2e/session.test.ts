@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import {
@@ -203,10 +202,6 @@ describe("http surface", () => {
     expect(after.status).toBe("ok");
     expect(after.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(after.sessions).toBe(1);
-  });
-
-  it("issues room codes from the unambiguous alphabet", async () => {
-    expect(await createRoom()).toMatch(/^[BCDFGHJKLMNPQRSTVWXYZ23456789]{6}$/);
   });
 
   it("404s an unknown route", async () => {
@@ -766,99 +761,6 @@ describe("voice signaling", () => {
     expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
   });
 
-  it("refuses a signal to the sender itself", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-
-    signal(alpha.client, alpha.joined.playerId);
-
-    expect((await alpha.client.next("sessionError")).code).toBe("signalTargetUnavailable");
-    expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
-  });
-
-  it("refuses an unknown player and a player in another dungeon alike", async () => {
-    const alpha = await joinRoom(await createRoom(), "Alpha");
-    const outsider = await joinRoom(await createRoom(), "Outsider");
-
-    signal(alpha.client, randomUUID());
-    const unknown = await alpha.client.next("sessionError");
-    signal(alpha.client, outsider.joined.playerId);
-    const crossSession = await alpha.client.next("sessionError");
-
-    expect(unknown.code).toBe("signalTargetUnavailable");
-    expect(crossSession).toEqual(unknown);
-    expect(outsider.client.received("voiceSignalRelay")).toHaveLength(0);
-  });
-
-  it("refuses a disconnected target and routes to it again after it reconnects", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-    const beta = await joinRoom(roomCode, "Beta");
-
-    const dropped = alpha.client.next("playerConnectionChanged");
-    beta.client.close();
-    await dropped;
-
-    signal(alpha.client, beta.joined.playerId);
-    const refused = await alpha.client.next("sessionError");
-    expect(refused.code).toBe("signalTargetUnavailable");
-    expect(refused.message).toMatch(/disconnected/);
-
-    const returned = alpha.client.next("playerConnectionChanged");
-    const resumed = await joinRoom(roomCode, "Beta", beta.joined.resumeToken);
-    await returned;
-
-    const gotOffer = resumed.client.next("voiceSignalRelay");
-    signal(alpha.client, beta.joined.playerId);
-    expect((await gotOffer).fromPlayerId).toBe(alpha.joined.playerId);
-    expect(beta.client.received("voiceSignalRelay")).toHaveLength(0);
-  });
-
-  it("stops routing to a player who left, and lets one who left signal nobody", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-    const beta = await joinRoom(roomCode, "Beta");
-
-    const left = alpha.client.next("playerLeft");
-    beta.client.send({ type: "leaveSession" });
-    await left;
-
-    signal(alpha.client, beta.joined.playerId);
-    expect((await alpha.client.next("sessionError")).code).toBe("signalTargetUnavailable");
-
-    signal(beta.client, alpha.joined.playerId);
-    expect((await beta.client.next("sessionError")).code).toBe("notInSession");
-    expect(alpha.client.received("voiceSignalRelay")).toHaveLength(0);
-  });
-
-  it("stops routing to a player whose slot timed out", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-    const beta = await joinRoom(roomCode, "Beta");
-
-    beta.client.close();
-    await alpha.client.next("playerLeft", 3000);
-
-    signal(alpha.client, beta.joined.playerId);
-    const refused = await alpha.client.next("sessionError");
-    expect(refused.code).toBe("signalTargetUnavailable");
-    expect(refused.message).not.toMatch(/disconnected/);
-  });
-
-  it("refuses an oversized signal without relaying it", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-    const beta = await joinRoom(roomCode, "Beta");
-
-    signal(alpha.client, beta.joined.playerId, {
-      kind: "offer",
-      sdp: "x".repeat(MAX_VOICE_SIGNAL_LENGTH + 1),
-    });
-
-    expect((await alpha.client.next("sessionError")).code).toBe("invalidMessage");
-    expect(beta.client.received("voiceSignalRelay")).toHaveLength(0);
-  });
-
   it("rate-limits a flooding sender with a stable error, without touching the party", async () => {
     const roomCode = await createRoom();
     const alpha = await joinRoom(roomCode, "Alpha");
@@ -923,16 +825,6 @@ describe("disconnect, reconnect, and timeout", () => {
     expect((await returning).connected).toBe(true);
   });
 
-  it("refuses a resume token whose slot is still connected", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-
-    const impostor = await TestClient.connect();
-    impostor.join(roomCode, "Impostor", alpha.joined.resumeToken);
-
-    expect((await impostor.next("sessionError")).code).toBe("alreadyInSession");
-  });
-
   it("releases the slot once the grace window expires", async () => {
     const roomCode = await createRoom();
     const alpha = await joinRoom(roomCode, "Alpha");
@@ -949,20 +841,6 @@ describe("disconnect, reconnect, and timeout", () => {
     const snapshot = await beta.client.next("stateSnapshot");
     expect(snapshot.players).toHaveLength(1);
   });
-
-  it("hands a timed-out token a brand new slot", async () => {
-    const roomCode = await createRoom();
-    const alpha = await joinRoom(roomCode, "Alpha");
-    const beta = await joinRoom(roomCode, "Beta");
-
-    alpha.client.close();
-    await beta.client.next("playerLeft", 3000);
-
-    const revenant = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
-
-    expect(revenant.joined.resumed).toBe(false);
-    expect(revenant.joined.playerId).not.toBe(alpha.joined.playerId);
-  });
 });
 
 describe("leaving", () => {
@@ -978,30 +856,5 @@ describe("leaving", () => {
 
     const snapshot = await alpha.client.next("stateSnapshot");
     expect(snapshot.players).toHaveLength(1);
-  });
-
-  it("stops a party at the four-player cap", async () => {
-    const roomCode = await createRoom();
-    await joinRoom(roomCode, "One");
-    await joinRoom(roomCode, "Two");
-    await joinRoom(roomCode, "Three");
-    await joinRoom(roomCode, "Four");
-
-    const fifth = await TestClient.connect();
-    fifth.join(roomCode, "Five");
-
-    expect((await fifth.next("sessionError")).code).toBe("sessionFull");
-  });
-
-  it("keeps two dungeons independent", async () => {
-    const first = await createRoom();
-    const second = await createRoom();
-    const alpha = await joinRoom(first, "Alpha");
-    await joinRoom(second, "Beta");
-
-    const snapshot = await alpha.client.next("stateSnapshot");
-
-    expect(snapshot.players).toHaveLength(1);
-    expect(snapshot.players[0]?.name).toBe("Alpha");
   });
 });

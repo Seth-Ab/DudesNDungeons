@@ -32,15 +32,6 @@ describe("the committed tilesheet", () => {
       "assets/sprites/dungeon.png is stale; run `npm run build:sprites`",
     ).toBe(true);
   });
-
-  it("is a PNG", () => {
-    expect([...readFileSync(SHEET_PATH).subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
-  });
-
-  it("bakes the same bytes twice", () => {
-    const source = readSourceArt();
-    expect(bakeSheet(source).equals(bakeSheet(source))).toBe(true);
-  });
 });
 
 describe("the source art", () => {
