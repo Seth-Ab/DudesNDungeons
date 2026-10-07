@@ -30,6 +30,10 @@ import { SessionStore, toPlayerState, type Session } from "./sessions/sessionSto
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
+/** A tick this slow is a tenth of the way to dropping the 20 Hz pace; see `slowTickMs`. */
+const DEFAULT_SLOW_TICK_MS = 25;
+/** At most one slow-tick line per this long, so a struggling server does not flood its own log. */
+const SLOW_TICK_LOG_INTERVAL_MS = 5_000;
 
 export interface GameServerOptions {
   store?: SessionStore;
@@ -40,6 +44,11 @@ export interface GameServerOptions {
   profiles?: ProfileStore;
   tickIntervalMs?: number;
   sweepIntervalMs?: number;
+  /**
+   * A tick that takes at least this long, in the clock of `now`, is logged. Defaults to half the
+   * 50 ms tick budget, which leaves room to notice a trend before players feel it.
+   */
+  slowTickMs?: number;
   /**
    * Value for `Access-Control-Allow-Origin`. The client is served from a different origin in
    * development (Vite on 5173, this server on 8080), so without it the browser blocks room
@@ -70,6 +79,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const profiles = options.profiles ?? new ProfileStore();
   const tickIntervalMs = options.tickIntervalMs ?? SERVER_TICK_MS;
   const sweepIntervalMs = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
+  const slowTickMs = options.slowTickMs ?? DEFAULT_SLOW_TICK_MS;
   const allowedOrigin = options.allowedOrigin ?? "*";
   const log = options.log ?? true;
   const now = options.now ?? (() => performance.now());
@@ -78,6 +88,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const signalLimiter = new SignalRateLimiter();
   /** Parties whose downed state has been snapshotted but who are not yet returned to the hub. */
   const wipeAnnounced = new WeakSet<Session>();
+  /** When a slow tick was last logged, or null before the first. */
+  let lastSlowTickLoggedAt: number | null = null;
 
   const note = (message: string): void => {
     if (log) console.log(message);
@@ -486,6 +498,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
   const tickTimer = setInterval(() => {
     const at = now();
+    const sessionCount = store.sessionCount;
 
     for (const session of store.listSessions()) {
       // Dungeon simulation advances even with nobody watching, so a reconnecting party returns to
@@ -514,6 +527,18 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
       if (!hasAudience) continue;
       broadcastSnapshots(session);
+    }
+
+    const elapsedMs = now() - at;
+    if (
+      elapsedMs >= slowTickMs &&
+      (lastSlowTickLoggedAt === null || at - lastSlowTickLoggedAt >= SLOW_TICK_LOG_INTERVAL_MS)
+    ) {
+      lastSlowTickLoggedAt = at;
+      note(
+        `[tick] slow tick: ${elapsedMs.toFixed(1)} ms across ${sessionCount} session(s), ` +
+          `budget ${tickIntervalMs} ms`,
+      );
     }
   }, tickIntervalMs);
 
