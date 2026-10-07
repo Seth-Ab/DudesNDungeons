@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   dungeonStateSchema,
+  contentIdSchema,
   entityIdSchema,
   playerIdSchema,
   playerStateSchema,
@@ -11,6 +12,8 @@ import {
   runStateSchema,
   sessionLocationSchema,
   sessionIdSchema,
+  skillViewSchema,
+  upgradeViewSchema,
 } from "../types/core.js";
 import { voiceSignalSchema } from "./voice.js";
 
@@ -79,6 +82,36 @@ export const sessionJoinedSchema = z.object({
    * A client that receives one stores it; a client that receives null keeps the one it sent.
    */
   profileSecret: profileSecretSchema.nullable(),
+});
+
+/**
+ * The skill and upgrade definitions this session plays with, for display. Static for the life of a
+ * session, so it is sent once, right after `sessionJoined`, rather than with every change to
+ * `progressionUpdated`. Owner-only like the rest of the progression contract, though it holds
+ * nothing secret.
+ */
+export const progressionCatalogSchema = z.object({
+  type: z.literal("progressionCatalog"),
+  skills: z.array(skillViewSchema),
+  upgrades: z.array(upgradeViewSchema),
+});
+
+/**
+ * What the receiving player has, and what is in force right now. Sent only to its owner: it is
+ * never broadcast, because another player's unlocks are not that player's to see. Sent after
+ * `sessionJoined` and again whenever any field changes, such as learning a scroll, extracting, or
+ * losing a run, so a client never has to infer progression from other messages.
+ *
+ * `unlocked*` is permanent. `runSkillIds` is provisional: in force for this run, and gone unless the
+ * player gets back to the hub. `active*` is the resulting state the server's effects resolve from.
+ */
+export const progressionUpdatedSchema = z.object({
+  type: z.literal("progressionUpdated"),
+  unlockedSkillIds: z.array(contentIdSchema),
+  unlockedUpgradeIds: z.array(contentIdSchema),
+  runSkillIds: z.array(contentIdSchema),
+  activeSkillIds: z.array(contentIdSchema),
+  activeUpgradeIds: z.array(contentIdSchema),
 });
 
 export const playerJoinedSchema = z.object({
@@ -165,6 +198,8 @@ export const sessionErrorSchema = z.object({
 
 export const serverMessageSchema = z.discriminatedUnion("type", [
   sessionJoinedSchema,
+  progressionCatalogSchema,
+  progressionUpdatedSchema,
   playerJoinedSchema,
   playerLeftSchema,
   playerConnectionChangedSchema,

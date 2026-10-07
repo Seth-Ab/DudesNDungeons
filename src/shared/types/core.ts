@@ -331,6 +331,33 @@ export const profileStateSchema = z.object({
 });
 export type ProfileState = z.infer<typeof profileStateSchema>;
 
+/** What a skill or upgrade does, as the owner's UI needs to describe it. Mirrors `content/`. */
+export const progressionEffectViewSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("attackDamageBonus"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("sightRadiusBonus"), amount: z.number().positive() }),
+  z.object({ type: z.literal("resistanceBonus"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("puzzlePowerBonus"), amount: z.number().int().positive() }),
+]);
+
+export const skillViewSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  effects: z.array(progressionEffectViewSchema),
+});
+export type SkillView = z.infer<typeof skillViewSchema>;
+
+export const upgradeViewSchema = z.object({
+  id: contentIdSchema,
+  skillId: contentIdSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  tier: z.number().int().positive(),
+  requires: z.array(contentIdSchema),
+  effects: z.array(progressionEffectViewSchema),
+});
+export type UpgradeView = z.infer<typeof upgradeViewSchema>;
+
 /**
  * The server's view of a player, broadcast to clients. Clients never author this shape: position,
  * health, and inventory are server-owned outputs, not inputs.

@@ -6,7 +6,9 @@ import type {
   PlayerId,
   PlayerState,
   RunState,
+  SkillView,
   SessionLocation,
+  UpgradeView,
 } from "../../shared/types/core.js";
 
 /**
@@ -26,6 +28,31 @@ export interface SessionError {
   code: ErrorCode;
   message: string;
 }
+
+/** The player's own skills and upgrades, from the owner-only progression messages. */
+export interface ProgressionView {
+  /** Definitions for display. Empty until `progressionCatalog` arrives. */
+  skills: SkillView[];
+  upgrades: UpgradeView[];
+  /** Kept between runs. */
+  unlockedSkillIds: string[];
+  unlockedUpgradeIds: string[];
+  /** Learned this run and lost unless the player makes it back to the hub. */
+  runSkillIds: string[];
+  /** What is actually in force now. */
+  activeSkillIds: string[];
+  activeUpgradeIds: string[];
+}
+
+export const emptyProgression: ProgressionView = {
+  skills: [],
+  upgrades: [],
+  unlockedSkillIds: [],
+  unlockedUpgradeIds: [],
+  runSkillIds: [],
+  activeSkillIds: [],
+  activeUpgradeIds: [],
+};
 
 export interface SessionView {
   phase: ConnectionPhase;
@@ -64,6 +91,8 @@ export interface SessionView {
    * out of earshot or out of sight and must be silent.
    */
   voiceRange: VoicePeerRange[];
+  /** Null until the server has sent this player's progression. */
+  progression: ProgressionView | null;
 }
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
@@ -88,6 +117,7 @@ export const initialSessionView: SessionView = {
   recentAttacks: [],
   attackSeq: 0,
   voiceRange: [],
+  progression: null,
 };
 
 /**
@@ -133,6 +163,31 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         players: message.players,
         visiblePlayerIds: message.players.map((player) => player.id),
         lastError: null,
+        // A new join is a new profile's view; nothing of an earlier one carries over.
+        progression: null,
+      };
+
+    case "progressionCatalog":
+      return {
+        ...view,
+        progression: {
+          ...(view.progression ?? emptyProgression),
+          skills: message.skills,
+          upgrades: message.upgrades,
+        },
+      };
+
+    case "progressionUpdated":
+      return {
+        ...view,
+        progression: {
+          ...(view.progression ?? emptyProgression),
+          unlockedSkillIds: message.unlockedSkillIds,
+          unlockedUpgradeIds: message.unlockedUpgradeIds,
+          runSkillIds: message.runSkillIds,
+          activeSkillIds: message.activeSkillIds,
+          activeUpgradeIds: message.activeUpgradeIds,
+        },
       };
 
     case "playerJoined":
