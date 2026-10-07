@@ -65,12 +65,13 @@ delegate it through Herdr again. Preserve any additional constraints from the or
 ```
 
 Always include `TICKET_PARENT=<pane-id>`, where the pane id is the coordinator's own `$HERDR_PANE_ID`,
-so the child can report back. Add `TICKET_AUTOCLOSE=1` only when the user asked for the tab to be
-closed on completion (for example "close the tab when done"). Without it, the child still reports
-back but the coordinator never closes anything.
+so the child can report back. Also include `TICKET_AUTOCLOSE=1` by default, so the coordinator closes
+the tab once the work is verified. Omit it only when the user asked to keep the tab (for example
+"keep the tab open" or "I want to inspect it"); the child then still reports back but the coordinator
+never closes anything. Say in the handoff report whether auto-close is on.
 
 ```text
-/ticket <issue-url> TICKET_HERDR_CHILD=1 TICKET_PARENT=<pane-id> [TICKET_AUTOCLOSE=1]
+/ticket <issue-url> TICKET_HERDR_CHILD=1 TICKET_PARENT=<pane-id> TICKET_AUTOCLOSE=1
 ```
 
 Pass the canonical issue URL and any ticket-specific user constraints. Quote the prompt and URL
@@ -112,10 +113,10 @@ The coordinator's final response should make clear that Claude performed the rep
 new Herdr tab and should include the tab, pane, and agent identifiers alongside the normal ticket
 handoff details.
 
-## 6. Close the Tab Only After Verification (opt-in)
+## 6. Close the Tab Only After Verification (default on)
 
-Close only when the delegated prompt carried `TICKET_AUTOCLOSE=1`. Otherwise report and leave the
-tab open. Before closing, the coordinator verifies each of these itself, from GitHub and git rather
+Close when the delegated prompt carried `TICKET_AUTOCLOSE=1`, which is the default. When the user
+opted out and the marker is absent, report and leave the tab open. Before closing, the coordinator verifies each of these itself, from GitHub and git rather
 than from the child's message:
 
 - the PR exists, is open or merged, targets the default branch, and links `Closes #<issue>`;
