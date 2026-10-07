@@ -7,11 +7,12 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v14.
+  everyone to the hub under protocol v15.
 - Last completed work: client WebRTC proximity voice (issue #27), closing Frontend step 5.
 - Next recommended step: monster loot drops and a wider item catalog, combat depth, and tick
-  performance (see the open issues), then expose the progression catalog and build Frontend
-  step 10. Verifying Backend step 6 on a real deployment remains open.
+  performance (see the open issues), then build Frontend
+  step 10 on the owner-only progression messages (#24, v15). Verifying Backend step 6 on a real
+  deployment remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the
   current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
 
@@ -182,7 +183,8 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
   effect resolver drives resistance, attack damage, upgrade tiers, and torch sight. Remaining:
-  expose progression state/catalog, add upgrade acquisition, and connect puzzle effects.
+  add upgrade acquisition and connect puzzle effects. The owner now receives the catalog
+  (`progressionCatalog`) and live state (`progressionUpdated`), protocol v15 (#24).
 - [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
   skill definitions now feed the effect resolver, while upgrade acquisition remains future work.
 - [x] Reject client-sent profile, inventory, or unlock state. The client sends one credential and
@@ -334,6 +336,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-07: Owner-only progression catalog and live state (#24, v15).
 - 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec
   and its dependency, PR screenshot media, dead constants, and this ledger's long-form history.
 - 2026-10-04: Client proximity voice (#27, decision 0012); symmetric player-to-player sight (#61);

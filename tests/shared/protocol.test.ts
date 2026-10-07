@@ -254,6 +254,69 @@ describe("parseServerMessage", () => {
     }
   });
 
+  it("round-trips the progression catalog and an owner's progression state", () => {
+    const catalog: ServerMessage = {
+      type: "progressionCatalog",
+      skills: [
+        {
+          id: "iron-will",
+          name: "Iron Will",
+          description: "Start with more resistance.",
+          effects: [{ type: "resistanceBonus", amount: 10 }],
+        },
+      ],
+      upgrades: [
+        {
+          id: "iron-will-steeled",
+          skillId: "iron-will",
+          name: "Steeled",
+          description: "More resistance.",
+          tier: 1,
+          requires: [],
+          effects: [{ type: "resistanceBonus", amount: 5 }],
+        },
+      ],
+    };
+    const state: ServerMessage = {
+      type: "progressionUpdated",
+      unlockedSkillIds: ["iron-will"],
+      unlockedUpgradeIds: [],
+      runSkillIds: ["torchbearer"],
+      activeSkillIds: ["iron-will", "torchbearer"],
+      activeUpgradeIds: [],
+    };
+
+    for (const message of [catalog, state]) {
+      const result = parseServerMessage(serializeServerMessage(message));
+      expect(result.ok && result.message).toEqual(message);
+    }
+  });
+
+  it("rejects progression state with a malformed id or an unknown effect", () => {
+    const badId = parseServerMessage(
+      JSON.stringify({
+        type: "progressionUpdated",
+        unlockedSkillIds: ["Not A Slug"],
+        unlockedUpgradeIds: [],
+        runSkillIds: [],
+        activeSkillIds: [],
+        activeUpgradeIds: [],
+      }),
+    );
+    const badEffect = parseServerMessage(
+      JSON.stringify({
+        type: "progressionCatalog",
+        skills: [
+          { id: "x", name: "X", description: "d", effects: [{ type: "godMode", amount: 1 }] },
+        ],
+        upgrades: [],
+      }),
+    );
+
+    expect(badId.ok).toBe(false);
+    expect(badEffect.ok).toBe(false);
+  });
+
   it("round-trips a snapshot with server-owned dungeon state", () => {
     const message: ServerMessage = {
       type: "stateSnapshot",

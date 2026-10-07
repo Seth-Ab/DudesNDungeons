@@ -407,3 +407,99 @@ describe("inParty", () => {
     expect(inParty(at("connected", { code: "sessionNotFound", message: "gone" }))).toBe(false);
   });
 });
+
+describe("progression", () => {
+  const catalog = {
+    type: "progressionCatalog" as const,
+    skills: [
+      {
+        id: "iron-will",
+        name: "Iron Will",
+        description: "Start with more resistance.",
+        effects: [{ type: "resistanceBonus" as const, amount: 10 }],
+      },
+    ],
+    upgrades: [],
+  };
+  const update = (overrides: Record<string, string[]> = {}) => ({
+    type: "progressionUpdated" as const,
+    unlockedSkillIds: [],
+    unlockedUpgradeIds: [],
+    runSkillIds: [],
+    activeSkillIds: [],
+    activeUpgradeIds: [],
+    ...overrides,
+  });
+
+  it("holds nothing before the server sends it", () => {
+    expect(joinedView().progression).toBeNull();
+  });
+
+  it("keeps the catalog and the initial state", () => {
+    let view = applyServerMessage(joinedView(), catalog);
+    view = applyServerMessage(view, update());
+
+    expect(view.progression?.skills.map((skill) => skill.id)).toEqual(["iron-will"]);
+    expect(view.progression?.activeSkillIds).toEqual([]);
+  });
+
+  it("tells a provisional skill from a permanent one, then banks it on extraction", () => {
+    let view = applyServerMessage(joinedView(), catalog);
+    view = applyServerMessage(
+      view,
+      update({ runSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+    );
+    expect(view.progression?.runSkillIds).toEqual(["iron-will"]);
+    expect(view.progression?.unlockedSkillIds).toEqual([]);
+
+    view = applyServerMessage(
+      view,
+      update({ unlockedSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+    );
+    expect(view.progression?.runSkillIds).toEqual([]);
+    expect(view.progression?.unlockedSkillIds).toEqual(["iron-will"]);
+    // An update replaces state but never the catalog it describes.
+    expect(view.progression?.skills).toHaveLength(1);
+  });
+
+  it("clears a provisional skill on loss", () => {
+    let view = applyServerMessage(joinedView(), catalog);
+    view = applyServerMessage(
+      view,
+      update({ runSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+    );
+    view = applyServerMessage(view, update());
+
+    expect(view.progression?.runSkillIds).toEqual([]);
+    expect(view.progression?.activeSkillIds).toEqual([]);
+  });
+
+  it("resets on a fresh join so a new profile never inherits the last one's", () => {
+    const view = applyServerMessage(
+      applyServerMessage(joinedView(), catalog),
+      update({ unlockedSkillIds: ["iron-will"] }),
+    );
+    const rejoined = applyServerMessage(view, {
+      type: "sessionJoined",
+      sessionId: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+      roomCode: "BCDFGH",
+      playerId: SELF_ID,
+      resumeToken: "0123456789abcdef0123456789abcdef",
+      resumed: true,
+      tickRate: 20,
+      players: [player(SELF_ID)],
+      profile: {
+        id: "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+        displayName: "Self",
+        bankedItems: [],
+        unlockedSkillIds: [],
+        unlockedUpgradeIds: [],
+        runsEscaped: 0,
+        runsLost: 0,
+      },
+      profileSecret: null,
+    });
+
+    expect(rejoined.progression).toBeNull();
+  });
+});

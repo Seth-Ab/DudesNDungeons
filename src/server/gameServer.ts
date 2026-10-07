@@ -19,6 +19,7 @@ import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
 import { interact, pickupItem, useItem } from "./game/items.js";
+import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
@@ -26,7 +27,7 @@ import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
-import { SessionStore, toPlayerState, type Session } from "./sessions/sessionStore.js";
+import { SessionStore, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -88,6 +89,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const signalLimiter = new SignalRateLimiter();
   /** Parties whose downed state has been snapshotted but who are not yet returned to the hub. */
   const wipeAnnounced = new WeakSet<Session>();
+  /**
+   * The last `progressionUpdated` each connected player was sent, serialized. Progression changes in
+   * several places (a scroll, an extraction, a wipe), so the tick compares rather than every call
+   * site announcing, and a change cannot be forgotten by a path nobody thought of.
+   */
+  const lastProgressionSent = new Map<PlayerId, string>();
   /** When a slow tick was last logged, or null before the first. */
   let lastSlowTickLoggedAt: number | null = null;
 
@@ -119,6 +126,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
    * One visibility pass per player per tick. The frame feeds both the snapshot and the voice
    * ranges, which are gated on the same rules; computing it twice was the tick's dominant cost.
    */
+  /** Sends the owner their progression if it differs from what they last had. Owner-only. */
+  function sendProgression(socket: WebSocket, session: Session, player: SessionPlayer): void {
+    const update = progressionUpdateFor(player, contentForSession(session));
+    const serialized = JSON.stringify(update);
+    if (lastProgressionSent.get(player.id) === serialized) return;
+    lastProgressionSent.set(player.id, serialized);
+    send(socket, update);
+  }
+
   function sendSnapshot(session: Session, playerId: PlayerId): void {
     const socket = socketsByPlayer.get(playerId);
     if (!socket) return;
@@ -126,6 +142,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     const player = session.players.get(playerId);
     if (!player) return;
 
+    sendProgression(socket, session, player);
     const frame = visibilityFrameForPlayer(session, player);
     send(socket, {
       type: "stateSnapshot",
@@ -288,6 +305,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           profileSecret: issuedSecret,
         });
 
+        // Owner-only, and sent fresh on every join: a new socket holds nothing yet.
+        lastProgressionSent.delete(player.id);
+        send(socket, progressionCatalogFor(contentForSession(session)));
+        sendProgression(socket, session, player);
+
         broadcast(
           session,
           resumed
@@ -311,6 +333,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (message.type === "leaveSession") {
         const member = store.leave(playerId);
         socketsByPlayer.delete(playerId);
+        lastProgressionSent.delete(playerId);
         signalLimiter.forget(playerId);
         playerId = null;
 
@@ -479,6 +502,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
       const member = store.markDisconnected(playerId);
       socketsByPlayer.delete(playerId);
+      lastProgressionSent.delete(playerId);
       playerId = null;
 
       if (member) {
@@ -548,6 +572,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
     for (const member of store.sweep()) {
       socketsByPlayer.delete(member.player.id);
+      lastProgressionSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
       broadcast(member.session, {
         type: "playerLeft",
@@ -586,6 +611,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       for (const socket of socketsByPlayer.values()) socket.terminate();
       for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();
+      lastProgressionSent.clear();
       signalLimiter.clear();
       return new Promise((resolve) => {
         wss.close(() => httpServer.close(() => resolve()));

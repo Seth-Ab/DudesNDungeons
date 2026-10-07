@@ -14,6 +14,8 @@ import {
 } from "../../src/shared/constants/game.js";
 import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
+import { learnSkill } from "../../src/server/game/progression.js";
+import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { ServerMessage } from "../../src/shared/protocol/index.js";
 
@@ -856,5 +858,112 @@ describe("leaving", () => {
 
     const snapshot = await alpha.client.next("stateSnapshot");
     expect(snapshot.players).toHaveLength(1);
+  });
+});
+
+describe("progression state", () => {
+  function sessionPlayer(roomCode: string, playerId: string) {
+    const session = server.store.getSession(roomCode);
+    const player = session?.players.get(playerId);
+    if (!session || !player) throw new Error("expected session and player");
+    return { session, player };
+  }
+
+  it("sends the catalog and an empty state to the joining owner", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+
+    await alpha.client.nextWhere("stateSnapshot", () => true);
+    const received = alpha.client.received("progressionCatalog")[0];
+    expect(received?.skills.map((skill) => skill.id)).toContain("iron-will");
+    expect(received?.upgrades.map((upgrade) => upgrade.id)).toContain("iron-will-steeled");
+
+    const state = alpha.client.received("progressionUpdated")[0];
+    expect(state).toMatchObject({
+      unlockedSkillIds: [],
+      runSkillIds: [],
+      activeSkillIds: [],
+      activeUpgradeIds: [],
+    });
+  });
+
+  it("tracks a provisional scroll, then banks it on extraction", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, alpha.client);
+    const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
+
+    expect(learnSkill(session, player, "iron-will")).toBe(true);
+    const provisional = await alpha.client.nextWhere("progressionUpdated", (m) =>
+      m.runSkillIds.includes("iron-will"),
+    );
+    expect(provisional.unlockedSkillIds).toEqual([]);
+    expect(provisional.activeSkillIds).toEqual(["iron-will"]);
+
+    returnToHub(session, true);
+    const banked = await alpha.client.nextWhere("progressionUpdated", (m) =>
+      m.unlockedSkillIds.includes("iron-will"),
+    );
+    expect(banked.runSkillIds).toEqual([]);
+    expect(banked.activeSkillIds).toEqual(["iron-will"]);
+  });
+
+  it("drops a provisional scroll when the run is lost", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    await enterDungeon(roomCode, alpha.client);
+    const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
+
+    learnSkill(session, player, "torchbearer");
+    await alpha.client.nextWhere("progressionUpdated", (m) =>
+      m.runSkillIds.includes("torchbearer"),
+    );
+
+    returnToHub(session, false);
+    const lost = await alpha.client.nextWhere(
+      "progressionUpdated",
+      (m) => m.runSkillIds.length === 0,
+    );
+    expect(lost.unlockedSkillIds).toEqual([]);
+    expect(lost.activeSkillIds).toEqual([]);
+  });
+
+  it("never sends one player's progression to another", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
+
+    // Hub learning is permanent at once, so alpha's own message is the only one that may change.
+    learnSkill(session, player, "iron-will");
+    await alpha.client.nextWhere("progressionUpdated", (m) =>
+      m.unlockedSkillIds.includes("iron-will"),
+    );
+    await beta.client.next("stateSnapshot");
+    await beta.client.next("stateSnapshot");
+
+    for (const message of beta.client.received("progressionUpdated")) {
+      expect(message.unlockedSkillIds).toEqual([]);
+      expect(message.activeSkillIds).toEqual([]);
+    }
+    expect(beta.client.received("progressionCatalog")).toHaveLength(1);
+  });
+
+  it("resends the full state to a reconnecting owner", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
+    learnSkill(session, player, "lever-sense");
+    await alpha.client.nextWhere("progressionUpdated", (m) =>
+      m.unlockedSkillIds.includes("lever-sense"),
+    );
+
+    alpha.client.close();
+    const back = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
+    expect(back.joined.resumed).toBe(true);
+    expect(back.client.received("progressionCatalog")).toHaveLength(1);
+    expect(back.client.received("progressionUpdated")[0]?.unlockedSkillIds).toEqual([
+      "lever-sense",
+    ]);
   });
 });
