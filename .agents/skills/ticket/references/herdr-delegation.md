@@ -64,6 +64,15 @@ You are the delegated implementation agent. Run the complete ticket workflow in 
 delegate it through Herdr again. Preserve any additional constraints from the original request.
 ```
 
+Always include `TICKET_PARENT=<pane-id>`, where the pane id is the coordinator's own `$HERDR_PANE_ID`,
+so the child can report back. Add `TICKET_AUTOCLOSE=1` only when the user asked for the tab to be
+closed on completion (for example "close the tab when done"). Without it, the child still reports
+back but the coordinator never closes anything.
+
+```text
+/ticket <issue-url> TICKET_HERDR_CHILD=1 TICKET_PARENT=<pane-id> [TICKET_AUTOCLOSE=1]
+```
+
 Pass the canonical issue URL and any ticket-specific user constraints. Quote the prompt and URL
 safely; do not interpolate issue body text into a shell command. The child marker is part of the
 prompt, not proof that a process environment variable was set. The main skill treats either form as
@@ -85,8 +94,12 @@ silently for long periods.
 - `unknown` is not completion; inspect output and state.
 - `idle` or `done` after observed work means read the final response and verify its claims.
 
-Do not close the tab, pane, workspace, or agent when the delegated run finishes. The user may want to
-inspect it.
+Do not close the tab, pane, workspace, or agent when the delegated run finishes, unless the closing
+rule in step 6 applies. The user may want to inspect it.
+
+The child may also send a one-line completion message into the coordinator's input (see the ticket
+skill's "Report Completion to the Coordinator"). Treat it as a hint to check now, never as proof.
+Verify everything it claims before acting on it.
 
 ## 5. Verify and Report the Handoff Result
 
@@ -98,3 +111,19 @@ or explicit user direction.
 The coordinator's final response should make clear that Claude performed the repository work in the
 new Herdr tab and should include the tab, pane, and agent identifiers alongside the normal ticket
 handoff details.
+
+## 6. Close the Tab Only After Verification (opt-in)
+
+Close only when the delegated prompt carried `TICKET_AUTOCLOSE=1`. Otherwise report and leave the
+tab open. Before closing, the coordinator verifies each of these itself, from GitHub and git rather
+than from the child's message:
+
+- the PR exists, is open or merged, targets the default branch, and links `Closes #<issue>`;
+- required checks have completed successfully (a pending or failing check means leave it open);
+- the child's worktree has no uncommitted changes and its branch is pushed;
+- `herdr agent get <name>` reports `idle` or `done`, not `working` or `blocked`.
+
+If any check fails, leave the tab open and tell the user which one. If all pass, close the tab with
+`herdr tab close <tab-id>` using the tab id from step 2, which also ends the Claude session in it.
+Never close a tab or agent that this coordinator did not create. Do not remove the worktree or delete
+the branch here; the PR is usually still unmerged, and the prune script handles that after merge.

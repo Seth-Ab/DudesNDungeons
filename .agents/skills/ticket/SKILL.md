@@ -16,7 +16,7 @@ Check this before GitHub queries, branch creation, or other mutations:
 
 1. If the invocation contains the exact handoff marker `TICKET_HERDR_CHILD=1`, or that environment
    variable is exactly `1`, this is the delegated Claude worker. Do not create another tab; continue
-   directly with step 1 below.
+   directly with step 1 below. Note any `TICKET_PARENT=<pane-id>` marker for the final handoff.
 2. Otherwise, if `HERDR_ENV` is exactly `1`, read
    [references/herdr-delegation.md](references/herdr-delegation.md) and perform that handoff.
 3. Otherwise, continue with step 1 in the current agent.
@@ -147,3 +147,18 @@ notes. State whether the working tree is clean and identify any untouched pre-ex
 
 If this run used a separate worktree, do not remove it yet, since the PR is not merged. Tell the
 user it will show up in `npm run worktrees:prune --dry-run` once the PR merges.
+
+## Report Completion to the Coordinator
+
+Only when the invocation carried `TICKET_PARENT=<pane-id>`, and only after the PR is open, required
+checks are green, and the working tree is clean and pushed, send the coordinator one line:
+
+```bash
+herdr agent prompt <pane-id> "ticket_<n> complete: <PR url>, CI green. Verify, then follow the Herdr delegation closing rule." 
+```
+
+Send it once, without `--wait`. Do not close your own tab or agent, do not remove the worktree, and
+do not delete the branch. The coordinator verifies the claim and decides whether to close the tab
+(only when `TICKET_AUTOCLOSE=1` was given). Cleanup of the worktree and branch happens after the PR
+merges, via `npm run worktrees:prune`, or on the user's request. If checks are failing or pending,
+or you are stopping for owner input, do not send the message; report in this tab instead.
