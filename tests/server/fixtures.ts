@@ -21,6 +21,14 @@ export const ASH_IMP_ID = "11111111-1111-4111-8111-111111111111";
 export const CINDER_SLIME_ID = "22222222-2222-4222-8222-222222222222";
 export const COPPER_KEY_ID = "33333333-3333-4333-8333-333333333333";
 export const MINOR_TONIC_ID = "44444444-4444-4444-8444-444444444444";
+/** The wire fields of a Minor Tonic, as `content/items/minor-tonic.json` ships it. */
+export const TONIC_FIELDS = {
+  kind: "consumable",
+  itemId: "minor-tonic",
+  description: "Restores 35 health.",
+  icon: "tonic",
+} as const;
+
 export const WARDING_SALVE_ID = "99999999-9999-4999-8999-999999999999";
 export const VAULT_DOOR_ID = "55555555-5555-4555-8555-555555555555";
 export const VAULT_EXIT_ID = "66666666-6666-4666-8666-666666666666";

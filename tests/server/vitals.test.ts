@@ -20,7 +20,6 @@ import {
   RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_PER_SECOND,
   STAMINA_REGEN_PER_SECOND,
-  WARD_RESISTANCE_AMOUNT,
 } from "../../src/shared/constants/game.js";
 import { ASH_IMP_ID, WARDING_SALVE_ID, at, testPlayer, testSession } from "./fixtures.js";
 
@@ -62,9 +61,9 @@ describe("raising resistance", () => {
   it("is capped, and refuses a consumable that would be wasted", () => {
     const player = testPlayer("alpha", { resistance: PLAYER_MAX_RESISTANCE - 5 });
 
-    expect(restoreResistance(player, WARD_RESISTANCE_AMOUNT)).toBe(true);
+    expect(restoreResistance(player, 25)).toBe(true);
     expect(player.resistance).toBe(PLAYER_MAX_RESISTANCE);
-    expect(restoreResistance(player, WARD_RESISTANCE_AMOUNT)).toBe(false);
+    expect(restoreResistance(player, 25)).toBe(false);
   });
 
   it("happens through a ward consumable, which is spent in doing it", () => {
@@ -73,7 +72,7 @@ describe("raising resistance", () => {
 
     expect(pickupItem(session, "alpha", WARDING_SALVE_ID)).toEqual({ ok: true });
     expect(useItem(session, "alpha", WARDING_SALVE_ID)).toEqual({ ok: true });
-    expect(player.resistance).toBe(10 + WARD_RESISTANCE_AMOUNT);
+    expect(player.resistance).toBe(10 + 25);
     expect(player.inventory).toEqual([]);
   });
 

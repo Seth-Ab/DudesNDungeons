@@ -1,4 +1,4 @@
-import type { ItemKind } from "../../shared/types/core.js";
+import type { ConsumableIcon, InventoryItem, LootState } from "../../shared/types/core.js";
 /**
  * What the tilesheet contains and which cell a given tile draws with.
  *
@@ -91,13 +91,22 @@ export type SpriteName = string;
  * Loot sprite per item kind. Exhaustive rather than defaulted: a new `itemKind` should fail the
  * client build and get its own art, not quietly spawn on the floor wearing something else's.
  */
-export const LOOT_SPRITES: Record<ItemKind, SpriteName> = {
+export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, SpriteName> = {
   key: "loot-key",
-  tonic: "loot-tonic",
-  ward: "loot-ward",
   skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
 };
+
+/** A consumable names its icon in content, so its art is looked up by that rather than by kind. */
+export const CONSUMABLE_SPRITES: Record<ConsumableIcon, SpriteName> = {
+  tonic: "loot-tonic",
+  ward: "loot-ward",
+};
+
+/** The sprite for anything that can lie on the floor or sit in a hotbar slot. */
+export function itemSprite(item: LootState | InventoryItem): SpriteName {
+  return item.kind === "consumable" ? CONSUMABLE_SPRITES[item.icon] : LOOT_SPRITES[item.kind];
+}
 
 
 /**

@@ -1,19 +1,23 @@
 import {
   INTERACT_RANGE,
   MAX_INVENTORY_SIZE,
-  PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
-  TONIC_HEAL_AMOUNT,
-  WARD_RESISTANCE_AMOUNT,
 } from "../../shared/constants/game.js";
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
-import type { DoorState, EntityId, PlayerId, Vector2 } from "../../shared/types/core.js";
+import type {
+  DoorState,
+  EntityId,
+  InventoryItem,
+  LootState,
+  PlayerId,
+  Vector2,
+} from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
-import { restoreResistance } from "./vitals.js";
+import { healPlayer, restoreResistance, restoreStamina } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
 
@@ -43,6 +47,25 @@ function actor(session: Session, playerId: PlayerId): SessionPlayer | null {
   return player && !isDown(player) ? player : null;
 }
 
+function inventoryItemFromLoot(loot: LootState): InventoryItem {
+  const { id, name } = loot;
+  switch (loot.kind) {
+    case "skillScroll":
+      return { id, name, kind: loot.kind, skillId: loot.skillId };
+    case "consumable":
+      return {
+        id,
+        name,
+        kind: loot.kind,
+        itemId: loot.itemId,
+        description: loot.description,
+        icon: loot.icon,
+      };
+    default:
+      return { id, name, kind: loot.kind };
+  }
+}
+
 export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");
@@ -61,11 +84,7 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
   if (player.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
 
   loot.pickedUp = true;
-  player.inventory.push(
-    loot.kind === "skillScroll"
-      ? { id: loot.id, name: loot.name, kind: loot.kind, skillId: loot.skillId }
-      : { id: loot.id, name: loot.name, kind: loot.kind },
-  );
+  player.inventory.push(inventoryItemFromLoot(loot));
   return OK;
 }
 
@@ -77,24 +96,8 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
   if (!item) return reject("targetMissing");
 
   switch (item.kind) {
-    case "tonic":
-      // Refused at full health, so a misclick cannot waste the only tonic.
-      if (player.health >= PLAYER_MAX_HEALTH) return reject("notPermitted");
-      player.health = Math.min(PLAYER_MAX_HEALTH, player.health + TONIC_HEAL_AMOUNT);
-      break;
-    case "ward":
-      // Consumables are one of only two ways resistance ever goes up; the other is unlocked skills.
-      // Refused at the cap for the same reason a tonic is refused at full health.
-      if (
-        !restoreResistance(
-          player,
-          WARD_RESISTANCE_AMOUNT,
-          PLAYER_MAX_RESISTANCE -
-            progressionEffectTotal(player, "resistanceBonus", contentForSession(session)),
-        )
-      ) {
-        return reject("notPermitted");
-      }
+    case "consumable":
+      if (!applyConsumable(session, player, item.itemId)) return reject("notPermitted");
       break;
     case "skillScroll":
       // The scroll is consumed only when it teaches something. An already-known skill leaves the
@@ -110,6 +113,39 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
 
   player.inventory = player.inventory.filter((candidate) => candidate !== item);
   return OK;
+}
+
+/**
+ * Applies a consumable's authored effects through the vitals helpers. Returns false, changing
+ * nothing, when the definition is gone or every effect would be wasted, so a misclick at full
+ * health cannot spend the only tonic.
+ */
+function applyConsumable(session: Session, player: SessionPlayer, itemId: string): boolean {
+  const content = contentForSession(session);
+  const definition = content.items.get(itemId);
+  if (definition?.kind !== "consumable") return false;
+
+  let applied = false;
+  for (const effect of definition.effects) {
+    switch (effect.type) {
+      case "heal":
+        applied = healPlayer(player, effect.amount) || applied;
+        break;
+      case "restoreResistance":
+        // Consumables are one of only two ways resistance ever goes up; the other is unlocked skills.
+        applied =
+          restoreResistance(
+            player,
+            effect.amount,
+            PLAYER_MAX_RESISTANCE - progressionEffectTotal(player, "resistanceBonus", content),
+          ) || applied;
+        break;
+      case "restoreStamina":
+        applied = restoreStamina(player, effect.amount) || applied;
+        break;
+    }
+  }
+  return applied;
 }
 
 /** Opens a door, or uses the current world's exit to transition the whole party. */

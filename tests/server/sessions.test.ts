@@ -6,7 +6,7 @@ import {
   toPlayerState,
   type Session,
 } from "../../src/server/sessions/sessionStore.js";
-import { joinRequest, testProfile } from "./fixtures.js";
+import { joinRequest, testProfile, TONIC_FIELDS } from "./fixtures.js";
 
 const GRACE_MS = 60_000;
 const EMPTY_TTL_MS = 600_000;
@@ -359,7 +359,7 @@ describe("public player state", () => {
 });
 
 describe("joining with a profile", () => {
-  const TONIC = { id: "44444444-4444-4444-8444-444444444444", name: "Minor Tonic", kind: "tonic" as const };
+  const TONIC = { id: "44444444-4444-4444-8444-444444444444", name: "Minor Tonic", ...TONIC_FIELDS };
 
   it("plays a recognised profile rather than minting a new one", () => {
     const store = createStore();

@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v15.
-- Last completed work: client WebRTC proximity voice (issue #27), closing Frontend step 5.
+  everyone to the hub under protocol v16.
+- Last completed work: content-driven consumable effects (issue #84); earlier, client WebRTC
+  proximity voice (issue #27), closing Frontend step 5.
 - Next recommended step: monster loot drops and a wider item catalog, combat depth, and tick
   performance (see the open issues), then build Frontend
   step 10 on the owner-only progression messages (#24, v15). Verifying Backend step 6 on a real
@@ -131,7 +132,11 @@ check remains.
 - [x] Regenerate stamina over time; spend it on attacking, lifting, and carrying. Regen and the attack cost are live. Lifting and carrying have their prices and their spend/drain API here but nothing to spend them on until Backend step 12, which has no carried-object state yet.
 - [x] Decay resistance over time spent in the dungeon and warn the client. Per-player clock, 10 minute grace, then 0.1/s; `stateSnapshot.run` carries the countdown.
 - [x] Keep consumables and skills the only ways to raise resistance. Added the `ward` item kind and
-  a Warding Salve; returning to the hub does not restore resistance.
+  a Warding Salve; returning to the hub does not restore resistance. Issue #84 replaced the
+  `tonic` and `ward` kinds with one `consumable` kind whose content declares `effects` (`heal`,
+  `restoreResistance`, `restoreStamina`); a new consumable is now one JSON file. Wire items carry
+  `itemId`, `description`, and `icon` but no magnitudes, protocol v16. Profiles banked under the old
+  kinds are migrated on read.
 
 ### 8. Server-Authoritative Visibility and Lighting
 

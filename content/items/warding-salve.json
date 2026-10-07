@@ -1,1 +1,8 @@
-{ "id": "warding-salve", "name": "Warding Salve", "kind": "ward" }
+{
+  "id": "warding-salve",
+  "name": "Warding Salve",
+  "kind": "consumable",
+  "description": "Restores 25 resistance.",
+  "icon": "ward",
+  "effects": [{ "type": "restoreResistance", "amount": 25 }]
+}

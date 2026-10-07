@@ -1,5 +1,6 @@
 import {
   CARRY_STAMINA_DRAIN_PER_SECOND,
+  PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
   RESISTANCE_DAMAGE_SCALE,
@@ -51,6 +52,22 @@ export function damagePlayer(
 
   player.health -= dealt;
   return dealt;
+}
+
+/** Raises health, capped. Returns false when the player is already at full health. */
+export function healPlayer(player: SessionPlayer, amount: number): boolean {
+  if (player.health >= PLAYER_MAX_HEALTH) return false;
+
+  player.health = clamp(player.health + amount, PLAYER_MAX_HEALTH);
+  return true;
+}
+
+/** Raises stamina, capped. Returns false when the bar is already full. */
+export function restoreStamina(player: SessionPlayer, amount: number): boolean {
+  if (player.stamina >= PLAYER_MAX_STAMINA) return false;
+
+  player.stamina = clamp(player.stamina + amount, PLAYER_MAX_STAMINA);
+  return true;
 }
 
 /** Raises resistance, capped. Returns false when the player is already at the cap. */

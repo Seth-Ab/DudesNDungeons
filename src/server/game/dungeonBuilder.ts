@@ -84,9 +84,20 @@ export function lootInstance(item: ItemDefinition, position: Vector2, id: string
     pickedUp: false,
   };
 
-  return item.kind === "skillScroll"
-    ? { ...instance, kind: item.kind, skillId: item.skillId }
-    : { ...instance, kind: item.kind };
+  switch (item.kind) {
+    case "skillScroll":
+      return { ...instance, kind: item.kind, skillId: item.skillId };
+    case "consumable":
+      return {
+        ...instance,
+        kind: item.kind,
+        itemId: item.id,
+        description: item.description,
+        icon: item.icon,
+      };
+    default:
+      return { ...instance, kind: item.kind };
+  }
 }
 
 /**

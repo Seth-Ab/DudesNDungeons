@@ -5,7 +5,7 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 
 ## Directories
 
-- `items/`: live item definitions. Keys, tonics, wards, and skill scrolls use the three-slot
+- `items/`: live item definitions. Keys, consumables, and skill scrolls use the three-slot
   inventory. Torches equip separately and must be deliberately picked up in the hub or dungeon.
 - `monsters/`: monster stats used by authored and generated dungeons. A monster with `boss: true`
   seals every exit in its dungeon until it is defeated. It may only spawn in a `boss` room
@@ -26,6 +26,18 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 Every definition needs a unique lowercase kebab-case `id`. A bad field or reference prevents server
 startup and reports the offending file. The schemas are in `src/server/content/schema.ts`; catalog
 loading and cross-file validation are in `src/server/content/loadContent.ts`.
+
+## Consumables
+
+A consumable item has `kind: "consumable"`, a short `description` shown in the HUD (80 characters
+at most), an optional `icon` (`tonic` or `ward`, defaulting to `tonic`), and a non-empty `effects`
+list. Supported effect types, each with a positive integer `amount`, are `heal`,
+`restoreResistance`, and `restoreStamina`. An unknown type fails startup, naming the file and field.
+
+Effects apply in order. Use is refused, and the item kept, only when every effect would be wasted
+(full health, resistance at its cap, a full stamina bar). Clients receive the description and icon,
+never the amounts. Adding a consumable needs no code or protocol change, only the JSON file and a
+placement in a room template or loot rule.
 
 ## Skills and upgrades
 

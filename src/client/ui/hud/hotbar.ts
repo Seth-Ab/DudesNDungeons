@@ -88,7 +88,8 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
         slot.key.textContent = view.keyHint;
         slot.button.disabled = view.disabled;
         slot.button.classList.toggle("hud__slot--empty", view.empty);
-        slot.button.title = `${view.keyHint}: ${view.name}`;
+        const detail = view.description ? ` - ${view.description}` : "";
+        slot.button.title = `${view.keyHint}: ${view.name}${detail}`;
         slot.button.setAttribute("aria-label", `Slot ${view.keyHint}: ${view.name}`);
         paintIcon(slot.icon, view.icon);
       });

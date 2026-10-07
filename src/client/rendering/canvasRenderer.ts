@@ -14,7 +14,7 @@ import type {
 } from "../../shared/types/core.js";
 import {
   doorOrientation,
-  LOOT_SPRITES,
+  itemSprite,
   type SpriteName,
 } from "./tiles.js";
 import { createLightShader, type SceneLight } from "./lighting.js";
@@ -452,7 +452,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     // A whole world unit rather than the 0.55 the flat marker used. Loot sits at the centre of a
     // 4x4 block now, and a marker half a tile across was a speck in the middle of a large room.
-    drawSprite(LOOT_SPRITES[loot.kind], loot.position, 1, 1, camera);
+    drawSprite(itemSprite(loot), loot.position, 1, 1, camera);
   };
 
   /**

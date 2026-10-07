@@ -55,7 +55,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
 }
 
 function item(name: string): InventoryItem {
-  return { id: "a1111111-1111-4111-8111-111111111111", name, kind: "tonic" };
+  return { id: "a1111111-1111-4111-8111-111111111111", name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic" };
 }
 
 function view(overrides: Partial<SessionView> = {}): SessionView {
@@ -343,7 +343,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
 }
 
 function loot(name: string, x: number): LootState {
-  return { id: `loot-${name}`, name, kind: "tonic", position: { x, y: 0 }, pickedUp: false };
+  return { id: `loot-${name}`, name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic", position: { x, y: 0 }, pickedUp: false };
 }
 
 afterEach(() => resetBindings());
@@ -385,6 +385,23 @@ describe("hotbar", () => {
     expect(slots[0]?.icon).toBe("loot-tonic");
     expect(slots[1]?.icon).toBeNull();
     expect(slots.map((slot) => slot.disabled)).toEqual([false, true, true]);
+  });
+
+  it("picks a consumable's icon from its content and carries its description", () => {
+    const salve: InventoryItem = {
+      ...item("Warding Salve"),
+      itemId: "warding-salve",
+      description: "Restores 25 resistance.",
+      icon: "ward",
+    };
+    const key: InventoryItem = { id: "b1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" };
+    const self = player("Maya", { id: SELF_ID, inventory: [salve, key] });
+    const slots = hotbarView(view({ ...inSession, players: [self] }), self);
+
+    expect(slots[0]?.icon).toBe("loot-ward");
+    expect(slots[0]?.description).toBe("Restores 25 resistance.");
+    expect(slots[1]?.icon).toBe("loot-key");
+    expect(slots[1]?.description).toBe("");
   });
 
   it("disables every slot when outside a session or downed", () => {

@@ -36,11 +36,11 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
   };
 }
 
-function item(
-  name: string,
-  kind: Exclude<InventoryItem["kind"], "skillScroll"> = "tonic",
-): InventoryItem {
-  return { id: "a1111111-1111-4111-8111-111111111111", name, kind };
+function item(name: string, kind: "key" | "torch" | "consumable" = "consumable"): InventoryItem {
+  const id = "a1111111-1111-4111-8111-111111111111";
+  return kind === "consumable"
+    ? { id, name, kind, itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic" }
+    : { id, name, kind };
 }
 
 /** The Torch Supply as `content/dungeons/hub.json` authors it, scaled the way the server scales it. */

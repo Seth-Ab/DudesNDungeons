@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { itemDefinitionSchema } from "../../src/server/content/schema.js";
+import { loadContent } from "../../src/server/content/loadContent.js";
 import { canOccupy } from "../../src/server/game/dungeonState.js";
 import { interact, pickupItem, useItem } from "../../src/server/game/items.js";
 import {
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
-  TONIC_HEAL_AMOUNT,
 } from "../../src/shared/constants/game.js";
 import type { InventoryItem } from "../../src/shared/types/core.js";
 import {
@@ -15,12 +16,13 @@ import {
   at,
   testPlayer,
   testSession,
+  TONIC_FIELDS,
 } from "./fixtures.js";
 
 // Copper Key on tile (12, 1), locked door on (11, 6), exit on (14, 6) inside the vault.
 
 const KEY: InventoryItem = { id: COPPER_KEY_ID, name: "Copper Key", kind: "key" };
-const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", kind: "tonic" };
+const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", ...TONIC_FIELDS };
 const SKILL_SCROLL: InventoryItem = {
   id: "77777777-7777-4777-8777-777777777777",
   name: "Scroll of Iron Will",
@@ -74,7 +76,7 @@ describe("using items", () => {
     const session = testSession([player]);
 
     expect(useItem(session, "alpha", MINOR_TONIC_ID)).toEqual({ ok: true });
-    expect(player.health).toBe(50 + TONIC_HEAL_AMOUNT);
+    expect(player.health).toBe(50 + 35);
     expect(player.inventory).toEqual([]);
   });
 
@@ -97,6 +99,88 @@ describe("using items", () => {
       ok: false,
       reason: "targetMissing",
     });
+  });
+
+  it("applies every effect of a consumable defined by a content file alone", () => {
+    const player = testPlayer("alpha", { health: 20, stamina: 10, resistance: 5 });
+    const session = testSession([player]);
+    const shipped = loadContent();
+    session.runDungeon.content = {
+      ...shipped,
+      items: new Map([
+        ...shipped.items,
+        [
+          "grand-draught",
+          itemDefinitionSchema.parse({
+            id: "grand-draught",
+            name: "Grand Draught",
+            kind: "consumable",
+            description: "Restores health, stamina, and resistance.",
+            effects: [
+              { type: "heal", amount: 30 },
+              { type: "restoreStamina", amount: 50 },
+              { type: "restoreResistance", amount: 10 },
+            ],
+          }),
+        ],
+      ]),
+    };
+    player.inventory.push({
+      id: "88888888-8888-4888-8888-888888888888",
+      name: "Grand Draught",
+      kind: "consumable",
+      itemId: "grand-draught",
+      description: "Restores health, stamina, and resistance.",
+      icon: "tonic",
+    });
+
+    expect(useItem(session, "alpha", "88888888-8888-4888-8888-888888888888")).toEqual({ ok: true });
+    expect(player.health).toBe(50);
+    expect(player.stamina).toBe(60);
+    expect(player.resistance).toBe(15);
+    expect(player.inventory).toEqual([]);
+  });
+
+  it("applies the effects that matter and still consumes the item when only some are wasted", () => {
+    const player = testPlayer("alpha", { health: PLAYER_MAX_HEALTH, stamina: 10 });
+    const session = testSession([player]);
+    const shipped = loadContent();
+    session.runDungeon.content = {
+      ...shipped,
+      items: new Map([
+        ...shipped.items,
+        [
+          "draught",
+          itemDefinitionSchema.parse({
+            id: "draught",
+            name: "Draught",
+            kind: "consumable",
+            description: "Heals and refreshes.",
+            effects: [
+              { type: "heal", amount: 30 },
+              { type: "restoreStamina", amount: 20 },
+            ],
+          }),
+        ],
+      ]),
+    };
+    player.inventory.push({ ...TONIC, id: "88888888-8888-4888-8888-888888888888", itemId: "draught" });
+
+    expect(useItem(session, "alpha", "88888888-8888-4888-8888-888888888888").ok).toBe(true);
+    expect(player.health).toBe(PLAYER_MAX_HEALTH);
+    expect(player.stamina).toBe(30);
+  });
+
+  it("refuses a consumable whose definition no longer exists, and keeps it", () => {
+    const player = testPlayer("alpha", {
+      health: 10,
+      inventory: [{ ...TONIC, itemId: "removed-from-content" }],
+    });
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", MINOR_TONIC_ID)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(player.inventory).toHaveLength(1);
+    expect(player.health).toBe(10);
   });
 
   it("consumes a skill scroll and activates it provisionally during a run", () => {
