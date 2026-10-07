@@ -154,7 +154,7 @@ Only when the invocation carried `TICKET_PARENT=<pane-id>`, and only after the P
 checks are green, and the working tree is clean and pushed, send the coordinator one line:
 
 ```bash
-herdr agent prompt <pane-id> "ticket_<n> complete: <PR url>, CI green. Verify, then follow the Herdr delegation closing rule." 
+herdr agent prompt <pane-id> "ticket_<n> complete: <PR url>, CI green. Verify, then follow the Herdr delegation closing rule."
 ```
 
 Send it once, without `--wait`. Do not close your own tab or agent, do not remove the worktree, and
