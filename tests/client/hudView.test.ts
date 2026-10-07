@@ -389,7 +389,9 @@ describe("hotbar", () => {
 
   it("picks a consumable's icon from its content and carries its description", () => {
     const salve: InventoryItem = {
-      ...item("Warding Salve"),
+      id: "a1111111-1111-4111-8111-111111111111",
+      name: "Warding Salve",
+      kind: "consumable",
       itemId: "warding-salve",
       description: "Restores 25 resistance.",
       icon: "ward",
