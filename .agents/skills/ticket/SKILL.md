@@ -159,6 +159,6 @@ herdr agent prompt <pane-id> "ticket_<n> complete: <PR url>, CI green. Verify, t
 
 Send it once, without `--wait`. Do not close your own tab or agent, do not remove the worktree, and
 do not delete the branch. The coordinator verifies the claim and decides whether to close the tab
-(only when `TICKET_AUTOCLOSE=1` was given). Cleanup of the worktree and branch happens after the PR
+(when `TICKET_AUTOCLOSE=1` was given, which is the default unless the user asked to keep the tab). Cleanup of the worktree and branch happens after the PR
 merges, via `npm run worktrees:prune`, or on the user's request. If checks are failing or pending,
 or you are stopping for owner input, do not send the message; report in this tab instead.
