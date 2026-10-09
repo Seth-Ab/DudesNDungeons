@@ -10,7 +10,7 @@ import type { RejectionReason, ServerMessage } from "../../shared/protocol/index
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { Session } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
-import { isDown, monsterStatsFor } from "./dungeonState.js";
+import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
 import { MonsterPlanner } from "./monsterAi.js";
 import { dropMonsterLoot } from "./monsterLoot.js";
 import { resolvePuzzles } from "./puzzles.js";
@@ -145,8 +145,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   for (const monster of session.dungeon.monsters) {
     if (!monster.alive) continue;
 
-    const event = actMonster(session, planner, monster, now, elapsedMs);
-    if (event) events.push(event);
+    events.push(...actMonster(session, planner, monster, now, elapsedMs));
   }
 
   return events;
@@ -158,33 +157,86 @@ function actMonster(
   monster: MonsterState,
   now: number,
   elapsedMs: number,
-): AttackEvent | null {
+): AttackEvent[] {
   const stats = monsterStatsFor(monster);
+  const startedAt = session.monsterWindups.get(monster.id);
+  if (startedAt !== undefined) return resolveWindup(session, monster, stats, startedAt, now);
+
   const stepDistance = (stats.speed * elapsedMs) / 1000;
   const target = planner.target(monster, stats, now);
   if (!target) {
     planner.returnHome(monster, now, stepDistance);
-    return null;
+    return [];
   }
 
   if (distance(monster.position, target.position) > stats.attackRange) {
     planner.chase(monster, target.position, stepDistance);
-    return null;
+    return [];
   }
 
   const readyAt = session.monsterCooldowns.get(monster.id) ?? now;
-  if (now < readyAt) return null;
+  if (now < readyAt) return [];
 
+  const direction = normalizeDirection({
+    x: target.position.x - monster.position.x,
+    y: target.position.y - monster.position.y,
+  });
+  if (direction) monster.facing = direction;
+  monster.action = "windingUp";
+  monster.windupProgress = 0;
+  session.monsterWindups.set(monster.id, now);
+  return [];
+}
+
+/**
+ * Advances a monster that is committed to a swing. It stands still until the wind-up elapses, then
+ * hits every connected, standing player inside its reach and arc at that moment, so one who has
+ * stepped out takes nothing. The cooldown starts here, at resolution.
+ */
+function resolveWindup(
+  session: Session,
+  monster: MonsterState,
+  stats: MonsterStats,
+  startedAt: number,
+  now: number,
+): AttackEvent[] {
+  const progress = (now - startedAt) / stats.windupMs;
+  if (progress < 1) {
+    monster.windupProgress = Math.max(progress, 0);
+    return [];
+  }
+
+  session.monsterWindups.delete(monster.id);
   session.monsterCooldowns.set(monster.id, now + stats.attackCooldownMs);
-  // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
-  const dealt = damagePlayer(target, stats.damage, contentForSession(session));
+  monster.action = "idle";
+  monster.windupProgress = 0;
 
-  return {
-    type: "attackResolved",
-    attackerId: monster.id,
-    targetId: target.id,
-    damage: dealt,
-    targetHealth: target.health,
-    targetDefeated: isDown(target),
-  };
+  const reach = stats.hitRange ?? stats.attackRange;
+  const content = contentForSession(session);
+  const events: AttackEvent[] = [];
+  for (const player of session.players.values()) {
+    if (!player.connected || isDown(player)) continue;
+
+    const gap = distance(monster.position, player.position);
+    if (gap > reach) continue;
+    if (gap > POINT_BLANK_DISTANCE) {
+      const along =
+        ((player.position.x - monster.position.x) * monster.facing.x +
+          (player.position.y - monster.position.y) * monster.facing.y) /
+        gap;
+      if (along < stats.hitArcCos) continue;
+    }
+
+    // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
+    const dealt = damagePlayer(player, stats.damage, content);
+    events.push({
+      type: "attackResolved",
+      attackerId: monster.id,
+      targetId: player.id,
+      damage: dealt,
+      targetHealth: player.health,
+      targetDefeated: isDown(player),
+    });
+  }
+  return events;
 }

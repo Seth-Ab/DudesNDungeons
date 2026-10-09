@@ -7,6 +7,7 @@
   "attackRange": 1,
   "damage": 12,
   "attackCooldownMs": 1400,
+  "windupMs": 700,
   "loot": {
     "entries": [{ "itemId": "warding-salve", "weight": 1 }],
     "nothingWeight": 3

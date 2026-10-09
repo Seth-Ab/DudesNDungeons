@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { CONSUMABLE_ICONS, MAX_ITEM_DESCRIPTION_LENGTH } from "../../shared/constants/game.js";
+import {
+  CONSUMABLE_ICONS,
+  DEFAULT_MONSTER_WINDUP_MS,
+  MAX_ITEM_DESCRIPTION_LENGTH,
+} from "../../shared/constants/game.js";
 
 /**
  * The contract for everything under `content/`.
@@ -55,6 +59,15 @@ export const monsterTypeSchema = z.object({
   attackRange: z.number().positive(),
   damage: z.number().int().positive(),
   attackCooldownMs: z.number().int().positive(),
+  /**
+   * How long the monster telegraphs before a hit resolves. The hit lands on whoever is inside its
+   * reach and arc when this elapses; the cooldown starts then, not when the wind-up begins.
+   */
+  windupMs: z.number().int().positive().default(DEFAULT_MONSTER_WINDUP_MS),
+  /** Cosine of the hit's half-angle about the facing fixed at wind-up start. 0.5 is a 120 degree cone. */
+  hitArcCos: z.number().min(-1).max(1).default(0.5),
+  /** Reach of the resolved hit. Omitted, it equals `attackRange`. */
+  hitRange: z.number().positive().optional(),
   /** Light a living monster gives off, in world units. Omitted for monsters that do not glow. */
   glowRadius: z.number().positive().optional(),
   /**

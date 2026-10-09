@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { gameContent, loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
+import { monsterTypeSchema } from "../../src/server/content/schema.js";
 
 const roots: string[] = [];
 
@@ -34,6 +35,17 @@ const ASH_IMP = {
   damage: 8,
   attackCooldownMs: 1000,
 };
+
+describe("monster wind-up content", () => {
+  it("defaults the wind-up and arc, and validates their bounds", () => {
+    const parsed = monsterTypeSchema.parse(ASH_IMP);
+    expect(parsed.windupMs).toBeGreaterThan(0);
+    expect(parsed.hitArcCos).toBe(0.5);
+    expect(parsed.hitRange).toBeUndefined();
+    expect(monsterTypeSchema.safeParse({ ...ASH_IMP, windupMs: 0 }).success).toBe(false);
+    expect(monsterTypeSchema.safeParse({ ...ASH_IMP, hitArcCos: 2 }).success).toBe(false);
+  });
+});
 
 describe("the shipped content", () => {
   it("loads and validates", () => {

@@ -31,9 +31,13 @@ server-side, and only what triggers and sequences an exchange is new.
 ### Monsters run on the tick
 
 Each server tick calls `simulate(session, now)`. A living monster chases the nearest connected,
-standing player within its aggro range and attacks when in reach on its own cooldown. Monster attacks are broadcast as `attackResolved` with the
-monster as attacker. Monster stats (speed, aggro range, reach, damage, cooldown) live only on the
-server; clients see position, health, and max health.
+standing player within its aggro range. In reach and off cooldown it stops and winds up (`windupMs`)
+facing its target; when the wind-up completes it hits every connected, standing player inside its
+`hitRange` and `hitArcCos` cone at that moment, so a player who stepped out takes nothing. The
+cooldown starts at resolution. Monster attacks are broadcast as `attackResolved` with the monster as
+attacker. Monster stats (speed, aggro range, reach, damage, cooldown) live only on the server;
+clients see position, health, max health, and for the telegraph `action`, `windupProgress`, `facing`,
+`hitRange`, and `hitArcCos`.
 
 A monster notices a player only inside its aggro range and either in line of sight (the same ray
 the lighting uses) or within `MONSTER_HEARING_RANGE`, so a wall hides a party from monsters. Once

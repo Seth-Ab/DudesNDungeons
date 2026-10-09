@@ -7,6 +7,7 @@
   "attackRange": 1.4,
   "damage": 22,
   "attackCooldownMs": 1800,
+  "windupMs": 800,
   "glowRadius": 5.5,
   "boss": true,
   "loot": {

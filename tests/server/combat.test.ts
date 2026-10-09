@@ -135,15 +135,25 @@ describe("monster behavior", () => {
     }
   });
 
-  it("attacks a player in reach, no faster than its cooldown", () => {
-    // Zero resistance, so this test measures the monster's cooldown rather than damage reduction.
+  it("winds up before a hit lands, and starts the cooldown at resolution", () => {
+    // Zero resistance, so this test measures timing rather than damage reduction.
     const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 0 });
     const session = testSession([player]);
-    const { damage, attackCooldownMs } = impStats();
+    const { damage, attackCooldownMs, windupMs } = impStats();
+    const imp = monster(session, ASH_IMP_ID);
     const impHits = (now: number) =>
       simulate(session, now).filter((event) => event.attackerId === ASH_IMP_ID);
 
-    expect(impHits(0)).toEqual([
+    expect(impHits(0)).toEqual([]);
+    expect(imp.action).toBe("windingUp");
+    expect(imp.windupProgress).toBe(0);
+    expect(imp.facing.x).toBeCloseTo(-1);
+
+    expect(impHits(windupMs / 2)).toEqual([]);
+    expect(imp.windupProgress).toBeCloseTo(0.5);
+    expect(player.health).toBe(PLAYER_MAX_HEALTH);
+
+    expect(impHits(windupMs)).toEqual([
       {
         type: "attackResolved",
         attackerId: ASH_IMP_ID,
@@ -153,17 +163,76 @@ describe("monster behavior", () => {
         targetDefeated: false,
       },
     ]);
-    expect(impHits(attackCooldownMs - 1)).toEqual([]);
-    expect(impHits(attackCooldownMs)).toHaveLength(1);
+    expect(imp.action).toBe("idle");
+
+    // The cooldown ran from resolution, so the next swing only begins once it has passed.
+    expect(impHits(windupMs + attackCooldownMs - 1)).toEqual([]);
+    expect(imp.action).toBe("idle");
+    expect(impHits(windupMs + attackCooldownMs)).toEqual([]);
+    expect(imp.action).toBe("windingUp");
+    expect(impHits(windupMs + attackCooldownMs + windupMs)).toHaveLength(1);
     expect(player.health).toBe(PLAYER_MAX_HEALTH - 2 * damage);
+  });
+
+  it("hits nothing when the player steps out of reach during the wind-up", () => {
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 0 });
+    const session = testSession([player]);
+    const { windupMs } = impStats();
+
+    simulate(session, 0);
+    player.position = at(11, 2, -3);
+
+    expect(simulate(session, windupMs)).toEqual([]);
+    expect(player.health).toBe(PLAYER_MAX_HEALTH);
+    expect(monster(session, ASH_IMP_ID).action).toBe("idle");
+  });
+
+  it("hits nothing when the player slips behind the swing", () => {
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 0 });
+    const session = testSession([player]);
+    const { windupMs } = impStats();
+
+    simulate(session, 0);
+    // Still inside reach, but behind the facing fixed when the wind-up began.
+    player.position = at(11, 2, 0.5);
+
+    expect(simulate(session, windupMs)).toEqual([]);
+    expect(player.health).toBe(PLAYER_MAX_HEALTH);
+  });
+
+  it("does not hit a player who went down or disconnected mid wind-up", () => {
+    for (const change of [{ health: 0 }, { connected: false }]) {
+      const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 0 });
+      const session = testSession([player]);
+
+      simulate(session, 0);
+      Object.assign(player, change);
+
+      expect(simulate(session, impStats().windupMs)).toEqual([]);
+      expect(player.health).toBe(change.health ?? PLAYER_MAX_HEALTH);
+    }
+  });
+
+  it("holds its ground while winding up", () => {
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH) });
+    const session = testSession([player]);
+    const imp = monster(session, ASH_IMP_ID);
+
+    simulate(session, 0);
+    const before = { ...imp.position };
+    player.position = at(11, 2, -3);
+    simulate(session, 100);
+
+    expect(imp.position).toEqual(before);
   });
 
   it("reports the damage resistance actually let through", () => {
     const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), resistance: 100 });
     const session = testSession([player]);
-    const { damage } = impStats();
+    const { damage, windupMs } = impStats();
 
-    const [hit] = simulate(session, 0).filter((event) => event.attackerId === ASH_IMP_ID);
+    simulate(session, 0);
+    const [hit] = simulate(session, windupMs).filter((event) => event.attackerId === ASH_IMP_ID);
 
     // 100 resistance halves the hit, and the event reports what landed, not what was swung.
     expect(hit).toMatchObject({ damage: damage / 2, targetHealth: PLAYER_MAX_HEALTH - damage / 2 });
@@ -189,7 +258,8 @@ describe("monster behavior", () => {
     const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), health: 1, resistance: 0 });
     const session = testSession([player]);
 
-    const [hit] = simulate(session, 0);
+    simulate(session, 0);
+    const [hit] = simulate(session, impStats().windupMs);
 
     expect(hit).toMatchObject({ targetId: "alpha", damage: 1, targetHealth: 0, targetDefeated: true });
     expect(simulate(session, 60_000)).toEqual([]);
