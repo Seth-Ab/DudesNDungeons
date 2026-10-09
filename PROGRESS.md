@@ -148,6 +148,11 @@ check remains.
 - [x] Test that an unseen player is absent from the frame, not merely dimmed.
 - [x] Make player-to-player sight consistent and symmetric (issue #61, 2026-10-05). Rules are under
   Opinion Checkpoints.
+- [x] Store discovered and lit tiles as typed-array grids instead of `"x,y"` string sets (issue #79,
+  2026-10-09). `discoveredTiles` is a `Uint8Array` sized per installed world, the per-frame lit set is
+  a reusable generation-marked grid per viewer, and rooms are found through a per-dungeon tile-to-room
+  grid (`src/server/game/tileGrid.ts`). Wire format unchanged. `bench:tick` visibility for 4 players:
+  explored 3.6-3.8 ms to 0.55-0.64 ms; fresh spawn 2.0 ms to 0.64-0.72 ms.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 

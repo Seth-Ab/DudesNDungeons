@@ -4,10 +4,12 @@ import {
   visibleTilesForPlayer,
   voiceRangeForPlayer,
 } from "../../src/server/game/visibility.js";
+import { returnToHub, startRun } from "../../src/server/game/runLifecycle.js";
+import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import { PLAYER_TORCH_LIGHT_RADIUS } from "../../src/shared/constants/game.js";
 import { coversTile, distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
 import type { RoomState, Vector2 } from "../../src/shared/types/core.js";
-import { at, testPlayer, testSession } from "./fixtures.js";
+import { at, joinRequest, testPlayer, testSession } from "./fixtures.js";
 
 /**
  * A one-room world to test a single rule against, written in world tiles rather than authored ones.
@@ -519,5 +521,88 @@ describe("player-to-player sight (#61)", () => {
 
       expect(sees(session, other, gone)).toBe(false);
     });
+  });
+});
+
+describe("discovery memory", () => {
+  function discoveredCount(player: { discoveredTiles: Uint8Array }): number {
+    return player.discoveredTiles.reduce((total, seen) => total + seen, 0);
+  }
+
+  function partyOfOne() {
+    let id = 0;
+    const store = new SessionStore({
+      dungeon: { dungeonId: "ember-vault" },
+      createPlayerId: () => `player-${(id += 1)}`,
+      createSessionId: () => `session-${(id += 1)}`,
+      createResumeToken: () => `token-${(id += 1)}`,
+      createRoomCode: () => "ROOM01",
+    });
+    const session = store.createSession();
+    const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Grix" }));
+    if (!joined.ok) throw new Error(joined.message);
+    return { store, session, player: joined.player };
+  }
+
+  it("survives a reconnect", () => {
+    const { store, session, player } = partyOfOne();
+    visibilityFrameForPlayer(session, player);
+    const remembered = discoveredCount(player);
+    expect(remembered).toBeGreaterThan(0);
+
+    store.markDisconnected(player.id);
+    const resumed = store.join(
+      joinRequest({
+        roomCode: session.roomCode,
+        playerName: "Grix",
+        resumeToken: player.resumeToken,
+      }),
+    );
+    if (!resumed.ok) throw new Error(resumed.message);
+
+    expect(resumed.player).toBe(player);
+    expect(discoveredCount(resumed.player)).toBe(remembered);
+  });
+
+  it("is cleared by a hub and run transition, and sized for the new world", () => {
+    const { session, player } = partyOfOne();
+    visibilityFrameForPlayer(session, player);
+    expect(discoveredCount(player)).toBeGreaterThan(0);
+
+    player.ready = true;
+    expect(startRun(session, 1)).toEqual({ ok: true });
+    expect(discoveredCount(player)).toBe(0);
+    expect(player.discoveredTiles.length).toBe(session.dungeon.map.width * session.dungeon.map.height);
+
+    visibilityFrameForPlayer(session, player);
+    expect(discoveredCount(player)).toBeGreaterThan(0);
+
+    returnToHub(session, true);
+    expect(discoveredCount(player)).toBe(0);
+    expect(player.discoveredTiles.length).toBe(session.dungeon.map.width * session.dungeon.map.height);
+  });
+
+  it("reveals a room exactly when the first tile of it is lit", () => {
+    const viewer = testPlayer("viewer", { position: { x: 1, y: 1 }, carryingTorch: false });
+    const session = testSession([viewer]);
+    session.dungeon.map = flatMap(["##########", "#........#", "##########"]);
+    session.dungeon.doors = [];
+    session.dungeon.lightSources = [
+      { id: "77777777-7777-4777-8777-777777777777", name: "Torch", kind: "fixed", position: { x: 3, y: 1 }, radius: 0 },
+    ];
+    session.dungeon.rooms = [
+      { id: "near", name: "Near", x: 2, y: 1, width: 3, height: 1 },
+      { id: "far", name: "Far", x: 6, y: 1, width: 3, height: 1 },
+    ] as RoomState[];
+
+    const first = visibilityFrameForPlayer(session, viewer);
+    // The torch lights only (3,1), the first tile of "near"; "far" has none lit yet.
+    expect(first.dungeon.rooms.map((room) => room.id)).toEqual(["near"]);
+
+    session.dungeon.lightSources = [
+      { id: "88888888-8888-4888-8888-888888888888", name: "Torch", kind: "fixed", position: { x: 8, y: 1 }, radius: 0 },
+    ];
+    const second = visibilityFrameForPlayer(session, viewer);
+    expect(second.dungeon.rooms.map((room) => room.id)).toEqual(["near", "far"]);
   });
 });

@@ -4,10 +4,12 @@ import {
   PLAYER_SPAWN_FACING,
 } from "../../shared/constants/game.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
+import type { DungeonMapState } from "../../shared/types/core.js";
 import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
 import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID } from "./dungeonState.js";
 import { bankRunSkills, discardRunSkills } from "./progression.js";
+import { createDiscoveredGrid } from "./tileGrid.js";
 
 export type RunTransitionResult =
   | { ok: true }
@@ -31,12 +33,13 @@ export function partyWiped(session: Session): boolean {
   );
 }
 
-function resetPlayerForWorld(player: SessionPlayer): void {
+function resetPlayerForWorld(player: SessionPlayer, map: DungeonMapState): void {
   player.facing = { ...PLAYER_SPAWN_FACING };
   player.health = PLAYER_MAX_HEALTH;
   player.stamina = PLAYER_MAX_STAMINA;
   player.ready = false;
-  player.discoveredTiles.clear();
+  // Sized for the world being installed, so nothing from the last one carries over.
+  player.discoveredTiles = createDiscoveredGrid(map.width, map.height);
   player.discoveredRoomIds.clear();
   player.nextMoveAt = null;
   player.nextAttackAt = null;
@@ -73,7 +76,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.puzzleHeldSince.clear();
 
   for (const player of session.players.values()) {
-    resetPlayerForWorld(player);
+    resetPlayerForWorld(player, built.dungeon.map);
     player.enteredDungeonAt = now;
   }
   placeParty(session);

@@ -66,8 +66,11 @@ export interface SessionPlayer {
    * session that earned it. One profile may play only one slot at a time, which `join` enforces.
    */
   profile: PlayerProfile;
-  /** Server-side memory of map tiles this player has seen at least once. */
-  discoveredTiles: Set<string>;
+  /**
+   * Server-side memory of map tiles this player has seen at least once: 1 per tile, indexed
+   * `y * width + x`. Sized to the installed world; empty until visibility first runs on a new one.
+   */
+  discoveredTiles: Uint8Array;
   /**
    * Rooms this player has seen any part of. Kept alongside `discoveredTiles` rather than derived
    * from it: a scaled room is a couple of thousand tiles, and re-deriving this every tick is work
@@ -322,7 +325,7 @@ export class SessionStore {
       carryingPlayerId: null,
       carriedByPlayerId: null,
       profile: request.profile ?? request.createProfile(),
-      discoveredTiles: new Set(),
+      discoveredTiles: new Uint8Array(0),
       discoveredRoomIds: new Set(),
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
