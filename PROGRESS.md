@@ -7,9 +7,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v17.
+  everyone to the hub under protocol v19.
 - Last completed work: monsters route round walls on a shared flow field, aggro only on players
-  they can see or hear, and leash home (issue #89); owner-only banks and a once-per-tick roster (issue #81, protocol v17);
+  they can see or hear, and leash home (issue #89); earlier, dropping and handing over inventory
+  items (issue #87, protocol v19), owner-only banks and a once-per-tick roster (issue #81, protocol v17);
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
@@ -100,6 +101,7 @@ Resolved:
   the run ends or future revive/carry mechanics resolve them. Monsters path round walls on a shared
   per-tick flow field, need line of sight or hearing to aggro, and leash home (issue #89).
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
+- [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
 

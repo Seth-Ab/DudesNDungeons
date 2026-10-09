@@ -47,6 +47,16 @@ const CONTROL_GROUPS: ControlGroup[] = [
         action: "Carry a downed party member, or drop who you're carrying",
         rebind: "carry",
       },
+      {
+        input: bound("drop"),
+        action: "Drop the selected item (the last slot you used) at your feet",
+        rebind: "drop",
+      },
+      {
+        input: bound("give"),
+        action: "Give the selected item to a nearby party member",
+        rebind: "give",
+      },
       { input: bound("useSlot1"), action: "Use inventory slot 1", rebind: "useSlot1" },
       { input: bound("useSlot2"), action: "Use inventory slot 2", rebind: "useSlot2" },
       { input: bound("useSlot3"), action: "Use inventory slot 3", rebind: "useSlot3" },
