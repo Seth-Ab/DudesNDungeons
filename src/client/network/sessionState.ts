@@ -1,5 +1,6 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
+import { applyMapDiscovery } from "../state/discoveredMap.js";
 import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
@@ -220,15 +221,24 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
       };
 
     case "stateSnapshot": {
+      // The map arrives as a delta, so it is folded in even from a snapshot that is otherwise
+      // stale: the sender will not repeat tiles it has already sent, and skipping one would leave
+      // a hole in the geometry for good.
+      const map = applyMapDiscovery(view.dungeon?.map ?? null, message.dungeon.map);
+
       // Snapshots can overtake each other; an older one must never undo a newer one.
-      if (message.tick <= view.tick) return view;
+      if (message.tick <= view.tick) {
+        return view.dungeon && map !== view.dungeon.map
+          ? { ...view, dungeon: { ...view.dungeon, map } }
+          : view;
+      }
 
       const next: SessionView = {
         ...view,
         tick: message.tick,
         players: mergePlayers(view.players, message.players),
         visiblePlayerIds: message.players.map((player) => player.id),
-        dungeon: message.dungeon,
+        dungeon: { ...message.dungeon, map },
         location: message.location,
         run: message.run,
       };

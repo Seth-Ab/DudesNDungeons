@@ -23,16 +23,12 @@ export const entityIdSchema = z.string().uuid();
 export type EntityId = z.infer<typeof entityIdSchema>;
 
 /**
- * The map as one viewer sees it.
+ * The map as a holder of it sees it.
  *
- * `width` and `height` are the whole world, while `tiles` is only the window around that viewer
- * that the snapshot carried, anchored at `originX`/`originY`. Row `r` of `tiles` is world row
- * `originY + r`, and its character `c` is world column `originX + c`. A world of 384x256 tiles is
- * far too much to ship twenty times a second, and nothing outside the window can be seen or reached
- * before the next snapshot arrives.
- *
- * The server's own dungeon holds the full map with an origin of (0, 0), so the same shape describes
- * both the authoritative world and a player's view of it.
+ * `width` and `height` are the whole world, and `tiles` is anchored at `originX`/`originY`: row `r`
+ * is world row `originY + r`, and its character `c` is world column `originX + c`. The server's own
+ * dungeon holds the full map with an origin of (0, 0). A client holds the same shape, rebuilt from
+ * the discovery deltas in snapshots (`mapDiscoverySchema`), with undiscovered tiles as spaces.
  */
 export const dungeonMapSchema = z.object({
   id: z.string().min(1),
@@ -296,6 +292,43 @@ export const dungeonStateSchema = z.object({
   lightSources: z.array(lightSourceStateSchema),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;
+
+/**
+ * A stretch of newly discovered geometry on one world row: `tiles[i]` is world tile `(x + i, y)`,
+ * `#` for wall and `.` for anything walkable. Lit versus remembered is not part of it; the light
+ * sources in the snapshot already say what is lit.
+ */
+export const discoveredRunSchema = z.object({
+  x: z.number().int().nonnegative(),
+  y: z.number().int().nonnegative(),
+  tiles: z.string().min(1).regex(/^[#.]+$/),
+});
+export type DiscoveredRun = z.infer<typeof discoveredRunSchema>;
+
+/**
+ * What a snapshot says about the map: which world it is, and the geometry this viewer has newly
+ * discovered since the last snapshot. The client accumulates these into a `DungeonMapState`.
+ *
+ * `reset` marks a baseline rather than a change: the client drops whatever geometry it held and
+ * rebuilds from `discovered`, which then carries everything the viewer has discovered. The server
+ * sets it on a viewer's first snapshot, after a reconnect, and when the world is rebuilt.
+ */
+export const mapDiscoverySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** Size of the whole world in tiles. */
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  reset: z.boolean(),
+  discovered: z.array(discoveredRunSchema),
+});
+export type MapDiscovery = z.infer<typeof mapDiscoverySchema>;
+
+/** A dungeon as a snapshot carries it: everything in `DungeonState`, with the map as a delta. */
+export const dungeonSnapshotSchema = dungeonStateSchema.omit({ map: true }).extend({
+  map: mapDiscoverySchema,
+});
+export type DungeonSnapshot = z.infer<typeof dungeonSnapshotSchema>;
 
 /** The whole party shares one place; fresh players may only join while it is the hub. */
 export const sessionLocationSchema = z.enum(["hub", "dungeon"]);

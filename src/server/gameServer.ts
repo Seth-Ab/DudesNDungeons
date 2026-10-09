@@ -23,7 +23,7 @@ import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
-import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
+import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
@@ -149,7 +149,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       tick: session.tick,
       location: session.location,
       players: frame.players,
-      dungeon: frame.dungeon,
+      dungeon: { ...frame.dungeon, map: takeMapDiscovery(session, player) },
       // The run clock belongs to the viewer, not the party: a player who joined late has been in
       // the dungeon for less time and their resistance reflects that.
       run: runStateFor(player, now()),
@@ -306,6 +306,10 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           profile: toProfileState(player.profile),
           profileSecret: issuedSecret,
         });
+
+        // A new socket holds no geometry, so its first snapshot restarts the map from a baseline.
+        player.mapSyncedTo = null;
+        player.pendingDiscovery = [];
 
         // Owner-only, and sent fresh on every join: a new socket holds nothing yet.
         lastProgressionSent.delete(player.id);

@@ -790,6 +790,40 @@ describe("voice signaling", () => {
   });
 });
 
+describe("map discovery over the wire", () => {
+  const tilesIn = (map: { discovered: { tiles: string }[] }) =>
+    map.discovered.reduce((total, run) => total + run.tiles.length, 0);
+
+  it("sends a baseline first, then only deltas, and a new baseline on reconnect and for a new world", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+
+    const baseline = await alpha.client.next("stateSnapshot");
+    expect(baseline.dungeon.map).toMatchObject({ id: "hub", reset: true });
+    expect(tilesIn(baseline.dungeon.map)).toBeGreaterThan(0);
+
+    const steady = await alpha.client.next("stateSnapshot");
+    expect(steady.dungeon.map.reset).toBe(false);
+    expect(steady.dungeon.map.discovered).toEqual([]);
+
+    // Dropping and resuming gives a client with an empty cache, so it must get a baseline again.
+    alpha.client.close();
+    const resumed = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
+    const rebased = await resumed.client.next("stateSnapshot");
+    expect(rebased.dungeon.map).toMatchObject({ id: "hub", reset: true });
+    expect(tilesIn(rebased.dungeon.map)).toBeGreaterThan(0);
+
+    // Entering the run rebuilds the world, which restarts the client's geometry.
+    const dungeon = await enterDungeon(roomCode, resumed.client);
+    expect(dungeon.dungeon.map).toMatchObject({ id: "ember-vault", reset: true });
+    const after = await resumed.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.location === "dungeon" && message.tick > dungeon.tick,
+    );
+    expect(after.dungeon.map.reset).toBe(false);
+  });
+});
+
 describe("disconnect, reconnect, and timeout", () => {
   it("holds the slot and reports the drop rather than a departure", async () => {
     const roomCode = await createRoom();

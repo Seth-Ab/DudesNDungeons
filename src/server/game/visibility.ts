@@ -1,5 +1,4 @@
 import {
-  SNAPSHOT_VIEW_RADIUS_TILES,
   VOICE_FULL_VOLUME_DISTANCE,
   VOICE_SILENCE_DISTANCE,
 } from "../../shared/constants/game.js";
@@ -11,9 +10,12 @@ import {
   tileOf,
 } from "../../shared/game/movement.js";
 import type {
+  DiscoveredRun,
   DungeonMapState,
   DungeonState,
+  DungeonSnapshot,
   LightSourceState,
+  MapDiscovery,
   PlayerId,
   PlayerState,
   RoomState,
@@ -25,12 +27,9 @@ import { monsterStatsFor } from "./dungeonState.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
 import { buildRoomGrid, createDiscoveredGrid, LitTiles, type RoomGrid } from "./tileGrid.js";
 
-const UNKNOWN_TILE = " ";
-const DISCOVERED_FLOOR_TILE = ",";
-const DISCOVERED_WALL_TILE = "+";
-
 export interface VisibilityFrame {
-  dungeon: DungeonState;
+  /** Everything but the map, whose delta is drained once per snapshot by `takeMapDiscovery`. */
+  dungeon: Omit<DungeonSnapshot, "map">;
   players: PlayerState[];
   visiblePlayerIds: Set<PlayerId>;
 }
@@ -376,10 +375,6 @@ function tileVisible(visible: LitTiles, position: Vector2): boolean {
   return visible.hasAt(tile.x, tile.y);
 }
 
-function discoveredTile(original: string): string {
-  return original === "#" ? DISCOVERED_WALL_TILE : DISCOVERED_FLOOR_TILE;
-}
-
 /**
  * Files newly lit tiles into the viewer's memory, and notes any room they have now seen part of.
  *
@@ -398,6 +393,7 @@ function recordDiscovery(session: Session, viewer: SessionPlayer, visible: LitTi
     const index = visible.indexAt(n);
     if (discovered[index] === 1) continue;
     discovered[index] = 1;
+    if (viewer.mapSyncedTo === session.dungeon.map) viewer.pendingDiscovery.push(index);
     if (!grid) continue;
 
     const roomIndex = grid.roomOf[index]!;
@@ -413,42 +409,12 @@ function visibleDungeon(
   viewer: SessionPlayer,
   visible: LitTiles,
   sources: readonly ActiveLightSource[],
-): DungeonState {
+): Omit<DungeonSnapshot, "map"> {
   recordDiscovery(session, viewer, visible);
 
   const { map } = session.dungeon;
 
-  // Only the window around the viewer travels. A scaled world is 384x256 tiles, and serializing and
-  // deflating all of it per player per tick costs far more than anyone can see or walk to before the
-  // next snapshot replaces it.
-  const anchor = tileOf(viewer.position);
-  const originX = Math.max(0, anchor.x - SNAPSHOT_VIEW_RADIUS_TILES);
-  const originY = Math.max(0, anchor.y - SNAPSHOT_VIEW_RADIUS_TILES);
-  const lastX = Math.min(map.width - 1, anchor.x + SNAPSHOT_VIEW_RADIUS_TILES);
-  const lastY = Math.min(map.height - 1, anchor.y + SNAPSHOT_VIEW_RADIUS_TILES);
-
-  const tiles: string[] = [];
-  for (let y = originY; y <= lastY; y += 1) {
-    const row = map.tiles[y] ?? "";
-    let out = "";
-    for (let x = originX; x <= lastX; x += 1) {
-      const tile = row[x] ?? "#";
-      out += visible.hasAt(x, y)
-        ? tile
-        : tileDiscovered(viewer, map, x, y)
-          ? discoveredTile(tile)
-          : UNKNOWN_TILE;
-    }
-    tiles.push(out);
-  }
-
   return {
-    map: {
-      ...map,
-      originX,
-      originY,
-      tiles,
-    },
     // A room appears once the player has seen any part of it. Sending the full room list would hand
     // a client the shape of the dungeon - how many rooms, where the boss is - before they explore it.
     rooms: session.dungeon.rooms
@@ -488,6 +454,67 @@ function visibleDungeon(
         ...light,
         position: { ...light.position },
       })),
+  };
+}
+
+function runsOf(map: DungeonMapState, indexes: ArrayLike<number>): DiscoveredRun[] {
+  const runs: DiscoveredRun[] = [];
+  let open: DiscoveredRun | null = null;
+  let next = -1;
+
+  for (let n = 0; n < indexes.length; n += 1) {
+    const index = indexes[n]!;
+    const x = index % map.width;
+    const y = (index - x) / map.width;
+    const tile = map.tiles[y]?.[x] === "#" ? "#" : ".";
+
+    if (open !== null && index === next && x !== 0) {
+      open.tiles += tile;
+    } else {
+      open = { x, y, tiles: tile };
+      runs.push(open);
+    }
+    next = index + 1;
+  }
+
+  return runs;
+}
+
+/**
+ * The map half of a snapshot: the geometry this viewer has discovered since their last one.
+ *
+ * Draining, not pure, so call it exactly once per snapshot actually sent, after the frame that
+ * records what the viewer discovered. A viewer whose client holds no baseline for the installed
+ * world gets one, `reset` set, carrying everything they have discovered; after that each snapshot
+ * carries only the tiles discovered since. Nothing undiscovered is ever sent, so what a client
+ * learns of the dungeon is still exactly what its player has seen.
+ */
+export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDiscovery {
+  const { map } = session.dungeon;
+  const discovered = discoveredFor(viewer, map);
+  const reset = viewer.mapSyncedTo !== map;
+
+  let indexes: ArrayLike<number>;
+  if (reset) {
+    const all: number[] = [];
+    for (let index = 0; index < discovered.length; index += 1) {
+      if (discovered[index] === 1) all.push(index);
+    }
+    indexes = all;
+  } else {
+    indexes = Int32Array.from(viewer.pendingDiscovery).sort();
+  }
+
+  viewer.pendingDiscovery = [];
+  viewer.mapSyncedTo = map;
+
+  return {
+    id: map.id,
+    name: map.name,
+    width: map.width,
+    height: map.height,
+    reset,
+    discovered: runsOf(map, indexes),
   };
 }
 

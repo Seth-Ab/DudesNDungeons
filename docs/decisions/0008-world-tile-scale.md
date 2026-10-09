@@ -83,6 +83,10 @@ so a party standing at the face of a locked door could not open it.
 
 ### Snapshots carry a window, not the whole map
 
+> Superseded by issue #30 (protocol v18): snapshots now carry discovery deltas, and the client
+> accumulates a whole-world map. `SNAPSHOT_VIEW_RADIUS_TILES` no longer exists. The text below is the
+> reasoning that applied when the window shipped.
+
 `DungeonMapState` gained `originX` and `originY`. `width` and `height` are still the whole world, so
 a client knows the bounds it is moving inside; `tiles` is now only the window around the viewer,
 `SNAPSHOT_VIEW_RADIUS_TILES` (64) in each direction.

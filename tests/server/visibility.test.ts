@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
 import {
+  takeMapDiscovery,
   visibilityFrameForPlayer,
   visibleTilesForPlayer,
   voiceRangeForPlayer,
@@ -8,7 +10,7 @@ import { returnToHub, startRun } from "../../src/server/game/runLifecycle.js";
 import { SessionStore, rosterOf } from "../../src/server/sessions/sessionStore.js";
 import { PLAYER_TORCH_LIGHT_RADIUS } from "../../src/shared/constants/game.js";
 import { coversTile, distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
-import type { RoomState, Vector2 } from "../../src/shared/types/core.js";
+import type { DungeonMapState, RoomState, Vector2 } from "../../src/shared/types/core.js";
 import { at, joinRequest, testPlayer, testSession } from "./fixtures.js";
 
 /**
@@ -27,6 +29,15 @@ function flatMap(tiles: string[]) {
     originY: 0,
     tiles,
   };
+}
+
+/** What a client holds after the snapshot that follows `visibilityFrameForPlayer`, given what it held. */
+function clientMap(
+  session: Parameters<typeof takeMapDiscovery>[0],
+  viewer: Parameters<typeof takeMapDiscovery>[1],
+  previous: DungeonMapState | null = null,
+): DungeonMapState {
+  return applyMapDiscovery(previous, takeMapDiscovery(session, viewer));
 }
 
 describe("visibility frames", () => {
@@ -79,13 +90,17 @@ describe("visibility frames", () => {
     // A world tile inside the authored tile next to the spawn, lit from where the viewer starts.
     const nearSpawn = tileOf(at(1, 2));
 
-    const firstFrame = visibilityFrameForPlayer(session, viewer);
-    expect(tileAt(firstFrame.dungeon.map, nearSpawn.x, nearSpawn.y)).toBe(".");
+    visibilityFrameForPlayer(session, viewer);
+    const firstMap = clientMap(session, viewer);
+    expect(tileAt(firstMap, nearSpawn.x, nearSpawn.y)).toBe(".");
 
     viewer.position = at(12, 6);
     const secondFrame = visibilityFrameForPlayer(session, viewer);
+    const secondMap = clientMap(session, viewer, firstMap);
 
-    expect(tileAt(secondFrame.dungeon.map, nearSpawn.x, nearSpawn.y)).toBe(",");
+    // Out of the light now, but still part of the map the client holds.
+    expect(visibleTilesForPlayer(session, viewer).hasAt(nearSpawn.x, nearSpawn.y)).toBe(false);
+    expect(tileAt(secondMap, nearSpawn.x, nearSpawn.y)).toBe(".");
     expect(secondFrame.dungeon.loot.some((loot) => loot.name === "Minor Tonic")).toBe(false);
   });
 
@@ -109,7 +124,7 @@ describe("visibility frames", () => {
 
     const frame = visibilityFrameForPlayer(session, viewer);
 
-    expect(tileAt(frame.dungeon.map, 6, 1)).toBe(".");
+    expect(tileAt(clientMap(session, viewer), 6, 1)).toBe(".");
     expect(frame.dungeon.lightSources.map((light) => light.name)).toEqual(["Torch Pillar"]);
   });
 });
@@ -529,7 +544,7 @@ describe("player-to-player sight (#61)", () => {
       expect(frame.visiblePlayerIds.has("downed")).toBe(true);
       expect(frame.dungeon.lightSources.map((light) => light.id)).toEqual(["downed"]);
       // It lights the ground around them for the rescuer, as it already did for the downed player.
-      expect(tileAt(frame.dungeon.map, 17, 8)).toBe(".");
+      expect(tileAt(clientMap(session, rescuer), 17, 8)).toBe(".");
       // The rescuer has no torch and stands far outside the downed player's light.
       expect(sees(session, downed, rescuer)).toBe(false);
     });
@@ -633,5 +648,120 @@ describe("discovery memory", () => {
     ];
     const second = visibilityFrameForPlayer(session, viewer);
     expect(second.dungeon.rooms.map((room) => room.id)).toEqual(["near", "far"]);
+  });
+});
+
+describe("map discovery deltas", () => {
+  function tilesSent(map: ReturnType<typeof takeMapDiscovery>): number {
+    return map.discovered.reduce((total, run) => total + run.tiles.length, 0);
+  }
+
+  function snapshotMap(session: Parameters<typeof takeMapDiscovery>[0], viewer: Parameters<typeof takeMapDiscovery>[1]) {
+    visibilityFrameForPlayer(session, viewer);
+    return takeMapDiscovery(session, viewer);
+  }
+
+  it("opens with a baseline of everything discovered", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+
+    const first = snapshotMap(session, viewer);
+
+    expect(first.reset).toBe(true);
+    expect(tilesSent(first)).toBeGreaterThan(0);
+    expect(tilesSent(first)).toBe(viewer.discoveredTiles.reduce((total, seen) => total + seen, 0));
+  });
+
+  it("sends nothing again while the viewer stands still", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    snapshotMap(session, viewer);
+
+    const second = snapshotMap(session, viewer);
+
+    expect(second.reset).toBe(false);
+    expect(second.discovered).toEqual([]);
+  });
+
+  it("sends only tiles discovered since the last snapshot, and never one twice", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    let client = applyMapDiscovery(null, snapshotMap(session, viewer));
+    const seen = new Set<string>();
+    client.tiles.forEach((row, y) => [...row].forEach((tile, x) => tile !== " " && seen.add(`${x},${y}`)));
+
+    viewer.position = at(12, 6);
+    const delta = snapshotMap(session, viewer);
+
+    expect(delta.reset).toBe(false);
+    for (const run of delta.discovered) {
+      for (let n = 0; n < run.tiles.length; n += 1) {
+        expect(seen.has(`${run.x + n},${run.y}`)).toBe(false);
+      }
+    }
+    client = applyMapDiscovery(client, delta);
+
+    // The accumulated map is exactly what the viewer has discovered, tile for tile.
+    const { map } = session.dungeon;
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        const known = viewer.discoveredTiles[y * map.width + x] === 1;
+        expect(client.tiles[y]![x] !== " ").toBe(known);
+        if (known) expect(client.tiles[y]![x]).toBe(map.tiles[y]![x] === "#" ? "#" : ".");
+      }
+    }
+  });
+
+  it("never reveals a tile the viewer has not discovered", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    const { width } = session.dungeon.map;
+
+    for (const position of [at(2, 2), at(6, 4), at(12, 6)]) {
+      viewer.position = position;
+      const delta = snapshotMap(session, viewer);
+      for (const run of delta.discovered) {
+        for (let n = 0; n < run.tiles.length; n += 1) {
+          expect(viewer.discoveredTiles[run.y * width + run.x + n]).toBe(1);
+        }
+      }
+    }
+  });
+
+  it("sends a fresh baseline when the client has to start over, such as after a reconnect", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    const first = snapshotMap(session, viewer);
+
+    viewer.mapSyncedTo = null;
+    const again = snapshotMap(session, viewer);
+
+    expect(again.reset).toBe(true);
+    expect(tilesSent(again)).toBe(tilesSent(first));
+  });
+
+  it("starts over for a rebuilt world, and carries nothing of the old one", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    snapshotMap(session, viewer);
+
+    session.dungeon.map = flatMap(["#####", "#...#", "#####"]);
+    session.dungeon.doors = [];
+    viewer.discoveredTiles = new Uint8Array(0);
+    viewer.pendingDiscovery = [];
+    viewer.position = { x: 2, y: 1 };
+    const next = snapshotMap(session, viewer);
+
+    expect(next).toMatchObject({ reset: true, width: 5, height: 3 });
+    expect(next.discovered.every((run) => run.y < 3 && run.x + run.tiles.length <= 5)).toBe(true);
+  });
+
+  it("does not queue discoveries for a viewer whose client has no baseline", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+
+    visibilityFrameForPlayer(session, viewer);
+
+    expect(viewer.pendingDiscovery).toEqual([]);
   });
 });

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { scaleDungeon, scalePoint } from "../../src/server/game/scale.js";
-import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
-import { SNAPSHOT_VIEW_RADIUS_TILES, TILE_SCALE } from "../../src/shared/constants/game.js";
-import { PLAYER_RADIUS, isOpen, tileAt } from "../../src/shared/game/movement.js";
+import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
+import { takeMapDiscovery, visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
+import { TILE_SCALE } from "../../src/shared/constants/game.js";
+import { PLAYER_RADIUS, isOpen, tileAt, tileOf } from "../../src/shared/game/movement.js";
 import type { BuiltDungeon } from "../../src/server/game/dungeonBuilder.js";
 import { testPlayer, testSession } from "./fixtures.js";
 
@@ -125,48 +126,38 @@ describe("a corridor at world scale", () => {
   });
 });
 
-/** A floor tile far enough from the world's origin that a window around it is clipped on all sides. */
-function deepFloorTile(tiles: readonly string[]): { x: number; y: number } {
-  for (let y = SNAPSHOT_VIEW_RADIUS_TILES + 1; y < tiles.length - SNAPSHOT_VIEW_RADIUS_TILES; y += 1) {
-    const row = tiles[y]!;
-    for (let x = SNAPSHOT_VIEW_RADIUS_TILES + 1; x < row.length - SNAPSHOT_VIEW_RADIUS_TILES; x += 1) {
-      if (row[x] === ".") return { x, y };
-    }
-  }
-
-  throw new Error("The generated world is too small to clip a snapshot window on every side");
-}
-
 describe("snapshots at world scale", () => {
-  // The generated run, not the hand-authored vault: at world scale it is 384x256, which is what
-  // makes the window worth having in the first place.
-  it("carries a window around the viewer rather than the whole map", () => {
+  // The generated run, not the hand-authored vault: at world scale it is 384x256, so sending the
+  // whole map to a viewer who has seen a sliver of it would be the mistake worth catching.
+  function viewerOnTheGeneratedRun() {
     const session = testSession([], "vault-run");
     const viewer = testPlayer("viewer", { position: { ...session.spawnPoints[0]! } });
     session.players.set(viewer.id, viewer);
-    const { map } = visibilityFrameForPlayer(session, viewer).dungeon;
+    return { session, viewer };
+  }
 
-    // The full world is still reported, so a client knows the bounds it is moving inside.
+  it("reports the whole world's size but only the geometry the viewer has discovered", () => {
+    const { session, viewer } = viewerOnTheGeneratedRun();
+    visibilityFrameForPlayer(session, viewer);
+    const map = takeMapDiscovery(session, viewer);
+
+    // The bounds are always known, so a client knows what it is moving inside.
     expect(map.width).toBe(session.dungeon.map.width);
     expect(map.height).toBe(session.dungeon.map.height);
 
-    // The tiles are not: at this scale that would be far more than anyone can see or walk to.
-    expect(map.tiles.length).toBeLessThanOrEqual(2 * SNAPSHOT_VIEW_RADIUS_TILES + 1);
-    expect(map.tiles.length).toBeLessThan(session.dungeon.map.tiles.length);
+    const sent = map.discovered.reduce((total, run) => total + run.tiles.length, 0);
+    expect(sent).toBeGreaterThan(0);
+    expect(sent).toBeLessThan(0.1 * session.dungeon.map.width * session.dungeon.map.height);
   });
 
-  it("anchors the window so a world coordinate reads back the tile it names", () => {
-    const session = testSession([], "vault-run");
-    // Deep enough into the world that the window is clipped on both axes, which is the case the
-    // origin exists for: reading tile (x, y) out of it has to land on the same tile it names.
-    const standingOn = deepFloorTile(session.dungeon.map.tiles);
-    const viewer = testPlayer("viewer", { position: { ...standingOn } });
-    session.players.set(viewer.id, viewer);
+  it("lets the client read a world coordinate back as the tile it names", () => {
+    const { session, viewer } = viewerOnTheGeneratedRun();
+    visibilityFrameForPlayer(session, viewer);
+    const map = applyMapDiscovery(null, takeMapDiscovery(session, viewer));
+    const spawn = tileOf(viewer.position);
 
-    const { map } = visibilityFrameForPlayer(session, viewer).dungeon;
-
-    expect(map.originX).toBe(standingOn.x - SNAPSHOT_VIEW_RADIUS_TILES);
-    expect(map.originY).toBe(standingOn.y - SNAPSHOT_VIEW_RADIUS_TILES);
-    expect(tileAt(map, standingOn.x, standingOn.y)).toBe(".");
+    expect(map.originX).toBe(0);
+    expect(map.tiles).toHaveLength(session.dungeon.map.height);
+    expect(tileAt(map, spawn.x, spawn.y)).toBe(".");
   });
 });
