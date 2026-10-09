@@ -7,7 +7,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
-import type { DungeonState, PlayerState, RunState } from "../../src/shared/types/core.js";
+import type { DungeonSnapshot, PlayerState, RunState } from "../../src/shared/types/core.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const ALLY_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
@@ -37,16 +37,19 @@ function run(): RunState {
   return { elapsedMs: 60_000, decayStartsInMs: 540_000, decaying: false, decayPerSecond: 0 };
 }
 
-function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
+function dungeon(overrides: Partial<DungeonSnapshot> = {}): DungeonSnapshot {
   return {
     map: {
       id: "ember-vault",
       name: "Ember Vault",
       width: 3,
       height: 3,
-      originX: 0,
-      originY: 0,
-      tiles: ["###", "#.#", "###"],
+      reset: true,
+      discovered: [
+        { x: 0, y: 0, tiles: "###" },
+        { x: 0, y: 1, tiles: "#.#" },
+        { x: 0, y: 2, tiles: "###" },
+      ],
     },
     rooms: [],
     monsters: [],
@@ -213,13 +216,58 @@ describe("snapshots", () => {
       location: "dungeon",
       players: [player(SELF_ID, { health: 100 })],
       dungeon: dungeon({
-        map: { id: "old", name: "Old", width: 1, height: 1, originX: 0, originY: 0, tiles: ["."] },
+        map: { id: "old", name: "Old", width: 1, height: 1, reset: true, discovered: [] },
       }),
       run: run(),
     });
 
     expect(view.tick).toBe(7);
     expect(selfOf(view)?.health).toBe(42);
+  });
+});
+
+describe("map discovery in snapshots", () => {
+  function withMap(tick: number, map: DungeonSnapshot["map"], view: SessionView): SessionView {
+    return applyServerMessage(view, {
+      type: "stateSnapshot",
+      tick,
+      location: "dungeon",
+      players: [player(SELF_ID)],
+      dungeon: dungeon({ map }),
+      run: run(),
+    });
+  }
+
+  const base = { id: "w", name: "W", width: 4, height: 1 };
+
+  it("accumulates geometry across snapshots", () => {
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#." }] }, joinedView());
+    view = withMap(2, { ...base, reset: false, discovered: [{ x: 2, y: 0, tiles: ".#" }] }, view);
+
+    expect(view.dungeon?.map.tiles).toEqual(["#..#"]);
+  });
+
+  it("keeps the same map object across snapshots that discover nothing", () => {
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }] }, joinedView());
+    const held = view.dungeon?.map;
+    view = withMap(2, { ...base, reset: false, discovered: [] }, view);
+
+    expect(view.dungeon?.map).toBe(held);
+  });
+
+  it("still folds in the geometry of a stale snapshot, which the server will not resend", () => {
+    let view = withMap(5, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }] }, joinedView());
+    view = withMap(5, { ...base, reset: false, discovered: [{ x: 1, y: 0, tiles: "." }] }, view);
+
+    expect(view.tick).toBe(5);
+    expect(view.dungeon?.map.tiles).toEqual(["#.  "]);
+  });
+
+  it("drops the old world's geometry when a reset arrives for a new one", () => {
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "####" }] }, joinedView());
+    view = withMap(2, { id: "v", name: "V", width: 2, height: 1, reset: true, discovered: [{ x: 1, y: 0, tiles: "." }] }, view);
+
+    expect(view.dungeon?.map).toMatchObject({ id: "v", tiles: [" ."] });
   });
 });
 

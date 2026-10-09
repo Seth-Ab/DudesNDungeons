@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { simulate } from "../src/server/game/combat.js";
 import { startRun } from "../src/server/game/runLifecycle.js";
-import { visibilityFrameForPlayer } from "../src/server/game/visibility.js";
+import { takeMapDiscovery, visibilityFrameForPlayer } from "../src/server/game/visibility.js";
 import { runStateFor } from "../src/server/game/vitals.js";
 import { ProfileStore } from "../src/server/profiles/profileStore.js";
 import { SessionStore, type Session } from "../src/server/sessions/sessionStore.js";
@@ -86,25 +86,47 @@ const visibilityPass = () => {
 };
 report("visibility, 4 players (spawn)", measure(100, visibilityPass));
 
-const frame = visibilityFrameForPlayer(session, players[0]!);
-const snapshot = {
-  type: "stateSnapshot" as const,
-  tick: 1,
-  location: session.location,
-  players: frame.players,
-  dungeon: frame.dungeon,
-  run: runStateFor(players[0]!, clock),
+const snapshotFor = (tick: number) => {
+  const frame = visibilityFrameForPlayer(session, players[0]!);
+  return {
+    type: "stateSnapshot" as const,
+    tick,
+    location: session.location,
+    players: frame.players,
+    dungeon: { ...frame.dungeon, map: takeMapDiscovery(session, players[0]!) },
+    run: runStateFor(players[0]!, clock),
+  };
 };
+const describeSnapshot = (label: string, snapshot: ReturnType<typeof snapshotFor>) => {
+  const raw = serializeServerMessage(snapshot);
+  console.log(`${label.padEnd(34)} ${raw.length} bytes, ${deflateSync(raw).length} deflated`);
+};
+
+// The first snapshot a client gets carries the baseline; every later one only what is new.
+describeSnapshot("snapshot (baseline at spawn)", snapshotFor(1));
+const steady = snapshotFor(2);
+describeSnapshot("snapshot (steady state)", steady);
 report(
-  "serialize snapshot x4",
+  "serialize steady snapshot x4",
   measure(100, () => {
-    for (let index = 0; index < PARTY_SIZE; index += 1) serializeServerMessage(snapshot);
+    for (let index = 0; index < PARTY_SIZE; index += 1) serializeServerMessage(steady);
   }),
 );
-const raw = serializeServerMessage(snapshot);
-console.log(`snapshot: ${raw.length} bytes, ${deflateSync(raw).length} deflated`);
+report(
+  "snapshot build x4 (steady)",
+  measure(100, () => {
+    for (const player of players) {
+      const frame = visibilityFrameForPlayer(session, player);
+      takeMapDiscovery(session, player);
+      void frame;
+    }
+  }),
+);
 
 for (const player of players) {
   player.discoveredTiles.fill(1);
+  player.mapSyncedTo = null;
 }
+describeSnapshot("snapshot (baseline, all explored)", snapshotFor(3));
 report("visibility, 4 players (explored)", measure(50, visibilityPass));
+describeSnapshot("snapshot (steady, all explored)", snapshotFor(4));

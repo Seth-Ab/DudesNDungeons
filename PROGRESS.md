@@ -155,6 +155,17 @@ check remains.
   a reusable generation-marked grid per viewer, and rooms are found through a per-dungeon tile-to-room
   grid (`src/server/game/tileGrid.ts`). Wire format unchanged. `bench:tick` visibility for 4 players:
   explored 3.6-3.8 ms to 0.55-0.64 ms; fresh spawn 2.0 ms to 0.64-0.72 ms.
+- [x] Send dungeon discovery deltas instead of rebuilding the map window every snapshot (issue #30,
+  2026-10-09, protocol v18). `stateSnapshot.dungeon.map` is now `mapDiscovery`: world size plus runs
+  of newly discovered `#`/`.` tiles, with `reset` marking a full baseline (first snapshot, reconnect,
+  rebuilt world). The server queues tiles as `recordDiscovery` finds them (`pendingDiscovery`) and
+  `takeMapDiscovery` drains them once per snapshot sent; the client accumulates them into a
+  whole-world map (`src/client/state/discoveredMap.ts`). `SNAPSHOT_VIEW_RADIUS_TILES` and the window
+  are gone. Lit versus remembered no longer travels in tiles; the lightmap already owns shading. Doors
+  stay in the per-snapshot `doors` list, so mutable geometry is unaffected. `bench:tick` (4 players,
+  seed 1234), before to after: steady snapshot 9202 to 2392 bytes (885 to 734 deflated); serialize x4
+  0.024 to 0.013 ms; visibility x4 at spawn 0.71 to 0.41 ms, explored 0.57 to 0.34 ms. A full
+  baseline of a fully explored world is 107 kB (2.7 kB deflated), sent once per connection or world.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 
@@ -227,7 +238,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 - [x] Grow speed and light by less than the map. Speed 2.5 to 6, light and voice by `LIGHT_SCALE` of 3, so the dungeon is larger and darker rather than merely further away.
 - [x] Give a doorway the width of its opening. `doorState.size`, honoured by collision, line of sight, and reach.
   - Two bugs in that width surfaced on 2026-09-18 while drawing the door art, both from the one-tile assumptions the block replaced. Line of sight exempted only a door's centre tile, so a closed door hid behind itself and was never sent to any client; and the client still measured interact reach to the centre while the server measured to the face, so no locked door could be opened from the UI. Fixed with `distanceToDoor` in `src/shared/game/movement.ts`, now shared by both sides.
-- [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`.
+- [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`. Superseded by discovery deltas (issue #30).
 
 ## Frontend Dev Progress
 
@@ -339,7 +350,7 @@ Complete on `feature/hub-run-flow`.
 ### 11. Drawing at World Scale
 
 - [x] Draw in world units at a zoom that keeps the player small against the room. 32 pixels per world unit, entities sized from `PLAYER_RADIUS`.
-- [x] Clip drawing to the viewport and to the window the snapshot carried.
+- [x] Clip drawing to the viewport and to the geometry the client has accumulated.
 - [x] Rule the floor every `TILE_SCALE` units, so it reads as masonry rather than graph paper.
 - [x] Draw a doorway across its whole opening, matching what the server collides against.
 

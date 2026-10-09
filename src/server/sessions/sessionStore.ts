@@ -79,6 +79,17 @@ export interface SessionPlayer {
    * that grows with the map for an answer that only ever changes while exploring.
    */
   discoveredRoomIds: Set<string>;
+  /**
+   * Indexes into `discoveredTiles` found since this viewer's last snapshot, which the next one
+   * carries as a delta. Only filled while `mapSyncedTo` is the installed world; see `visibility.ts`.
+   */
+  pendingDiscovery: number[];
+  /**
+   * The world map this player's client was last given a full baseline of, or null when its client
+   * holds none: before the first snapshot, and after a reconnect. A different map object means the
+   * world was rebuilt. Either way the next snapshot restarts the client's geometry from scratch.
+   */
+  mapSyncedTo: object | null;
   /** Server-side only. Leaves the process solely in this player's own `sessionJoined`. */
   resumeToken: ResumeToken;
   /** When the socket dropped, or null while connected. Drives the reconnect grace window. */
@@ -335,6 +346,8 @@ export class SessionStore {
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Uint8Array(0),
       discoveredRoomIds: new Set(),
+      pendingDiscovery: [],
+      mapSyncedTo: null,
       resumeToken: this.#createResumeToken(),
       disconnectedAt: null,
       nextMoveAt: null,

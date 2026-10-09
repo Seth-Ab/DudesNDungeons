@@ -110,6 +110,8 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     profile: testProfile(id),
     discoveredTiles: new Uint8Array(0),
     discoveredRoomIds: new Set(),
+    pendingDiscovery: [],
+    mapSyncedTo: null,
     resumeToken: id.padEnd(32, "0"),
     disconnectedAt: null,
     nextMoveAt: null,

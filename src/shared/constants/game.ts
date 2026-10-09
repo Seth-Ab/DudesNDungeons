@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -108,20 +108,6 @@ export const PLAYER_TORCH_LIGHT_RADIUS = 6;
  * carried torch, so a pillar marks a spot in the dark rather than lighting the room around it.
  */
 export const FIXED_LIGHT_RADIUS = 5;
-
-/**
- * How far either side of a player a snapshot carries map tiles.
- *
- * At `TILE_SCALE` a generated world is 384x256 tiles, and shipping all 98,304 of them to every
- * player twenty times a second is neither affordable to serialize nor to compress. A snapshot
- * therefore carries a window centred on the viewer, and `DungeonMapState` records where that
- * window sits with `originX`/`originY`.
- *
- * Sized so the window always outruns both the screen and the light: 129 tiles across is over
- * 4000px at the renderer's zoom, and many times the torch radius, so no player can see or walk to
- * its edge within one snapshot.
- */
-export const SNAPSHOT_VIEW_RADIUS_TILES = 64;
 
 export const MAX_INVENTORY_SIZE = 3;
 
