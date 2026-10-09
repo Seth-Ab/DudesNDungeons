@@ -107,7 +107,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     carryingPlayerId: null,
     carriedByPlayerId: null,
     profile: testProfile(id),
-    discoveredTiles: new Set(),
+    discoveredTiles: new Uint8Array(0),
     discoveredRoomIds: new Set(),
     resumeToken: id.padEnd(32, "0"),
     disconnectedAt: null,

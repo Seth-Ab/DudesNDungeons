@@ -105,8 +105,6 @@ const raw = serializeServerMessage(snapshot);
 console.log(`snapshot: ${raw.length} bytes, ${deflateSync(raw).length} deflated`);
 
 for (const player of players) {
-  for (let y = 0; y < dungeon.map.height; y += 1) {
-    for (let x = 0; x < dungeon.map.width; x += 1) player.discoveredTiles.add(`${x},${y}`);
-  }
+  player.discoveredTiles.fill(1);
 }
 report("visibility, 4 players (explored)", measure(50, visibilityPass));

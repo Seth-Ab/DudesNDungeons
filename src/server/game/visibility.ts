@@ -23,6 +23,7 @@ import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
+import { buildRoomGrid, createDiscoveredGrid, LitTiles, type RoomGrid } from "./tileGrid.js";
 
 const UNKNOWN_TILE = " ";
 const DISCOVERED_FLOOR_TILE = ",";
@@ -38,8 +39,45 @@ interface ActiveLightSource extends LightSourceState {
   origin: Vector2;
 }
 
-function tileKey(x: number, y: number): string {
-  return `${x},${y}`;
+/** The per-viewer grid of lit tiles, reused every frame so a tick allocates none. */
+const litTilesByViewer = new WeakMap<SessionPlayer, LitTiles>();
+
+function litTilesFor(viewer: SessionPlayer, map: DungeonMapState): LitTiles {
+  let lit = litTilesByViewer.get(viewer);
+  if (!lit || !lit.fits(map.width, map.height)) {
+    lit = new LitTiles(map.width, map.height);
+    litTilesByViewer.set(viewer, lit);
+  }
+
+  return lit.begin();
+}
+
+/** Which room each tile is in, built once per dungeon and dropped with its room list. */
+const roomGrids = new WeakMap<readonly RoomState[], RoomGrid>();
+
+function roomGridFor(dungeon: DungeonState): RoomGrid {
+  let grid = roomGrids.get(dungeon.rooms);
+  if (!grid || grid.width !== dungeon.map.width || grid.height !== dungeon.map.height) {
+    grid = buildRoomGrid(dungeon.map.width, dungeon.map.height, dungeon.rooms);
+    roomGrids.set(dungeon.rooms, grid);
+  }
+
+  return grid;
+}
+
+/** The viewer's discovery memory, sized for this world. Normally already so; see `resetPlayerForWorld`. */
+function discoveredFor(viewer: SessionPlayer, map: DungeonMapState): Uint8Array {
+  if (viewer.discoveredTiles.length !== map.width * map.height) {
+    viewer.discoveredTiles = createDiscoveredGrid(map.width, map.height);
+  }
+
+  return viewer.discoveredTiles;
+}
+
+function tileDiscovered(viewer: SessionPlayer, map: DungeonMapState, x: number, y: number): boolean {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
+
+  return viewer.discoveredTiles[y * map.width + x] === 1;
 }
 
 function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
@@ -240,13 +278,13 @@ export function visibleTilesForPlayer(
   session: Session,
   viewer: SessionPlayer,
   sources = activeLightSourcesForPlayer(session, viewer),
-): Set<string> {
-  const visible = new Set<string>();
+  visible = new LitTiles(session.dungeon.map.width, session.dungeon.map.height),
+): LitTiles {
   const doors = doorSignature(session.dungeon);
 
   for (const source of sources) {
     if (source.kind === "fixed") {
-      for (const key of fixedLightTiles(session.dungeon, source, doors)) visible.add(key);
+      for (const index of fixedLightTiles(session.dungeon, source, doors)) visible.addIndex(index);
     } else {
       lightFrom(session.dungeon, source, visible);
     }
@@ -263,7 +301,7 @@ export function visibleTilesForPlayer(
  * the entire hall, and recomputing that took several milliseconds per player, twenty times a second.
  * Keyed weakly by the map, so a rebuilt world drops its cache along with itself.
  */
-const fixedLightCache = new WeakMap<DungeonMapState, Map<string, readonly string[]>>();
+const fixedLightCache = new WeakMap<DungeonMapState, Map<string, Int32Array>>();
 
 function doorSignature(dungeon: DungeonState): string {
   return dungeon.doors.map((door) => (door.open ? "1" : "0")).join("");
@@ -273,7 +311,7 @@ function fixedLightTiles(
   dungeon: DungeonState,
   source: ActiveLightSource,
   doors: string,
-): readonly string[] {
+): Int32Array {
   let cache = fixedLightCache.get(dungeon.map);
   if (!cache) {
     cache = new Map();
@@ -283,9 +321,10 @@ function fixedLightTiles(
   const key = `${source.id}|${doors}`;
   let tiles = cache.get(key);
   if (!tiles) {
-    const lit = new Set<string>();
+    const lit = new LitTiles(dungeon.map.width, dungeon.map.height);
     lightFrom(dungeon, source, lit);
-    tiles = [...lit];
+    tiles = new Int32Array(lit.size);
+    for (let n = 0; n < lit.size; n += 1) tiles[n] = lit.indexAt(n);
     cache.set(key, tiles);
   }
 
@@ -303,7 +342,7 @@ function fixedLightTiles(
  * bordering lit floor is the face of that floor's boundary, and at `TILE_SCALE` every wall is at
  * least four tiles thick, so this never reveals anything on the far side of one.
  */
-function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: Set<string>): void {
+function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: LitTiles): void {
   const { map } = dungeon;
   const minX = Math.max(0, Math.floor(source.origin.x - source.radius));
   const maxX = Math.min(map.width - 1, Math.ceil(source.origin.x + source.radius));
@@ -312,37 +351,33 @@ function lightFrom(dungeon: DungeonState, source: ActiveLightSource, visible: Se
 
   for (let y = minY; y <= maxY; y += 1) {
     for (let x = minX; x <= maxX; x += 1) {
-      const key = tileKey(x, y);
+      const index = y * map.width + x;
       // Another source already lit it, and its walls with it; the raycast is the expensive part.
-      if (visible.has(key)) continue;
+      if (visible.hasIndex(index)) continue;
 
       const center = { x, y };
       if (distance(source.origin, center) > source.radius) continue;
       if (!hasLineOfSight(dungeon, source.origin, center)) continue;
 
-      visible.add(key);
+      visible.addIndex(index);
       if (tileAt(map, x, y) === "#") continue;
 
       for (let dy = -1; dy <= 1; dy += 1) {
         for (let dx = -1; dx <= 1; dx += 1) {
-          if (tileAt(map, x + dx, y + dy) === "#") visible.add(tileKey(x + dx, y + dy));
+          if (tileAt(map, x + dx, y + dy) === "#") visible.addIndex((y + dy) * map.width + x + dx);
         }
       }
     }
   }
 }
 
-function tileVisible(visible: Set<string>, position: Vector2): boolean {
+function tileVisible(visible: LitTiles, position: Vector2): boolean {
   const tile = tileOf(position);
-  return visible.has(tileKey(tile.x, tile.y));
+  return visible.hasAt(tile.x, tile.y);
 }
 
 function discoveredTile(original: string): string {
   return original === "#" ? DISCOVERED_WALL_TILE : DISCOVERED_FLOOR_TILE;
-}
-
-function contains(room: RoomState, x: number, y: number): boolean {
-  return x >= room.x && x < room.x + room.width && y >= room.y && y < room.y + room.height;
 }
 
 /**
@@ -354,27 +389,29 @@ function contains(room: RoomState, x: number, y: number): boolean {
  * after. A tile is only ever discovered once, so doing the work there costs nothing once a player
  * has stopped exploring.
  */
-function recordDiscovery(session: Session, viewer: SessionPlayer, visible: Set<string>): void {
-  const pending = session.dungeon.rooms.filter((room) => !viewer.discoveredRoomIds.has(room.id));
+function recordDiscovery(session: Session, viewer: SessionPlayer, visible: LitTiles): void {
+  const { rooms } = session.dungeon;
+  const discovered = discoveredFor(viewer, session.dungeon.map);
+  const grid = rooms.length > 0 ? roomGridFor(session.dungeon) : null;
 
-  for (const key of visible) {
-    if (viewer.discoveredTiles.has(key)) continue;
-    viewer.discoveredTiles.add(key);
-    if (pending.length === 0) continue;
+  for (let n = 0; n < visible.size; n += 1) {
+    const index = visible.indexAt(n);
+    if (discovered[index] === 1) continue;
+    discovered[index] = 1;
+    if (!grid) continue;
 
-    const comma = key.indexOf(",");
-    const x = Number(key.slice(0, comma));
-    const y = Number(key.slice(comma + 1));
-    for (const room of pending) {
-      if (contains(room, x, y)) viewer.discoveredRoomIds.add(room.id);
-    }
+    const roomIndex = grid.roomOf[index]!;
+    if (roomIndex === -1) continue;
+
+    viewer.discoveredRoomIds.add(rooms[roomIndex]!.id);
+    for (const other of grid.overlaps.get(index) ?? []) viewer.discoveredRoomIds.add(rooms[other]!.id);
   }
 }
 
 function visibleDungeon(
   session: Session,
   viewer: SessionPlayer,
-  visible: Set<string>,
+  visible: LitTiles,
   sources: readonly ActiveLightSource[],
 ): DungeonState {
   recordDiscovery(session, viewer, visible);
@@ -395,11 +432,10 @@ function visibleDungeon(
     const row = map.tiles[y] ?? "";
     let out = "";
     for (let x = originX; x <= lastX; x += 1) {
-      const key = tileKey(x, y);
       const tile = row[x] ?? "#";
-      out += visible.has(key)
+      out += visible.hasAt(x, y)
         ? tile
-        : viewer.discoveredTiles.has(key)
+        : tileDiscovered(viewer, map, x, y)
           ? discoveredTile(tile)
           : UNKNOWN_TILE;
     }
@@ -438,7 +474,10 @@ function visibleDungeon(
       }))
       .filter((puzzle) => puzzle.plates.length > 0),
     doors: session.dungeon.doors
-      .filter((door) => viewer.discoveredTiles.has(tileKey(tileOf(door.position).x, tileOf(door.position).y)))
+      .filter((door) => {
+        const tile = tileOf(door.position);
+        return tileDiscovered(viewer, map, tile.x, tile.y);
+      })
       .map((door) => ({ ...door, position: { ...door.position } })),
     exits: session.dungeon.exits
       .filter((exit) => tileVisible(visible, exit.position))
@@ -456,7 +495,12 @@ export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer
   // Computed once and threaded through: gathering sources walks every light, player, and monster in
   // the dungeon, and the frame needs the same answer three times.
   const sources = activeLightSourcesForPlayer(session, viewer);
-  const visible = visibleTilesForPlayer(session, viewer, sources);
+  const visible = visibleTilesForPlayer(
+    session,
+    viewer,
+    sources,
+    litTilesFor(viewer, session.dungeon.map),
+  );
   // A player is seen when light falls on any open tile of their body, or near it if they were seen
   // last frame. Their own torch lights their own tile, so a torch in sight is a player in sight.
   const visiblePlayerIds = new Set<PlayerId>([viewer.id]);
@@ -464,7 +508,7 @@ export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer
     if (player.id === viewer.id) continue;
 
     const lit = someOpenTileNear(session.dungeon, player.position, bodyReach(viewer, player), (x, y) =>
-      visible.has(tileKey(x, y)),
+      visible.hasAt(x, y),
     );
     if (lit) visiblePlayerIds.add(player.id);
   }
