@@ -10,6 +10,8 @@ export type GameplayAction =
   | "pickup"
   | "interact"
   | "carry"
+  | "drop"
+  | "give"
   | "useSlot1"
   | "useSlot2"
   | "useSlot3";
@@ -39,6 +41,8 @@ const DEFAULT_KEYS: Record<BindableAction, string> = {
   interact: "e",
   pickup: "f",
   carry: "c",
+  drop: "q",
+  give: "t",
   useSlot1: "1",
   useSlot2: "2",
   useSlot3: "3",
@@ -66,6 +70,8 @@ export const ACTION_NAMES: Record<BindableAction, string> = {
   pickup: "Pick up",
   interact: "Interact",
   carry: "Carry",
+  drop: "Drop item",
+  give: "Give item",
   useSlot1: "Use slot 1",
   useSlot2: "Use slot 2",
   useSlot3: "Use slot 3",

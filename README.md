@@ -108,7 +108,7 @@ Generated dungeons are a pure function of their seed, which is recorded on the s
 be reproduced exactly from a bug report.
 
 Items are active gameplay content: dungeon definitions spawn them and the server owns pickup,
-inventory, and use. The first skill-scroll slice is also live: a rare Scroll of Iron Will can spawn
+inventory, and use. Players can drop an item at their feet or hand it to a nearby party member. The first skill-scroll slice is also live: a rare Scroll of Iron Will can spawn
 in the boss room, occupies an inventory slot, and grants its server-resolved effect when used. A
 scroll used in a dungeon is provisional until that player escapes; a wipe or abandonment loses it.
 Upgrade acquisition and the full progression UI remain in Backend Step 11 and Frontend Step 10.

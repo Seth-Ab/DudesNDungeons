@@ -72,6 +72,19 @@ export const useItemSchema = z.object({
   itemId: entityIdSchema,
 });
 
+/** Puts a held item on the floor at the sender's feet as loot anyone can pick up again. */
+export const dropItemSchema = z.object({
+  type: z.literal("dropItem"),
+  itemId: entityIdSchema,
+});
+
+/** Hands a held item to a standing, connected party member within reach who has a free slot. */
+export const giveItemSchema = z.object({
+  type: z.literal("giveItem"),
+  itemId: entityIdSchema,
+  targetPlayerId: playerIdSchema,
+});
+
 /** Lifts a downed party member within reach. Refused if either player is already carrying/carried. */
 export const liftPlayerSchema = z.object({
   type: z.literal("liftPlayer"),
@@ -98,6 +111,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   playerInteractSchema,
   pickupItemSchema,
   useItemSchema,
+  dropItemSchema,
+  giveItemSchema,
   liftPlayerSchema,
   dropCarrySchema,
   voiceSignalMessageSchema,

@@ -37,7 +37,13 @@ import {
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
 import { createPopupField, damagePopup, newAttacks } from "./state/combatFeedback.js";
-import { nearestDownedAlly, nearestInteraction, nearestLoot } from "./state/reach.js";
+import {
+  nearestDownedAlly,
+  nearestInteraction,
+  nearestLoot,
+  nearestStandingAlly,
+} from "./state/reach.js";
+import { noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
 import {
   entranceMessage,
   entranceStatus,
@@ -311,6 +317,29 @@ function performAction(action: GameplayAction): void {
       client.interact(targetId);
       return;
     }
+    case "drop": {
+      const item = selectedItem(self.inventory);
+      if (!item) {
+        hud.setActionStatus("Nothing to drop");
+        return;
+      }
+      client.dropItem(item.id);
+      return;
+    }
+    case "give": {
+      const item = selectedItem(self.inventory);
+      if (!item) {
+        hud.setActionStatus("Nothing to give");
+        return;
+      }
+      const ally = nearestStandingAlly(view, localPosition);
+      if (!ally) {
+        hud.setActionStatus("No one nearby");
+        return;
+      }
+      client.giveItem(item.id, ally.id);
+      return;
+    }
     case "carry": {
       if (self.carryingPlayerId) {
         client.dropCarry();
@@ -345,6 +374,7 @@ function useInventorySlot(slot: number): void {
     hud.setActionStatus("Empty slot");
     return;
   }
+  noteSlotUsed(slot);
   client.useItem(item.id);
 }
 

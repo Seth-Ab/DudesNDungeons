@@ -18,7 +18,7 @@ import type { PlayerId, PlayerState } from "../shared/types/core.js";
 import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
-import { interact, pickupItem, useItem } from "./game/items.js";
+import { dropItem, giveItem, interact, pickupItem, useItem } from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveTraps } from "./game/traps.js";
@@ -420,6 +420,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (
         message.type === "pickupItem" ||
         message.type === "useItem" ||
+        message.type === "dropItem" ||
+        message.type === "giveItem" ||
         message.type === "playerInteract"
       ) {
         const member = store.findMember(playerId);
@@ -433,7 +435,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
             ? pickupItem(member.session, playerId, message.itemId)
             : message.type === "useItem"
               ? useItem(member.session, playerId, message.itemId)
-              : interact(member.session, playerId, message.targetId, now());
+              : message.type === "dropItem"
+                ? dropItem(member.session, playerId, message.itemId)
+                : message.type === "giveItem"
+                  ? giveItem(member.session, playerId, message.itemId, message.targetPlayerId)
+                  : interact(member.session, playerId, message.targetId, now());
         if (!result.ok) {
           // These messages carry no sequence number, so the rejection cannot name one.
           send(socket, { type: "actionRejected", sequence: null, reason: result.reason });

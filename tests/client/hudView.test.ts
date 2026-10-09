@@ -367,6 +367,21 @@ describe("rebound keys", () => {
     expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
   });
 
+  it("prompts to give the held item to a standing ally in reach, and not to a downed one", () => {
+    const ally = player("Rook", { position: { x: 0.5, y: 0 } });
+    const standing = view({ ...inSession, players: [self, ally], dungeon: dungeon() });
+    expect(actionPrompt(standing, self, origin)).toMatchObject({
+      action: "give",
+      text: "Give Tonic to Rook",
+    });
+
+    const downed = view({ ...inSession, players: [self, { ...ally, health: 0 }], dungeon: dungeon() });
+    expect(actionPrompt(downed, self, origin)?.action).not.toBe("give");
+
+    const empty = { ...self, inventory: [] };
+    expect(actionPrompt(standing, empty, origin)).toBeNull();
+  });
+
   it("show on the hotbar slots", () => {
     setBinding("useSlot1", "z");
     const slots = hotbarView(view({ ...inSession, players: [self] }), self);
