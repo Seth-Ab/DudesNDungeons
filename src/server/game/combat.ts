@@ -5,12 +5,13 @@ import {
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
 } from "../../shared/constants/game.js";
-import { distance, isOpen, normalizeDirection } from "../../shared/game/movement.js";
+import { distance, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
-import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import type { Session } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor } from "./dungeonState.js";
+import { MonsterPlanner } from "./monsterAi.js";
 import { dropMonsterLoot } from "./monsterLoot.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
@@ -140,10 +141,11 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   resolvePuzzles(session, now);
 
   const events: AttackEvent[] = [];
+  const planner = new MonsterPlanner(session);
   for (const monster of session.dungeon.monsters) {
     if (!monster.alive) continue;
 
-    const event = actMonster(session, monster, now, elapsedMs);
+    const event = actMonster(session, planner, monster, now, elapsedMs);
     if (event) events.push(event);
   }
 
@@ -152,16 +154,21 @@ export function simulate(session: Session, now: number): AttackEvent[] {
 
 function actMonster(
   session: Session,
+  planner: MonsterPlanner,
   monster: MonsterState,
   now: number,
   elapsedMs: number,
 ): AttackEvent | null {
   const stats = monsterStatsFor(monster);
-  const target = nearestTarget(session, monster.position, stats.aggroRange);
-  if (!target) return null;
+  const stepDistance = (stats.speed * elapsedMs) / 1000;
+  const target = planner.target(monster, stats, now);
+  if (!target) {
+    planner.returnHome(monster, now, stepDistance);
+    return null;
+  }
 
   if (distance(monster.position, target.position) > stats.attackRange) {
-    chase(session, monster, target.position, (stats.speed * elapsedMs) / 1000);
+    planner.chase(monster, target.position, stepDistance);
     return null;
   }
 
@@ -180,59 +187,4 @@ function actMonster(
     targetHealth: target.health,
     targetDefeated: isDown(target),
   };
-}
-
-/** Disconnected players are not hunted: a dropped connection should not come back to a wipe. */
-function nearestTarget(session: Session, from: Vector2, range: number): SessionPlayer | undefined {
-  let nearest: SessionPlayer | undefined;
-  let nearestDistance = range;
-
-  for (const player of session.players.values()) {
-    if (!player.connected || isDown(player)) continue;
-
-    const gap = distance(from, player.position);
-    if (gap <= nearestDistance) {
-      nearest = player;
-      nearestDistance = gap;
-    }
-  }
-
-  return nearest;
-}
-
-/** Moves straight at the goal, sliding along one axis when the direct path is blocked. */
-function chase(session: Session, monster: MonsterState, goal: Vector2, stepDistance: number): void {
-  if (stepDistance <= 0) return;
-
-  const heading = normalizeDirection({
-    x: goal.x - monster.position.x,
-    y: goal.y - monster.position.y,
-  });
-  if (!heading) return;
-
-  const { x, y } = monster.position;
-  const candidates = [
-    { x: x + heading.x * stepDistance, y: y + heading.y * stepDistance },
-    { x: x + Math.sign(heading.x) * stepDistance, y },
-    { x, y: y + Math.sign(heading.y) * stepDistance },
-  ];
-
-  const next = candidates.find(
-    (candidate) =>
-      (candidate.x !== x || candidate.y !== y) && monsterCanOccupy(session, monster, candidate),
-  );
-  if (next) monster.position = next;
-}
-
-function monsterCanOccupy(session: Session, monster: MonsterState, position: Vector2): boolean {
-  // The same rules players move by, minus the monster itself, which would otherwise block its own step.
-  const dungeon = {
-    ...session.dungeon,
-    monsters: session.dungeon.monsters.filter((other) => other !== monster),
-  };
-  const players = [...session.players.values()]
-    .filter((player) => !isDown(player))
-    .map((player) => player.position);
-
-  return isOpen(dungeon, players, position);
 }

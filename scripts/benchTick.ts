@@ -1,7 +1,8 @@
 import { deflateSync } from "node:zlib";
 import { simulate } from "../src/server/game/combat.js";
+import { walkableGridFor } from "../src/server/game/flowField.js";
+import { hasLineOfSight, takeMapDiscovery, visibilityFrameForPlayer } from "../src/server/game/visibility.js";
 import { startRun } from "../src/server/game/runLifecycle.js";
-import { takeMapDiscovery, visibilityFrameForPlayer } from "../src/server/game/visibility.js";
 import { runStateFor } from "../src/server/game/vitals.js";
 import { ProfileStore } from "../src/server/profiles/profileStore.js";
 import { SessionStore, type Session } from "../src/server/sessions/sessionStore.js";
@@ -80,6 +81,48 @@ report(
     simulate(session, clock);
   }),
 );
+
+// Worst case for monster pathing: each player stands where a monster has no line of sight to them
+// but they are still inside its aggro range, after the monster has noticed them. Every hunting
+// monster then steers by the shared distance field rather than a straight line.
+function huntMonstersFromBehindWalls(): () => void {
+  const grid = walkableGridFor(dungeon);
+  const saved = players.map((player) => ({ ...player.position }));
+  const hunters = dungeon.monsters.filter((monster) => monster.alive).slice(0, players.length);
+
+  hunters.forEach((hunter, index) => {
+    const player = players[index]!;
+    player.position = { ...hunter.position };
+    simulate(session, (clock += TICK_BUDGET_MS));
+
+    for (let radius = 7; radius <= 14 && player.position.x === hunter.position.x; radius += 1) {
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const x = Math.round(hunter.position.x) + dx;
+          const y = Math.round(hunter.position.y) + dy;
+          if (x < 0 || y < 0 || x >= grid.width || y >= grid.height) continue;
+          if (grid.tiles[y * grid.width + x] !== 1 || Math.hypot(dx, dy) > radius) continue;
+          if (hasLineOfSight(dungeon, hunter.position, { x, y })) continue;
+          player.position = { x, y };
+          dx = radius + 1;
+          dy = radius + 1;
+        }
+      }
+    }
+  });
+
+  return () => players.forEach((player, index) => (player.position = saved[index]!));
+}
+
+const restorePlayers = huntMonstersFromBehindWalls();
+report(
+  "simulate (monsters hunting)",
+  measure(200, () => {
+    clock += TICK_BUDGET_MS;
+    simulate(session, clock);
+  }),
+);
+restorePlayers();
 
 const visibilityPass = () => {
   for (const player of players) visibilityFrameForPlayer(session, player);
