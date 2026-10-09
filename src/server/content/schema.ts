@@ -27,6 +27,22 @@ export const contentIdSchema = z
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Content ids are lowercase kebab-case");
 export type ContentId = z.infer<typeof contentIdSchema>;
 
+/**
+ * What a monster may leave behind. Each of `rolls` independently picks one entry by weight, or
+ * nothing with probability `nothingWeight` out of the total, so a table with a single entry and no
+ * `nothingWeight` is a guaranteed drop. Chests reuse this shape.
+ */
+export const lootTableSchema = z
+  .object({
+    rolls: z.number().int().positive().default(1),
+    entries: z
+      .array(z.object({ itemId: contentIdSchema, weight: z.number().positive() }))
+      .min(1),
+    nothingWeight: z.number().nonnegative().default(0),
+  })
+  .strict();
+export type LootTable = z.infer<typeof lootTableSchema>;
+
 export const monsterTypeSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -46,6 +62,8 @@ export const monsterTypeSchema = z.object({
    * may only spawn in a boss room, and every boss room must always spawn one.
    */
   boss: z.boolean().default(false),
+  /** Rolled once when a player kills the monster. Omitted, it drops nothing. */
+  loot: lootTableSchema.optional(),
 });
 export type MonsterType = z.infer<typeof monsterTypeSchema>;
 

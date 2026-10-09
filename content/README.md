@@ -10,7 +10,10 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 - `monsters/`: monster stats used by authored and generated dungeons. A monster with `boss: true`
   seals every exit in its dungeon until it is defeated. It may only spawn in a `boss` room
   template (or inside an authored room of kind `boss`), and every `boss` template must have a boss
-  rule with `min` of at least 1.
+  rule with `min` of at least 1. An optional `loot` table (`rolls`, weighted `entries` of
+  `itemId`, and `nothingWeight`) is rolled when a player kills the monster; drops land on open
+  floor at or near the corpse and are ordinary loot. A single entry with no `nothingWeight` is a
+  guaranteed drop, and an unknown `itemId` fails validation naming the file's monster and field.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
   delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a

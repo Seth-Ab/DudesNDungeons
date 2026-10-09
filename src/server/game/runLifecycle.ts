@@ -7,6 +7,7 @@ import type { RejectionReason } from "../../shared/protocol/index.js";
 import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
 import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID } from "./dungeonState.js";
+import { lootRngFor } from "./monsterLoot.js";
 import { bankRunSkills, discardRunSkills } from "./progression.js";
 
 export type RunTransitionResult =
@@ -67,6 +68,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.dungeon = built.dungeon;
   session.spawnPoints = built.spawnPoints;
   session.seed = built.seed;
+  session.lootRng = lootRngFor(built.seed, dungeonId);
   session.simulatedAt = null;
   session.monsterCooldowns.clear();
   session.trapRearmAt.clear();

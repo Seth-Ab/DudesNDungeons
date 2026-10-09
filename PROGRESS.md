@@ -8,9 +8,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v16.
-- Last completed work: content-driven consumable effects (issue #84); earlier, client WebRTC
+- Last completed work: monster loot tables and drops on death (issue #86); earlier, content-driven
+  consumable effects (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: monster loot drops and a wider item catalog, combat depth, and tick
+- Next recommended step: a wider item catalog, chests (reusing the monster loot-table schema), combat depth, and tick
   performance (see the open issues), then build Frontend
   step 10 on the owner-only progression messages (#24, v15). Verifying Backend step 6 on a real
   deployment remains open.
