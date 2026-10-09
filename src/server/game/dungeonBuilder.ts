@@ -50,6 +50,11 @@ export function monsterInstance(type: MonsterType, position: Vector2, id: string
     maxHealth: type.maxHealth,
     alive: true,
     boss: type.boss,
+    action: "idle",
+    windupProgress: 0,
+    facing: { x: 0, y: 1 },
+    hitRange: type.hitRange ?? type.attackRange,
+    hitArcCos: type.hitArcCos,
   };
 }
 

@@ -68,6 +68,19 @@ export const monsterStateSchema = z.object({
    * can see, so it says what this monster is, never where an unseen boss is waiting.
    */
   boss: z.boolean(),
+  /**
+   * `windingUp` while the monster is committed to a swing it has not yet resolved. The swing lands
+   * on whoever is inside its reach and arc when `windupProgress` reaches 1, so a player can step out.
+   */
+  action: z.enum(["idle", "windingUp"]),
+  /** Fraction of the wind-up elapsed, 0 while idle. Drives the client's telegraph. */
+  windupProgress: z.number().min(0).max(1),
+  /** Direction the monster is swinging, fixed when the wind-up starts. Unit length. */
+  facing: vector2Schema,
+  /** Reach of the swing, in world units, so the client can draw the area it will cover. */
+  hitRange: z.number().positive(),
+  /** Cosine of the swing's half-angle about `facing`. */
+  hitArcCos: z.number().min(-1).max(1),
 });
 export type MonsterState = z.infer<typeof monsterStateSchema>;
 

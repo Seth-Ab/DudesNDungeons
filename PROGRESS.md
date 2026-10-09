@@ -100,6 +100,11 @@ Resolved:
   `src/server/game/combat.ts`; monsters chase and attack on the tick; downed players stay down until
   the run ends or future revive/carry mechanics resolve them. Monsters path round walls on a shared
   per-tick flow field, need line of sight or hearing to aggro, and leash home (issue #89).
+- [x] Telegraph monster attacks with a wind-up players can step out of (issue #90, protocol v20).
+  Monster content gains `windupMs`, `hitArcCos`, and optional `hitRange`; `combat.ts` holds a monster
+  still while it winds up and resolves the hit against whoever is in its cone then. Snapshots carry
+  `action`, `windupProgress`, `facing`, `hitRange`, `hitArcCos`. The optional dodge step is not
+  implemented (left to an owner decision).
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
@@ -291,6 +296,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [x] Add controls for attack, interact, pickup, and use item.
 - [x] Display server-confirmed combat results.
+- [x] Draw a growing, flashing cone telegraph for a winding-up monster (issue #90).
 - [x] Add feedback for invalid moves or blocked actions.
 - [x] Show win, loss, and dungeon exit states. Landed with Frontend step 9: on the return to the
   hub the HUD reports an escape with what was banked, or a loss for a downed player

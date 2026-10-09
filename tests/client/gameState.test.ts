@@ -116,6 +116,11 @@ describe("predictMove", () => {
       health: 5,
       maxHealth: 5,
       boss: false,
+      action: "idle" as const,
+      windupProgress: 0,
+      facing: { x: 0, y: 1 },
+      hitRange: 1,
+      hitArcCos: 0.5,
     };
     const living = dungeon({ monsters: [{ ...monster, position: ahead, alive: true }] });
     const dead = dungeon({ monsters: [{ ...monster, position: ahead, alive: false }] });

@@ -137,6 +137,8 @@ export interface Session {
   simulatedAt: number | null;
   /** When each monster may attack again. Server-side only, so clients never see monster timing. */
   monsterCooldowns: Map<EntityId, number>;
+  /** When each winding-up monster began its swing. Absent means idle. Server-side only. */
+  monsterWindups: Map<EntityId, number>;
   /** Where each monster spawned and whether it is hunting. Server-side only, like the cooldowns. */
   monsterPosts: Map<EntityId, MonsterPost>;
   /** When each triggered, rearming trap may be armed again. Server-side only. */
@@ -249,6 +251,7 @@ export class SessionStore {
       players: new Map(),
       simulatedAt: null,
       monsterCooldowns: new Map(),
+      monsterWindups: new Map(),
       monsterPosts: new Map(),
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),

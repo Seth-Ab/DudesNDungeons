@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 19;
+export const PROTOCOL_VERSION = 20;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -42,6 +42,9 @@ export const MONSTER_HEARING_RANGE = 6;
  * and walks back to where it spawned.
  */
 export const MONSTER_LEASH_MS = 4000;
+
+/** Wind-up for a monster whose content does not set one. */
+export const DEFAULT_MONSTER_WINDUP_MS = 500;
 
 export const SERVER_TICK_RATE_HZ = 20;
 export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;

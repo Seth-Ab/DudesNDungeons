@@ -71,6 +71,9 @@ const colors = {
   gateLabel: "#9fd0a6",
   sealedLabel: "#d0806a",
   boss: "#8e2f3a",
+  telegraph: "rgba(214, 74, 58, 0.4)",
+  telegraphFlash: "rgba(255, 140, 110, 0.65)",
+  telegraphEdge: "rgba(255, 120, 100, 0.8)",
   monsterBar: "#caa85a",
   monsterBarLow: "#d2503f",
 };
@@ -295,6 +298,32 @@ export function createCanvasRenderer(getScene: () => Scene) {
   };
 
   /**
+   * The cone a winding-up monster is about to strike. The outline marks the full area; the fill grows
+   * outward as the wind-up elapses and the whole cone flashes as it nears landing, so a player can
+   * read when to step out.
+   */
+  const drawTelegraph = (monster: MonsterState, center: Vector2): void => {
+    const heading = Math.atan2(monster.facing.y, monster.facing.x);
+    const halfArc = Math.acos(Math.min(Math.max(monster.hitArcCos, -1), 1));
+    const reach = monster.hitRange * pixelsPerWorldUnit;
+    const wedge = (radius: number): void => {
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y);
+      ctx.arc(center.x, center.y, radius, heading - halfArc, heading + halfArc);
+      ctx.closePath();
+    };
+
+    const flash = monster.windupProgress > 0.8;
+    ctx.fillStyle = flash ? colors.telegraphFlash : colors.telegraph;
+    wedge(reach * (flash ? 1 : monster.windupProgress));
+    ctx.fill();
+    ctx.strokeStyle = colors.telegraphEdge;
+    ctx.lineWidth = 2;
+    wedge(reach);
+    ctx.stroke();
+  };
+
+  /**
    * A boss is the same placeholder drawn bigger, darker, and named, until it has art of its own.
    * Its name is the one monster label worth the clutter: it is the fight that holds the exit shut.
    */
@@ -302,6 +331,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
     const center = worldToScreen(monster.position, camera);
     const side = figureWidth * (monster.boss ? 1.9 : 1.15) * pixelsPerWorldUnit;
     const eye = Math.max(2, side * 0.18);
+
+    if (monster.action === "windingUp") drawTelegraph(monster, center);
 
     ctx.fillStyle = monster.boss ? colors.boss : colors.monster;
     ctx.fillRect(center.x - side / 2, center.y - side / 2, side, side);

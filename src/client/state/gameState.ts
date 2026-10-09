@@ -60,6 +60,11 @@ export function createPlaceholderDungeon(): DungeonState {
         maxHealth: 10,
         alive: true,
         boss: false,
+        action: "idle",
+        windupProgress: 0,
+        facing: { x: 0, y: 1 },
+        hitRange: 1,
+        hitArcCos: 0.5,
       },
       {
         id: "22222222-2222-4222-8222-222222222222",
@@ -70,6 +75,11 @@ export function createPlaceholderDungeon(): DungeonState {
         maxHealth: 14,
         alive: true,
         boss: false,
+        action: "idle",
+        windupProgress: 0,
+        facing: { x: 0, y: 1 },
+        hitRange: 1,
+        hitArcCos: 0.5,
       },
     ],
     lightSources: [

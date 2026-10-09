@@ -76,6 +76,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.lootRng = lootRngFor(built.seed, dungeonId);
   session.simulatedAt = null;
   session.monsterCooldowns.clear();
+  session.monsterWindups.clear();
   session.monsterPosts.clear();
   session.trapRearmAt.clear();
   session.puzzleHeldSince.clear();
