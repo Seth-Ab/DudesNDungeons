@@ -31,6 +31,8 @@ import {
   HUB_DUNGEON_ID,
   type DungeonRequest,
 } from "../game/dungeonState.js";
+import { lootRngFor } from "../game/monsterLoot.js";
+import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
 
@@ -111,6 +113,11 @@ export interface Session {
    * reproduced from a bug report, and logged when a session is created.
    */
   seed: number | null;
+  /**
+   * Seeded stream monster drops are rolled from, so the same seed and kill order give the same
+   * loot. Server-side only; replaced whenever a world is installed.
+   */
+  lootRng: Rng;
   /** Monotonic simulation tick, stamped onto each snapshot so clients can order what they receive. */
   tick: number;
   players: Map<PlayerId, SessionPlayer>;
@@ -223,6 +230,7 @@ export class SessionStore {
       runDungeon: { ...this.#dungeon },
       spawnPoints: built.spawnPoints,
       seed: built.seed,
+      lootRng: lootRngFor(built.seed, HUB_DUNGEON_ID),
       tick: 0,
       players: new Map(),
       simulatedAt: null,

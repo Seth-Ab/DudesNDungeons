@@ -8,5 +8,8 @@
   "damage": 22,
   "attackCooldownMs": 1800,
   "glowRadius": 5.5,
-  "boss": true
+  "boss": true,
+  "loot": {
+    "entries": [{ "itemId": "iron-will-scroll", "weight": 1 }]
+  }
 }

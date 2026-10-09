@@ -4,6 +4,7 @@ import {
   TILE_SCALE,
 } from "../../src/shared/constants/game.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
+import { lootRngFor } from "../../src/server/game/monsterLoot.js";
 import { scalePoint } from "../../src/server/game/scale.js";
 import type { PlayerProfile } from "../../src/server/profiles/profile.js";
 import type { JoinRequest, Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
@@ -140,6 +141,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     runDungeon: request,
     spawnPoints: built.spawnPoints,
     seed: built.seed,
+    lootRng: lootRngFor(built.seed, dungeonId),
     tick: 0,
     players: new Map(players.map((member) => [member.id, member])),
     simulatedAt: null,
