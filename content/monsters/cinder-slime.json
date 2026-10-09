@@ -6,5 +6,9 @@
   "aggroRange": 12,
   "attackRange": 1,
   "damage": 12,
-  "attackCooldownMs": 1400
+  "attackCooldownMs": 1400,
+  "loot": {
+    "entries": [{ "itemId": "warding-salve", "weight": 1 }],
+    "nothingWeight": 3
+  }
 }

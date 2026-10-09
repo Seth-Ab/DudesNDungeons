@@ -11,6 +11,7 @@ import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/typ
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor } from "./dungeonState.js";
+import { dropMonsterLoot } from "./monsterLoot.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
@@ -106,6 +107,7 @@ export function resolvePlayerAttack(
   target.alive = target.health > 0;
   // The last boss falling is what unseals the way out.
   if (target.boss && !target.alive) refreshExitSeals(session.dungeon);
+  if (!target.alive) dropMonsterLoot(session, target);
 
   return {
     ok: true,

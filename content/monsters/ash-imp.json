@@ -7,5 +7,9 @@
   "attackRange": 1,
   "damage": 8,
   "attackCooldownMs": 1000,
-  "glowRadius": 4
+  "glowRadius": 4,
+  "loot": {
+    "entries": [{ "itemId": "minor-tonic", "weight": 1 }],
+    "nothingWeight": 3
+  }
 }

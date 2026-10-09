@@ -181,6 +181,16 @@ function validateReferences(content: GameContent): void {
     }
   }
 
+  for (const monster of content.monsters.values()) {
+    for (const [index, entry] of (monster.loot?.entries ?? []).entries()) {
+      if (!content.items.has(entry.itemId)) {
+        throw new Error(
+          `Monster "${monster.id}" field loot.entries.${index}.itemId names unknown item "${entry.itemId}"`,
+        );
+      }
+    }
+  }
+
   for (const puzzle of content.puzzles.values()) {
     if (!content.items.has(puzzle.rewardItemId)) {
       throw new Error(`Puzzle "${puzzle.id}" rewards unknown item "${puzzle.rewardItemId}"`);
