@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  CONSUMABLE_ICONS,
+  MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
   MAX_PLAYER_NAME_LENGTH,
   PLAYER_MAX_HEALTH,
@@ -76,13 +78,36 @@ export type MonsterState = z.infer<typeof monsterStateSchema>;
 /**
  * What an item does. Torches equip separately and never consume one of the three inventory slots.
  */
-export const itemKindSchema = z.enum(["key", "tonic", "ward", "torch", "skillScroll"]);
+export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
+
+export const consumableIconSchema = z.enum(CONSUMABLE_ICONS);
+export type ConsumableIcon = z.infer<typeof consumableIconSchema>;
+
+/**
+ * What a consumable shows the client. The effects themselves stay in content on the server: the
+ * client needs words and a picture, never magnitudes it could mistake for authority.
+ */
+const consumableFields = {
+  kind: z.literal("consumable"),
+  /** Content id of the definition whose effects the server applies on use. */
+  itemId: contentIdSchema,
+  description: z.string().min(1).max(MAX_ITEM_DESCRIPTION_LENGTH),
+  icon: consumableIconSchema,
+};
 
 const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "tonic", "ward", "torch"]),
+  kind: z.enum(["key", "torch"]),
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+
+const consumableLootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...consumableFields,
   position: vector2Schema,
   pickedUp: z.boolean(),
 });
@@ -98,6 +123,7 @@ const skillScrollLootStateSchema = z.object({
 
 export const lootStateSchema = z.discriminatedUnion("kind", [
   ordinaryLootStateSchema,
+  consumableLootStateSchema,
   skillScrollLootStateSchema,
 ]);
 export type LootState = z.infer<typeof lootStateSchema>;
@@ -106,7 +132,13 @@ export type LootState = z.infer<typeof lootStateSchema>;
 const ordinaryInventoryItemSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "tonic", "ward", "torch"]),
+  kind: z.enum(["key", "torch"]),
+});
+
+const consumableInventoryItemSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...consumableFields,
 });
 
 const skillScrollInventoryItemSchema = z.object({
@@ -119,6 +151,7 @@ const skillScrollInventoryItemSchema = z.object({
 
 export const inventoryItemSchema = z.discriminatedUnion("kind", [
   ordinaryInventoryItemSchema,
+  consumableInventoryItemSchema,
   skillScrollInventoryItemSchema,
 ]);
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;

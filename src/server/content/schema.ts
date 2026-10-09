@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONSUMABLE_ICONS, MAX_ITEM_DESCRIPTION_LENGTH } from "../../shared/constants/game.js";
 
 /**
  * The contract for everything under `content/`.
@@ -103,7 +104,31 @@ export type PuzzleType = z.infer<typeof puzzleTypeSchema>;
 const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "tonic", "ward", "torch"]),
+  kind: z.enum(["key", "torch"]),
+});
+
+/**
+ * What a consumable does when used. Variants are explicit, like progression effects, so an unknown
+ * effect type fails content validation instead of silently doing nothing in play.
+ */
+export const consumableEffectSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("heal"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("restoreResistance"), amount: z.number().int().positive() }),
+  z.object({ type: z.literal("restoreStamina"), amount: z.number().int().positive() }),
+]);
+export type ConsumableEffect = z.infer<typeof consumableEffectSchema>;
+
+/**
+ * Effects apply in order. Using the item is refused only when every one of them would be wasted,
+ * so a misclick at full health cannot spend it; the item is otherwise consumed.
+ */
+const consumableDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("consumable"),
+  description: z.string().min(1).max(MAX_ITEM_DESCRIPTION_LENGTH),
+  icon: z.enum(CONSUMABLE_ICONS).default("tonic"),
+  effects: z.array(consumableEffectSchema).min(1),
 });
 
 const skillScrollDefinitionSchema = z.object({
@@ -116,6 +141,7 @@ const skillScrollDefinitionSchema = z.object({
 /** Mirrors the shared item kinds while requiring every skill scroll to name what it teaches. */
 export const itemDefinitionSchema = z.discriminatedUnion("kind", [
   ordinaryItemDefinitionSchema,
+  consumableDefinitionSchema,
   skillScrollDefinitionSchema,
 ]);
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;

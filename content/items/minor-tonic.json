@@ -1,1 +1,8 @@
-{ "id": "minor-tonic", "name": "Minor Tonic", "kind": "tonic" }
+{
+  "id": "minor-tonic",
+  "name": "Minor Tonic",
+  "kind": "consumable",
+  "description": "Restores 35 health.",
+  "icon": "tonic",
+  "effects": [{ "type": "heal", "amount": 35 }]
+}

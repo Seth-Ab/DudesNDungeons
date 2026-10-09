@@ -16,7 +16,7 @@ import {
   torchNotice,
 } from "./runFlow.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
-import { LOOT_SPRITES, type SpriteName } from "../rendering/tiles.js";
+import { itemSprite, type SpriteName } from "../rendering/tiles.js";
 import { carriedAlly, nearestDownedAlly, nearestInteraction, nearestLoot } from "./reach.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
@@ -379,6 +379,8 @@ export interface HotbarSlotView {
   action: GameplayAction;
   empty: boolean;
   name: string;
+  /** Client-safe blurb for consumables; empty for everything else. */
+  description: string;
   icon: SpriteName | null;
   disabled: boolean;
 }
@@ -395,7 +397,8 @@ export function hotbarView(view: SessionView, self: PlayerState | null): HotbarS
       action,
       empty: !item,
       name: item?.name ?? "Empty",
-      icon: item ? LOOT_SPRITES[item.kind] : null,
+      description: item?.kind === "consumable" ? item.description : "",
+      icon: item ? itemSprite(item) : null,
       disabled: !canAct || !item,
     };
   });

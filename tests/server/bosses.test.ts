@@ -8,7 +8,7 @@ import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import { SessionStore, type Session } from "../../src/server/sessions/sessionStore.js";
 import { PLAYER_ATTACK_DAMAGE } from "../../src/shared/constants/game.js";
 import type { InventoryItem, MonsterState, RoomState } from "../../src/shared/types/core.js";
-import { TEST_SEED, joinRequest, testPlayer, testSession } from "./fixtures.js";
+import { TEST_SEED, joinRequest, testPlayer, testSession, TONIC_FIELDS } from "./fixtures.js";
 
 /**
  * The generated Vault Run always has one boss slot, filled by the Warden Crucible and its Ember
@@ -19,7 +19,7 @@ const RUN_ID = "vault-run";
 const TONIC: InventoryItem = {
   id: "44444444-4444-4444-8444-444444444444",
   name: "Minor Tonic",
-  kind: "tonic",
+  ...TONIC_FIELDS,
 };
 
 function bossOf(session: Session): MonsterState {

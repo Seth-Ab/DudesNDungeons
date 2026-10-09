@@ -8,12 +8,12 @@ import {
 } from "../../src/server/game/runLifecycle.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { InventoryItem } from "../../src/shared/types/core.js";
-import { joinRequest, testPlayer, testProfile, testSession } from "./fixtures.js";
+import { joinRequest, testPlayer, testProfile, testSession, TONIC_FIELDS } from "./fixtures.js";
 
 const TONIC: InventoryItem = {
   id: "44444444-4444-4444-8444-444444444444",
   name: "Minor Tonic",
-  kind: "tonic",
+  ...TONIC_FIELDS,
 };
 
 const KEY: InventoryItem = {

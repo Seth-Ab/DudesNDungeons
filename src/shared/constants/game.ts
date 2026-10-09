@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -66,9 +66,6 @@ export const RESISTANCE_DECAY_PER_SECOND = 0.1;
 /** How far ahead of the grace period the client warns the player. Shared so both sides agree. */
 export const RESISTANCE_DECAY_WARNING_MS = 60_000;
 
-/** Resistance restored by a warding consumable. */
-export const WARD_RESISTANCE_AMOUNT = 25;
-
 export const PLAYER_MAX_STAMINA = 100;
 /** Stamina restored per second. Refills an empty bar in a little over eight seconds. */
 export const STAMINA_REGEN_PER_SECOND = 12;
@@ -128,7 +125,14 @@ export const SNAPSHOT_VIEW_RADIUS_TILES = 64;
 
 export const MAX_INVENTORY_SIZE = 3;
 
-export const TONIC_HEAL_AMOUNT = 35;
+/** Longest HUD blurb a consumable may carry. */
+export const MAX_ITEM_DESCRIPTION_LENGTH = 80;
+
+/**
+ * Icons a consumable may wear in the HUD and on the floor. A content file picks one by name, so
+ * adding a consumable never needs a protocol change, while adding art for a new icon still does.
+ */
+export const CONSUMABLE_ICONS = ["tonic", "ward"] as const;
 
 /**
  * Distance in world units. Peers closer than this play at full volume.

@@ -64,6 +64,23 @@ export function toProfileState(profile: PlayerProfile): ProfileState {
 }
 
 /**
+ * Banked items written before consumables were content-driven carry the kind `tonic` or `ward`
+ * and nothing else. They are rewritten on read as the consumables those kinds always meant, so a
+ * profile survives the change without a separate migration step. The next write persists the new
+ * shape. Descriptions repeat the shipped content because a profile is parsed without it.
+ */
+const LEGACY_CONSUMABLES = new Map([
+  ["tonic", { itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic" }],
+  ["ward", { itemId: "warding-salve", description: "Restores 25 resistance.", icon: "ward" }],
+]);
+
+function migrateLegacyItem(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || !("kind" in value)) return value;
+  const legacy = typeof value.kind === "string" ? LEGACY_CONSUMABLES.get(value.kind) : undefined;
+  return legacy ? { ...value, ...legacy, kind: "consumable" } : value;
+}
+
+/**
  * The on-disk shape, validated on read for the same reason `content/` is: a file a human or a
  * previous version wrote is untrusted input, and a profile that parses into nonsense is worse than
  * one that fails loudly.
@@ -75,7 +92,7 @@ export const persistedProfileSchema = z.object({
   id: z.string().uuid(),
   secretHash: z.string().regex(/^[0-9a-f]{64}$/, "Profile secret hash must be 64 lowercase hex"),
   displayName: z.string().min(1),
-  bankedItems: z.array(inventoryItemSchema),
+  bankedItems: z.array(z.preprocess(migrateLegacyItem, inventoryItemSchema)),
   unlockedSkillIds: z.array(contentIdSchema),
   unlockedUpgradeIds: z.array(contentIdSchema),
   runsEscaped: z.number().int().nonnegative(),

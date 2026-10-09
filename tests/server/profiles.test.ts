@@ -3,12 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createFileProfileStorage } from "../../src/server/profiles/fileProfileStorage.js";
-import { markProfileChanged, toProfileState } from "../../src/server/profiles/profile.js";
+import { markProfileChanged, profileFileSchema, toProfileState } from "../../src/server/profiles/profile.js";
 import {
   createMemoryProfileStorage,
   ProfileStore,
   type ProfileStorage,
 } from "../../src/server/profiles/profileStore.js";
+import { TONIC_FIELDS } from "./fixtures.js";
 
 const SECRET = "0123456789abcdef0123456789abcdef";
 const OTHER_SECRET = "fedcba9876543210fedcba9876543210";
@@ -101,13 +102,60 @@ describe("persisting profiles", () => {
     expect(writes).toBe(1);
   });
 
+  it("migrates banked items saved with the old tonic and ward kinds when it reads", () => {
+    const file = {
+      version: 1,
+      profiles: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          secretHash: "a".repeat(64),
+          displayName: "Grix",
+          bankedItems: [
+            { id: "11111111-1111-4111-8111-111111111111", name: "Minor Tonic", kind: "tonic" },
+            { id: "22222222-2222-4222-8222-222222222222", name: "Warding Salve", kind: "ward" },
+            { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
+          ],
+          unlockedSkillIds: [],
+          unlockedUpgradeIds: [],
+          runsEscaped: 0,
+          runsLost: 0,
+          createdAt: 0,
+          lastSeenAt: 0,
+        },
+      ],
+    };
+
+    const parsed = profileFileSchema.parse(file);
+
+    expect(parsed.profiles[0]?.bankedItems).toEqual([
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Minor Tonic",
+        kind: "consumable",
+        itemId: "minor-tonic",
+        description: "Restores 35 health.",
+        icon: "tonic",
+      },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Warding Salve",
+        kind: "consumable",
+        itemId: "warding-salve",
+        description: "Restores 25 resistance.",
+        icon: "ward",
+      },
+      { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
+    ]);
+    expect(() => profileFileSchema.parse({ ...file, profiles: [{ ...file.profiles[0], bankedItems: [{ id: "x", name: "?", kind: "constructor" }] }] })).toThrow();
+  });
+
   it("writes again once a profile changes", () => {
     const storage = createMemoryProfileStorage();
     const store = newStore(storage);
     const { profile } = store.create("Grix");
     store.flush();
 
-    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Minor Tonic", kind: "tonic" });
+    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Minor Tonic", ...TONIC_FIELDS });
     expect(store.dirty).toBe(false);
 
     // The mark is what makes a mutation visible to the store; the push alone is not.
@@ -151,7 +199,7 @@ describe("persisting profiles", () => {
     before.flush();
 
     const after = newStore(storage);
-    after.find(secret)?.bankedItems.push({ id: "22222222-2222-4222-8222-222222222222", name: "Minor Tonic", kind: "tonic" });
+    after.find(secret)?.bankedItems.push({ id: "22222222-2222-4222-8222-222222222222", name: "Minor Tonic", ...TONIC_FIELDS });
 
     expect(storage.read()?.profiles[0]?.bankedItems).toHaveLength(1);
   });

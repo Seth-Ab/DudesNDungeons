@@ -562,7 +562,7 @@ describe("hub and run lifecycle", () => {
       {
         id: "44444444-4444-4444-8444-444444444444",
         name: "Minor Tonic",
-        kind: "tonic",
+        kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic",
       },
     ];
     player.health = 0;

@@ -220,6 +220,28 @@ describe("rejecting bad content", () => {
     expect(() => loadContent(root)).toThrow(/at least one effect/);
   });
 
+  it("refuses a consumable effect of an unknown type, naming the file and the field", () => {
+    const root = contentRoot({
+      "items/elixir.json": {
+        id: "elixir",
+        name: "Elixir",
+        kind: "consumable",
+        description: "Does something.",
+        effects: [{ type: "levitate", amount: 5 }],
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/elixir\.json is not valid content.*effects/s);
+  });
+
+  it("refuses a consumable with no effects", () => {
+    const root = contentRoot({
+      "items/dud.json": { id: "dud", name: "Dud", kind: "consumable", description: "Nothing." , effects: [] },
+    });
+
+    expect(() => loadContent(root)).toThrow(/dud\.json is not valid content.*effects/s);
+  });
+
   it("refuses a ragged map, which collision would read past the end of", () => {
     const root = contentRoot({
       "dungeons/ragged.json": {
