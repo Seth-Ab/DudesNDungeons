@@ -20,7 +20,7 @@ import type {
   Vector2,
 } from "../../shared/types/core.js";
 import type { ServerMessage } from "../../shared/protocol/index.js";
-import { rosterOf, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
+import { rosterOf, withOwnBank, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
 import { buildRoomGrid, createDiscoveredGrid, LitTiles, type RoomGrid } from "./tileGrid.js";
@@ -491,7 +491,15 @@ function visibleDungeon(
   };
 }
 
-export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer): VisibilityFrame {
+/**
+ * `roster` is the session's public player states for this tick. The tick loop builds it once and
+ * passes it to every viewer; it is only rebuilt here for callers outside the loop.
+ */
+export function visibilityFrameForPlayer(
+  session: Session,
+  viewer: SessionPlayer,
+  roster: readonly PlayerState[] = rosterOf(session),
+): VisibilityFrame {
   // Computed once and threaded through: gathering sources walks every light, player, and monster in
   // the dungeon, and the frame needs the same answer three times.
   const sources = activeLightSourcesForPlayer(session, viewer);
@@ -516,7 +524,10 @@ export function visibilityFrameForPlayer(session: Session, viewer: SessionPlayer
 
   return {
     dungeon: visibleDungeon(session, viewer, visible, sources),
-    players: rosterOf(session).filter((player) => visiblePlayerIds.has(player.id)),
+    // The roster is shared across viewers, so only the viewer's own entry is copied to add the bank.
+    players: roster
+      .filter((player) => visiblePlayerIds.has(player.id))
+      .map((player) => (player.id === viewer.id ? withOwnBank(player, viewer) : player)),
     visiblePlayerIds,
   };
 }

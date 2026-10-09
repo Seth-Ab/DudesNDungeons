@@ -8,7 +8,7 @@ import {
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { ServerMessage } from "../../src/shared/protocol/index.js";
 
-const frames = vi.hoisted(() => ({ calls: 0 }));
+const frames = vi.hoisted(() => ({ calls: 0, rosters: 0 }));
 
 vi.mock("../../src/server/game/visibility.js", async (importOriginal) => {
   const actual =
@@ -22,6 +22,20 @@ vi.mock("../../src/server/game/visibility.js", async (importOriginal) => {
     ) => {
       frames.calls += 1;
       return actual.visibilityFrameForPlayer(...args);
+    },
+  };
+});
+
+vi.mock("../../src/server/sessions/sessionStore.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("../../src/server/sessions/sessionStore.js")
+    >();
+  return {
+    ...actual,
+    rosterOf: (...args: Parameters<typeof actual.rosterOf>) => {
+      frames.rosters += 1;
+      return actual.rosterOf(...args);
     },
   };
 });
@@ -75,6 +89,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 beforeEach(async () => {
   frames.calls = 0;
+  frames.rosters = 0;
   server = createGameServer({
     store: new SessionStore({ dungeon: { dungeonId: "ember-vault" } }),
     tickIntervalMs: TICK_MS,
@@ -123,6 +138,21 @@ describe("snapshot coalescing", () => {
     // Five intents (some accepted, the rest rate limited) and still not one extra snapshot.
     expect(snapshotsOf(alpha).length).toBe(before);
     expect(frames.calls).toBe(framesBefore);
+  });
+
+  it("builds the public roster once per tick, however many players are watching", async () => {
+    const roomCode = await createRoom();
+    const alpha = await join(roomCode, "Alpha");
+    await join(roomCode, "Beta");
+    await join(roomCode, "Gamma");
+
+    const seen = snapshotsOf(alpha).length;
+    const rostersBefore = frames.rosters;
+    await vi.waitFor(() => expect(snapshotsOf(alpha).length).toBe(seen + 3));
+    const ticks = snapshotsOf(alpha).length - seen;
+
+    // One build per tick, plus at most one tick in flight; per-viewer builds would be three times that.
+    expect(frames.rosters - rostersBefore).toBeLessThanOrEqual(ticks + 1);
   });
 
   it("emits at most one snapshot per tick and keeps ticks strictly increasing", async () => {

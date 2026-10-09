@@ -243,7 +243,9 @@ describe("joining a dungeon", () => {
     const arrival = alpha.client.next("playerJoined");
     const beta = await joinRoom(roomCode, "Beta");
 
-    expect((await arrival).player.name).toBe("Beta");
+    const { player } = await arrival;
+    expect(player.name).toBe("Beta");
+    expect(player).not.toHaveProperty("bankedItems");
     expect(beta.joined.players).toHaveLength(2);
   });
 

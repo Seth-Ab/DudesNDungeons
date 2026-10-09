@@ -445,8 +445,8 @@ export class SessionStore {
 }
 
 /**
- * Public view of a player. Drops `resumeToken`, `disconnectedAt`, and pacing timers, which are never
- * broadcast. Resistance and stamina are rounded here: they move by fractions of a point per tick on
+ * Public view of a player. Drops `resumeToken`, `disconnectedAt`, pacing timers, and the profile's
+ * bank, none of which are broadcast. Resistance and stamina are rounded here: they move by fractions of a point per tick on
  * the server, and a HUD bar has no use for that precision.
  */
 export function toPlayerState(player: SessionPlayer, session?: Session): PlayerState {
@@ -467,10 +467,19 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,
-    bankedItems: player.profile.bankedItems.map((item) => ({ ...item })),
   };
 }
 
+/** The player's own entry, the only one that carries their bank. Never broadcast. */
+export function toOwnerPlayerState(player: SessionPlayer, session?: Session): PlayerState {
+  return withOwnBank(toPlayerState(player, session), player);
+}
+
+export function withOwnBank(state: PlayerState, player: SessionPlayer): PlayerState {
+  return { ...state, bankedItems: player.profile.bankedItems.map((item) => ({ ...item })) };
+}
+
+/** Public state for every player, without banks. Build once per tick and share across viewers. */
 export function rosterOf(session: Session): PlayerState[] {
   return [...session.players.values()].map((player) => toPlayerState(player, session));
 }

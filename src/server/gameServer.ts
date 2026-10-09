@@ -14,7 +14,7 @@ import {
   type ErrorCode,
   type ServerMessage,
 } from "../shared/protocol/index.js";
-import type { PlayerId } from "../shared/types/core.js";
+import type { PlayerId, PlayerState } from "../shared/types/core.js";
 import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { movePlayer } from "./game/dungeonState.js";
@@ -27,7 +27,7 @@ import { visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
-import { SessionStore, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
+import { SessionStore, rosterOf, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -135,7 +135,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, update);
   }
 
-  function sendSnapshot(session: Session, playerId: PlayerId): void {
+  function sendSnapshot(session: Session, playerId: PlayerId, roster: readonly PlayerState[]): void {
     const socket = socketsByPlayer.get(playerId);
     if (!socket) return;
 
@@ -143,7 +143,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     if (!player) return;
 
     sendProgression(socket, session, player);
-    const frame = visibilityFrameForPlayer(session, player);
+    const frame = visibilityFrameForPlayer(session, player, roster);
     send(socket, {
       type: "stateSnapshot",
       tick: session.tick,
@@ -158,8 +158,10 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   }
 
   function broadcastSnapshots(session: Session): void {
+    // Built once for the whole party: every viewer filters the same public states.
+    const roster = rosterOf(session);
     for (const player of session.players.values()) {
-      sendSnapshot(session, player.id);
+      sendSnapshot(session, player.id, roster);
     }
   }
 
