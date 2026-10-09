@@ -292,6 +292,14 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "useItem", itemId });
     },
 
+    dropItem(itemId: string): boolean {
+      return send({ type: "dropItem", itemId });
+    },
+
+    giveItem(itemId: string, targetPlayerId: string): boolean {
+      return send({ type: "giveItem", itemId, targetPlayerId });
+    },
+
     liftPlayer(targetPlayerId: string): boolean {
       return send({ type: "liftPlayer", targetPlayerId });
     },

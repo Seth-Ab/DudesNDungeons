@@ -688,6 +688,37 @@ describe("hub and run lifecycle", () => {
   });
 });
 
+describe("handing items over", () => {
+  it("hands a tonic between two connected clients, and refuses a full inventory", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+    const giver = session.players.get(alpha.joined.playerId)!;
+    const receiver = session.players.get(beta.joined.playerId)!;
+    const tonic = {
+      id: "a1111111-1111-4111-8111-111111111111",
+      name: "Minor Tonic",
+      kind: "consumable" as const,
+      itemId: "minor-tonic",
+      description: "Restores 35 health.",
+      icon: "tonic" as const,
+    };
+    giver.inventory = [tonic];
+    receiver.position = { ...giver.position };
+
+    alpha.client.send({ type: "giveItem", itemId: tonic.id, targetPlayerId: receiver.id });
+    const snapshot = await beta.client.nextWhere("stateSnapshot", () => receiver.inventory.length === 1);
+    expect(giver.inventory).toEqual([]);
+    expect(
+      snapshot.players.find((player) => player.id === receiver.id)?.inventory.map((item) => item.id),
+    ).toEqual([tonic.id]);
+
+    alpha.client.send({ type: "giveItem", itemId: tonic.id, targetPlayerId: receiver.id });
+    expect((await alpha.client.next("actionRejected")).reason).toBe("targetMissing");
+  });
+});
+
 describe("voice signaling", () => {
   const offer = { kind: "offer", sdp: "v=0 offer" } as const;
 

@@ -88,6 +88,69 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
   return OK;
 }
 
+function lootFromInventoryItem(item: InventoryItem, position: Vector2): LootState {
+  const base = { id: item.id, name: item.name, position, pickedUp: false };
+  switch (item.kind) {
+    case "skillScroll":
+      return { ...base, kind: item.kind, skillId: item.skillId };
+    case "consumable":
+      return {
+        ...base,
+        kind: item.kind,
+        itemId: item.itemId,
+        description: item.description,
+        icon: item.icon,
+      };
+    default:
+      return { ...base, kind: item.kind };
+  }
+}
+
+/**
+ * Puts a held item on the floor at the player's feet as ordinary loot with the item's own id, so
+ * it can be picked up again by anyone. Dropped loot lives in the dungeon, so it is lost at run end
+ * and never banked.
+ */
+export function dropItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
+  const player = actor(session, playerId);
+  if (!player) return reject("notPermitted");
+
+  const item = player.inventory.find((candidate) => candidate.id === itemId);
+  if (!item) return reject("targetMissing");
+
+  player.inventory = player.inventory.filter((candidate) => candidate !== item);
+  // The id may still name the picked-up entry this item came from; replace it rather than
+  // leaving two loot entries sharing an id.
+  session.dungeon.loot = session.dungeon.loot.filter((loot) => loot.id !== item.id);
+  session.dungeon.loot.push(lootFromInventoryItem(item, { ...player.position }));
+  return OK;
+}
+
+/** Hands a held item to a standing, connected party member within reach who has a free slot. */
+export function giveItem(
+  session: Session,
+  playerId: PlayerId,
+  itemId: EntityId,
+  targetPlayerId: PlayerId,
+): ItemResult {
+  const player = actor(session, playerId);
+  if (!player) return reject("notPermitted");
+  if (playerId === targetPlayerId) return reject("notPermitted");
+
+  const item = player.inventory.find((candidate) => candidate.id === itemId);
+  if (!item) return reject("targetMissing");
+
+  const target = session.players.get(targetPlayerId);
+  if (!target) return reject("targetMissing");
+  if (!target.connected || isDown(target)) return reject("notPermitted");
+  if (!withinReach(player, target.position)) return reject("outOfRange");
+  if (target.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
+
+  player.inventory = player.inventory.filter((candidate) => candidate !== item);
+  target.inventory.push(item);
+  return OK;
+}
+
 export function useItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");

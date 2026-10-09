@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { itemDefinitionSchema } from "../../src/server/content/schema.js";
 import { loadContent } from "../../src/server/content/loadContent.js";
 import { canOccupy } from "../../src/server/game/dungeonState.js";
-import { interact, pickupItem, useItem } from "../../src/server/game/items.js";
+import { dropItem, giveItem, interact, pickupItem, useItem } from "../../src/server/game/items.js";
 import {
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
@@ -299,5 +299,130 @@ describe("downed players", () => {
     expect(pickupItem(session, "alpha", COPPER_KEY_ID)).toEqual(refused);
     expect(useItem(session, "alpha", MINOR_TONIC_ID)).toEqual(refused);
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual(refused);
+  });
+});
+
+describe("dropping", () => {
+  it("round-trips the same item id through the floor", () => {
+    const player = testPlayer("alpha", { position: at(12, 1) });
+    const session = testSession([player]);
+
+    expect(pickupItem(session, "alpha", COPPER_KEY_ID).ok).toBe(true);
+    player.position = at(3, 3);
+    expect(dropItem(session, "alpha", COPPER_KEY_ID)).toEqual({ ok: true });
+    expect(player.inventory).toEqual([]);
+
+    const matches = session.dungeon.loot.filter((loot) => loot.id === COPPER_KEY_ID);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ pickedUp: false, position: at(3, 3), kind: "key" });
+
+    expect(pickupItem(session, "alpha", COPPER_KEY_ID)).toEqual({ ok: true });
+    expect(player.inventory).toEqual([KEY]);
+  });
+
+  it("keeps a consumable's and a scroll's details so they can be picked up whole", () => {
+    const player = testPlayer("alpha", { inventory: [{ ...TONIC }, { ...SKILL_SCROLL }] });
+    const session = testSession([player]);
+
+    expect(dropItem(session, "alpha", MINOR_TONIC_ID).ok).toBe(true);
+    expect(dropItem(session, "alpha", SKILL_SCROLL.id).ok).toBe(true);
+    expect(pickupItem(session, "alpha", MINOR_TONIC_ID).ok).toBe(true);
+    expect(pickupItem(session, "alpha", SKILL_SCROLL.id).ok).toBe(true);
+    expect(player.inventory).toEqual([TONIC, SKILL_SCROLL]);
+  });
+
+  it("refuses an item the player does not hold, and malformed ids", () => {
+    const player = testPlayer("alpha", { inventory: [{ ...TONIC }] });
+    const session = testSession([player]);
+    const lootBefore = session.dungeon.loot.length;
+
+    for (const id of [COPPER_KEY_ID, "not-an-id", ""]) {
+      expect(dropItem(session, "alpha", id)).toEqual({ ok: false, reason: "targetMissing" });
+    }
+    expect(player.inventory).toEqual([TONIC]);
+    expect(session.dungeon.loot).toHaveLength(lootBefore);
+  });
+
+  it("refuses a downed player", () => {
+    const player = testPlayer("alpha", { health: 0, inventory: [{ ...TONIC }] });
+    const session = testSession([player]);
+
+    expect(dropItem(session, "alpha", MINOR_TONIC_ID)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(player.inventory).toEqual([TONIC]);
+  });
+
+  it("loses a dropped item at run end instead of banking it", () => {
+    const player = testPlayer("alpha", { position: at(14, 6), inventory: [{ ...TONIC }] });
+    const session = testSession([player]);
+
+    expect(dropItem(session, "alpha", MINOR_TONIC_ID).ok).toBe(true);
+    expect(interact(session, "alpha", VAULT_EXIT_ID)).toEqual({ ok: true });
+    expect(session.location).toBe("hub");
+    expect(player.profile.bankedItems).toEqual([]);
+    expect(session.dungeon.loot.some((loot) => loot.id === MINOR_TONIC_ID)).toBe(false);
+  });
+});
+
+describe("giving", () => {
+  function pair(beta: Parameters<typeof testPlayer>[1] = {}, alpha: Parameters<typeof testPlayer>[1] = {}) {
+    const giver = testPlayer("alpha", { position: at(5, 5), inventory: [{ ...TONIC }], ...alpha });
+    const receiver = testPlayer("beta", { position: at(5, 5), ...beta });
+    return { giver, receiver, session: testSession([giver, receiver]) };
+  }
+
+  it("moves the item to a standing, connected player in reach", () => {
+    const { giver, receiver, session } = pair();
+
+    expect(giveItem(session, "alpha", MINOR_TONIC_ID, "beta")).toEqual({ ok: true });
+    expect(giver.inventory).toEqual([]);
+    expect(receiver.inventory).toEqual([TONIC]);
+  });
+
+  it.each([
+    ["full", { inventory: Array.from({ length: MAX_INVENTORY_SIZE }, () => ({ ...KEY })) }, "notPermitted"],
+    ["downed", { health: 0 }, "notPermitted"],
+    ["disconnected", { connected: false }, "notPermitted"],
+    ["out of range", { position: at(12, 12) }, "outOfRange"],
+  ] as const)("refuses a %s target and changes nothing", (_label, overrides, reason) => {
+    const { giver, receiver, session } = pair(overrides);
+    const receiverBefore = [...receiver.inventory];
+
+    expect(giveItem(session, "alpha", MINOR_TONIC_ID, "beta")).toEqual({ ok: false, reason });
+    expect(giver.inventory).toEqual([TONIC]);
+    expect(receiver.inventory).toEqual(receiverBefore);
+  });
+
+  it("refuses a player from another session, an unknown target, and oneself", () => {
+    const { giver, session } = pair();
+    const outsider = testPlayer("gamma", { position: at(5, 5) });
+    testSession([outsider]);
+
+    expect(giveItem(session, "alpha", MINOR_TONIC_ID, "gamma")).toEqual({
+      ok: false,
+      reason: "targetMissing",
+    });
+    expect(giveItem(session, "alpha", MINOR_TONIC_ID, "alpha")).toEqual({
+      ok: false,
+      reason: "notPermitted",
+    });
+    expect(outsider.inventory).toEqual([]);
+    expect(giver.inventory).toEqual([TONIC]);
+  });
+
+  it("refuses an item the giver does not hold and a downed giver", () => {
+    const { giver, receiver, session } = pair();
+
+    expect(giveItem(session, "alpha", COPPER_KEY_ID, "beta")).toEqual({
+      ok: false,
+      reason: "targetMissing",
+    });
+    expect(giveItem(session, "alpha", "bad", "beta").ok).toBe(false);
+    giver.health = 0;
+    expect(giveItem(session, "alpha", MINOR_TONIC_ID, "beta")).toEqual({
+      ok: false,
+      reason: "notPermitted",
+    });
+    expect(giver.inventory).toEqual([TONIC]);
+    expect(receiver.inventory).toEqual([]);
   });
 });

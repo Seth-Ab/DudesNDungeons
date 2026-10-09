@@ -17,7 +17,14 @@ import {
 } from "./runFlow.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
 import { itemSprite, type SpriteName } from "../rendering/tiles.js";
-import { carriedAlly, nearestDownedAlly, nearestInteraction, nearestLoot } from "./reach.js";
+import {
+  carriedAlly,
+  nearestDownedAlly,
+  nearestInteraction,
+  nearestLoot,
+  nearestStandingAlly,
+} from "./reach.js";
+import { selectedItem } from "./selectedSlot.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
 /**
@@ -443,6 +450,10 @@ export function actionPrompt(
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
+
+  const held = selectedItem(self.inventory);
+  const ally = held ? nearestStandingAlly(view, position) : null;
+  if (held && ally) return prompt("give", `Give ${held.name} to ${ally.name}`);
 
   return null;
 }
