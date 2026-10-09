@@ -32,6 +32,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { lootRngFor } from "../game/monsterLoot.js";
+import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
@@ -136,6 +137,8 @@ export interface Session {
   simulatedAt: number | null;
   /** When each monster may attack again. Server-side only, so clients never see monster timing. */
   monsterCooldowns: Map<EntityId, number>;
+  /** Where each monster spawned and whether it is hunting. Server-side only, like the cooldowns. */
+  monsterPosts: Map<EntityId, MonsterPost>;
   /** When each triggered, rearming trap may be armed again. Server-side only. */
   trapRearmAt: Map<EntityId, number>;
   /** When each puzzle's plates all became held at once. Absent while any plate is free. */
@@ -246,6 +249,7 @@ export class SessionStore {
       players: new Map(),
       simulatedAt: null,
       monsterCooldowns: new Map(),
+      monsterPosts: new Map(),
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
     };

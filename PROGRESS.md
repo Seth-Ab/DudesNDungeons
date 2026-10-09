@@ -8,7 +8,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v17.
-- Last completed work: owner-only banks and a once-per-tick roster (issue #81, protocol v17);
+- Last completed work: monsters route round walls on a shared flow field, aggro only on players
+  they can see or hear, and leash home (issue #89); owner-only banks and a once-per-tick roster (issue #81, protocol v17);
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
@@ -96,7 +97,8 @@ Resolved:
 
 - [x] Implement attacks, damage, death, and simple monster behavior. Simple real-time melee in
   `src/server/game/combat.ts`; monsters chase and attack on the tick; downed players stay down until
-  the run ends or future revive/carry mechanics resolve them.
+  the run ends or future revive/carry mechanics resolve them. Monsters path round walls on a shared
+  per-tick flow field, need line of sight or hearing to aggro, and leash home (issue #89).
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
@@ -359,6 +361,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-09: Monster flow-field pathing, line-of-sight aggro and leash (#89).
 - 2026-10-07: Owner-only progression catalog and live state (#24, v15).
 - 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec
   and its dependency, PR screenshot media, dead constants, and this ledger's long-form history.

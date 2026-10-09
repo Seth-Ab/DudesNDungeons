@@ -30,6 +30,19 @@ export const TILE_SCALE = 4;
  */
 export const LIGHT_SCALE = 3;
 
+/**
+ * How close a player must be for a monster to notice them without seeing them, in world units.
+ * A wall is a full `TILE_SCALE` thick, so this reaches a player hugging the far side of a doorway
+ * jamb or a corner but not one standing in the next room.
+ */
+export const MONSTER_HEARING_RANGE = 6;
+
+/**
+ * How long a monster keeps hunting after every player has left its aggro range before it gives up
+ * and walks back to where it spawned.
+ */
+export const MONSTER_LEASH_MS = 4000;
+
 export const SERVER_TICK_RATE_HZ = 20;
 export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;
 

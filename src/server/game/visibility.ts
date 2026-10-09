@@ -102,7 +102,7 @@ function isOpaque(dungeon: DungeonState, x: number, y: number): boolean {
  * crossed for no extra accuracy. This visits each tile the ray actually passes through, exactly
  * once, which is what keeps lighting affordable at the larger scale.
  */
-function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): boolean {
+export function hasLineOfSight(dungeon: DungeonState, from: Vector2, to: Vector2): boolean {
   const target = tileOf(to);
   // The closed door the ray is aimed at, if any. Every tile of that one door is the target.
   const targetDoor = dungeon.doors.find(

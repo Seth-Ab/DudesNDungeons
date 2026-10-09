@@ -148,6 +148,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     players: new Map(players.map((member) => [member.id, member])),
     simulatedAt: null,
     monsterCooldowns: new Map(),
+    monsterPosts: new Map(),
     trapRearmAt: new Map(),
     puzzleHeldSince: new Map(),
   };

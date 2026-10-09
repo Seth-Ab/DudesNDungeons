@@ -31,10 +31,18 @@ server-side, and only what triggers and sequences an exchange is new.
 ### Monsters run on the tick
 
 Each server tick calls `simulate(session, now)`. A living monster chases the nearest connected,
-standing player within its aggro range, sliding along one axis when the direct path is blocked, and
-attacks when in reach on its own cooldown. Monster attacks are broadcast as `attackResolved` with the
+standing player within its aggro range and attacks when in reach on its own cooldown. Monster attacks are broadcast as `attackResolved` with the
 monster as attacker. Monster stats (speed, aggro range, reach, damage, cooldown) live only on the
 server; clients see position, health, and max health.
+
+A monster notices a player only inside its aggro range and either in line of sight (the same ray
+the lighting uses) or within `MONSTER_HEARING_RANGE`, so a wall hides a party from monsters. Once
+hunting it keeps any player in range even round a corner. With line of sight it steps straight
+(sliding along one axis when blocked); without it, it steps down a breadth-first distance field
+(`flowField.ts`) flooded once per tick from every standing, connected player over walkable tiles,
+reaching `1.5` times the longest aggro range. A route longer than that counts as no route. A monster
+that has had no player in range for `MONSTER_LEASH_MS` stops hunting and walks back to where it
+spawned (`monsterAi.ts`). Monster hunting state lives on `Session.monsterPosts` and is never sent.
 
 Disconnected players are not hunted, so a dropped connection does not come back to a wipe. Elapsed
 time per step is capped, so a stalled timer cannot teleport monsters.

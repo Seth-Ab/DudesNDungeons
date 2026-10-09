@@ -1,5 +1,5 @@
 import { PLAYER_MOVE_SPEED, SERVER_TICK_RATE_HZ } from "../constants/game.js";
-import type { DoorState, DungeonMapState, DungeonState, Vector2 } from "../types/core.js";
+import type { DoorState, DungeonMapState, DungeonState, MonsterState, Vector2 } from "../types/core.js";
 
 /**
  * Movement rules shared by the server, which resolves moves, and the client, which predicts them.
@@ -156,16 +156,20 @@ function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
  * `others` are the positions of players who can block, which excludes downed players. `from` is
  * where the moving player stands now; omit it when placing someone new or moving a monster. With
  * `from`, another player only blocks a move that closes the gap, so players who already overlap can
- * step apart rather than being stuck.
+ * step apart rather than being stuck. `ignore` is a monster that does not block, so a monster can
+ * ask whether it fits without being stopped by its own body.
  */
 export function isOpen(
   dungeon: DungeonState,
   others: readonly Vector2[],
   position: Vector2,
   from?: Vector2,
+  ignore?: MonsterState,
 ): boolean {
   if (!isFloor(dungeon, position) || isClosedDoorAt(dungeon, position)) return false;
-  if (dungeon.monsters.some((monster) => monster.alive && overlaps(monster.position, position))) {
+  if (dungeon.monsters.some(
+      (monster) => monster !== ignore && monster.alive && overlaps(monster.position, position),
+    )) {
     return false;
   }
 
