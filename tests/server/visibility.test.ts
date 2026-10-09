@@ -5,7 +5,7 @@ import {
   voiceRangeForPlayer,
 } from "../../src/server/game/visibility.js";
 import { returnToHub, startRun } from "../../src/server/game/runLifecycle.js";
-import { SessionStore } from "../../src/server/sessions/sessionStore.js";
+import { SessionStore, rosterOf } from "../../src/server/sessions/sessionStore.js";
 import { PLAYER_TORCH_LIGHT_RADIUS } from "../../src/shared/constants/game.js";
 import { coversTile, distance, isFloor, tileAt, tileOf } from "../../src/shared/game/movement.js";
 import type { RoomState, Vector2 } from "../../src/shared/types/core.js";
@@ -42,6 +42,35 @@ describe("visibility frames", () => {
     expect(frame.dungeon.monsters).toEqual([]);
     expect(frame.dungeon.exits).toEqual([]);
     expect(JSON.stringify(frame)).not.toContain("distant");
+  });
+
+  it("carries a bank on the viewer's own entry and on no teammate's", () => {
+    const tonic = { id: "55555555-5555-4555-8555-555555555555", name: "Key", kind: "key" as const };
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const nearby = testPlayer("nearby", { position: at(2, 2, 1) });
+    viewer.profile.bankedItems.push({ ...tonic });
+    nearby.profile.bankedItems.push({ ...tonic, id: "66666666-6666-4666-8666-666666666666" });
+    const session = testSession([viewer, nearby]);
+
+    const asViewer = visibilityFrameForPlayer(session, viewer).players;
+    const asNearby = visibilityFrameForPlayer(session, nearby).players;
+
+    expect(asViewer.find((p) => p.id === "viewer")?.bankedItems).toEqual([tonic]);
+    expect(asViewer.find((p) => p.id === "nearby")).not.toHaveProperty("bankedItems");
+    expect(asNearby.find((p) => p.id === "viewer")).not.toHaveProperty("bankedItems");
+    expect(asNearby.find((p) => p.id === "nearby")?.bankedItems).toHaveLength(1);
+    expect(JSON.stringify(asViewer)).not.toContain("66666666");
+  });
+
+  it("filters a roster built once without mutating it for other viewers", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const nearby = testPlayer("nearby", { position: at(2, 2, 1) });
+    const session = testSession([viewer, nearby]);
+    const roster = rosterOf(session);
+
+    visibilityFrameForPlayer(session, viewer, roster);
+
+    expect(roster.every((entry) => !("bankedItems" in entry))).toBe(true);
   });
 
   it("keeps discovered geometry after the player moves away, without leaking entities there", () => {

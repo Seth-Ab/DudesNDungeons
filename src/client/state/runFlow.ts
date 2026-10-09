@@ -92,7 +92,7 @@ export function runOutcome(before: PlayerState | null, after: PlayerState | null
   if (!before || !after) return { kind: "escaped", banked: 0 };
   if (before.health <= 0) return { kind: "lost", banked: 0 };
 
-  const banked = Math.max(0, after.bankedItems.length - before.bankedItems.length);
+  const banked = Math.max(0, (after.bankedItems?.length ?? 0) - (before.bankedItems?.length ?? 0));
   return { kind: "escaped", banked };
 }
 

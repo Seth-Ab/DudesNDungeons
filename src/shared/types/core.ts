@@ -419,10 +419,10 @@ export const playerStateSchema = z.object({
   /** The player carrying this one, or null. Set only while this player is downed. */
   carriedByPlayerId: playerIdSchema.nullable(),
   /**
-   * What this player's profile holds. Owned by the profile rather than the session since Backend
-   * step 11, so it survives a restart, and visible to the whole party as it always was.
+   * What this player's profile holds. Owned by the profile, so it survives a restart, and owner
+   * data: present only on the receiving player's own entry, absent from every teammate's.
    */
-  bankedItems: z.array(inventoryItemSchema),
+  bankedItems: z.array(inventoryItemSchema).optional(),
 });
 export type PlayerState = z.infer<typeof playerStateSchema>;
 

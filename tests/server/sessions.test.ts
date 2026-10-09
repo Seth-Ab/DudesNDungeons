@@ -3,6 +3,7 @@ import { PLAYER_MAX_HEALTH } from "../../src/shared/constants/game.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import {
   SessionStore,
+  toOwnerPlayerState,
   toPlayerState,
   type Session,
 } from "../../src/server/sessions/sessionStore.js";
@@ -375,8 +376,9 @@ describe("joining with a profile", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.player.profile).toBe(profile);
-    // What the profile banked is what the party sees this player holding.
-    expect(toPlayerState(result.player).bankedItems).toEqual([TONIC]);
+    // The bank is owner data: public state omits it and the owner's own state carries it.
+    expect(toPlayerState(result.player)).not.toHaveProperty("bankedItems");
+    expect(toOwnerPlayerState(result.player).bankedItems).toEqual([TONIC]);
   });
 
   it("creates a profile only once the join has otherwise succeeded", () => {
