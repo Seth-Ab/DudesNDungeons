@@ -23,6 +23,7 @@ import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
+import { shareDiscoveredMaps } from "./game/mapSharing.js";
 import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
@@ -562,6 +563,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       session.tick += 1;
 
       if (!hasAudience) continue;
+      // After positions settle and before snapshots, so merged tiles ride this tick's delta.
+      shareDiscoveredMaps(session);
       broadcastSnapshots(session);
     }
 

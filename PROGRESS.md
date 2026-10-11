@@ -175,6 +175,16 @@ check remains.
   seed 1234), before to after: steady snapshot 9202 to 2392 bytes (885 to 734 deflated); serialize x4
   0.024 to 0.013 ms; visibility x4 at spawn 0.71 to 0.41 ms, explored 0.57 to 0.34 ms. A full
   baseline of a fully explored world is 107 kB (2.7 kB deflated), sent once per connection or world.
+- [x] Share discovered map data between nearby players (issue #106, 2026-10-11). While two players are
+  standing, connected, and within `PLAYER_MAP_SHARE_RANGE` (one torch radius, to be tuned in playtest) in
+  a run, `shareDiscoveredMaps` (`src/server/game/mapSharing.ts`, called each tick before snapshots)
+  merges their discovered tiles and rooms both ways, line of sight not required. Merges walk each
+  player's append-only `discoveryLog` from a per-pair cursor, so a steady party costs ~0.001 ms.
+  Geometry only: monsters, loot, players, and lit status still come from the viewer's own light. Doors
+  on newly known tiles are listed like any door on a discovered tile. Merged tiles ride the ordinary
+  discovery delta (no protocol change). Nothing is shared in the hub (fully lit); logs and grids reset
+  with the world and are never persisted. Knowledge already received is kept after separating, and
+  relays through a middle player.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 

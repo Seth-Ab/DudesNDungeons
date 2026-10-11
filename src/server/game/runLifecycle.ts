@@ -42,6 +42,7 @@ function resetPlayerForWorld(player: SessionPlayer, map: DungeonMapState): void 
   // Sized for the world being installed, so nothing from the last one carries over.
   player.discoveredTiles = createDiscoveredGrid(map.width, map.height);
   player.discoveredRoomIds.clear();
+  player.discoveryLog = [];
   player.pendingDiscovery = [];
   player.mapSyncedTo = null;
   player.nextMoveAt = null;

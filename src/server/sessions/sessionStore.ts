@@ -81,6 +81,12 @@ export interface SessionPlayer {
    */
   discoveredRoomIds: Set<string>;
   /**
+   * Every tile index in `discoveredTiles`, in the order it was learned, whether seen or shared.
+   * Nearby players merge from the end of each other's log rather than rescanning whole grids; see
+   * `mapSharing.ts`. Replaced, not cleared, when the world changes, so a stale cursor is detectable.
+   */
+  discoveryLog: number[];
+  /**
    * Indexes into `discoveredTiles` found since this viewer's last snapshot, which the next one
    * carries as a delta. Only filled while `mapSyncedTo` is the installed world; see `visibility.ts`.
    */
@@ -353,6 +359,7 @@ export class SessionStore {
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Uint8Array(0),
       discoveredRoomIds: new Set(),
+      discoveryLog: [],
       pendingDiscovery: [],
       mapSyncedTo: null,
       resumeToken: this.#createResumeToken(),
