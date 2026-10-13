@@ -24,6 +24,7 @@ import { createRunClock } from "./hud/runClock.js";
 import { createPanel, createStat } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
+import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
 import { createToasts } from "./hud/toasts.js";
@@ -68,6 +69,7 @@ export function createHud(options: HudOptions) {
   const vitals = createVitals();
   const partyFrames = createPartyFrames();
   const inventory = createInventory();
+  const minimap = createMinimap();
   const actions = createActions(options);
   const runClock = createRunClock();
   const hubStatus = createHubStatus();
@@ -95,6 +97,7 @@ export function createHud(options: HudOptions) {
     session.positionElement,
     sessionButtons,
     voiceButtons,
+    minimap.element,
   );
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
@@ -154,7 +157,12 @@ export function createHud(options: HudOptions) {
     setPosition(position: Vector2) {
       session.setPosition(positionLabel(position));
       currentPosition = position;
+      minimap.setPosition(position);
       refreshPrompt();
+    },
+
+    toggleMinimap() {
+      minimap.toggle();
     },
 
     setActionStatus(status: string) {
@@ -192,6 +200,7 @@ export function createHud(options: HudOptions) {
 
       inventory.update(self);
       partyFrames.update(view);
+      minimap.update(view);
     },
   };
 }

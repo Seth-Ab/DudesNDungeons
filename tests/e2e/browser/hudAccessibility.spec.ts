@@ -28,7 +28,7 @@ test.describe("HUD accessibility and layout", () => {
     }
 
     // A trial click fails if an overlay intercepts the pointer at the canvas centre.
-    await page.locator("canvas").click({
+    await page.locator("canvas.game-canvas").click({
       position: { x: viewport.width / 2, y: viewport.height / 2 },
       trial: true,
     });
