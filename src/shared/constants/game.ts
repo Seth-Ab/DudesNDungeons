@@ -120,6 +120,12 @@ export const INTERACT_RANGE = 1.2;
 export const PLAYER_TORCH_LIGHT_RADIUS = 6;
 
 /**
+ * How close, in world units, two standing players must be for their discovered maps to merge. Line
+ * of sight is not required. Starts at one torch radius; tune it in playtest.
+ */
+export const PLAYER_MAP_SHARE_RANGE = PLAYER_TORCH_LIGHT_RADIUS;
+
+/**
  * Radius for sparse fixed dungeon lighting such as wall torches or torch pillars. Smaller than a
  * carried torch, so a pillar marks a spot in the dark rather than lighting the room around it.
  */

@@ -1,6 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { simulate } from "../src/server/game/combat.js";
 import { walkableGridFor } from "../src/server/game/flowField.js";
+import { shareDiscoveredMaps } from "../src/server/game/mapSharing.js";
 import { hasLineOfSight, takeMapDiscovery, visibilityFrameForPlayer } from "../src/server/game/visibility.js";
 import { startRun } from "../src/server/game/runLifecycle.js";
 import { runStateFor } from "../src/server/game/vitals.js";
@@ -128,6 +129,11 @@ const visibilityPass = () => {
   for (const player of players) visibilityFrameForPlayer(session, player);
 };
 report("visibility, 4 players (spawn)", measure(100, visibilityPass));
+
+report(
+  "map sharing, 4 players (steady)",
+  measure(100, () => shareDiscoveredMaps(session)),
+);
 
 const snapshotFor = (tick: number) => {
   const frame = visibilityFrameForPlayer(session, players[0]!);

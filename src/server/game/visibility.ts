@@ -65,7 +65,7 @@ function roomGridFor(dungeon: DungeonState): RoomGrid {
 }
 
 /** The viewer's discovery memory, sized for this world. Normally already so; see `resetPlayerForWorld`. */
-function discoveredFor(viewer: SessionPlayer, map: DungeonMapState): Uint8Array {
+export function discoveredFor(viewer: SessionPlayer, map: DungeonMapState): Uint8Array {
   if (viewer.discoveredTiles.length !== map.width * map.height) {
     viewer.discoveredTiles = createDiscoveredGrid(map.width, map.height);
   }
@@ -385,23 +385,40 @@ function tileVisible(visible: LitTiles, position: Vector2): boolean {
  * has stopped exploring.
  */
 function recordDiscovery(session: Session, viewer: SessionPlayer, visible: LitTiles): void {
-  const { rooms } = session.dungeon;
   const discovered = discoveredFor(viewer, session.dungeon.map);
-  const grid = rooms.length > 0 ? roomGridFor(session.dungeon) : null;
 
   for (let n = 0; n < visible.size; n += 1) {
-    const index = visible.indexAt(n);
-    if (discovered[index] === 1) continue;
-    discovered[index] = 1;
-    if (viewer.mapSyncedTo === session.dungeon.map) viewer.pendingDiscovery.push(index);
-    if (!grid) continue;
-
-    const roomIndex = grid.roomOf[index]!;
-    if (roomIndex === -1) continue;
-
-    viewer.discoveredRoomIds.add(rooms[roomIndex]!.id);
-    for (const other of grid.overlaps.get(index) ?? []) viewer.discoveredRoomIds.add(rooms[other]!.id);
+    discoverTile(session, viewer, discovered, visible.indexAt(n));
   }
+}
+
+/**
+ * Files one tile into a viewer's memory if it is new to them: the tile, the room it belongs to, the
+ * delta for their next snapshot, and the log other players merge from. Shared by what a player sees
+ * and what a nearby player tells them (`mapSharing.ts`), so both reach the client the same way.
+ * Returns whether the tile was new.
+ */
+export function discoverTile(
+  session: Session,
+  viewer: SessionPlayer,
+  discovered: Uint8Array,
+  index: number,
+): boolean {
+  if (discovered[index] === 1) return false;
+
+  const { rooms } = session.dungeon;
+  discovered[index] = 1;
+  viewer.discoveryLog.push(index);
+  if (viewer.mapSyncedTo === session.dungeon.map) viewer.pendingDiscovery.push(index);
+  if (rooms.length === 0) return true;
+
+  const grid = roomGridFor(session.dungeon);
+  const roomIndex = grid.roomOf[index]!;
+  if (roomIndex === -1) return true;
+
+  viewer.discoveredRoomIds.add(rooms[roomIndex]!.id);
+  for (const other of grid.overlaps.get(index) ?? []) viewer.discoveredRoomIds.add(rooms[other]!.id);
+  return true;
 }
 
 function visibleDungeon(
