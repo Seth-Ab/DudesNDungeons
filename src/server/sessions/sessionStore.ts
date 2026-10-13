@@ -32,6 +32,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { lootRngFor } from "../game/monsterLoot.js";
+import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
@@ -145,6 +146,10 @@ export interface Session {
   monsterCooldowns: Map<EntityId, number>;
   /** When each winding-up monster began its swing. Absent means idle. Server-side only. */
   monsterWindups: Map<EntityId, number>;
+  /** Distance travelled by each charging monster, and who it has hit. Absent means not charging. */
+  monsterCharges: Map<EntityId, ChargeRun>;
+  /** What the server knows about each projectile in flight that clients do not. */
+  projectileRuns: Map<EntityId, ProjectileRun>;
   /** Where each monster spawned and whether it is hunting. Server-side only, like the cooldowns. */
   monsterPosts: Map<EntityId, MonsterPost>;
   /** When each triggered, rearming trap may be armed again. Server-side only. */
@@ -259,6 +264,8 @@ export class SessionStore {
       monsterCooldowns: new Map(),
       monsterWindups: new Map(),
       monsterPosts: new Map(),
+      monsterCharges: new Map(),
+      projectileRuns: new Map(),
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
     };

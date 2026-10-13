@@ -12,6 +12,8 @@ import type { Session } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
 import { MonsterPlanner } from "./monsterAi.js";
+import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "./monsterAttacks.js";
+import { hasLineOfSight } from "./visibility.js";
 import { dropMonsterLoot } from "./monsterLoot.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
@@ -147,6 +149,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
 
     events.push(...actMonster(session, planner, monster, now, elapsedMs));
   }
+  events.push(...advanceProjectiles(session, elapsedMs));
 
   return events;
 }
@@ -162,6 +165,9 @@ function actMonster(
   const startedAt = session.monsterWindups.get(monster.id);
   if (startedAt !== undefined) return resolveWindup(session, monster, stats, startedAt, now);
 
+  const charge = session.monsterCharges.get(monster.id);
+  if (charge) return advanceCharge(session, monster, stats, charge, now, elapsedMs);
+
   const stepDistance = (stats.speed * elapsedMs) / 1000;
   const target = planner.target(monster, stats, now);
   if (!target) {
@@ -169,7 +175,20 @@ function actMonster(
     return [];
   }
 
-  if (distance(monster.position, target.position) > stats.attackRange) {
+  const gap = distance(monster.position, target.position);
+  if (stats.behavior === "ranged") {
+    // Crowded, it backs off rather than closing; it only fires from a clear line.
+    const preferred = stats.preferredRange ?? stats.attackRange;
+    if (gap < preferred) planner.retreat(monster, target.position, stepDistance);
+  }
+  if (gap > stats.attackRange) {
+    planner.chase(monster, target.position, stepDistance);
+    return [];
+  }
+  if (
+    stats.behavior !== "melee" &&
+    !hasLineOfSight(session.dungeon, monster.position, target.position)
+  ) {
     planner.chase(monster, target.position, stepDistance);
     return [];
   }
@@ -210,6 +229,16 @@ function resolveWindup(
   session.monsterCooldowns.set(monster.id, now + stats.attackCooldownMs);
   monster.action = "idle";
   monster.windupProgress = 0;
+
+  if (stats.behavior === "ranged") {
+    fireProjectile(session, monster, stats);
+    return [];
+  }
+  if (stats.behavior === "charger") {
+    // The cooldown starts when the dash ends, not before it, so a long dash cannot pre-pay it.
+    startCharge(session, monster);
+    return [];
+  }
 
   const reach = stats.hitRange ?? stats.attackRange;
   const content = contentForSession(session);

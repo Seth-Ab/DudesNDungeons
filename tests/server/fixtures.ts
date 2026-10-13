@@ -151,6 +151,8 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     monsterCooldowns: new Map(),
     monsterWindups: new Map(),
     monsterPosts: new Map(),
+    monsterCharges: new Map(),
+    projectileRuns: new Map(),
     trapRearmAt: new Map(),
     puzzleHeldSince: new Map(),
   };

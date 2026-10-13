@@ -58,6 +58,7 @@ function imp(x: number, y: number): MonsterState {
     alive: true,
     boss: false,
     action: "idle",
+    behavior: "melee",
     windupProgress: 0,
     facing: { x: 0, y: 1 },
     hitRange: 1,

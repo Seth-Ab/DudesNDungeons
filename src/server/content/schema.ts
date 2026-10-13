@@ -3,6 +3,7 @@ import {
   CONSUMABLE_ICONS,
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
+  MONSTER_BEHAVIORS,
 } from "../../shared/constants/game.js";
 
 /**
@@ -47,7 +48,36 @@ export const lootTableSchema = z
   .strict();
 export type LootTable = z.infer<typeof lootTableSchema>;
 
-export const monsterTypeSchema = z.object({
+/** A ranged monster's bolt. World units, like every distance here. */
+export const projectileStatsSchema = z
+  .object({
+    /** World units per second. */
+    speed: z.number().positive(),
+    /** Collision radius around the bolt's centre, added to a player's own radius. */
+    radius: z.number().positive(),
+    /** Raw damage, scaled by the victim's resistance through `damagePlayer`. */
+    damage: z.number().int().positive(),
+    /** How far it flies before it fizzles out. */
+    range: z.number().positive(),
+  })
+  .strict();
+export type ProjectileStats = z.infer<typeof projectileStatsSchema>;
+
+/** A charger's dash. */
+export const chargeStatsSchema = z
+  .object({
+    /** World units per second while dashing. */
+    speed: z.number().positive(),
+    /** Furthest it dashes in a straight line. */
+    distance: z.number().positive(),
+    /** How long it is helpless after hitting a wall: the punish window. */
+    stunMs: z.number().int().positive(),
+  })
+  .strict();
+export type ChargeStats = z.infer<typeof chargeStatsSchema>;
+
+export const monsterTypeSchema = z
+  .object({
   id: contentIdSchema,
   name: z.string().min(1),
   maxHealth: z.number().int().positive(),
@@ -77,7 +107,56 @@ export const monsterTypeSchema = z.object({
   boss: z.boolean().default(false),
   /** Rolled once when a player kills the monster. Omitted, it drops nothing. */
   loot: lootTableSchema.optional(),
-});
+  /**
+   * How the monster fights. `melee` walks up and swings. `ranged` keeps `preferredRange` from its
+   * target and fires `projectile` from up to `attackRange`; its `damage` is unused in favour of
+   * `projectile.damage`. `charger` winds up from within `attackRange`, then dashes `charge.distance`
+   * in a straight line for `damage`, and is stunned if it hits a wall.
+   */
+  behavior: z.enum(MONSTER_BEHAVIORS).default("melee"),
+  /** Ranged only: the gap it tries to hold. Must not exceed `attackRange`. */
+  preferredRange: z.number().positive().optional(),
+  projectile: projectileStatsSchema.optional(),
+  charge: chargeStatsSchema.optional(),
+  })
+  .superRefine((monster, context) => {
+    if (monster.behavior === "ranged") {
+      if (!monster.projectile) {
+        context.addIssue({
+          code: "custom",
+          path: ["projectile"],
+          message: "A ranged monster needs projectile stats",
+        });
+      }
+      if (monster.preferredRange !== undefined && monster.preferredRange > monster.attackRange) {
+        context.addIssue({
+          code: "custom",
+          path: ["preferredRange"],
+          message: "preferredRange cannot exceed attackRange",
+        });
+      }
+    } else if (monster.projectile || monster.preferredRange !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["projectile"],
+        message: "Only a ranged monster has projectile stats or a preferredRange",
+      });
+    }
+
+    if (monster.behavior === "charger" && !monster.charge) {
+      context.addIssue({
+        code: "custom",
+        path: ["charge"],
+        message: "A charger needs charge stats",
+      });
+    } else if (monster.behavior !== "charger" && monster.charge) {
+      context.addIssue({
+        code: "custom",
+        path: ["charge"],
+        message: "Only a charger has charge stats",
+      });
+    }
+  });
 export type MonsterType = z.infer<typeof monsterTypeSchema>;
 
 /**

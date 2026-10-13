@@ -122,6 +122,22 @@ export class MonsterPlanner {
     this.#stepAlong(this.#fields.hunt, monster, stepDistance);
   }
 
+  /** Backs directly away from a point, for a ranged monster that has been crowded. */
+  retreat(monster: MonsterState, from: Vector2, stepDistance: number): void {
+    if (stepDistance <= 0) return;
+
+    const away = normalizeDirection({
+      x: monster.position.x - from.x,
+      y: monster.position.y - from.y,
+    });
+    if (!away) return;
+
+    this.#stepDirect(monster, {
+      x: monster.position.x + away.x * stepDistance,
+      y: monster.position.y + away.y * stepDistance,
+    }, stepDistance);
+  }
+
   /** Walks a monster that has given up back to where it spawned. */
   returnHome(monster: MonsterState, now: number, stepDistance: number): void {
     const post = this.#postFor(monster, now);

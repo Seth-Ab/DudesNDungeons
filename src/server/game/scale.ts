@@ -72,6 +72,8 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
         height: room.height * scale,
       })),
       monsters: dungeon.monsters.map((monster) => ({ ...monster, position: point(monster.position) })),
+      // Projectiles only exist mid-run, after scaling, so a built dungeon never has any.
+      projectiles: [],
       loot: dungeon.loot.map((loot) => ({ ...loot, position: point(loot.position) })),
       // A trap's radius is a distance in world units, so only its position scales.
       traps: dungeon.traps.map((trap) => ({ ...trap, position: point(trap.position) })),

@@ -372,12 +372,14 @@ describe("parseServerMessage", () => {
             alive: true,
             boss: false,
             action: "idle",
+            behavior: "melee",
             windupProgress: 0,
             facing: { x: 0, y: 1 },
             hitRange: 1,
             hitArcCos: 0.5,
           },
         ],
+        projectiles: [],
         loot: [
           {
             id: SESSION_ID,

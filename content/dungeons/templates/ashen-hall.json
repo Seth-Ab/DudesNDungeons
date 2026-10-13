@@ -24,7 +24,9 @@
   ],
   "monsters": [
     { "typeId": "cinder-slime", "min": 1, "max": 3 },
-    { "typeId": "ash-imp", "min": 0, "max": 2 }
+    { "typeId": "ash-imp", "min": 0, "max": 2 },
+    { "typeId": "cinder-spitter", "min": 0, "max": 1 },
+    { "typeId": "slag-charger", "min": 0, "max": 1 }
   ],
   "loot": [
     { "itemId": "minor-tonic", "min": 0, "max": 2 },
