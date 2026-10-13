@@ -72,17 +72,26 @@ export const useItemSchema = z.object({
   itemId: entityIdSchema,
 });
 
-/** Puts a held item on the floor at the sender's feet as loot anyone can pick up again. */
+/** Puts a carried item (inventory or hand) on the floor at the sender's feet as loot anyone can pick up again. */
 export const dropItemSchema = z.object({
   type: z.literal("dropItem"),
   itemId: entityIdSchema,
 });
 
-/** Hands a held item to a standing, connected party member within reach who has a free slot. */
+/** Hands a carried item (inventory or hand) to a standing, connected party member within reach who has a free slot. */
 export const giveItemSchema = z.object({
   type: z.literal("giveItem"),
   itemId: entityIdSchema,
   targetPlayerId: playerIdSchema,
+});
+
+/**
+ * Swaps the hand item with the named inventory item. With an empty hand it moves that item into
+ * the hand. A null `itemId` stows the hand item into a free inventory slot.
+ */
+export const swapHeldSchema = z.object({
+  type: z.literal("swapHeld"),
+  itemId: entityIdSchema.nullable(),
 });
 
 /** Lifts a downed party member within reach. Refused if either player is already carrying/carried. */
@@ -113,6 +122,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   useItemSchema,
   dropItemSchema,
   giveItemSchema,
+  swapHeldSchema,
   liftPlayerSchema,
   dropCarrySchema,
   voiceSignalMessageSchema,

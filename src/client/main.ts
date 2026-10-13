@@ -43,7 +43,7 @@ import {
   nearestLoot,
   nearestStandingAlly,
 } from "./state/reach.js";
-import { noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
+import { actionableItem, noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
 import {
   entranceMessage,
   entranceStatus,
@@ -324,7 +324,7 @@ function performAction(action: GameplayAction): void {
       return;
     }
     case "drop": {
-      const item = selectedItem(self.inventory);
+      const item = actionableItem(self.inventory, self.held);
       if (!item) {
         hud.setActionStatus("Nothing to drop");
         return;
@@ -332,8 +332,19 @@ function performAction(action: GameplayAction): void {
       client.dropItem(item.id);
       return;
     }
+    case "swapHeld": {
+      const incoming = selectedItem(self.inventory);
+      if (incoming) {
+        client.swapHeld(incoming.id);
+      } else if (self.held) {
+        hud.setActionStatus("No free slot to stow it");
+      } else {
+        hud.setActionStatus("Nothing to swap");
+      }
+      return;
+    }
     case "give": {
-      const item = selectedItem(self.inventory);
+      const item = actionableItem(self.inventory, self.held);
       if (!item) {
         hud.setActionStatus("Nothing to give");
         return;

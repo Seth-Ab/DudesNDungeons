@@ -4,6 +4,7 @@ import {
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MONSTER_BEHAVIORS,
+  WEAPON_KINDS,
 } from "../../shared/constants/game.js";
 
 /**
@@ -248,11 +249,25 @@ const skillScrollDefinitionSchema = z.object({
   skillId: contentIdSchema,
 });
 
+/**
+ * The weapon block. Strict on purpose: an unknown field fails content validation, so each weapon
+ * issue extends this shape with the stats it defines instead of authors guessing at them.
+ */
+const weaponStatsSchema = z.object({ kind: z.enum(WEAPON_KINDS) }).strict();
+
+const weaponDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("weapon"),
+  weapon: weaponStatsSchema,
+});
+
 /** Mirrors the shared item kinds while requiring every skill scroll to name what it teaches. */
 export const itemDefinitionSchema = z.discriminatedUnion("kind", [
   ordinaryItemDefinitionSchema,
   consumableDefinitionSchema,
   skillScrollDefinitionSchema,
+  weaponDefinitionSchema,
 ]);
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 

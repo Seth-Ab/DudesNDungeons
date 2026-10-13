@@ -4,6 +4,7 @@ import { initialSessionView, type SessionView } from "../../src/client/network/s
 import {
   actionableError,
   actionPrompt,
+  heldView,
   hotbarView,
   barView,
   bankEntries,
@@ -46,6 +47,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     ready: false,
     connected: true,
     inventory: [],
+    held: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
@@ -400,6 +402,34 @@ describe("hotbar", () => {
     expect(slots[0]?.icon).toBe("loot-tonic");
     expect(slots[1]?.icon).toBeNull();
     expect(slots.map((slot) => slot.disabled)).toEqual([false, true, true]);
+  });
+
+  it("shows the held item beside the slots without using one", () => {
+    const sword: InventoryItem = {
+      id: "c1111111-1111-4111-8111-111111111111",
+      name: "Test Sword",
+      kind: "weapon",
+      weaponKind: "melee",
+    };
+    const self = player("Maya", { id: SELF_ID, held: sword, inventory: [item("Tonic")] });
+    const state = view({ ...inSession, players: [self] });
+
+    expect(heldView(state, self)).toMatchObject({
+      keyHint: "V",
+      empty: false,
+      name: "Test Sword",
+      icon: "loot-weapon",
+      disabled: false,
+    });
+    expect(hotbarView(state, self).map((slot) => slot.empty)).toEqual([false, true, true]);
+
+    const bare = player("Maya", { id: SELF_ID });
+    expect(heldView(view({ ...inSession, players: [bare] }), bare)).toMatchObject({
+      empty: true,
+      name: "Empty hand",
+      icon: null,
+      disabled: true,
+    });
   });
 
   it("picks a consumable's icon from its content and carries its description", () => {

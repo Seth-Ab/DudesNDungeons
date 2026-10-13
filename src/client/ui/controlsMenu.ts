@@ -57,6 +57,11 @@ const CONTROL_GROUPS: ControlGroup[] = [
         action: "Give the selected item to a nearby party member",
         rebind: "give",
       },
+      {
+        input: bound("swapHeld"),
+        action: "Swap the item in hand with the selected slot, or stow it if the inventory is empty",
+        rebind: "swapHeld",
+      },
       { input: bound("useSlot1"), action: "Use inventory slot 1", rebind: "useSlot1" },
       { input: bound("useSlot2"), action: "Use inventory slot 2", rebind: "useSlot2" },
       { input: bound("useSlot3"), action: "Use inventory slot 3", rebind: "useSlot3" },

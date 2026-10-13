@@ -47,6 +47,14 @@ describe("key bindings", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("lets the swap key be rebound", () => {
+    expect(actionForKey("v")).toBe("swapHeld");
+    expect(setBinding("swapHeld", "z")).toEqual({ ok: true });
+    expect(actionForKey("z")).toBe("swapHeld");
+    expect(actionForKey("v")).toBeUndefined();
+    expect(keyLabel("swapHeld")).toBe("Z");
+  });
+
   it("labels a key rebound to Space", () => {
     setBinding("interact", " ");
     // Space was attack's, so it is a conflict and nothing changes.

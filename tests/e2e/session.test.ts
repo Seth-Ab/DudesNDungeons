@@ -719,6 +719,43 @@ describe("handing items over", () => {
   });
 });
 
+describe("the held item", () => {
+  it("swaps over the wire and shows up in both clients' snapshots", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+    const holder = session.players.get(alpha.joined.playerId)!;
+    const sword = {
+      id: "a2222222-2222-4222-8222-222222222222",
+      name: "Test Sword",
+      kind: "weapon" as const,
+      weaponKind: "melee" as const,
+    };
+    const bow = {
+      id: "a3333333-3333-4333-8333-333333333333",
+      name: "Test Bow",
+      kind: "weapon" as const,
+      weaponKind: "ranged" as const,
+    };
+    holder.held = sword;
+    holder.inventory = [bow];
+
+    alpha.client.send({ type: "swapHeld", itemId: bow.id });
+    const snapshot = await beta.client.nextWhere("stateSnapshot", () => holder.held?.id === bow.id);
+    const seen = snapshot.players.find((player) => player.id === holder.id);
+    expect(seen?.held?.id).toBe(bow.id);
+    expect(seen?.inventory.map((item) => item.id)).toEqual([sword.id]);
+
+    alpha.client.send({ type: "swapHeld", itemId: "a4444444-4444-4444-8444-444444444444" });
+    expect((await alpha.client.next("actionRejected")).reason).toBe("targetMissing");
+
+    alpha.client.send({ type: "swapHeld", itemId: null });
+    await alpha.client.nextWhere("stateSnapshot", () => holder.held === null);
+    expect(holder.inventory.map((item) => item.id)).toEqual([sword.id, bow.id]);
+  });
+});
+
 describe("voice signaling", () => {
   const offer = { kind: "offer", sdp: "v=0 offer" } as const;
 

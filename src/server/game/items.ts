@@ -61,9 +61,37 @@ function inventoryItemFromLoot(loot: LootState): InventoryItem {
         description: loot.description,
         icon: loot.icon,
       };
+    case "weapon":
+      return { id, name, kind: loot.kind, weaponKind: loot.weaponKind };
     default:
       return { id, name, kind: loot.kind };
   }
+}
+
+/** A carried item by id, whether it sits in the hand or in an inventory slot. */
+function carriedItem(player: SessionPlayer, itemId: EntityId): InventoryItem | undefined {
+  if (player.held?.id === itemId) return player.held;
+  return player.inventory.find((candidate) => candidate.id === itemId);
+}
+
+/** Removes a carried item from wherever it is held. */
+function removeCarried(player: SessionPlayer, item: InventoryItem): void {
+  if (player.held === item) player.held = null;
+  else player.inventory = player.inventory.filter((candidate) => candidate !== item);
+}
+
+/**
+ * Where an item would go if `player` received it: a weapon fills an empty hand first, anything
+ * else (or a weapon with a full hand) takes a free inventory slot. Null when there is no room.
+ */
+function destinationFor(player: SessionPlayer, item: InventoryItem): "held" | "inventory" | null {
+  if (item.kind === "weapon" && player.held === null) return "held";
+  return player.inventory.length < MAX_INVENTORY_SIZE ? "inventory" : null;
+}
+
+function receive(player: SessionPlayer, item: InventoryItem, destination: "held" | "inventory"): void {
+  if (destination === "held") player.held = item;
+  else player.inventory.push(item);
 }
 
 export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
@@ -81,10 +109,12 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
     return OK;
   }
 
-  if (player.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
+  const item = inventoryItemFromLoot(loot);
+  const destination = destinationFor(player, item);
+  if (!destination) return reject("notPermitted");
 
   loot.pickedUp = true;
-  player.inventory.push(inventoryItemFromLoot(loot));
+  receive(player, item, destination);
   return OK;
 }
 
@@ -101,13 +131,15 @@ function lootFromInventoryItem(item: InventoryItem, position: Vector2): LootStat
         description: item.description,
         icon: item.icon,
       };
+    case "weapon":
+      return { ...base, kind: item.kind, weaponKind: item.weaponKind };
     default:
       return { ...base, kind: item.kind };
   }
 }
 
 /**
- * Puts a held item on the floor at the player's feet as ordinary loot with the item's own id, so
+ * Puts a carried item on the floor at the player's feet as ordinary loot with the item's own id, so
  * it can be picked up again by anyone. Dropped loot lives in the dungeon, so it is lost at run end
  * and never banked.
  */
@@ -115,10 +147,10 @@ export function dropItem(session: Session, playerId: PlayerId, itemId: EntityId)
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");
 
-  const item = player.inventory.find((candidate) => candidate.id === itemId);
+  const item = carriedItem(player, itemId);
   if (!item) return reject("targetMissing");
 
-  player.inventory = player.inventory.filter((candidate) => candidate !== item);
+  removeCarried(player, item);
   // The id may still name the picked-up entry this item came from; replace it rather than
   // leaving two loot entries sharing an id.
   session.dungeon.loot = session.dungeon.loot.filter((loot) => loot.id !== item.id);
@@ -126,7 +158,10 @@ export function dropItem(session: Session, playerId: PlayerId, itemId: EntityId)
   return OK;
 }
 
-/** Hands a held item to a standing, connected party member within reach who has a free slot. */
+/**
+ * Hands a carried item (inventory or hand) to a standing, connected party member within reach who
+ * has room for it. A weapon goes to the target's empty hand first, like a pickup.
+ */
 export function giveItem(
   session: Session,
   playerId: PlayerId,
@@ -137,17 +172,46 @@ export function giveItem(
   if (!player) return reject("notPermitted");
   if (playerId === targetPlayerId) return reject("notPermitted");
 
-  const item = player.inventory.find((candidate) => candidate.id === itemId);
+  const item = carriedItem(player, itemId);
   if (!item) return reject("targetMissing");
 
   const target = session.players.get(targetPlayerId);
   if (!target) return reject("targetMissing");
   if (!target.connected || isDown(target)) return reject("notPermitted");
   if (!withinReach(player, target.position)) return reject("outOfRange");
-  if (target.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
+  const destination = destinationFor(target, item);
+  if (!destination) return reject("notPermitted");
 
-  player.inventory = player.inventory.filter((candidate) => candidate !== item);
-  target.inventory.push(item);
+  removeCarried(player, item);
+  receive(target, item, destination);
+  return OK;
+}
+
+/**
+ * Swaps the hand item with a named inventory item, or stows the hand item into a free slot when
+ * `itemId` is null. With an empty hand, naming an inventory item moves it into the hand. Only the
+ * inventory is searched, so the held item itself is never a valid swap target.
+ */
+export function swapHeld(session: Session, playerId: PlayerId, itemId: EntityId | null): ItemResult {
+  const player = actor(session, playerId);
+  if (!player) return reject("notPermitted");
+
+  if (itemId === null) {
+    if (!player.held) return reject("targetMissing");
+    if (player.inventory.length >= MAX_INVENTORY_SIZE) return reject("notPermitted");
+
+    player.inventory.push(player.held);
+    player.held = null;
+    return OK;
+  }
+
+  const index = player.inventory.findIndex((candidate) => candidate.id === itemId);
+  if (index < 0) return reject("targetMissing");
+
+  const incoming = player.inventory[index] as InventoryItem;
+  if (player.held) player.inventory[index] = player.held;
+  else player.inventory.splice(index, 1);
+  player.held = incoming;
   return OK;
 }
 
@@ -156,7 +220,7 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
   if (!player) return reject("notPermitted");
 
   const item = player.inventory.find((candidate) => candidate.id === itemId);
-  if (!item) return reject("targetMissing");
+  if (!item) return reject(player.held?.id === itemId ? "notPermitted" : "targetMissing");
 
   switch (item.kind) {
     case "consumable":
@@ -169,8 +233,10 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
       break;
     case "key":
     case "torch":
+    case "weapon":
       // Keys are spent by interacting with a locked door, not used on their own.
-      // Torches equip directly when picked up and never enter inventory.
+      // Torches equip directly when picked up and never enter inventory. Weapons are used by
+      // attacking, not by `useItem`.
       return reject("notPermitted");
   }
 

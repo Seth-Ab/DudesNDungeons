@@ -288,6 +288,11 @@ button:disabled {
   background: #121417;
 }
 
+.hud__slot--held {
+  margin-right: 0.5rem;
+  border-color: #856a42;
+}
+
 .hud__slot--empty {
   border-style: dashed;
   opacity: 0.6;

@@ -12,6 +12,7 @@ export type GameplayAction =
   | "carry"
   | "drop"
   | "give"
+  | "swapHeld"
   | "toggleMinimap"
   | "useSlot1"
   | "useSlot2"
@@ -44,6 +45,7 @@ const DEFAULT_KEYS: Record<BindableAction, string> = {
   carry: "c",
   drop: "q",
   give: "t",
+  swapHeld: "v",
   toggleMinimap: "m",
   useSlot1: "1",
   useSlot2: "2",
@@ -74,6 +76,7 @@ export const ACTION_NAMES: Record<BindableAction, string> = {
   carry: "Carry",
   drop: "Drop item",
   give: "Give item",
+  swapHeld: "Swap held item",
   toggleMinimap: "Toggle minimap",
   useSlot1: "Use slot 1",
   useSlot2: "Use slot 2",

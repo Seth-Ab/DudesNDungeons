@@ -84,6 +84,15 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("accepts swapHeld with an item id or null, and rejects anything else", () => {
+    const itemId = "a1111111-1111-4111-8111-111111111111";
+
+    expect(parseClientMessage(JSON.stringify({ type: "swapHeld", itemId })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "swapHeld", itemId: null })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "swapHeld" })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "swapHeld", itemId: "nope" })).ok).toBe(false);
+  });
+
   it("accepts dropItem and giveItem, and rejects malformed ones", () => {
     const itemId = "a1111111-1111-4111-8111-111111111111";
     const targetPlayerId = "9a2e7c1f-7b5b-4a3f-8e2d-3c4b5d6e7f80";
@@ -442,6 +451,7 @@ describe("parseServerMessage", () => {
             skillId: "iron-will",
           },
         ],
+        held: null,
         carryingTorch: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,
