@@ -8,7 +8,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v19.
-- Last completed work: monsters route round walls on a shared flow field, aggro only on players
+- Last completed work: a minimap that fills in as the party explores (issue #105); earlier,
+  monsters route round walls on a shared flow field, aggro only on players
   they can see or hear, and leash home (issue #89); earlier, dropping and handing over inventory
   items (issue #87, protocol v19), owner-only banks and a once-per-tick roster (issue #81, protocol v17);
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
@@ -300,6 +301,12 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add party join flow with invite code or room ID.
 - [x] Show health, inventory, combat feedback, and player names.
 - [x] Add monster and loot rendering.
+- [x] Add a minimap in the top-right session cluster (issue #105). `src/client/state/minimap.ts` and
+  `ui/hud/minimap.ts` draw the accumulated discovered map (black where undiscovered, so tiles shared
+  by nearby players appear like self-discovered ones), the local player with facing, visible allies
+  only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
+  worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
+  world. No protocol change.
 - [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
 
 ### 4. Combat and Dungeon Interaction
@@ -379,6 +386,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-12: Minimap HUD panel with rebindable toggle (#105).
 - 2026-10-09: Monster flow-field pathing, line-of-sight aggro and leash (#89).
 - 2026-10-07: Owner-only progression catalog and live state (#24, v15).
 - 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec

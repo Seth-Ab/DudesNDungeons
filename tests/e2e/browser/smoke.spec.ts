@@ -4,7 +4,7 @@ test("client boots and renders the canvas", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle("DudesNDungeons");
-  await expect(page.locator("#app canvas")).toBeVisible();
+  await expect(page.locator("#app canvas.game-canvas")).toBeVisible();
 });
 
 test.describe("HUD overlay", () => {
@@ -16,7 +16,7 @@ test.describe("HUD overlay", () => {
       await page.setViewportSize(viewport);
       await page.goto("/");
 
-      const canvas = await page.locator("#app canvas").boundingBox();
+      const canvas = await page.locator("#app canvas.game-canvas").boundingBox();
       expect(canvas).toMatchObject({ x: 0, y: 0, ...viewport });
 
       const panels = await page.locator(".hud__panel:not([hidden])").evaluateAll((elements) =>

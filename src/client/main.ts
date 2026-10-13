@@ -269,6 +269,12 @@ function renderLoop(): void {
 requestAnimationFrame(renderLoop);
 
 function performAction(action: GameplayAction): void {
+  // An overlay, not an act in the world: a downed player can still read the map.
+  if (action === "toggleMinimap") {
+    hud.toggleMinimap();
+    return;
+  }
+
   const self = selfOf(view);
   if (view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return;
 
