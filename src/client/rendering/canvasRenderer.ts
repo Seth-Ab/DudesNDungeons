@@ -55,6 +55,10 @@ const colors = {
   disconnectedPlayer: "#5a5f63",
   downedPlayer: "#6c4d5f",
   monster: "#b8584c",
+  rangedMonster: "#c9893f",
+  chargerMonster: "#7d5a8c",
+  stunnedMonster: "#8a8f94",
+  projectile: "#ffb347",
   loot: "#d6a84c",
   trapArmed: "#b5452f",
   trapSpent: "#4a3c36",
@@ -334,7 +338,15 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     if (monster.action === "windingUp") drawTelegraph(monster, center);
 
-    ctx.fillStyle = monster.boss ? colors.boss : colors.monster;
+    ctx.fillStyle = monster.boss
+      ? colors.boss
+      : monster.action === "stunned"
+        ? colors.stunnedMonster
+        : monster.behavior === "ranged"
+          ? colors.rangedMonster
+          : monster.behavior === "charger"
+            ? colors.chargerMonster
+            : colors.monster;
     ctx.fillRect(center.x - side / 2, center.y - side / 2, side, side);
     ctx.fillStyle = "#2b0f0f";
     ctx.fillRect(center.x - side * 0.22 - eye / 2, center.y - side * 0.12, eye, eye);
@@ -732,6 +744,14 @@ export function createCanvasRenderer(getScene: () => Scene) {
     scene.dungeon.monsters
       .filter((monster) => monster.alive)
       .forEach((monster) => drawMonster(monster, camera));
+    // Placeholder bolts until projectile art exists.
+    scene.dungeon.projectiles.forEach((bolt) => {
+      const center = worldToScreen(bolt.position, camera);
+      ctx.fillStyle = colors.projectile;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, bolt.radius * pixelsPerWorldUnit, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
     for (const player of scene.others) {
       const color = player.health > 0 ? colors.remotePlayer : colors.downedPlayer;

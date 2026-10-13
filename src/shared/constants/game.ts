@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -45,6 +45,15 @@ export const MONSTER_LEASH_MS = 4000;
 
 /** Wind-up for a monster whose content does not set one. */
 export const DEFAULT_MONSTER_WINDUP_MS = 500;
+
+/** How a monster fights. `melee` is the original walk-up swing; the others are in `monsterAi`/`combat`. */
+export const MONSTER_BEHAVIORS = ["melee", "ranged", "charger"] as const;
+
+/**
+ * Longest step a projectile or charge takes between collision checks, in world units. Smaller than
+ * a body, so a fast mover cannot skip over a player or a one-tile wall within a single tick.
+ */
+export const MAX_MOTION_SUBSTEP = 0.2;
 
 export const SERVER_TICK_RATE_HZ = 20;
 export const SERVER_TICK_MS = 1000 / SERVER_TICK_RATE_HZ;

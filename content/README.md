@@ -14,6 +14,12 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `itemId`, and `nothingWeight`) is rolled when a player kills the monster; drops land on open
   floor at or near the corpse and are ordinary loot. A single entry with no `nothingWeight` is a
   guaranteed drop, and an unknown `itemId` fails validation naming the file's monster and field.
+  `behavior` is `melee` (default), `ranged` (needs `projectile`: `speed`, `radius`, `damage`,
+  `range`; optional `preferredRange` no greater than `attackRange`), or `charger` (needs `charge`:
+  `speed`, `distance`, `stunMs`). A ranged monster fires from within `attackRange` with a clear line
+  and backs off inside `preferredRange`; its bolt uses `projectile.damage`. A charger winds up from
+  within `attackRange`, dashes straight for `charge.distance` dealing `damage` to the first player it
+  touches, and is stunned for `stunMs` if it hits a wall or closed door.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
   delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a

@@ -40,6 +40,23 @@ export interface BuiltDungeon {
   seed: number | null;
 }
 
+/**
+ * What a wind-up draws. A melee swing is its cone; a bolt or a dash is a narrow lane as long as it
+ * travels, so the same telegraph tells a player which line to step out of.
+ */
+function telegraphShape(type: MonsterType): Pick<MonsterState, "hitRange" | "hitArcCos"> {
+  if (type.behavior === "ranged" && type.projectile) {
+    return { hitRange: type.projectile.range, hitArcCos: LANE_ARC_COS };
+  }
+  if (type.behavior === "charger" && type.charge) {
+    return { hitRange: type.charge.distance, hitArcCos: LANE_ARC_COS };
+  }
+  return { hitRange: type.hitRange ?? type.attackRange, hitArcCos: type.hitArcCos };
+}
+
+/** Cosine of a few degrees: a lane drawn as a sliver of a cone. */
+const LANE_ARC_COS = 0.985;
+
 export function monsterInstance(type: MonsterType, position: Vector2, id: string): MonsterState {
   return {
     id,
@@ -51,10 +68,10 @@ export function monsterInstance(type: MonsterType, position: Vector2, id: string
     alive: true,
     boss: type.boss,
     action: "idle",
+    behavior: type.behavior,
     windupProgress: 0,
     facing: { x: 0, y: 1 },
-    hitRange: type.hitRange ?? type.attackRange,
-    hitArcCos: type.hitArcCos,
+    ...telegraphShape(type),
   };
 }
 
@@ -207,6 +224,7 @@ export function buildAuthoredDungeon(
       },
       rooms,
       monsters,
+      projectiles: [],
       loot,
       traps,
       puzzles,

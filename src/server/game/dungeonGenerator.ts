@@ -582,6 +582,7 @@ export function generateDungeon(
       },
       rooms: rooms.map((room) => room.state),
       monsters,
+      projectiles: [],
       loot,
       traps,
       puzzles,

@@ -145,7 +145,7 @@ export function distanceToDoor(position: Vector2, door: DoorState): number {
 }
 
 /** A closed door fills its whole doorway, like a wall, so nothing can slip past its corners. */
-function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
+export function isClosedDoorAt(dungeon: DungeonState, position: Vector2): boolean {
   const tile = tileOf(position);
   return dungeon.doors.some((door) => !door.open && coversTile(door, tile.x, tile.y));
 }

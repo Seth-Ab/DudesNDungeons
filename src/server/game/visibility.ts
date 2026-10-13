@@ -440,6 +440,13 @@ function visibleDungeon(
     monsters: session.dungeon.monsters
       .filter((monster) => monster.alive && tileVisible(visible, monster.position))
       .map((monster) => ({ ...monster, position: { ...monster.position } })),
+    projectiles: session.dungeon.projectiles
+      .filter((projectile) => tileVisible(visible, projectile.position))
+      .map((projectile) => ({
+        ...projectile,
+        position: { ...projectile.position },
+        direction: { ...projectile.direction },
+      })),
     loot: session.dungeon.loot
       .filter((loot) => !loot.pickedUp && tileVisible(visible, loot.position))
       .map((loot) => ({ ...loot, position: { ...loot.position } })),

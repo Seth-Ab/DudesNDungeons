@@ -79,6 +79,8 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.monsterCooldowns.clear();
   session.monsterWindups.clear();
   session.monsterPosts.clear();
+  session.monsterCharges.clear();
+  session.projectileRuns.clear();
   session.trapRearmAt.clear();
   session.puzzleHeldSince.clear();
 

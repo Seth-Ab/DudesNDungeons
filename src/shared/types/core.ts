@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
@@ -72,7 +73,9 @@ export const monsterStateSchema = z.object({
    * `windingUp` while the monster is committed to a swing it has not yet resolved. The swing lands
    * on whoever is inside its reach and arc when `windupProgress` reaches 1, so a player can step out.
    */
-  action: z.enum(["idle", "windingUp"]),
+  action: z.enum(["idle", "windingUp", "charging", "stunned"]),
+  /** How this monster fights, so the client can shape its telegraph. Never a stat. */
+  behavior: z.enum(MONSTER_BEHAVIORS),
   /** Fraction of the wind-up elapsed, 0 while idle. Drives the client's telegraph. */
   windupProgress: z.number().min(0).max(1),
   /** Direction the monster is swinging, fixed when the wind-up starts. Unit length. */
@@ -83,6 +86,19 @@ export const monsterStateSchema = z.object({
   hitArcCos: z.number().min(-1).max(1),
 });
 export type MonsterState = z.infer<typeof monsterStateSchema>;
+
+/**
+ * A bolt in flight. The server moves it and decides what it hits; damage, remaining range, and who
+ * fired it stay server-side. Sent only to players who can see its tile.
+ */
+export const projectileStateSchema = z.object({
+  id: entityIdSchema,
+  position: vector2Schema,
+  /** Unit direction of travel. */
+  direction: vector2Schema,
+  radius: z.number().positive(),
+});
+export type ProjectileState = z.infer<typeof projectileStateSchema>;
 
 /**
  * What an item does. Torches equip separately and never consume one of the three inventory slots.
@@ -295,6 +311,8 @@ export const dungeonStateSchema = z.object({
   /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
   rooms: z.array(roomStateSchema),
   monsters: z.array(monsterStateSchema),
+  /** Only projectiles on tiles the viewer can currently see. */
+  projectiles: z.array(projectileStateSchema),
   loot: z.array(lootStateSchema),
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),

@@ -8,7 +8,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v19.
-- Last completed work: monsters route round walls on a shared flow field, aggro only on players
+- Last completed work: ranged and charging monster behaviours (issue #91, protocol v21); earlier,
+  monsters route round walls on a shared flow field, aggro only on players
   they can see or hear, and leash home (issue #89); earlier, dropping and handing over inventory
   items (issue #87, protocol v19), owner-only banks and a once-per-tick roster (issue #81, protocol v17);
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
@@ -105,6 +106,13 @@ Resolved:
   still while it winds up and resolves the hit against whoever is in its cone then. Snapshots carry
   `action`, `windupProgress`, `facing`, `hitRange`, `hitArcCos`. The optional dodge step is not
   implemented (left to an owner decision).
+- [x] Add ranged and charging monster behaviours (issue #91, protocol v21). Monster content gains a
+  `behavior` (`melee`, `ranged`, `charger`) with `projectile` / `preferredRange` / `charge` stats,
+  validated at load. `monsterAttacks.ts` simulates server-owned projectiles (stopped by walls, closed
+  doors, and the first player on the path; expire at range) and dashes (stopped by a wall or door,
+  which stuns). Snapshots carry visible `projectiles` and each monster's `behavior`; the client draws
+  placeholder bolts and tints by behavior. Content: Cinder Spitter and Slag Charger in `ashen-hall`.
+  Boss phases and monster art (#63) remain out of scope.
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
@@ -379,6 +387,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-12: Ranged and charging monster behaviours (#91, v21).
 - 2026-10-09: Monster flow-field pathing, line-of-sight aggro and leash (#89).
 - 2026-10-07: Owner-only progression catalog and live state (#24, v15).
 - 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec
