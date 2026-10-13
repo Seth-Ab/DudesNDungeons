@@ -742,7 +742,10 @@ describe("the held item", () => {
     holder.inventory = [bow];
 
     alpha.client.send({ type: "swapHeld", itemId: bow.id });
-    const snapshot = await beta.client.nextWhere("stateSnapshot", () => holder.held?.id === bow.id);
+    const snapshot = await beta.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.players.find((player) => player.id === holder.id)?.held?.id === bow.id,
+    );
     const seen = snapshot.players.find((player) => player.id === holder.id);
     expect(seen?.held?.id).toBe(bow.id);
     expect(seen?.inventory.map((item) => item.id)).toEqual([sword.id]);
@@ -751,7 +754,10 @@ describe("the held item", () => {
     expect((await alpha.client.next("actionRejected")).reason).toBe("targetMissing");
 
     alpha.client.send({ type: "swapHeld", itemId: null });
-    await alpha.client.nextWhere("stateSnapshot", () => holder.held === null);
+    await alpha.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.players.find((player) => player.id === holder.id)?.held === null,
+    );
     expect(holder.inventory.map((item) => item.id)).toEqual([sword.id, bow.id]);
   });
 });
