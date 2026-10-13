@@ -117,6 +117,7 @@ export function returnToHub(session: Session, escaped: boolean): void {
     const survived = escaped && (player.health > 0 || player.carriedByPlayerId !== null);
     if (survived) {
       player.profile.bankedItems.push(...player.inventory);
+      if (player.held) player.profile.bankedItems.push(player.held);
       bankRunSkills(player);
       player.profile.runsEscaped += 1;
     } else {
@@ -126,6 +127,7 @@ export function returnToHub(session: Session, escaped: boolean): void {
     markProfileChanged(player.profile);
 
     player.inventory = [];
+    player.held = null;
     player.carryingTorch = false;
   }
 

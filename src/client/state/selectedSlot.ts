@@ -10,6 +10,14 @@ export function noteSlotUsed(slot: number): void {
   lastUsedSlot = slot;
 }
 
+/** What drop and give act on: the selected inventory item, or the hand item when nothing is stowed. */
+export function actionableItem(
+  inventory: readonly InventoryItem[],
+  held: InventoryItem | null,
+): InventoryItem | null {
+  return selectedItem(inventory) ?? held;
+}
+
 export function selectedItem(inventory: readonly InventoryItem[]): InventoryItem | null {
   return inventory[lastUsedSlot] ?? inventory[0] ?? null;
 }

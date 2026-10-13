@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v19.
-- Last completed work: ranged and charging monster behaviours (issue #91, protocol v21); earlier,
+  everyone to the hub under protocol v22.
+- Last completed work: a held-item slot and the `weapon` item kind (issue #113, protocol v22);
+  earlier, ranged and charging monster behaviours (issue #91, protocol v21); earlier,
   a minimap that fills in as the party explores (issue #105); earlier,
   monsters route round walls on a shared flow field, aggro only on players
   they can see or hear, and leash home (issue #89); earlier, dropping and handing over inventory
@@ -116,6 +117,7 @@ Resolved:
   Boss phases and monster art (#63) remain out of scope.
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
+- [x] Add a held-item ("in hand") slot and a `weapon` item kind (issue #113, protocol v22). `held` on the player is separate from the three inventory slots and the torch; a weapon pickup fills the hand, then inventory, then is refused. `swapHeld` swaps the hand with an inventory item (null stows it). Drop, give, banking and resume treat it like carried items. Client: hand slot beside the hotbar, rebindable swap key `V`. No concrete weapon or attack change yet; the sword, ammo and bow issues build on this.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
 
@@ -394,6 +396,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-13: Held-item slot and weapon item kind (#113, v22).
 - 2026-10-12: Ranged and charging monster behaviours (#91, v21).
 - 2026-10-12: Minimap HUD panel with rebindable toggle (#105).
 - 2026-10-09: Monster flow-field pathing, line-of-sight aggro and leash (#89).

@@ -31,6 +31,7 @@ function player(id: string, x: number): PlayerState {
     ready: false,
     connected: true,
     inventory: [],
+    held: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

@@ -4,6 +4,7 @@ import { SHEET_HEIGHT, SHEET_WIDTH, spriteRect } from "../../rendering/tiles.js"
 import {
   torchStatusLabel,
   type ActionPromptView,
+  type HeldSlotView,
   type HotbarSlotView,
 } from "../../state/hudView.js";
 import type { PlayerState } from "../../../shared/types/core.js";
@@ -29,8 +30,8 @@ function paintIcon(icon: HTMLElement, sprite: string | null): void {
 }
 
 /**
- * Bottom-centre: the contextual prompt, the three item slots, and the torch pip. The pip is its own
- * element because a torch never takes a slot.
+ * Bottom-centre: the contextual prompt, the hand slot, the three item slots, and the torch pip. The
+ * hand and the pip are their own elements because neither takes an inventory slot.
  */
 export function createHotbar(options: HotbarOptions & { onAction: (action: GameplayAction) => void }) {
   const element = document.createElement("div");
@@ -65,6 +66,18 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
     return { button, key, icon };
   });
 
+  // The hand is its own slot: a held item never takes one of the three inventory slots.
+  const held = document.createElement("button");
+  held.type = "button";
+  held.className = "hud__slot hud__slot--held hud__slot--empty";
+  held.addEventListener("click", () => options.onAction("swapHeld"));
+  const heldKey = document.createElement("span");
+  heldKey.className = "hud__slot-key";
+  const heldIcon = document.createElement("span");
+  heldIcon.className = "hud__slot-icon";
+  heldIcon.setAttribute("aria-hidden", "true");
+  held.append(heldKey, heldIcon);
+
   const torch = document.createElement("div");
   torch.className = "hud__torch";
   torch.setAttribute("role", "img");
@@ -75,7 +88,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
   paintIcon(torchIcon, "loot-torch");
   torch.append(torchIcon);
 
-  bar.append(...slots.map((slot) => slot.button), torch);
+  bar.append(held, ...slots.map((slot) => slot.button), torch);
   element.append(prompt, bar);
 
   return {
@@ -93,6 +106,15 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
         slot.button.setAttribute("aria-label", `Slot ${view.keyHint}: ${view.name}`);
         paintIcon(slot.icon, view.icon);
       });
+    },
+
+    updateHeld(view: HeldSlotView) {
+      heldKey.textContent = view.keyHint;
+      held.disabled = view.disabled;
+      held.classList.toggle("hud__slot--empty", view.empty);
+      held.title = `${view.keyHint}: In hand - ${view.name}`;
+      held.setAttribute("aria-label", `In hand (${view.keyHint}): ${view.name}`);
+      paintIcon(heldIcon, view.icon);
     },
 
     updateTorch(self: PlayerState | null) {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
+  WEAPON_KINDS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
   MAX_PLAYER_NAME_LENGTH,
@@ -102,8 +103,10 @@ export type ProjectileState = z.infer<typeof projectileStateSchema>;
 
 /**
  * What an item does. Torches equip separately and never consume one of the three inventory slots.
+ * A weapon is carried in the hand slot (`PlayerState.held`) or, when the hand is full, an
+ * inventory slot.
  */
-export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll"]);
+export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const consumableIconSchema = z.enum(CONSUMABLE_ICONS);
@@ -119,6 +122,15 @@ const consumableFields = {
   itemId: contentIdSchema,
   description: z.string().min(1).max(MAX_ITEM_DESCRIPTION_LENGTH),
   icon: consumableIconSchema,
+};
+
+/** How a weapon is used. Each weapon issue extends this with the stats it needs. */
+export const weaponKindSchema = z.enum(WEAPON_KINDS);
+export type WeaponKind = z.infer<typeof weaponKindSchema>;
+
+const weaponFields = {
+  kind: z.literal("weapon"),
+  weaponKind: weaponKindSchema,
 };
 
 const ordinaryLootStateSchema = z.object({
@@ -137,6 +149,14 @@ const consumableLootStateSchema = z.object({
   pickedUp: z.boolean(),
 });
 
+const weaponLootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...weaponFields,
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+
 const skillScrollLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
@@ -150,6 +170,7 @@ export const lootStateSchema = z.discriminatedUnion("kind", [
   ordinaryLootStateSchema,
   consumableLootStateSchema,
   skillScrollLootStateSchema,
+  weaponLootStateSchema,
 ]);
 export type LootState = z.infer<typeof lootStateSchema>;
 
@@ -174,10 +195,17 @@ const skillScrollInventoryItemSchema = z.object({
   skillId: contentIdSchema,
 });
 
+const weaponInventoryItemSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...weaponFields,
+});
+
 export const inventoryItemSchema = z.discriminatedUnion("kind", [
   ordinaryInventoryItemSchema,
   consumableInventoryItemSchema,
   skillScrollInventoryItemSchema,
+  weaponInventoryItemSchema,
 ]);
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
 
@@ -476,6 +504,12 @@ export const playerStateSchema = z.object({
   ready: z.boolean(),
   connected: z.boolean(),
   inventory: z.array(inventoryItemSchema).max(MAX_INVENTORY_SIZE),
+  /**
+   * The item in hand, independent of the three inventory slots and of the torch: a full inventory
+   * plus a held item is valid. Only a weapon is picked up into it; `swapHeld` moves items between
+   * the hand and the inventory.
+   */
+  held: inventoryItemSchema.nullable(),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
   /** The downed party member this player is carrying, or null. Spent by Backend step 12. */

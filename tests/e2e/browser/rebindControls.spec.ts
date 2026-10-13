@@ -35,6 +35,16 @@ test.describe("Rebindable controls", () => {
     await page.keyboard.up("w");
   });
 
+  test("the swap key is listed, rebindable, and labels the hand slot beside the hotbar", async ({ page }) => {
+    const handSlot = page.locator(".hud__slot--held");
+    await expect(handSlot).toHaveAttribute("aria-label", /In hand \(V\)/);
+
+    await page.getByRole("button", { name: "Swap held item: V" }).click();
+    await page.keyboard.press("z");
+    await expect(page.getByRole("button", { name: "Swap held item: Z" })).toBeVisible();
+    await expect(handSlot).toHaveAttribute("aria-label", /In hand \(Z\)/);
+  });
+
   test("a held key is rejected with a message, Escape cancels, and reset restores defaults", async ({ page }) => {
     await page.getByRole("button", { name: "Interact: E" }).click();
     await page.keyboard.press("f");

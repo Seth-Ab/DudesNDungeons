@@ -24,7 +24,7 @@ import {
   nearestLoot,
   nearestStandingAlly,
 } from "./reach.js";
-import { selectedItem } from "./selectedSlot.js";
+import { actionableItem } from "./selectedSlot.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
 /**
@@ -411,6 +411,29 @@ export function hotbarView(view: SessionView, self: PlayerState | null): HotbarS
   });
 }
 
+export interface HeldSlotView {
+  keyHint: string;
+  action: GameplayAction;
+  empty: boolean;
+  name: string;
+  icon: SpriteName | null;
+  disabled: boolean;
+}
+
+/** The hand slot beside the hotbar. Clicking it swaps with the selected inventory slot. */
+export function heldView(view: SessionView, self: PlayerState | null): HeldSlotView {
+  const canAct = view.phase === "inSession" && (self?.health ?? 0) > 0;
+  const item = self?.held;
+  return {
+    keyHint: keyLabel("swapHeld"),
+    action: "swapHeld",
+    empty: !item,
+    name: item?.name ?? "Empty hand",
+    icon: item ? itemSprite(item) : null,
+    disabled: !canAct || (!item && (self?.inventory.length ?? 0) === 0),
+  };
+}
+
 export interface ActionPromptView {
   action: GameplayAction;
   keyHint: string;
@@ -451,7 +474,7 @@ export function actionPrompt(
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
 
-  const held = selectedItem(self.inventory);
+  const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;
   if (held && ally) return prompt("give", `Give ${held.name} to ${ally.name}`);
 

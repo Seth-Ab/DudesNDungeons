@@ -55,6 +55,8 @@ export interface SessionPlayer {
   ready: boolean;
   connected: boolean;
   inventory: InventoryItem[];
+  /** In hand, independent of `inventory` and the torch. */
+  held: InventoryItem | null;
   /** Skills learned from consumed scrolls this run, provisional until this player extracts. */
   runSkillIds: Set<string>;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
@@ -359,6 +361,7 @@ export class SessionStore {
       ready: false,
       connected: true,
       inventory: [],
+      held: null,
       runSkillIds: new Set(),
       carryingTorch: false,
       carryingPlayerId: null,
@@ -506,6 +509,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     ready: player.ready,
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),
+    held: player.held ? { ...player.held } : null,
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,

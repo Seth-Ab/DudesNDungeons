@@ -28,6 +28,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     ready: false,
     connected: true,
     inventory: [],
+    held: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

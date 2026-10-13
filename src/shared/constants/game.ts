@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 21;
+export const PROTOCOL_VERSION = 22;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -141,6 +141,9 @@ export const PLAYER_MAP_SHARE_RANGE = PLAYER_TORCH_LIGHT_RADIUS;
 export const FIXED_LIGHT_RADIUS = 5;
 
 export const MAX_INVENTORY_SIZE = 3;
+
+/** How a weapon is used. The weapon issues extend the weapon block per kind. */
+export const WEAPON_KINDS = ["melee", "ranged"] as const;
 
 /** Longest HUD blurb a consumable may carry. */
 export const MAX_ITEM_DESCRIPTION_LENGTH = 80;

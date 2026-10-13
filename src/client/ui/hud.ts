@@ -8,6 +8,7 @@ import {
   controlsView,
   hubStatusView,
   runClockView,
+  heldView,
   hotbarView,
   newServerAction,
   placeStatusLabel,
@@ -195,6 +196,7 @@ export function createHud(options: HudOptions) {
 
       currentView = view;
       hotbar.updateSlots(hotbarView(view, self));
+      hotbar.updateHeld(heldView(view, self));
       hotbar.updateTorch(self);
       refreshPrompt();
 

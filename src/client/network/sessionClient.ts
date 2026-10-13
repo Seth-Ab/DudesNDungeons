@@ -300,6 +300,11 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "giveItem", itemId, targetPlayerId });
     },
 
+    /** Swaps the hand item with an inventory item, or stows it into a free slot when null. */
+    swapHeld(itemId: string | null): boolean {
+      return send({ type: "swapHeld", itemId });
+    },
+
     liftPlayer(targetPlayerId: string): boolean {
       return send({ type: "liftPlayer", targetPlayerId });
     },

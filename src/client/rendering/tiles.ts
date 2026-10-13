@@ -79,6 +79,8 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-skill-scroll", { tilesWide: 1, tilesHigh: 1 }],
+  // Generic until the weapon issues give each weapon its own art.
+  ["loot-weapon", { tilesWide: 1, tilesHigh: 1 }],
   // Unlit, because this is a torch lying on the floor. The flame is `torch-flame`, drawn over the
   // player once they are carrying it and it is an active light source.
   ["loot-torch", { tilesWide: 1, tilesHigh: 1 }],
@@ -95,6 +97,7 @@ export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, Spri
   key: "loot-key",
   skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
+  weapon: "loot-weapon",
 };
 
 /** A consumable names its icon in content, so its art is looked up by that rather than by kind. */
