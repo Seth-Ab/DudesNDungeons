@@ -63,6 +63,16 @@ const CONTROL_GROUPS: ControlGroup[] = [
     ],
   },
   {
+    title: "Interface",
+    controls: [
+      {
+        input: bound("toggleMinimap"),
+        action: "Show or hide the minimap (it starts shown in each new world)",
+        rebind: "toggleMinimap",
+      },
+    ],
+  },
+  {
     title: "The Hub",
     controls: [
       { input: bound("pickup"), action: "Take a torch from the Torch Supply" },

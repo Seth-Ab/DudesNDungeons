@@ -91,4 +91,11 @@ describe("key bindings", () => {
     expect(keyLabel("interact")).toBe("E");
     expect(keyLabel("moveEast")).toBe("D");
   });
+
+  it("binds the minimap toggle to M and lets it be rebound", () => {
+    expect(actionForKey("m")).toBe("toggleMinimap");
+    expect(setBinding("toggleMinimap", "n")).toEqual({ ok: true });
+    expect(actionForKey("n")).toBe("toggleMinimap");
+    expect(actionForKey("m")).toBeUndefined();
+  });
 });
