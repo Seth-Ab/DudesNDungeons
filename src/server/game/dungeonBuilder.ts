@@ -118,7 +118,7 @@ export function lootInstance(item: ItemDefinition, position: Vector2, id: string
         icon: item.icon,
       };
     case "weapon":
-      return { ...instance, kind: item.kind, weaponKind: item.weapon.kind };
+      return { ...instance, kind: item.kind, itemId: item.id, weaponKind: item.weapon.kind };
     default:
       return { ...instance, kind: item.kind };
   }

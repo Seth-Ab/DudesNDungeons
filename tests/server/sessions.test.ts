@@ -150,7 +150,7 @@ describe("disconnect and reconnect", () => {
     store.setReady(player.id, true);
     player.health = 42;
     player.position = { x: 7, y: 9 };
-    player.held = { id: "a0000000-0000-4000-8000-000000000001", name: "Sword", kind: "weapon", weaponKind: "melee" };
+    player.held = { id: "a0000000-0000-4000-8000-000000000001", name: "Sword", kind: "weapon", itemId: "rusted-sword", weaponKind: "melee" };
 
     store.markDisconnected(player.id);
     expect(player.connected).toBe(false);

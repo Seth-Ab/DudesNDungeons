@@ -43,7 +43,8 @@ and not the other fails the bake rather than drawing a hole in the floor.
   the lip on a corner cell lines up with the lip on the straight cell beside it. The south face is
   painted last, over the side lips, which is why there are no separate corner sprites.
 - Props: `torch-pillar`, `torch-flame`, `glow-mote`, `door-closed-h`/`-v`, `door-jamb-h`/`-v`,
-  `door-lock`, `loot-key`, `loot-tonic`, `loot-ward`, `loot-torch`, `exit-stairs`.
+  `door-lock`, `loot-key`, `loot-tonic`, `loot-ward`, `loot-skill-scroll`, `loot-weapon` (any weapon
+  without its own art), `loot-rusted-sword`, `loot-torch`, `exit-stairs`.
 
 Players and monsters are still drawn as flat figures. They are Frontend step 6.
 

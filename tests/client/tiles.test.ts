@@ -16,6 +16,7 @@ import {
   UNKNOWN,
   doorOrientation,
   floorSprite,
+  itemSprite,
   spriteRect,
   tileLook,
   wallMask,
@@ -197,5 +198,22 @@ describe("sheet layout", () => {
 
   it("refuses a sprite it does not have", () => {
     expect(() => spriteRect("wall-99")).toThrow(/Unknown sprite/);
+  });
+});
+
+describe("weapon art", () => {
+  const weapon = (itemId: string) =>
+    ({
+      id: "c1111111-1111-4111-8111-111111111111",
+      name: "Blade",
+      kind: "weapon",
+      itemId,
+      weaponKind: "melee",
+    }) as const;
+
+  it("draws a weapon with its own sprite, or the generic one when it has none", () => {
+    expect(itemSprite(weapon("rusted-sword"))).toBe("loot-rusted-sword");
+    expect(itemSprite(weapon("unpainted-axe"))).toBe("loot-weapon");
+    expect(SPRITE_NAMES).toContain("loot-rusted-sword");
   });
 });

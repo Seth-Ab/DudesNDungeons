@@ -1,0 +1,13 @@
+{
+  "id": "rusted-sword",
+  "name": "Rusted Sword",
+  "kind": "weapon",
+  "weapon": {
+    "kind": "melee",
+    "damage": 6,
+    "range": 1.2,
+    "arcCos": 0.5,
+    "cooldownMs": 500,
+    "staminaCost": 15
+  }
+}

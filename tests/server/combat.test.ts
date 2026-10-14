@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { loadContent } from "../../src/server/content/loadContent.js";
+import type { ItemDefinition, SkillDefinition } from "../../src/server/content/schema.js";
 import { resolvePlayerAttack, simulate } from "../../src/server/game/combat.js";
-import { canOccupy, monsterStatsFor } from "../../src/server/game/dungeonState.js";
+import { canOccupy, HUB_DUNGEON_ID, monsterStatsFor } from "../../src/server/game/dungeonState.js";
+import { pickupItem } from "../../src/server/game/items.js";
 import {
+  ATTACK_STAMINA_COST,
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_MAX_HEALTH,
+  PLAYER_MAX_STAMINA,
+  STAMINA_REGEN_PER_SECOND,
 } from "../../src/shared/constants/game.js";
-import { at, ASH_IMP_ID, monster, testPlayer, testSession } from "./fixtures.js";
+import type { InventoryItem } from "../../src/shared/types/core.js";
+import { at, ASH_IMP_ID, monster, testPlayer, testProfile, testSession } from "./fixtures.js";
 
 // The Ash Imp starts on authored tile (11, 2) with 12 health.
 
@@ -105,6 +112,184 @@ describe("player attacks", () => {
       ok: false,
       reason: "notPermitted",
     });
+  });
+});
+
+/** A sword whose every stat differs from the unarmed constants, so each one is seen to apply. */
+const TEST_BLADE: ItemDefinition = {
+  id: "test-blade",
+  name: "Test Blade",
+  kind: "weapon",
+  weapon: { kind: "melee", damage: 9, range: 2.5, arcCos: 0.9, cooldownMs: 800, staminaCost: 40 },
+};
+
+const IN_HAND: InventoryItem = {
+  id: "a0000000-0000-4000-8000-0000000000b1",
+  name: TEST_BLADE.name,
+  kind: "weapon",
+  itemId: TEST_BLADE.id,
+  weaponKind: "melee",
+};
+
+/** A session whose content also defines `blade` and any extra `skills`. */
+function withBlade(
+  session: ReturnType<typeof testSession>,
+  blade: ItemDefinition = TEST_BLADE,
+  skills: SkillDefinition[] = [],
+) {
+  const shipped = loadContent();
+  session.runDungeon.content = {
+    ...shipped,
+    items: new Map([...shipped.items, [blade.id, blade]]),
+    skills: new Map([...shipped.skills, ...skills.map((skill) => [skill.id, skill] as const)]),
+  };
+  return session;
+}
+
+describe("weapon swings", () => {
+  it("takes damage, reach, cooldown and stamina from the held weapon's content", () => {
+    // 2 world units away: outside unarmed reach, inside the blade's.
+    const player = testPlayer("alpha", { position: at(11, 2, -2), held: IN_HAND });
+    const session = withBlade(testSession([player]));
+
+    const swing = resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0);
+
+    expect(swing.ok && swing.event).toMatchObject({ targetId: ASH_IMP_ID, damage: 9, targetHealth: 3 });
+    expect(player.stamina).toBe(PLAYER_MAX_STAMINA - 40);
+    expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 799)).toEqual({
+      ok: false,
+      reason: "onCooldown",
+    });
+    expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 800).ok).toBe(true);
+  });
+
+  it("follows an edit to the content file with no code change", () => {
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), held: IN_HAND });
+    // The same id with different numbers: what a restarted server loads after the file is edited.
+    const edited: ItemDefinition = {
+      ...TEST_BLADE,
+      weapon: { kind: "melee", damage: 2, range: 2.5, arcCos: 0.9, cooldownMs: 800, staminaCost: 5 },
+    };
+    const session = withBlade(testSession([player]), edited);
+
+    const swing = resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0);
+
+    expect(swing.ok && swing.event.damage).toBe(2);
+    expect(player.stamina).toBe(PLAYER_MAX_STAMINA - 5);
+  });
+
+  it("uses the blade's narrower arc", () => {
+    // 45 degrees off the swing: inside the unarmed 60-degree arc, outside the blade's ~26.
+    const offset = IN_REACH / Math.SQRT2;
+    const imp = at(11, 2);
+    const position = { x: imp.x - offset, y: imp.y - offset };
+    const unarmed = testSession([testPlayer("alpha", { position })]);
+    const armed = withBlade(testSession([testPlayer("alpha", { position, held: IN_HAND })]));
+
+    expect(resolvePlayerAttack(unarmed, "alpha", { x: 1, y: 0 }, null, 0)).toMatchObject({
+      ok: true,
+      event: { targetId: ASH_IMP_ID },
+    });
+    expect(resolvePlayerAttack(armed, "alpha", { x: 1, y: 0 }, null, 0)).toMatchObject({
+      ok: true,
+      event: { targetId: null },
+    });
+  });
+
+  it("swings unarmed with an empty hand or a weapon content no longer defines", () => {
+    const empty = testPlayer("alpha", { position: at(11, 2, -IN_REACH) });
+    const orphan = testPlayer("beta", {
+      position: at(11, 2, -IN_REACH),
+      held: { ...IN_HAND, itemId: "no-such-blade" },
+    });
+
+    for (const player of [empty, orphan]) {
+      const session = testSession([player]);
+      const swing = resolvePlayerAttack(session, player.id, { x: 1, y: 0 }, null, 0);
+      expect(swing.ok && swing.event.damage).toBe(PLAYER_ATTACK_DAMAGE);
+      expect(player.stamina).toBe(PLAYER_MAX_STAMINA - ATTACK_STAMINA_COST);
+      expect(player.nextAttackAt).toBe(PLAYER_ATTACK_COOLDOWN_MS);
+    }
+  });
+
+  it("refuses a swing the player cannot pay for, at no cost", () => {
+    const player = testPlayer("alpha", { position: at(11, 2, -IN_REACH), held: IN_HAND, stamina: 39 });
+    const session = withBlade(testSession([player]));
+
+    expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0)).toEqual({
+      ok: false,
+      reason: "exhausted",
+    });
+    expect(player.stamina).toBe(39);
+    expect(player.nextAttackAt).toBeNull();
+    expect(monster(session, ASH_IMP_ID).health).toBe(12);
+  });
+
+  it("stacks attackDamageBonus on top of the weapon's damage", () => {
+    const player = testPlayer("alpha", {
+      position: at(11, 2, -IN_REACH),
+      held: IN_HAND,
+      profile: testProfile("alpha", { unlockedSkillIds: ["battle-focus"] }),
+    });
+    const session = withBlade(testSession([player]), TEST_BLADE, [
+      {
+        id: "battle-focus",
+        name: "Battle Focus",
+        description: "Hit harder.",
+        effects: [{ type: "attackDamageBonus", amount: 2 }],
+      },
+    ]);
+    monster(session, ASH_IMP_ID).health = 50;
+
+    const swing = resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0);
+
+    expect(swing.ok && swing.event.damage).toBe(9 + 2);
+  });
+});
+
+describe("swinging in the hub", () => {
+  function hubSession(player: ReturnType<typeof testPlayer>) {
+    const session = testSession([player], HUB_DUNGEON_ID);
+    session.location = "hub";
+    return session;
+  }
+
+  it("lets a new player pick up the shipped sword and swing it at nothing, paying for it", () => {
+    const sword = hubSession(testPlayer("alpha")).dungeon.loot.find(
+      (loot) => loot.kind === "weapon" && loot.itemId === "rusted-sword",
+    );
+    if (!sword) throw new Error("the hub should hold the rusted sword");
+    const player = testPlayer("alpha", { position: { ...sword.position } });
+    const session = hubSession(player);
+
+    expect(pickupItem(session, "alpha", sword.id)).toEqual({ ok: true });
+    expect(player.held).toMatchObject({ kind: "weapon", itemId: "rusted-sword" });
+
+    const swing = resolvePlayerAttack(session, "alpha", { x: 0, y: -1 }, null, 0);
+
+    expect(swing).toMatchObject({ ok: true, event: { targetId: null, damage: 0 } });
+    expect(player.stamina).toBe(PLAYER_MAX_STAMINA - ATTACK_STAMINA_COST);
+    expect(resolvePlayerAttack(session, "alpha", { x: 0, y: -1 }, null, 1)).toEqual({
+      ok: false,
+      reason: "onCooldown",
+    });
+  });
+
+  it("refuses an unaffordable hub swing, and regenerates stamina there", () => {
+    const player = testPlayer("alpha", { stamina: ATTACK_STAMINA_COST - 1 });
+    const session = hubSession(player);
+
+    expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 0)).toEqual({
+      ok: false,
+      reason: "exhausted",
+    });
+    expect(player.nextAttackAt).toBeNull();
+
+    simulate(session, 0);
+    simulate(session, 100);
+
+    expect(player.stamina).toBeCloseTo(ATTACK_STAMINA_COST - 1 + STAMINA_REGEN_PER_SECOND * 0.1);
+    expect(player.resistance).toBe(testPlayer("x").resistance);
   });
 });
 

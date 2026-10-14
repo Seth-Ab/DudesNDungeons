@@ -128,8 +128,14 @@ const consumableFields = {
 export const weaponKindSchema = z.enum(WEAPON_KINDS);
 export type WeaponKind = z.infer<typeof weaponKindSchema>;
 
+/**
+ * What a weapon shows the client. Its stats stay in content on the server, looked up by `itemId`
+ * at each swing, so editing the file retunes a weapon already in someone's hand.
+ */
 const weaponFields = {
   kind: z.literal("weapon"),
+  /** Content id of the definition whose stats the server applies. */
+  itemId: contentIdSchema,
   weaponKind: weaponKindSchema,
 };
 

@@ -13,12 +13,14 @@ const SWORD: InventoryItem = {
   id: "a0000000-0000-4000-8000-000000000001",
   name: "Test Sword",
   kind: "weapon",
+  itemId: "test-sword",
   weaponKind: "melee",
 };
 const BOW: InventoryItem = {
   id: "a0000000-0000-4000-8000-000000000002",
   name: "Test Bow",
   kind: "weapon",
+  itemId: "test-bow",
   weaponKind: "ranged",
 };
 const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", ...TONIC_FIELDS };
@@ -39,6 +41,7 @@ function withWeaponsOnFloor(player: ReturnType<typeof testPlayer>, weapons: Inve
       id: weapon.id,
       name: weapon.name,
       kind: "weapon",
+      itemId: weapon.itemId,
       weaponKind: weapon.weaponKind,
       position: { ...player.position },
       pickedUp: false,
@@ -48,21 +51,30 @@ function withWeaponsOnFloor(player: ReturnType<typeof testPlayer>, weapons: Inve
 }
 
 describe("weapon content", () => {
-  const sword = { id: "test-sword", name: "Test Sword", kind: "weapon", weapon: { kind: "melee" } };
+  const sword = {
+    id: "test-sword",
+    name: "Test Sword",
+    kind: "weapon",
+    weapon: { kind: "melee", damage: 6, range: 1.2, arcCos: 0.5, cooldownMs: 500, staminaCost: 15 },
+  };
 
   it("accepts a weapon with a weapon block and turns it into loot carrying its weapon kind", () => {
     const parsed = itemDefinitionSchema.parse(sword);
     expect(lootInstance(parsed, { x: 1, y: 1 }, SWORD.id)).toMatchObject({
       kind: "weapon",
+      itemId: "test-sword",
       weaponKind: "melee",
     });
   });
 
-  it("rejects a weapon with no weapon block, an unknown kind, or unknown stats", () => {
+  it("rejects a weapon with no weapon block, an unknown kind, missing stats, or unknown stats", () => {
     expect(itemDefinitionSchema.safeParse({ ...sword, weapon: undefined }).success).toBe(false);
     expect(itemDefinitionSchema.safeParse({ ...sword, weapon: { kind: "magic" } }).success).toBe(false);
     expect(
       itemDefinitionSchema.safeParse({ ...sword, weapon: { kind: "melee", damage: 5 } }).success,
+    ).toBe(false);
+    expect(
+      itemDefinitionSchema.safeParse({ ...sword, weapon: { ...sword.weapon, knockback: 2 } }).success,
     ).toBe(false);
   });
 

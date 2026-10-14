@@ -8,7 +8,9 @@ import {
 import { distance, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
 import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
-import type { Session } from "../sessions/sessionStore.js";
+import type { GameContent } from "../content/loadContent.js";
+import type { MeleeWeaponStats } from "../content/schema.js";
+import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
 import { MonsterPlanner } from "./monsterAi.js";
@@ -18,7 +20,7 @@ import { dropMonsterLoot } from "./monsterLoot.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
-import { advanceVitals, damagePlayer, spendStamina } from "./vitals.js";
+import { advanceVitals, damagePlayer, regenerateStamina, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
 
@@ -32,11 +34,39 @@ const MAX_SIMULATION_STEP_MS = 250;
 /** Closer than this, a monster is on top of the player, which counts as in front of any swing. */
 const POINT_BLANK_DISTANCE = 1e-6;
 
+type SwingStats = Omit<MeleeWeaponStats, "kind">;
+
+/** A swing with nothing in hand. */
+const UNARMED_SWING: Readonly<SwingStats> = {
+  damage: PLAYER_ATTACK_DAMAGE,
+  range: PLAYER_ATTACK_RANGE,
+  arcCos: PLAYER_ATTACK_ARC_COS,
+  cooldownMs: PLAYER_ATTACK_COOLDOWN_MS,
+  staminaCost: ATTACK_STAMINA_COST,
+};
+
 /**
- * Resolves a melee swing. With `targetId`, that monster must be alive and in reach; without one, the
- * swing hits the nearest living monster in front of the player. A swing that hits nothing still
- * resolves and still costs the cooldown and the stamina, so swinging in every direction at once
- * gains nothing.
+ * The swing a player makes with what is in their hand, read from content at the moment of the
+ * swing. Anything that is not a melee weapon whose definition still exists (an empty hand, a bow
+ * before the bow issue, an id a content edit removed) swings unarmed.
+ */
+function swingFor(player: SessionPlayer, content: GameContent): Readonly<SwingStats> {
+  const held = player.held;
+  if (held?.kind !== "weapon") return UNARMED_SWING;
+
+  const definition = content.items.get(held.itemId);
+  if (definition?.kind !== "weapon" || definition.weapon.kind !== "melee") return UNARMED_SWING;
+  return definition.weapon;
+}
+
+/**
+ * Resolves a melee swing with the stats of the held weapon (see `swingFor`). With `targetId`, that
+ * monster must be alive and in reach; without one, the swing hits the nearest living monster in
+ * front of the player. A swing that hits nothing still resolves and still costs the cooldown and
+ * the stamina, so swinging in every direction at once gains nothing.
+ *
+ * Swinging is allowed in the hub as well as the dungeon. The hub has no monsters, so every swing
+ * there is an empty one, paid for like any other.
  *
  * Stamina is checked after reach and cooldown but charged only once the swing is going to happen,
  * so a refused swing never costs anything.
@@ -49,9 +79,7 @@ export function resolvePlayerAttack(
   now: number,
 ): AttackResult {
   const player = session.players.get(playerId);
-  if (session.location !== "dungeon" || !player || isDown(player)) {
-    return { ok: false, reason: "notPermitted" };
-  }
+  if (!player || isDown(player)) return { ok: false, reason: "notPermitted" };
 
   const heading = normalizeDirection(direction);
   if (!heading) return { ok: false, reason: "outOfRange" };
@@ -60,12 +88,14 @@ export function resolvePlayerAttack(
     return { ok: false, reason: "onCooldown" };
   }
 
+  const content = contentForSession(session);
+  const swing = swingFor(player, content);
   const inReach = (monster: MonsterState): boolean => {
     const dx = monster.position.x - player.position.x;
     const dy = monster.position.y - player.position.y;
     const gap = Math.hypot(dx, dy);
-    if (gap > PLAYER_ATTACK_RANGE) return false;
-    return gap < POINT_BLANK_DISTANCE || (dx * heading.x + dy * heading.y) / gap >= PLAYER_ATTACK_ARC_COS;
+    if (gap > swing.range) return false;
+    return gap < POINT_BLANK_DISTANCE || (dx * heading.x + dy * heading.y) / gap >= swing.arcCos;
   };
 
   let target: MonsterState | undefined;
@@ -81,12 +111,12 @@ export function resolvePlayerAttack(
     if (!inReach(target)) return { ok: false, reason: "outOfRange" };
   }
 
-  if (!spendStamina(player, ATTACK_STAMINA_COST)) {
+  if (!spendStamina(player, swing.staminaCost)) {
     return { ok: false, reason: "exhausted" };
   }
 
   player.facing = heading;
-  player.nextAttackAt = now + PLAYER_ATTACK_COOLDOWN_MS;
+  player.nextAttackAt = now + swing.cooldownMs;
 
   if (!target) {
     return {
@@ -102,9 +132,7 @@ export function resolvePlayerAttack(
     };
   }
 
-  const damage =
-    PLAYER_ATTACK_DAMAGE +
-    progressionEffectTotal(player, "attackDamageBonus", contentForSession(session));
+  const damage = swing.damage + progressionEffectTotal(player, "attackDamageBonus", content);
   const dealt = Math.min(damage, target.health);
   target.health -= dealt;
   target.alive = target.health > 0;
@@ -126,17 +154,21 @@ export function resolvePlayerAttack(
 }
 
 /**
- * Advances dungeon-only simulation: vitals, monsters chasing, and monsters attacking. Downed
- * players stay down until Backend step 12 adds revival/carrying or the run returns to the hub.
+ * Advances dungeon simulation: vitals, monsters chasing, and monsters attacking. Downed players
+ * stay down until Backend step 12 adds revival/carrying or the run returns to the hub. In the hub
+ * only stamina moves, so a player who swings there gets it back.
  */
 export function simulate(session: Session, now: number): AttackEvent[] {
-  if (session.location !== "dungeon") return [];
-
   const elapsedMs =
     session.simulatedAt === null
       ? 0
       : Math.min(Math.max(now - session.simulatedAt, 0), MAX_SIMULATION_STEP_MS);
   session.simulatedAt = now;
+
+  if (session.location !== "dungeon") {
+    regenerateStamina(session, elapsedMs);
+    return [];
+  }
 
   advanceVitals(session, now, elapsedMs);
   resolveTraps(session, now);
