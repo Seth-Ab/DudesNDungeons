@@ -79,8 +79,9 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-skill-scroll", { tilesWide: 1, tilesHigh: 1 }],
-  // Generic until the weapon issues give each weapon its own art.
+  // The fallback for a weapon without its own art in `WEAPON_SPRITES`.
   ["loot-weapon", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-rusted-sword", { tilesWide: 1, tilesHigh: 1 }],
   // Unlit, because this is a torch lying on the floor. The flame is `torch-flame`, drawn over the
   // player once they are carrying it and it is an active light source.
   ["loot-torch", { tilesWide: 1, tilesHigh: 1 }],
@@ -106,9 +107,19 @@ export const CONSUMABLE_SPRITES: Record<ConsumableIcon, SpriteName> = {
   ward: "loot-ward",
 };
 
+/**
+ * A weapon's art by content id. Defaulted rather than exhaustive, because content ids are data: a
+ * weapon added to `content/items/` before its art still draws, as the generic `loot-weapon`.
+ */
+export const WEAPON_SPRITES: Readonly<Record<string, SpriteName>> = {
+  "rusted-sword": "loot-rusted-sword",
+};
+
 /** The sprite for anything that can lie on the floor or sit in a hotbar slot. */
 export function itemSprite(item: LootState | InventoryItem): SpriteName {
-  return item.kind === "consumable" ? CONSUMABLE_SPRITES[item.icon] : LOOT_SPRITES[item.kind];
+  if (item.kind === "consumable") return CONSUMABLE_SPRITES[item.icon];
+  if (item.kind === "weapon") return WEAPON_SPRITES[item.itemId] ?? LOOT_SPRITES.weapon;
+  return LOOT_SPRITES[item.kind];
 }
 
 

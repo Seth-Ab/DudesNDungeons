@@ -730,12 +730,14 @@ describe("the held item", () => {
       id: "a2222222-2222-4222-8222-222222222222",
       name: "Test Sword",
       kind: "weapon" as const,
+      itemId: "rusted-sword",
       weaponKind: "melee" as const,
     };
     const bow = {
       id: "a3333333-3333-4333-8333-333333333333",
       name: "Test Bow",
       kind: "weapon" as const,
+      itemId: "test-bow",
       weaponKind: "ranged" as const,
     };
     holder.held = sword;

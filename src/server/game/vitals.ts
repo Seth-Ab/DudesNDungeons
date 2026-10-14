@@ -122,6 +122,20 @@ export function timeInDungeon(player: SessionPlayer, now: number): number {
 }
 
 /**
+ * Advances stamina regeneration alone, for the hub: there is no clock there to decay resistance and
+ * nobody to carry, but a swing still has to be paid back.
+ */
+export function regenerateStamina(session: Session, elapsedMs: number): void {
+  if (elapsedMs <= 0) return;
+
+  const regained = (STAMINA_REGEN_PER_SECOND * elapsedMs) / 1000;
+  for (const player of session.players.values()) {
+    if (player.health <= 0) continue;
+    player.stamina = clamp(player.stamina + regained, PLAYER_MAX_STAMINA);
+  }
+}
+
+/**
  * Advances stamina regeneration and resistance decay for every player by `elapsedMs`.
  *
  * Downed players are skipped: a player on the floor neither recovers stamina nor bleeds resistance,

@@ -409,6 +409,7 @@ describe("hotbar", () => {
       id: "c1111111-1111-4111-8111-111111111111",
       name: "Test Sword",
       kind: "weapon",
+      itemId: "rusted-sword",
       weaponKind: "melee",
     };
     const self = player("Maya", { id: SELF_ID, held: sword, inventory: [item("Tonic")] });
@@ -418,7 +419,7 @@ describe("hotbar", () => {
       keyHint: "V",
       empty: false,
       name: "Test Sword",
-      icon: "loot-weapon",
+      icon: "loot-rusted-sword",
       disabled: false,
     });
     expect(hotbarView(state, self).map((slot) => slot.empty)).toEqual([false, true, true]);

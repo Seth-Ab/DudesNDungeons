@@ -62,7 +62,7 @@ function inventoryItemFromLoot(loot: LootState): InventoryItem {
         icon: loot.icon,
       };
     case "weapon":
-      return { id, name, kind: loot.kind, weaponKind: loot.weaponKind };
+      return { id, name, kind: loot.kind, itemId: loot.itemId, weaponKind: loot.weaponKind };
     default:
       return { id, name, kind: loot.kind };
   }
@@ -132,7 +132,7 @@ function lootFromInventoryItem(item: InventoryItem, position: Vector2): LootStat
         icon: item.icon,
       };
     case "weapon":
-      return { ...base, kind: item.kind, weaponKind: item.weaponKind };
+      return { ...base, kind: item.kind, itemId: item.itemId, weaponKind: item.weaponKind };
     default:
       return { ...base, kind: item.kind };
   }

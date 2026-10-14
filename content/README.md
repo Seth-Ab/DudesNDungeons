@@ -7,9 +7,14 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 
 - `items/`: live item definitions. Keys, consumables, and skill scrolls use the three-slot
   inventory. Torches equip separately and must be deliberately picked up in the hub or dungeon.
-  A weapon has `kind: "weapon"` and a required, strict `weapon` block (`{ "kind": "melee" | "ranged" }`
-  for now; the weapon issues add their stats there). It is carried in the hand slot when that is
-  empty, otherwise in an inventory slot. No weapon ships yet.
+  A weapon has `kind: "weapon"` and a required, strict `weapon` block. A `melee` weapon needs every
+  swing stat: `damage`, `range` (world units), `arcCos` (cosine of the half-angle covered),
+  `cooldownMs`, and `staminaCost`; a `ranged` block is `{ "kind": "ranged" }` until the bow issue
+  adds its stats. The server reads the stats of the weapon in hand at each swing, so an edit applies
+  after a restart with no code change; an empty hand (or anything that is not a melee weapon) swings
+  with the unarmed constants. `attackDamageBonus` skills add to either. A weapon is carried in the
+  hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` lies in the hub's
+  spawn area.
 - `monsters/`: monster stats used by authored and generated dungeons. A monster with `boss: true`
   seals every exit in its dungeon until it is defeated. It may only spawn in a `boss` room
   template (or inside an authored room of kind `boss`), and every `boss` template must have a boss

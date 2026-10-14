@@ -4,7 +4,6 @@ import {
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MONSTER_BEHAVIORS,
-  WEAPON_KINDS,
 } from "../../shared/constants/game.js";
 
 /**
@@ -250,10 +249,32 @@ const skillScrollDefinitionSchema = z.object({
 });
 
 /**
- * The weapon block. Strict on purpose: an unknown field fails content validation, so each weapon
- * issue extends this shape with the stats it defines instead of authors guessing at them.
+ * A melee weapon's swing. Every stat is required, so a sword never silently inherits the unarmed
+ * values: the file is the whole description of how it fights.
  */
-const weaponStatsSchema = z.object({ kind: z.enum(WEAPON_KINDS) }).strict();
+const meleeWeaponStatsSchema = z
+  .object({
+    kind: z.literal("melee"),
+    damage: z.number().int().positive(),
+    /** Center-to-center reach, in world units. */
+    range: z.number().positive(),
+    /** Cosine of the half-angle the swing covers: 0.5 is 60 degrees either side. */
+    arcCos: z.number().min(-1).max(1),
+    cooldownMs: z.number().int().positive(),
+    staminaCost: z.number().nonnegative(),
+  })
+  .strict();
+
+/**
+ * The weapon block. Strict on purpose: an unknown field fails content validation, so each weapon
+ * issue extends this shape with the stats it defines instead of authors guessing at them. Ranged
+ * stats arrive with the bow.
+ */
+const weaponStatsSchema = z.discriminatedUnion("kind", [
+  meleeWeaponStatsSchema,
+  z.object({ kind: z.literal("ranged") }).strict(),
+]);
+export type MeleeWeaponStats = z.infer<typeof meleeWeaponStatsSchema>;
 
 const weaponDefinitionSchema = z.object({
   id: contentIdSchema,
