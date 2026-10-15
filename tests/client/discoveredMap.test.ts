@@ -3,7 +3,7 @@ import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
 import type { MapDiscovery } from "../../src/shared/types/core.js";
 
 function discovery(overrides: Partial<MapDiscovery> = {}): MapDiscovery {
-  return { id: "w", name: "World", width: 5, height: 3, reset: false, discovered: [], ...overrides };
+  return { id: "w", name: "World", width: 5, height: 3, reset: false, discovered: [], lit: [], ...overrides };
 }
 
 describe("applyMapDiscovery", () => {

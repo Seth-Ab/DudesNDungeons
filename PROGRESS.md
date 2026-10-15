@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v23.
-- Last completed work: the Rusted Sword and swinging in the hub (issue #114, protocol v23);
+  everyone to the hub under protocol v24.
+- Last completed work: server-lit tiles, so remembered and shared map stays dark (issue #120,
+  protocol v24); earlier, the Rusted Sword and swinging in the hub (issue #114, protocol v23);
   earlier, a held-item slot and the `weapon` item kind (issue #113, protocol v22); earlier, ranged and charging monster behaviours (issue #91, protocol v21); earlier,
   a minimap that fills in as the party explores (issue #105); earlier,
   monsters route round walls on a shared flow field, aggro only on players
@@ -182,7 +183,7 @@ check remains.
   rebuilt world). The server queues tiles as `recordDiscovery` finds them (`pendingDiscovery`) and
   `takeMapDiscovery` drains them once per snapshot sent; the client accumulates them into a
   whole-world map (`src/client/state/discoveredMap.ts`). `SNAPSHOT_VIEW_RADIUS_TILES` and the window
-  are gone. Lit versus remembered no longer travels in tiles; the lightmap already owns shading. Doors
+  are gone. Lit versus remembered no longer travels in tiles (it travels as `lit` runs since #120). Doors
   stay in the per-snapshot `doors` list, so mutable geometry is unaffected. `bench:tick` (4 players,
   seed 1234), before to after: steady snapshot 9202 to 2392 bytes (885 to 734 deflated); serialize x4
   0.024 to 0.013 ms; visibility x4 at spawn 0.71 to 0.41 ms, explored 0.57 to 0.34 ms. A full
@@ -197,6 +198,15 @@ check remains.
   discovery delta (no protocol change). Nothing is shared in the hub (fully lit); logs and grids reset
   with the world and are never persisted. Knowledge already received is kept after separating, and
   relays through a middle player.
+- [x] Send each viewer what their light reaches now, and shade only that (issue #120, 2026-10-15,
+  protocol v24). Since #30 every discovered tile drew as lit, so explored and map-shared geometry
+  beyond every light glowed at half brightness and torches shaded remembered tiles through walls.
+  `mapDiscovery.lit` carries the viewer's whole lit set each snapshot as `[x, y, length]` row runs;
+  the client keeps it beside the accumulated map (`src/client/state/litTiles.ts`) and the shader
+  reads every other discovered tile as remembered, fully dark. `UNATTRIBUTED_DARKNESS` and
+  `RIM_SLACK_TILES` are gone: a lit tile no light in view reaches is dark too. `bench:tick` (seed
+  1234): steady snapshot 2454 to 2665 bytes (754 to 841 deflated), explored 2566 to 2777 (807 to
+  892); snapshot build x4 0.72 to 0.80 ms.
 
 ### 9. Procedural Dungeon Generation from Room Templates
 
@@ -397,6 +407,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-15: Snapshots carry the viewer's lit tiles; only those draw lit (#120, v24).
 - 2026-10-13: Rusted Sword, content-driven melee stats, hub swings (#114, v23).
 - 2026-10-13: Held-item slot and weapon item kind (#113, v22).
 - 2026-10-12: Ranged and charging monster behaviours (#91, v21).

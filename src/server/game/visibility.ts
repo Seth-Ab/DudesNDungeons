@@ -15,6 +15,7 @@ import type {
   DungeonState,
   DungeonSnapshot,
   LightSourceState,
+  LitRun,
   MapDiscovery,
   PlayerId,
   PlayerState,
@@ -505,13 +506,45 @@ function runsOf(map: DungeonMapState, indexes: ArrayLike<number>): DiscoveredRun
 }
 
 /**
- * The map half of a snapshot: the geometry this viewer has discovered since their last one.
+ * The tiles the viewer's last frame lit, as row runs in index order. Empty when no frame has been
+ * computed for this world yet, so a client never mistakes the last world's light for this one's.
+ */
+function litRunsFor(viewer: SessionPlayer, map: DungeonMapState): LitRun[] {
+  const lit = litTilesByViewer.get(viewer);
+  if (!lit || !lit.fits(map.width, map.height) || lit.size === 0) return [];
+
+  const indexes = new Int32Array(lit.size);
+  for (let n = 0; n < lit.size; n += 1) indexes[n] = lit.indexAt(n);
+  indexes.sort();
+
+  const runs: LitRun[] = [];
+  let open: LitRun | null = null;
+  for (let n = 0; n < indexes.length; n += 1) {
+    const index = indexes[n]!;
+    const x = index % map.width;
+    if (open !== null && index === open[1] * map.width + open[0] + open[2] && x !== 0) {
+      open[2] += 1;
+    } else {
+      open = [x, (index - x) / map.width, 1];
+      runs.push(open);
+    }
+  }
+
+  return runs;
+}
+
+/**
+ * The map half of a snapshot: the geometry this viewer has discovered since their last one, and
+ * what their light reaches right now.
  *
  * Draining, not pure, so call it exactly once per snapshot actually sent, after the frame that
  * records what the viewer discovered. A viewer whose client holds no baseline for the installed
  * world gets one, `reset` set, carrying everything they have discovered; after that each snapshot
  * carries only the tiles discovered since. Nothing undiscovered is ever sent, so what a client
  * learns of the dungeon is still exactly what its player has seen.
+ *
+ * `lit` is the whole of the viewer's last frame (`visibilityFrameForPlayer`), not a delta: only
+ * their own lights count, so geometry an ally shared with them stays dark until they light it.
  */
 export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDiscovery {
   const { map } = session.dungeon;
@@ -539,6 +572,7 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
     height: map.height,
     reset,
     discovered: runsOf(map, indexes),
+    lit: litRunsFor(viewer, map),
   };
 }
 

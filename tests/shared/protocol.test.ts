@@ -358,6 +358,7 @@ describe("parseServerMessage", () => {
             { x: 0, y: 0, tiles: "###" },
             { x: 0, y: 1, tiles: "#.#" },
           ],
+          lit: [[1, 1, 1]],
         },
         rooms: [
           {
@@ -427,6 +428,43 @@ describe("parseServerMessage", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.message).toEqual(message);
+    }
+  });
+
+  it("rejects a snapshot whose lit runs are malformed", () => {
+    const snapshotWithLit = (lit: unknown) =>
+      JSON.stringify({
+        type: "stateSnapshot",
+        tick: 1,
+        location: "dungeon",
+        players: [],
+        dungeon: {
+          map: { id: "w", name: "W", width: 4, height: 4, reset: false, discovered: [], lit },
+          rooms: [],
+          monsters: [],
+          projectiles: [],
+          loot: [],
+          doors: [],
+          exits: [],
+          traps: [],
+          puzzles: [],
+          lightSources: [],
+        },
+        run: { elapsedMs: 0, decayStartsInMs: 1000, decaying: false, decayPerSecond: 0 },
+      });
+
+    expect(parseServerMessage(snapshotWithLit([[0, 0, 2]])).ok).toBe(true);
+    for (const lit of [
+      [[-1, 0, 2]],
+      [[0, 0, 0]],
+      [[0, 0.5, 2]],
+      [[0, 0]],
+      [[0, 0, 2, 9]],
+      [{ x: 0, y: 0, length: 2 }],
+      "0,0,2",
+      undefined,
+    ]) {
+      expect(parseServerMessage(snapshotWithLit(lit)).ok, JSON.stringify(lit)).toBe(false);
     }
   });
 

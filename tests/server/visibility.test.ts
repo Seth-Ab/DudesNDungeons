@@ -765,3 +765,129 @@ describe("map discovery deltas", () => {
     expect(viewer.pendingDiscovery).toEqual([]);
   });
 });
+
+describe("lit tiles in snapshots", () => {
+  /** Every tile a snapshot's lit runs cover, as `"x,y"` keys. */
+  function litKeys(map: ReturnType<typeof takeMapDiscovery>): Set<string> {
+    const keys = new Set<string>();
+    for (const [x, y, length] of map.lit) {
+      for (let offset = 0; offset < length; offset += 1) keys.add(`${x + offset},${y}`);
+    }
+    return keys;
+  }
+
+  function snapshotMap(session: Parameters<typeof takeMapDiscovery>[0], viewer: Parameters<typeof takeMapDiscovery>[1]) {
+    visibilityFrameForPlayer(session, viewer);
+    return takeMapDiscovery(session, viewer);
+  }
+
+  it("matches the viewer's visible tiles exactly, as sorted, non-overlapping row runs", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+
+    const map = snapshotMap(session, viewer);
+    const visible = visibleTilesForPlayer(session, viewer);
+    const expected = new Set<string>();
+    for (let n = 0; n < visible.size; n += 1) {
+      const index = visible.indexAt(n);
+      expected.add(`${index % map.width},${Math.floor(index / map.width)}`);
+    }
+
+    expect(litKeys(map)).toEqual(expected);
+    const starts = map.lit.map(([x, y]) => y * map.width + x);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(map.lit.every(([x, y, length]) => y < map.height && x + length <= map.width)).toBe(true);
+    expect(map.lit.reduce((total, [, , length]) => total + length, 0)).toBe(expected.size);
+  });
+
+  it("only ever lights tiles the viewer has discovered", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+
+    const map = snapshotMap(session, viewer);
+
+    for (const key of litKeys(map)) {
+      const [x, y] = key.split(",").map(Number) as [number, number];
+      expect(viewer.discoveredTiles[y * map.width + x], key).toBe(1);
+    }
+  });
+
+  it("is the whole current set every snapshot, so a tile left behind goes out", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    const first = litKeys(snapshotMap(session, viewer));
+
+    const again = litKeys(snapshotMap(session, viewer));
+    expect(again).toEqual(first);
+
+    viewer.position = at(14, 6);
+    const moved = litKeys(snapshotMap(session, viewer));
+    expect([...first].some((key) => !moved.has(key))).toBe(true);
+  });
+
+  it("excludes a remembered room behind a wall, even within the torch's radius", () => {
+    const viewer = testPlayer("viewer", { position: { x: 1, y: 1 } });
+    const session = testSession([viewer]);
+    session.dungeon.map = flatMap(["#####", "#.#.#", "#####"]);
+    session.dungeon.doors = [];
+    session.dungeon.lightSources = [];
+    viewer.discoveredTiles = new Uint8Array(0);
+    // Remembered from an earlier visit: discovered, but out of sight now.
+    snapshotMap(session, viewer);
+    viewer.discoveredTiles[1 * 5 + 3] = 1;
+
+    const lit = litKeys(snapshotMap(session, viewer));
+
+    expect(lit.has("1,1")).toBe(true);
+    expect(lit.has("3,1")).toBe(false);
+  });
+
+  it("excludes what is behind a closed door", () => {
+    const viewer = testPlayer("viewer", { position: { x: 2, y: 3 } });
+    const session = testSession([viewer]);
+    session.dungeon.map = flatMap([
+      "##########",
+      "##########",
+      "#........#",
+      "#........#",
+      "#........#",
+      "#........#",
+      "##########",
+    ]);
+    session.dungeon.lightSources = [];
+    session.dungeon.doors = [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        position: { x: 5.5, y: 3.5 },
+        size: 4,
+        open: false,
+        locked: true,
+      },
+    ];
+    viewer.discoveredTiles = new Uint8Array(0);
+
+    const lit = litKeys(snapshotMap(session, viewer));
+
+    expect(lit.has("4,3")).toBe(true);
+    expect(lit.has("8,3")).toBe(false);
+  });
+
+  it("lights nothing before a frame has been computed for the installed world", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+
+    expect(takeMapDiscovery(session, viewer).lit).toEqual([]);
+  });
+
+  it("sends a correct lit set with the baseline after a reconnect", () => {
+    const viewer = testPlayer("viewer", { position: at(2, 2) });
+    const session = testSession([viewer]);
+    const before = litKeys(snapshotMap(session, viewer));
+
+    viewer.mapSyncedTo = null;
+    const rebased = snapshotMap(session, viewer);
+
+    expect(rebased.reset).toBe(true);
+    expect(litKeys(rebased)).toEqual(before);
+  });
+});

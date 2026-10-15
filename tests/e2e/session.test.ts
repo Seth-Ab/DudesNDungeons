@@ -128,6 +128,37 @@ class TestClient {
     });
   }
 
+  /**
+   * Resolves with the first message of `type` to arrive after `after`, which must be in the inbox.
+   * For a message the server sends unprompted right behind another, such as the first snapshot
+   * after `sessionJoined`: it can land before a `next` call made afterwards starts watching.
+   */
+  firstAfter<T extends ServerMessage["type"]>(
+    after: ServerMessage,
+    type: T,
+    timeoutMs = 2000,
+  ): Promise<Extract<ServerMessage, { type: T }>> {
+    const from = this.inbox.indexOf(after) + 1;
+    if (from === 0) throw new Error(`${after.type} is not in the inbox`);
+    const deadline = Date.now() + timeoutMs;
+
+    return new Promise((resolve, reject) => {
+      const poll = (): void => {
+        const found = this.inbox.slice(from).find((message) => message.type === type);
+        if (found) {
+          resolve(found as Extract<ServerMessage, { type: T }>);
+          return;
+        }
+        if (Date.now() > deadline) {
+          reject(new Error(`timed out waiting for ${type}`));
+          return;
+        }
+        setTimeout(poll, 5);
+      };
+      poll();
+    });
+  }
+
   received<T extends ServerMessage["type"]>(type: T): Extract<ServerMessage, { type: T }>[] {
     return this.inbox.filter((message) => message.type === type) as Extract<
       ServerMessage,
@@ -874,20 +905,23 @@ describe("map discovery over the wire", () => {
     const roomCode = await createRoom();
     const alpha = await joinRoom(roomCode, "Alpha");
 
-    const baseline = await alpha.client.next("stateSnapshot");
+    const baseline = await alpha.client.firstAfter(alpha.joined, "stateSnapshot");
     expect(baseline.dungeon.map).toMatchObject({ id: "hub", reset: true });
     expect(tilesIn(baseline.dungeon.map)).toBeGreaterThan(0);
 
-    const steady = await alpha.client.next("stateSnapshot");
+    const steady = await alpha.client.firstAfter(baseline, "stateSnapshot");
     expect(steady.dungeon.map.reset).toBe(false);
     expect(steady.dungeon.map.discovered).toEqual([]);
 
     // Dropping and resuming gives a client with an empty cache, so it must get a baseline again.
     alpha.client.close();
     const resumed = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
-    const rebased = await resumed.client.next("stateSnapshot");
+    const rebased = await resumed.client.firstAfter(resumed.joined, "stateSnapshot");
     expect(rebased.dungeon.map).toMatchObject({ id: "hub", reset: true });
     expect(tilesIn(rebased.dungeon.map)).toBeGreaterThan(0);
+    // Light is not a delta, so the first snapshot on the new socket already says what is lit.
+    expect(rebased.dungeon.map.lit).toEqual(baseline.dungeon.map.lit);
+    expect(rebased.dungeon.map.lit.length).toBeGreaterThan(0);
 
     // Entering the run rebuilds the world, which restarts the client's geometry.
     const dungeon = await enterDungeon(roomCode, resumed.client);

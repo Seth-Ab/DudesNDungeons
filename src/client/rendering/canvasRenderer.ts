@@ -17,7 +17,7 @@ import {
   itemSprite,
   type SpriteName,
 } from "./tiles.js";
-import { createLightShader, type SceneLight } from "./lighting.js";
+import { createLightShader, shadingTile, type SceneLight } from "./lighting.js";
 import { createTileLayer } from "./tileLayer.js";
 import { loadTileset } from "./tileset.js";
 import {
@@ -26,6 +26,7 @@ import {
   type ActivePopup,
   type DamagePopupKind,
 } from "../state/combatFeedback.js";
+import { isTileLit, type LitTileSet } from "../state/litTiles.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 
 /**
@@ -103,6 +104,11 @@ const SHADE_RGB = [6, 7, 10] as const;
 
 export interface Scene {
   dungeon: DungeonState;
+  /**
+   * What the server lit in the snapshot `dungeon` came from; every other discovered tile draws
+   * dark. Null only for the offline preview, which has no server and draws everything as lit.
+   */
+  lit: LitTileSet | null;
   /** Locally predicted position for the player at this client, drawn ahead of the server. */
   localPosition: Vector2;
   self: PlayerState | null;
@@ -630,8 +636,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
   let lightImage: ImageData | null = null;
 
   /**
-   * Shades the frame by the server's lighting: lit tiles by their distance from a light, remembered
-   * tiles at a flat dim, and unseen ones solid black.
+   * Shades the frame by the server's lighting: tiles the snapshot lit by their distance from a light,
+   * and remembered and unseen ones solid black.
    *
    * Drawn as one image of one pixel per tile and stretched with smoothing on, so the falloff is a
    * gradient rather than a staircase of square tiles. Pixel centres land on tile centres, so the
@@ -667,7 +673,12 @@ export function createCanvasRenderer(getScene: () => Scene) {
       }
     }
 
-    shadeTiles(lightImage.data, columns, rows, minX, minY, (x, y) => tileAt(map, x, y), lights);
+    const { lit } = scene;
+    const readTile =
+      lit === null
+        ? (x: number, y: number) => tileAt(map, x, y)
+        : (x: number, y: number) => shadingTile(tileAt(map, x, y), isTileLit(lit, map, x, y));
+    shadeTiles(lightImage.data, columns, rows, minX, minY, readTile, lights);
 
     lightmapContext.putImageData(lightImage, 0, 0);
 
