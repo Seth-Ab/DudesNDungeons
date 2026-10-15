@@ -739,7 +739,12 @@ describe("handing items over", () => {
     receiver.position = { ...giver.position };
 
     alpha.client.send({ type: "giveItem", itemId: tonic.id, targetPlayerId: receiver.id });
-    const snapshot = await beta.client.nextWhere("stateSnapshot", () => receiver.inventory.length === 1);
+    // Waits on the snapshot's own content: one built just before the hand-over can arrive after the
+    // server state already shows it.
+    const snapshot = await beta.client.nextWhere(
+      "stateSnapshot",
+      (message) => message.players.find((player) => player.id === receiver.id)?.inventory.length === 1,
+    );
     expect(giver.inventory).toEqual([]);
     expect(
       snapshot.players.find((player) => player.id === receiver.id)?.inventory.map((item) => item.id),
