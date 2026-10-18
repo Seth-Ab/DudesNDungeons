@@ -3,6 +3,7 @@ import {
   CONSUMABLE_ICONS,
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
+  MAX_STACK_SIZE,
   MONSTER_BEHAVIORS,
 } from "../../shared/constants/game.js";
 
@@ -283,12 +284,24 @@ const weaponDefinitionSchema = z.object({
   weapon: weaponStatsSchema,
 });
 
+/**
+ * Stackable ammo. A stack of any count up to `maxStack` takes one inventory slot, and a pickup
+ * tops up a carried stack of the same item before it takes a free slot.
+ */
+const ammoDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  kind: z.literal("ammo"),
+  maxStack: z.number().int().positive().max(MAX_STACK_SIZE),
+});
+
 /** Mirrors the shared item kinds while requiring every skill scroll to name what it teaches. */
 export const itemDefinitionSchema = z.discriminatedUnion("kind", [
   ordinaryItemDefinitionSchema,
   consumableDefinitionSchema,
   skillScrollDefinitionSchema,
   weaponDefinitionSchema,
+  ammoDefinitionSchema,
 ]);
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 
@@ -424,7 +437,11 @@ const placedEntitySchema = z.object({
 
 const placedMonsterSchema = placedEntitySchema.extend({ typeId: contentIdSchema });
 
-const placedLootSchema = placedEntitySchema.extend({ itemId: contentIdSchema });
+const placedLootSchema = placedEntitySchema.extend({
+  itemId: contentIdSchema,
+  /** Stack size, for ammo only. Checked against the item's `maxStack` by `loadContent`. */
+  count: z.number().int().positive().optional(),
+});
 
 const placedTrapSchema = placedEntitySchema.extend({ typeId: contentIdSchema });
 

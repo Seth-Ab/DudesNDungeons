@@ -44,12 +44,18 @@ export function nearestStandingAlly(
 export function nearestLoot(
   view: SessionView,
   position: Vector2,
-): (ReachTarget & { gap: number }) | null {
+): (ReachTarget & { gap: number; count: number | null }) | null {
   if (!view.dungeon) return null;
   return closest(
     view.dungeon.loot
       .filter((loot) => !loot.pickedUp)
-      .map((loot) => ({ id: loot.id, name: loot.name, gap: distance(position, loot.position) })),
+      .map((loot) => ({
+        id: loot.id,
+        name: loot.name,
+        gap: distance(position, loot.position),
+        // A stack's size, so the prompt can say how many are on the floor.
+        count: loot.kind === "ammo" ? loot.count : null,
+      })),
   );
 }
 

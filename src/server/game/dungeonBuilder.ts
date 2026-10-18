@@ -98,7 +98,8 @@ export function puzzleInstance(type: PuzzleType, plates: Vector2[], id: string):
   };
 }
 
-export function lootInstance(item: ItemDefinition, position: Vector2, id: string): LootState {
+/** `count` is the stack size for ammo, clamped to its `maxStack`, and ignored for anything else. */
+export function lootInstance(item: ItemDefinition, position: Vector2, id: string, count = 1): LootState {
   const instance = {
     id,
     name: item.name,
@@ -119,6 +120,8 @@ export function lootInstance(item: ItemDefinition, position: Vector2, id: string
       };
     case "weapon":
       return { ...instance, kind: item.kind, itemId: item.id, weaponKind: item.weapon.kind };
+    case "ammo":
+      return { ...instance, kind: item.kind, itemId: item.id, count: Math.min(count, item.maxStack) };
     default:
       return { ...instance, kind: item.kind };
   }
@@ -172,7 +175,7 @@ export function buildAuthoredDungeon(
     const item = content.items.get(placed.itemId);
     if (!item) throw new Error(`Dungeon "${definition.id}" places unknown item "${placed.itemId}"`);
 
-    return lootInstance(item, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng));
+    return lootInstance(item, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng), placed.count);
   });
 
   const traps: TrapState[] = definition.traps.map((placed) => {

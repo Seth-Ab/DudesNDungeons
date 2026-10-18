@@ -129,12 +129,16 @@ export function placeLabel(mapName: string | null, room: RoomState | null): stri
 }
 
 /**
- * Banked items as lines to read, counted rather than repeated. The bank is session-local until
- * Backend step 11 persists a profile, which is worth a player knowing before they trust it.
+ * Banked items as lines to read, counted rather than repeated. A stack counts as its size, so two
+ * banked stacks of arrows read as one total. The bank is session-local until Backend step 11
+ * persists a profile, which is worth a player knowing before they trust it.
  */
 export function bankSummary(items: readonly InventoryItem[]): string[] {
   const counts = new Map<string, number>();
-  for (const item of items) counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
+  for (const item of items) {
+    const size = item.kind === "ammo" ? item.count : 1;
+    counts.set(item.name, (counts.get(item.name) ?? 0) + size);
+  }
 
   return [...counts].map(([name, count]) => (count === 1 ? name : `${name} x${count}`));
 }

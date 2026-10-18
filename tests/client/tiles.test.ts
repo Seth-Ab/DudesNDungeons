@@ -216,4 +216,11 @@ describe("weapon art", () => {
     expect(itemSprite(weapon("unpainted-axe"))).toBe("loot-weapon");
     expect(SPRITE_NAMES).toContain("loot-rusted-sword");
   });
+
+  it("draws ammo with the arrow sprite", () => {
+    expect(
+      itemSprite({ id: "c1111111-1111-4111-8111-111111111111", name: "Arrows", kind: "ammo", itemId: "arrow", count: 3 }),
+    ).toBe("loot-arrow");
+    expect(SPRITE_NAMES).toContain("loot-arrow");
+  });
 });

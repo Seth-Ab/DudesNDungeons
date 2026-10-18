@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 24;
+export const PROTOCOL_VERSION = 25;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -141,6 +141,12 @@ export const PLAYER_MAP_SHARE_RANGE = PLAYER_TORCH_LIGHT_RADIUS;
 export const FIXED_LIGHT_RADIUS = 5;
 
 export const MAX_INVENTORY_SIZE = 3;
+
+/**
+ * Upper bound on any item's `maxStack`, and so on any stack count on the wire. Content picks the
+ * real limit per item; this only keeps a typo from authoring a stack of thousands.
+ */
+export const MAX_STACK_SIZE = 99;
 
 /** How a weapon is used. The weapon issues extend the weapon block per kind. */
 export const WEAPON_KINDS = ["melee", "ranged"] as const;

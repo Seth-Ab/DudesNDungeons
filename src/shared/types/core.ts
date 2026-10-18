@@ -5,6 +5,7 @@ import {
   WEAPON_KINDS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
+  MAX_STACK_SIZE,
   MAX_PLAYER_NAME_LENGTH,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
@@ -104,9 +105,9 @@ export type ProjectileState = z.infer<typeof projectileStateSchema>;
 /**
  * What an item does. Torches equip separately and never consume one of the three inventory slots.
  * A weapon is carried in the hand slot (`PlayerState.held`) or, when the hand is full, an
- * inventory slot.
+ * inventory slot. Ammo is a stack: one entry, and so one slot, carrying a `count`.
  */
-export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon"]);
+export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon", "ammo"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const consumableIconSchema = z.enum(CONSUMABLE_ICONS);
@@ -139,6 +140,17 @@ const weaponFields = {
   weaponKind: weaponKindSchema,
 };
 
+/**
+ * A stack of ammo. `maxStack` stays in content on the server, the only side that merges stacks.
+ * `count` defaults to 1 so a stored entry written without one still parses.
+ */
+const ammoFields = {
+  kind: z.literal("ammo"),
+  /** Content id of the definition, which is also what decides whether two stacks merge. */
+  itemId: contentIdSchema,
+  count: z.number().int().positive().max(MAX_STACK_SIZE).default(1),
+};
+
 const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
@@ -163,6 +175,14 @@ const weaponLootStateSchema = z.object({
   pickedUp: z.boolean(),
 });
 
+const ammoLootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...ammoFields,
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+
 const skillScrollLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
@@ -177,6 +197,7 @@ export const lootStateSchema = z.discriminatedUnion("kind", [
   consumableLootStateSchema,
   skillScrollLootStateSchema,
   weaponLootStateSchema,
+  ammoLootStateSchema,
 ]);
 export type LootState = z.infer<typeof lootStateSchema>;
 
@@ -207,11 +228,18 @@ const weaponInventoryItemSchema = z.object({
   ...weaponFields,
 });
 
+const ammoInventoryItemSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...ammoFields,
+});
+
 export const inventoryItemSchema = z.discriminatedUnion("kind", [
   ordinaryInventoryItemSchema,
   consumableInventoryItemSchema,
   skillScrollInventoryItemSchema,
   weaponInventoryItemSchema,
+  ammoInventoryItemSchema,
 ]);
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
 

@@ -307,6 +307,16 @@ button:disabled {
   font-weight: 700;
 }
 
+.hud__slot-count {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.1rem;
+  color: #ffe6a3;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-shadow: 0 0 2px #07080a, 0 0 2px #07080a;
+}
+
 .hud__slot-icon,
 .hud__torch-icon {
   display: block;
