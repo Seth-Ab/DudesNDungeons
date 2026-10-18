@@ -29,6 +29,7 @@ import {
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
 import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
+import type { LitTileSet } from "./state/litTiles.js";
 import {
   emptyRemoteInterpolation,
   remoteInterpolatedPosition,
@@ -91,6 +92,8 @@ function hudSettingsStore() {
 }
 
 let renderedDungeon = createPlaceholderDungeon();
+/** The lit set that came with `renderedDungeon`. Null for the preview, which the server never lit. */
+let renderedLit: LitTileSet | null = null;
 /** Locally predicted position. Only drawn once the server has placed this player. */
 let localPosition: Vector2 = { x: 0, y: 0 };
 let lastIntentAt = Number.NEGATIVE_INFINITY;
@@ -112,6 +115,7 @@ const renderer = createCanvasRenderer(() => {
   const now = performance.now();
   return {
     dungeon: renderedDungeon,
+    lit: renderedLit,
     localPosition,
     self: selfOf(view),
     others: visibleOthersOf(view).map((player) => ({
@@ -214,6 +218,7 @@ client.subscribe((next) => {
 
   if (view.dungeon) {
     renderedDungeon = view.dungeon;
+    renderedLit = view.lit;
   }
 
   const now = performance.now();

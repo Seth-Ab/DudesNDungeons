@@ -7,6 +7,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
+import { isTileLit } from "../../src/client/state/litTiles.js";
 import type { DungeonSnapshot, PlayerState, RunState } from "../../src/shared/types/core.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
@@ -51,6 +52,7 @@ function dungeon(overrides: Partial<DungeonSnapshot> = {}): DungeonSnapshot {
         { x: 0, y: 1, tiles: "#.#" },
         { x: 0, y: 2, tiles: "###" },
       ],
+      lit: [[1, 1, 1]],
     },
     rooms: [],
     monsters: [],
@@ -218,7 +220,7 @@ describe("snapshots", () => {
       location: "dungeon",
       players: [player(SELF_ID, { health: 100 })],
       dungeon: dungeon({
-        map: { id: "old", name: "Old", width: 1, height: 1, reset: true, discovered: [] },
+        map: { id: "old", name: "Old", width: 1, height: 1, reset: true, discovered: [], lit: [] },
       }),
       run: run(),
     });
@@ -243,31 +245,47 @@ describe("map discovery in snapshots", () => {
   const base = { id: "w", name: "W", width: 4, height: 1 };
 
   it("accumulates geometry across snapshots", () => {
-    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#." }] }, joinedView());
-    view = withMap(2, { ...base, reset: false, discovered: [{ x: 2, y: 0, tiles: ".#" }] }, view);
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#." }], lit: [] }, joinedView());
+    view = withMap(2, { ...base, reset: false, discovered: [{ x: 2, y: 0, tiles: ".#" }], lit: [] }, view);
 
     expect(view.dungeon?.map.tiles).toEqual(["#..#"]);
   });
 
   it("keeps the same map object across snapshots that discover nothing", () => {
-    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }] }, joinedView());
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }], lit: [] }, joinedView());
     const held = view.dungeon?.map;
-    view = withMap(2, { ...base, reset: false, discovered: [] }, view);
+    view = withMap(2, { ...base, reset: false, discovered: [], lit: [] }, view);
 
     expect(view.dungeon?.map).toBe(held);
   });
 
   it("still folds in the geometry of a stale snapshot, which the server will not resend", () => {
-    let view = withMap(5, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }] }, joinedView());
-    view = withMap(5, { ...base, reset: false, discovered: [{ x: 1, y: 0, tiles: "." }] }, view);
+    let view = withMap(5, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#" }], lit: [] }, joinedView());
+    view = withMap(5, { ...base, reset: false, discovered: [{ x: 1, y: 0, tiles: "." }], lit: [] }, view);
 
     expect(view.tick).toBe(5);
     expect(view.dungeon?.map.tiles).toEqual(["#.  "]);
   });
 
+  it("replaces the lit set whole with every snapshot", () => {
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#..#" }], lit: [[0, 0, 2]] }, joinedView());
+    view = withMap(2, { ...base, reset: false, discovered: [], lit: [[2, 0, 1]] }, view);
+    const map = view.dungeon!.map;
+
+    expect([0, 1, 2, 3].map((x) => isTileLit(view.lit!, map, x, 0))).toEqual([false, false, true, false]);
+  });
+
+  it("keeps the newer lit set when a stale snapshot arrives", () => {
+    let view = withMap(5, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "#..#" }], lit: [[1, 0, 1]] }, joinedView());
+    const held = view.lit;
+    view = withMap(4, { ...base, reset: false, discovered: [], lit: [[0, 0, 4]] }, view);
+
+    expect(view.lit).toBe(held);
+  });
+
   it("drops the old world's geometry when a reset arrives for a new one", () => {
-    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "####" }] }, joinedView());
-    view = withMap(2, { id: "v", name: "V", width: 2, height: 1, reset: true, discovered: [{ x: 1, y: 0, tiles: "." }] }, view);
+    let view = withMap(1, { ...base, reset: true, discovered: [{ x: 0, y: 0, tiles: "####" }], lit: [] }, joinedView());
+    view = withMap(2, { id: "v", name: "V", width: 2, height: 1, reset: true, discovered: [{ x: 1, y: 0, tiles: "." }], lit: [] }, view);
 
     expect(view.dungeon?.map).toMatchObject({ id: "v", tiles: [" ."] });
   });

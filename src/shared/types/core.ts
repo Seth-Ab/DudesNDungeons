@@ -360,8 +360,8 @@ export type DungeonState = z.infer<typeof dungeonStateSchema>;
 
 /**
  * A stretch of newly discovered geometry on one world row: `tiles[i]` is world tile `(x + i, y)`,
- * `#` for wall and `.` for anything walkable. Lit versus remembered is not part of it; the light
- * sources in the snapshot already say what is lit.
+ * `#` for wall and `.` for anything walkable. Lit versus remembered is not part of it; that travels
+ * separately, in `lit`.
  */
 export const discoveredRunSchema = z.object({
   x: z.number().int().nonnegative(),
@@ -369,6 +369,18 @@ export const discoveredRunSchema = z.object({
   tiles: z.string().min(1).regex(/^[#.]+$/),
 });
 export type DiscoveredRun = z.infer<typeof discoveredRunSchema>;
+
+/**
+ * A stretch of tiles the viewer's light reaches right now, on one world row: `[x, y, length]` covers
+ * world tiles `(x, y)` to `(x + length - 1, y)`. A tuple rather than an object because a snapshot
+ * carries a few dozen of these twenty times a second.
+ */
+export const litRunSchema = z.tuple([
+  z.number().int().nonnegative(),
+  z.number().int().nonnegative(),
+  z.number().int().positive(),
+]);
+export type LitRun = z.infer<typeof litRunSchema>;
 
 /**
  * What a snapshot says about the map: which world it is, and the geometry this viewer has newly
@@ -386,6 +398,11 @@ export const mapDiscoverySchema = z.object({
   height: z.number().int().positive(),
   reset: z.boolean(),
   discovered: z.array(discoveredRunSchema),
+  /**
+   * Every tile the viewer's light reaches this snapshot, in full rather than as a delta. Any other
+   * discovered tile is remembered and draws dark. Only ever tiles the viewer has discovered.
+   */
+  lit: z.array(litRunSchema),
 });
 export type MapDiscovery = z.infer<typeof mapDiscoverySchema>;
 

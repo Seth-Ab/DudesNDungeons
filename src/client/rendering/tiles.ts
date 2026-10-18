@@ -171,10 +171,11 @@ export function spriteRect(name: SpriteName): SpriteRect {
 }
 
 /**
- * The tile alphabet a snapshot carries, from `src/server/game/visibility.ts`.
+ * The tile alphabet the renderer reads.
  *
- * `#` and `.` are lit; `+` and `,` are remembered from an earlier visit and draw dim; a space is
- * space the viewer has never seen, and is not drawn at all.
+ * `#` and `.` are lit; `+` and `,` are remembered from an earlier visit; a space is space the viewer
+ * has never seen, and is not drawn at all. The client's map holds only `#`, `.` and spaces; the
+ * shader gets `+` and `,` from `shadingTile` in `lighting.ts`, for tiles the snapshot did not light.
  */
 export const LIT_WALL = "#";
 export const LIT_FLOOR = ".";

@@ -196,6 +196,24 @@ describe("sharing discovered maps between nearby players", () => {
     expect(frame.dungeon.rooms.map((room) => room.id)).toContain("east");
   });
 
+  it("lights none of the merged geometry: only the viewer's own light counts", () => {
+    const west = walker("west", 5);
+    const east = walker("east", 60);
+    const session = hallSession([west, east]);
+    look(session, west, east);
+    takeMapDiscovery(session, west);
+
+    east.position = { x: 8, y: 2 };
+    shareDiscoveredMaps(session);
+    visibilityFrameForPlayer(session, west);
+    const { lit } = takeMapDiscovery(session, west);
+
+    // West now knows the far side of the dividing wall at x = 34, but none of it is lit for them.
+    expect(west.discoveredTiles[2 * WIDTH + 60]).toBe(1);
+    expect(lit.length).toBeGreaterThan(0);
+    expect(lit.every(([x, , length]) => x + length - 1 < 34)).toBe(true);
+  });
+
   it("relays through a middle player and reaches the far one only by meeting", () => {
     const a = walker("a", 5);
     const b = walker("b", 10);

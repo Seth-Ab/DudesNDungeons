@@ -1,6 +1,7 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
+import { litTilesFrom, type LitTileSet } from "../state/litTiles.js";
 import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
@@ -64,6 +65,11 @@ export interface SessionView {
   players: PlayerState[];
   visiblePlayerIds: PlayerId[];
   dungeon: DungeonState | null;
+  /**
+   * The tiles the viewer's light reaches, from the newest snapshot. Null until the first one. Every
+   * other discovered tile in `dungeon.map` is remembered and draws dark.
+   */
+  lit: LitTileSet | null;
   location: SessionLocation | null;
   /** The server's run clock for this player. Null until the first snapshot. */
   run: RunState | null;
@@ -109,6 +115,7 @@ export const initialSessionView: SessionView = {
   players: [],
   visiblePlayerIds: [],
   dungeon: null,
+  lit: null,
   location: null,
   run: null,
   runOutcome: null,
@@ -239,6 +246,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         players: mergePlayers(view.players, message.players),
         visiblePlayerIds: message.players.map((player) => player.id),
         dungeon: { ...message.dungeon, map },
+        // Unlike the map, light is the whole set every time, so a stale snapshot's is just dropped.
+        lit: litTilesFrom(message.dungeon.map),
         location: message.location,
         run: message.run,
       };

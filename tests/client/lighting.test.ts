@@ -3,6 +3,7 @@ import {
   createLightShader,
   litDarkness,
   REMEMBERED_DARKNESS,
+  shadingTile,
   tileDarkness,
   UNSEEN_DARKNESS,
 } from "../../src/client/rendering/lighting.js";
@@ -62,17 +63,15 @@ describe("lit darkness", () => {
     expect(litDarkness(8, 0, [torch, pillar])).toBeLessThan(litDarkness(8, 0, [torch]));
   });
 
-  it("draws a lit tile just past a light's rim as dark as the rim, not as unattributed", () => {
+  it("draws a lit tile just past a light's rim as dark as the rim", () => {
     // A wall bordering lit floor, or a tile the last snapshot lit before the torch moved on.
     expect(litDarkness(11, 0, [torch])).toBe(1);
     expect(litDarkness(10, 1, [torch])).toBe(1);
   });
 
-  it("still lights a tile the server lit when no light in view accounts for it", () => {
-    const value = litDarkness(50, 50, [torch]);
-
-    expect(value).toBeGreaterThan(0);
-    expect(value).toBeLessThan(REMEMBERED_DARKNESS);
+  it("draws a lit tile no light in view reaches fully dark, so nothing glows past a radius", () => {
+    expect(litDarkness(50, 50, [torch])).toBe(REMEMBERED_DARKNESS);
+    expect(litDarkness(0, 0, [])).toBe(REMEMBERED_DARKNESS);
   });
 });
 
@@ -130,7 +129,7 @@ describe("shading a block of tiles at once", () => {
     { position: { x: 5, y: 3 }, radius: 0 },
   ];
 
-  it("matches the per-tile answer for every tile, including unseen, remembered and unattributed ones", () => {
+  it("matches the per-tile answer for every tile, including unseen, remembered and unreached ones", () => {
     const rgba = shadeBlock(createLightShader(), -2, -1, 14, 8, lights);
 
     expect(alphaOf(rgba)).toEqual(expected(-2, -1, 14, 8, lights));
@@ -147,8 +146,11 @@ describe("shading a block of tiles at once", () => {
     );
   });
 
-  it("draws every lit tile at the unattributed shade when no light is in the scene", () => {
-    expect(alphaOf(shadeBlock(createLightShader(), 0, 0, 10, 6, []))).toEqual(expected(0, 0, 10, 6, []));
+  it("draws every tile fully dark when no light is in the scene", () => {
+    const alphas = alphaOf(shadeBlock(createLightShader(), 0, 0, 10, 6, []));
+
+    expect(alphas).toEqual(expected(0, 0, 10, 6, []));
+    expect(alphas.every((alpha) => alpha === 255)).toBe(true);
   });
 
   it("gives the same answer when one shader is reused across different sizes and positions", () => {
@@ -166,5 +168,69 @@ describe("shading a block of tiles at once", () => {
     for (let index = 0; index < 16; index += 1) {
       expect(Array.from(rgba.slice(index * 4, index * 4 + 3))).toEqual([7, 7, 7]);
     }
+  });
+});
+
+describe("shading only what the server lit", () => {
+  /**
+   * Two rooms either side of a wall, all of it discovered, the client's `#`/`.` alphabet. The torch
+   * stands in the west room; its radius reaches well into the east one, through the wall.
+   */
+  const MAP = [
+    "###########",
+    "#...#.....#",
+    "#...#.....#",
+    "#...#.....#",
+    "###########",
+  ];
+  const westTorch = { position: { x: 2, y: 2 }, radius: 6 };
+  /** What the server lit: the west room and the face of the dividing wall, nothing beyond it. */
+  const serverLit = (x: number, _y: number) => x <= 4;
+  const readShade = (x: number, y: number) => shadingTile(MAP[y]?.[x] ?? null, serverLit(x, y));
+
+  function shade(lights: readonly { position: { x: number; y: number }; radius: number }[]): number[][] {
+    const columns = MAP[0]!.length;
+    const rows = MAP.length;
+    const rgba = new Uint8ClampedArray(columns * rows * 4);
+    createLightShader()(rgba, columns, rows, 0, 0, readShade, lights);
+    return Array.from({ length: rows }, (_, row) =>
+      Array.from({ length: columns }, (_, column) => rgba[(row * columns + column) * 4 + 3]!),
+    );
+  }
+
+  it("reads an unlit discovered tile as remembered, and leaves lit and unseen tiles alone", () => {
+    expect(shadingTile("#", false)).toBe("+");
+    expect(shadingTile(".", false)).toBe(",");
+    expect(shadingTile("#", true)).toBe("#");
+    expect(shadingTile(".", true)).toBe(".");
+    expect(shadingTile(" ", false)).toBe(" ");
+    expect(shadingTile(null, false)).toBeNull();
+  });
+
+  it("draws the room behind a wall fully dark, though a torch's radius reaches it", () => {
+    const alphas = shade([westTorch]);
+
+    // x = 5 and 6 are inside the torch's radius, but the server's line of sight stopped at the wall.
+    for (let y = 1; y <= 3; y += 1) {
+      for (let x = 5; x <= 9; x += 1) expect(alphas[y]![x], `${x},${y}`).toBe(255);
+    }
+  });
+
+  it("keeps the taper from light centre to rim on the tiles the server lit", () => {
+    const alphas = shade([westTorch]);
+
+    expect(alphas[2]![2]).toBe(0);
+    expect(alphas[2]![1]).toBeGreaterThan(0);
+    expect(alphas[2]![3]).toBeLessThan(255);
+    expect(alphas[2]![3]).toBe(Math.round(litDarkness(3, 2, [westTorch]) * 255));
+  });
+
+  it("draws every discovered tile fully dark once no light reaches the viewer", () => {
+    const allRemembered = (x: number, y: number) => shadingTile(MAP[y]?.[x] ?? null, false);
+    const columns = MAP[0]!.length;
+    const rgba = new Uint8ClampedArray(columns * MAP.length * 4);
+    createLightShader()(rgba, columns, MAP.length, 0, 0, allRemembered, [westTorch]);
+
+    for (let index = 0; index < columns * MAP.length; index += 1) expect(rgba[index * 4 + 3]).toBe(255);
   });
 });

@@ -1,5 +1,5 @@
 import type { Vector2 } from "../../shared/types/core.js";
-import { KNOWN_FLOOR, KNOWN_WALL, UNKNOWN } from "./tiles.js";
+import { KNOWN_FLOOR, KNOWN_WALL, LIT_WALL, UNKNOWN } from "./tiles.js";
 
 /**
  * How dark each tile on screen should be drawn, as an alpha for a near-black overlay.
@@ -39,30 +39,18 @@ export const REMEMBERED_DARKNESS = 1;
 export const LIGHT_TAPER_EXPONENT = 1.5;
 
 /**
- * Darkness for a lit tile that no light in the snapshot accounts for, such as one lit by a source
- * whose own tile is out of view. Mid-range rather than bright, since the light is somewhere far off.
- */
-const UNATTRIBUTED_DARKNESS = 0.5;
-
-/**
- * How far past a light's rim, in world tiles, a lit tile still counts as that light's and is drawn at
- * the rim's full darkness rather than as unattributed.
+ * How dark one light leaves a tile, or null when the tile is past its rim. Shared by the per-tile
+ * and the whole-frame paths below so the two cannot disagree.
  *
- * The server lights more than the radius: every wall bordering a lit floor tile, up to about 1.4
- * tiles beyond it. A carried torch also draws at the predicted local position while the lit tiles
- * arrive with the last snapshot, so the rim the server lit trails the one drawn here. Without this
- * slack, both kinds of tile fell back to `UNATTRIBUTED_DARKNESS` and glowed just outside a pool that
- * had already faded to black, flickering at the snapshot rate as the player moved.
- */
-const RIM_SLACK_TILES = 3;
-
-/**
- * How dark a tile is for one light, or null when the light does not reach it (or its slack).
- * Shared by the per-tile and the whole-frame paths below so the two cannot disagree.
+ * A tile the server lit that no light in the snapshot reaches draws fully dark, the same as
+ * remembered geometry. The server lights a little past each radius (every wall bordering lit floor),
+ * and a carried torch draws at the predicted position while the lit set trails a snapshot behind, but
+ * the taper is already black at the rim, so neither may glow. A light the viewer can see always has
+ * its own tile lit and so is always in the snapshot, which leaves nothing that should glow unexplained.
  */
 function lightDarkness(distance: number, radius: number): number | null {
-  if (distance >= radius + RIM_SLACK_TILES) return null;
-  const reach = Math.min(distance / radius, 1);
+  if (distance >= radius) return null;
+  const reach = distance / radius;
   return 1 - (1 - reach * reach) ** LIGHT_TAPER_EXPONENT;
 }
 
@@ -76,7 +64,19 @@ export function litDarkness(x: number, y: number, lights: readonly SceneLight[])
     if (darkness !== null) darkest = Math.min(darkest, darkness);
   }
 
-  return darkest === Number.POSITIVE_INFINITY ? UNATTRIBUTED_DARKNESS : darkest;
+  return darkest === Number.POSITIVE_INFINITY ? REMEMBERED_DARKNESS : darkest;
+}
+
+/**
+ * The character the shader should read for a discovered tile, given whether the server lit it this
+ * snapshot. The client's map holds only `#` and `.`, so lit versus remembered is put back here from
+ * the snapshot's lit set: an unlit tile reads as its remembered form and shades fully dark, however
+ * close a light on screen stands to it. That is what keeps a torch from glowing through a wall onto
+ * the room behind it, or across geometry an ally shared.
+ */
+export function shadingTile(tile: string | null, lit: boolean): string | null {
+  if (lit || tile === null || tile === UNKNOWN) return tile;
+  return tile === LIT_WALL || tile === KNOWN_WALL ? KNOWN_WALL : KNOWN_FLOOR;
 }
 
 /**
@@ -144,7 +144,7 @@ export function createLightShader() {
     for (const light of lights) {
       if (light.radius <= 0) continue;
 
-      const reach = light.radius + RIM_SLACK_TILES;
+      const reach = light.radius;
       const firstColumn = Math.max(0, Math.floor(light.position.x - reach) - minX);
       const lastColumn = Math.min(columns - 1, Math.ceil(light.position.x + reach) - minX);
       const firstRow = Math.max(0, Math.floor(light.position.y - reach) - minY);
@@ -167,7 +167,7 @@ export function createLightShader() {
     for (let index = 0; index < count; index += 1) {
       const darkness = level[index]!;
       rgba[index * 4 + 3] = Math.round(
-        (darkness === Number.POSITIVE_INFINITY ? UNATTRIBUTED_DARKNESS : darkness) * 255,
+        (darkness === Number.POSITIVE_INFINITY ? REMEMBERED_DARKNESS : darkness) * 255,
       );
     }
   };
