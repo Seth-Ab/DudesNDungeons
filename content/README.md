@@ -15,6 +15,11 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   with the unarmed constants. `attackDamageBonus` skills add to either. A weapon is carried in the
   hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` lies in the hub's
   spawn area.
+  Ammo has `kind: "ammo"` and a positive integer `maxStack` (at most 99). A stack of any count up
+  to `maxStack` takes one inventory slot; a pickup tops up carried stacks of the same item, then
+  takes a free slot, and leaves whatever does not fit on the floor. An authored dungeon's loot
+  placement may give ammo a `count` (default 1, never above `maxStack`); a `count` on anything
+  else fails validation. `arrow` lies as a stack of 5 beside the hub's sword.
 - `monsters/`: monster stats used by authored and generated dungeons. A monster with `boss: true`
   seals every exit in its dungeon until it is defeated. It may only spawn in a `boss` room
   template (or inside an authored room of kind `boss`), and every `boss` template must have a boss

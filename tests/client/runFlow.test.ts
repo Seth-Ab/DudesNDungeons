@@ -179,6 +179,23 @@ describe("what the player is carrying", () => {
     );
     expect(bankSummary([])).toEqual([]);
   });
+
+  it("totals banked stacks by their counts", () => {
+    const stack = (id: string, count: number): InventoryItem => ({
+      id,
+      name: "Arrows",
+      kind: "ammo",
+      itemId: "arrow",
+      count,
+    });
+    expect(
+      bankSummary([
+        stack("e1111111-1111-4111-8111-111111111111", 8),
+        stack("e2222222-2222-4222-8222-222222222222", 3),
+      ]),
+    ).toEqual(["Arrows x11"]);
+    expect(bankSummary([stack("e1111111-1111-4111-8111-111111111111", 1)])).toEqual(["Arrows"]);
+  });
 });
 
 describe("the way out", () => {

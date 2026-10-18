@@ -82,6 +82,7 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // The fallback for a weapon without its own art in `WEAPON_SPRITES`.
   ["loot-weapon", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-rusted-sword", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-arrow", { tilesWide: 1, tilesHigh: 1 }],
   // Unlit, because this is a torch lying on the floor. The flame is `torch-flame`, drawn over the
   // player once they are carrying it and it is an active light source.
   ["loot-torch", { tilesWide: 1, tilesHigh: 1 }],
@@ -99,6 +100,8 @@ export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, Spri
   skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
   weapon: "loot-weapon",
+  // Arrows are the only ammo so far; a second kind gets its own art the way weapons do.
+  ammo: "loot-arrow",
 };
 
 /** A consumable names its icon in content, so its art is looked up by that rather than by kind. */

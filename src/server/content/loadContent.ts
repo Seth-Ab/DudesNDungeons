@@ -323,8 +323,18 @@ function validateReferences(content: GameContent): void {
         }
       }
       for (const placed of dungeon.loot) {
-        if (!content.items.has(placed.itemId)) {
+        const item = content.items.get(placed.itemId);
+        if (!item) {
           throw new Error(`${label} places unknown item "${placed.itemId}"`);
+        }
+        if (placed.count === undefined) continue;
+        if (item.kind !== "ammo") {
+          throw new Error(`${label} gives a count to "${placed.itemId}", which does not stack`);
+        }
+        if (placed.count > item.maxStack) {
+          throw new Error(
+            `${label} places ${placed.count} "${placed.itemId}", over its maxStack of ${item.maxStack}`,
+          );
         }
       }
       continue;

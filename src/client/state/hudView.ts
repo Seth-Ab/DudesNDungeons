@@ -389,7 +389,14 @@ export interface HotbarSlotView {
   /** Client-safe blurb for consumables; empty for everything else. */
   description: string;
   icon: SpriteName | null;
+  /** How many are in the stack, or null for an item that does not stack. */
+  count: number | null;
   disabled: boolean;
+}
+
+/** A stack's count, or null for anything that is one item. */
+export function stackCount(item: InventoryItem | null | undefined): number | null {
+  return item?.kind === "ammo" ? item.count : null;
 }
 
 /** Three slots, always: an empty one is drawn as such so the bar does not change shape. */
@@ -406,6 +413,7 @@ export function hotbarView(view: SessionView, self: PlayerState | null): HotbarS
       name: item?.name ?? "Empty",
       description: item?.kind === "consumable" ? item.description : "",
       icon: item ? itemSprite(item) : null,
+      count: stackCount(item),
       disabled: !canAct || !item,
     };
   });
@@ -417,6 +425,7 @@ export interface HeldSlotView {
   empty: boolean;
   name: string;
   icon: SpriteName | null;
+  count: number | null;
   disabled: boolean;
 }
 
@@ -430,6 +439,7 @@ export function heldView(view: SessionView, self: PlayerState | null): HeldSlotV
     empty: !item,
     name: item?.name ?? "Empty hand",
     icon: item ? itemSprite(item) : null,
+    count: stackCount(item),
     disabled: !canAct || (!item && (self?.inventory.length ?? 0) === 0),
   };
 }
@@ -466,7 +476,10 @@ export function actionPrompt(
   if (downed) return prompt("carry", `Lift ${downed.name}`);
 
   const loot = nearestLoot(view, position);
-  if (loot) return prompt("pickup", `Pick up ${loot.name}`);
+  if (loot) {
+    const text = loot.count === null ? `Pick up ${loot.name}` : `Pick up ${loot.name} (${loot.count})`;
+    return prompt("pickup", text);
+  }
 
   const target = nearestInteraction(view, position);
   if (target?.kind === "door") return prompt("interact", "Open door");

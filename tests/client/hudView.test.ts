@@ -450,6 +450,25 @@ describe("hotbar", () => {
     expect(slots[0]?.description).toBe("Restores 25 resistance.");
     expect(slots[1]?.icon).toBe("loot-key");
     expect(slots[1]?.description).toBe("");
+    expect(slots.map((slot) => slot.count)).toEqual([null, null, null]);
+  });
+
+  it("shows a stack's count on its one slot, in the inventory or the hand", () => {
+    const arrows: InventoryItem = {
+      id: "e1111111-1111-4111-8111-111111111111",
+      name: "Arrows",
+      kind: "ammo",
+      itemId: "arrow",
+      count: 5,
+    };
+    const self = player("Maya", { id: SELF_ID, inventory: [arrows] });
+    const state = view({ ...inSession, players: [self] });
+
+    expect(hotbarView(state, self)[0]).toMatchObject({ name: "Arrows", count: 5, icon: "loot-arrow" });
+    expect(hotbarView(state, self).map((slot) => slot.empty)).toEqual([false, true, true]);
+
+    const holding = player("Maya", { id: SELF_ID, held: { ...arrows, count: 2 } });
+    expect(heldView(view({ ...inSession, players: [holding] }), holding).count).toBe(2);
   });
 
   it("disables every slot when outside a session or downed", () => {
@@ -480,6 +499,20 @@ describe("action prompt", () => {
   it("names loot and its key", () => {
     const v = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [loot("Tonic", 0.5)] }) });
     expect(actionPrompt(v, self, origin)).toEqual({ action: "pickup", keyHint: "F", text: "Pick up Tonic" });
+  });
+
+  it("says how many are in a stack on the floor", () => {
+    const arrows: LootState = {
+      id: "loot-arrows",
+      name: "Arrows",
+      kind: "ammo",
+      itemId: "arrow",
+      count: 5,
+      position: { x: 0.5, y: 0 },
+      pickedUp: false,
+    };
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [arrows] }) });
+    expect(actionPrompt(v, self, origin)?.text).toBe("Pick up Arrows (5)");
   });
 
   it("ignores picked-up loot", () => {

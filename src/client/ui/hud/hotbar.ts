@@ -29,6 +29,24 @@ function paintIcon(icon: HTMLElement, sprite: string | null): void {
   icon.style.height = `${rect.height * ICON_SCALE}px`;
 }
 
+/** The stack count in a slot's corner. Hidden for items that do not stack. */
+function createCount(): HTMLElement {
+  const count = document.createElement("span");
+  count.className = "hud__slot-count";
+  count.setAttribute("aria-hidden", "true");
+  count.hidden = true;
+  return count;
+}
+
+function paintCount(element: HTMLElement, count: number | null): void {
+  element.hidden = count === null;
+  element.textContent = count === null ? "" : String(count);
+}
+
+function withCount(name: string, count: number | null): string {
+  return count === null ? name : `${name} (${count})`;
+}
+
 /**
  * Bottom-centre: the contextual prompt, the hand slot, the three item slots, and the torch pip. The
  * hand and the pip are their own elements because neither takes an inventory slot.
@@ -62,8 +80,9 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
     icon.className = "hud__slot-icon";
     icon.setAttribute("aria-hidden", "true");
 
-    button.append(key, icon);
-    return { button, key, icon };
+    const count = createCount();
+    button.append(key, icon, count);
+    return { button, key, icon, count };
   });
 
   // The hand is its own slot: a held item never takes one of the three inventory slots.
@@ -76,7 +95,8 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
   const heldIcon = document.createElement("span");
   heldIcon.className = "hud__slot-icon";
   heldIcon.setAttribute("aria-hidden", "true");
-  held.append(heldKey, heldIcon);
+  const heldCount = createCount();
+  held.append(heldKey, heldIcon, heldCount);
 
   const torch = document.createElement("div");
   torch.className = "hud__torch";
@@ -102,9 +122,11 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
         slot.button.disabled = view.disabled;
         slot.button.classList.toggle("hud__slot--empty", view.empty);
         const detail = view.description ? ` - ${view.description}` : "";
-        slot.button.title = `${view.keyHint}: ${view.name}${detail}`;
-        slot.button.setAttribute("aria-label", `Slot ${view.keyHint}: ${view.name}`);
+        const name = withCount(view.name, view.count);
+        slot.button.title = `${view.keyHint}: ${name}${detail}`;
+        slot.button.setAttribute("aria-label", `Slot ${view.keyHint}: ${name}`);
         paintIcon(slot.icon, view.icon);
+        paintCount(slot.count, view.count);
       });
     },
 
@@ -112,9 +134,11 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
       heldKey.textContent = view.keyHint;
       held.disabled = view.disabled;
       held.classList.toggle("hud__slot--empty", view.empty);
-      held.title = `${view.keyHint}: In hand - ${view.name}`;
-      held.setAttribute("aria-label", `In hand (${view.keyHint}): ${view.name}`);
+      const name = withCount(view.name, view.count);
+      held.title = `${view.keyHint}: In hand - ${name}`;
+      held.setAttribute("aria-label", `In hand (${view.keyHint}): ${name}`);
       paintIcon(heldIcon, view.icon);
+      paintCount(heldCount, view.count);
     },
 
     updateTorch(self: PlayerState | null) {
