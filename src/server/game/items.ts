@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   INTERACT_RANGE,
   MAX_INVENTORY_SIZE,
+  PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
 } from "../../shared/constants/game.js";
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
@@ -15,12 +16,14 @@ import type {
   PlayerId,
   Vector2,
 } from "../../shared/types/core.js";
+import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { placeFlare } from "./flares.js";
 import { spillLootTable } from "./monsterLoot.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
-import { healPlayer, restoreResistance, restoreStamina } from "./vitals.js";
+import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
 
@@ -63,6 +66,7 @@ function inventoryItemFromLoot(loot: LootState): InventoryItem {
         itemId: loot.itemId,
         description: loot.description,
         icon: loot.icon,
+        useOn: loot.useOn,
       };
     case "weapon":
       return { id, name, kind: loot.kind, itemId: loot.itemId, weaponKind: loot.weaponKind };
@@ -207,6 +211,7 @@ function lootFromInventoryItem(item: InventoryItem, position: Vector2): LootStat
         itemId: item.itemId,
         description: item.description,
         icon: item.icon,
+        useOn: item.useOn,
       };
     case "weapon":
       return { ...base, kind: item.kind, itemId: item.itemId, weaponKind: item.weaponKind };
@@ -306,17 +311,30 @@ export function swapHeld(session: Session, playerId: PlayerId, itemId: EntityId 
   return OK;
 }
 
-export function useItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
+/**
+ * Uses an inventory item. `targetPlayerId` is only for a consumable used on someone else (smelling
+ * salts); naming one for anything else is refused, as is leaving it out for one that needs it.
+ */
+export function useItem(
+  session: Session,
+  playerId: PlayerId,
+  itemId: EntityId,
+  now = 0,
+  targetPlayerId: PlayerId | null = null,
+): ItemResult {
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");
 
   const item = player.inventory.find((candidate) => candidate.id === itemId);
   if (!item) return reject(player.held?.id === itemId ? "notPermitted" : "targetMissing");
+  if (targetPlayerId !== null && item.kind !== "consumable") return reject("notPermitted");
 
   switch (item.kind) {
-    case "consumable":
-      if (!applyConsumable(session, player, item.itemId)) return reject("notPermitted");
+    case "consumable": {
+      const result = applyConsumable(session, player, item.itemId, now, targetPlayerId);
+      if (!result.ok) return result;
       break;
+    }
     case "skillScroll":
       // The scroll is consumed only when it teaches something. An already-known skill leaves the
       // item available to give away or, later, use as an upgrade source.
@@ -337,14 +355,28 @@ export function useItem(session: Session, playerId: PlayerId, itemId: EntityId):
 }
 
 /**
- * Applies a consumable's authored effects through the vitals helpers. Returns false, changing
- * nothing, when the definition is gone or every effect would be wasted, so a misclick at full
- * health cannot spend the only tonic.
+ * Applies a consumable's authored effects through the vitals helpers. Refused, changing nothing,
+ * when the definition is gone or every effect would be wasted, so a misclick at full health cannot
+ * spend the only tonic. A consumable used on a downed ally goes to `revive` instead.
  */
-function applyConsumable(session: Session, player: SessionPlayer, itemId: string): boolean {
+function applyConsumable(
+  session: Session,
+  player: SessionPlayer,
+  itemId: string,
+  now: number,
+  targetPlayerId: PlayerId | null,
+): ItemResult {
   const content = contentForSession(session);
   const definition = content.items.get(itemId);
-  if (definition?.kind !== "consumable") return false;
+  if (definition?.kind !== "consumable") return reject("notPermitted");
+
+  if (consumableTarget(definition) === "downedAlly") {
+    const [effect] = definition.effects;
+    if (effect?.type !== "revive") return reject("notPermitted");
+    if (targetPlayerId === null) return reject("targetMissing");
+    return revive(session, player, targetPlayerId, effect);
+  }
+  if (targetPlayerId !== null) return reject("notPermitted");
 
   let applied = false;
   for (const effect of definition.effects) {
@@ -364,9 +396,45 @@ function applyConsumable(session: Session, player: SessionPlayer, itemId: string
       case "restoreStamina":
         applied = restoreStamina(player, effect.amount) || applied;
         break;
+      case "flare":
+        // Lands at the user's feet, which is always open floor, and is never wasted.
+        placeFlare(session, player.position, effect.radius, effect.durationMs, now);
+        applied = true;
+        break;
+      case "revive":
+        // The schema keeps a revive alone on its item, which is routed above.
+        break;
     }
   }
-  return applied;
+  return applied ? OK : reject("notPermitted");
+}
+
+type ReviveEffect = Extract<ConsumableEffect, { type: "revive" }>;
+
+/**
+ * Stands a downed ally back up. The user is already known to be standing; the target must be
+ * someone else in the party, downed, connected, not being carried, and within reach, and the user
+ * must afford the stamina. Every check runs before anything changes, so a refusal keeps the item.
+ */
+function revive(
+  session: Session,
+  player: SessionPlayer,
+  targetPlayerId: PlayerId,
+  effect: ReviveEffect,
+): ItemResult {
+  if (targetPlayerId === player.id) return reject("notPermitted");
+
+  const target = session.players.get(targetPlayerId);
+  if (!target) return reject("targetMissing");
+  if (!isDown(target) || !target.connected || target.carriedByPlayerId !== null) {
+    return reject("notPermitted");
+  }
+  if (!withinReach(player, target.position)) return reject("outOfRange");
+  if (!spendStamina(player, effect.staminaCost)) return reject("exhausted");
+
+  // Never revived at zero, which would still count as downed.
+  target.health = Math.max(1, Math.round(PLAYER_MAX_HEALTH * effect.healthFraction));
+  return OK;
 }
 
 /** Opens a door or a chest, or uses the current world's exit to transition the whole party. */

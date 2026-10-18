@@ -1,0 +1,8 @@
+{
+  "id": "smelling-salts",
+  "name": "Smelling Salts",
+  "kind": "consumable",
+  "description": "Revives a downed ally in reach with 35 health.",
+  "icon": "salts",
+  "effects": [{ "type": "revive", "healthFraction": 0.35, "staminaCost": 30 }]
+}

@@ -288,8 +288,9 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "playerInteract", targetId });
     },
 
-    useItem(itemId: string): boolean {
-      return send({ type: "useItem", itemId });
+    /** `targetPlayerId` names the downed ally for an item used on someone else, such as salts. */
+    useItem(itemId: string, targetPlayerId?: string): boolean {
+      return send(targetPlayerId ? { type: "useItem", itemId, targetPlayerId } : { type: "useItem", itemId });
     },
 
     dropItem(itemId: string): boolean {

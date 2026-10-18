@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 26;
+export const PROTOCOL_VERSION = 27;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -158,7 +158,14 @@ export const MAX_ITEM_DESCRIPTION_LENGTH = 80;
  * Icons a consumable may wear in the HUD and on the floor. A content file picks one by name, so
  * adding a consumable never needs a protocol change, while adding art for a new icon still does.
  */
-export const CONSUMABLE_ICONS = ["tonic", "ward"] as const;
+export const CONSUMABLE_ICONS = ["tonic", "ward", "draught", "flare", "salts"] as const;
+
+/**
+ * Who a consumable is used on. `self` items act on the user; `downedAlly` items, such as smelling
+ * salts, need a downed party member in reach named as the target of `useItem`. Derived from content
+ * on the server, so the client knows to ask for a target without ever seeing the effect itself.
+ */
+export const CONSUMABLE_TARGETS = ["self", "downedAlly"] as const;
 
 /**
  * Distance in world units. Peers closer than this play at full volume.

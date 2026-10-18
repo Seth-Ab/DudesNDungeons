@@ -1,0 +1,8 @@
+{
+  "id": "flare",
+  "name": "Flare",
+  "kind": "consumable",
+  "description": "Lights the ground at your feet for 30 seconds.",
+  "icon": "flare",
+  "effects": [{ "type": "flare", "radius": 9, "durationMs": 30000 }]
+}

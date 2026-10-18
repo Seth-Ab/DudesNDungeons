@@ -13,6 +13,7 @@ import type { MeleeWeaponStats } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
+import { expireFlares } from "./flares.js";
 import { MonsterPlanner } from "./monsterAi.js";
 import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "./monsterAttacks.js";
 import { hasLineOfSight } from "./visibility.js";
@@ -164,6 +165,8 @@ export function simulate(session: Session, now: number): AttackEvent[] {
       ? 0
       : Math.min(Math.max(now - session.simulatedAt, 0), MAX_SIMULATION_STEP_MS);
   session.simulatedAt = now;
+  // Before the hub returns early: a flare lit in the hub burns out there too.
+  expireFlares(session, now);
 
   if (session.location !== "dungeon") {
     regenerateStamina(session, elapsedMs);

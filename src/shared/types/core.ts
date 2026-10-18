@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
+  CONSUMABLE_TARGETS,
   WEAPON_KINDS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
@@ -123,6 +124,8 @@ const consumableFields = {
   itemId: contentIdSchema,
   description: z.string().min(1).max(MAX_ITEM_DESCRIPTION_LENGTH),
   icon: consumableIconSchema,
+  /** Who it is used on. Defaults to `self` so an item banked before targets existed still parses. */
+  useOn: z.enum(CONSUMABLE_TARGETS).default("self"),
 };
 
 /** How a weapon is used. Each weapon issue extends this with the stats it needs. */
@@ -319,7 +322,11 @@ export const roomStateSchema = z.object({
 });
 export type RoomState = z.infer<typeof roomStateSchema>;
 
-export const lightSourceKindSchema = z.enum(["fixed", "carriedTorch", "monsterGlow"]);
+/**
+ * `flare` is a short-lived light a player put down. Like `fixed` it stays where it was placed, but
+ * it burns out, so the server lights it fresh every tick rather than caching what it reveals.
+ */
+export const lightSourceKindSchema = z.enum(["fixed", "carriedTorch", "monsterGlow", "flare"]);
 export type LightSourceKind = z.infer<typeof lightSourceKindSchema>;
 
 export const lightSourceStateSchema = z.object({

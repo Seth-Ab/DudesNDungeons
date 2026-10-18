@@ -42,7 +42,9 @@ import {
   nearestDownedAlly,
   nearestInteraction,
   nearestLoot,
+  nearestRevivableAlly,
   nearestStandingAlly,
+  usedOnDownedAlly,
 } from "./state/reach.js";
 import { actionableItem, noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
 import {
@@ -396,6 +398,19 @@ function useInventorySlot(slot: number): void {
     hud.setActionStatus("Empty slot");
     return;
   }
+
+  // Smelling salts need someone to use them on. The server judges the target again.
+  if (usedOnDownedAlly(item)) {
+    const ally = nearestRevivableAlly(view, localPosition);
+    if (!ally) {
+      hud.setActionStatus("No one down nearby");
+      return;
+    }
+    noteSlotUsed(slot);
+    client.useItem(item.id, ally.id);
+    return;
+  }
+
   noteSlotUsed(slot);
   client.useItem(item.id);
 }

@@ -4,7 +4,10 @@
   "entries": [
     { "itemId": "minor-tonic", "weight": 3 },
     { "itemId": "warding-salve", "weight": 2 },
-    { "itemId": "travelers-torch", "weight": 1 }
+    { "itemId": "stamina-draught", "weight": 2 },
+    { "itemId": "flare", "weight": 2 },
+    { "itemId": "travelers-torch", "weight": 1 },
+    { "itemId": "smelling-salts", "weight": 1 }
   ],
   "nothingWeight": 1
 }

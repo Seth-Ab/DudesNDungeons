@@ -1,0 +1,8 @@
+{
+  "id": "stamina-draught",
+  "name": "Stamina Draught",
+  "kind": "consumable",
+  "description": "Restores 50 stamina.",
+  "icon": "draught",
+  "effects": [{ "type": "restoreStamina", "amount": 50 }]
+}

@@ -59,14 +59,25 @@ loading and cross-file validation are in `src/server/content/loadContent.ts`.
 ## Consumables
 
 A consumable item has `kind: "consumable"`, a short `description` shown in the HUD (80 characters
-at most), an optional `icon` (`tonic` or `ward`, defaulting to `tonic`), and a non-empty `effects`
-list. Supported effect types, each with a positive integer `amount`, are `heal`,
-`restoreResistance`, and `restoreStamina`. An unknown type fails startup, naming the file and field.
+at most), an optional `icon` (`tonic`, `ward`, `draught`, `flare`, or `salts`, defaulting to
+`tonic`), and a non-empty `effects` list. Supported effect types are:
+
+- `heal`, `restoreResistance`, and `restoreStamina`, each with a positive integer `amount`.
+- `flare`, with `radius` (world units) and `durationMs`: puts a light at the user's feet that the
+  dungeon owns and removes when its time is up. It is never wasted.
+- `revive`, with `healthFraction` (above 0, at most 1) and `staminaCost`: stands a downed ally in
+  `INTERACT_RANGE` back up at that fraction of max health, charging the user the stamina. The
+  client names the ally; the server refuses a standing, carried, or disconnected target, a downed
+  user, and a user who cannot pay, keeping the item. A revive must be the item's only effect.
+
+An unknown type fails startup, naming the file and field.
 
 Effects apply in order. Use is refused, and the item kept, only when every effect would be wasted
-(full health, resistance at its cap, a full stamina bar). Clients receive the description and icon,
-never the amounts. Adding a consumable needs no code or protocol change, only the JSON file and a
-placement in a room template or loot rule.
+(full health, resistance at its cap, a full stamina bar). Clients receive the description, the
+icon, and whether the item is used on a downed ally (`useOn`), never the amounts. Adding a
+consumable needs no code or protocol change, only the JSON file and a placement in a room template
+or loot rule; a new icon also needs art. `stamina-draught`, `flare`, and `smelling-salts` are rolled
+by the chest tables and placed at low odds by the Ashen Hall and Sunken Maze templates.
 
 ## Skills and upgrades
 

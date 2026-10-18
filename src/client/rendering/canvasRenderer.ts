@@ -493,6 +493,9 @@ export function createCanvasRenderer(getScene: () => Scene) {
       case "monsterGlow":
         drawSprite("glow-mote", light.position, 1, 1, camera);
         break;
+      case "flare":
+        drawSprite("flare-lit", light.position, 1, 1, camera);
+        break;
     }
   };
 

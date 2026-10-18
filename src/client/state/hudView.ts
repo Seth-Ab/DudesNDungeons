@@ -22,7 +22,9 @@ import {
   nearestDownedAlly,
   nearestInteraction,
   nearestLoot,
+  nearestRevivableAlly,
   nearestStandingAlly,
+  usedOnDownedAlly,
 } from "./reach.js";
 import { actionableItem } from "./selectedSlot.js";
 import type { ToastSeverity } from "./toastQueue.js";
@@ -453,8 +455,8 @@ export interface ActionPromptView {
 /**
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
- * `actionRejected`. Priority: dropping a carried ally, lifting a downed one, loot, then chests,
- * doors, and exits.
+ * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
+ * else lifting them, loot, then chests, doors, and exits.
  */
 export function actionPrompt(
   view: SessionView,
@@ -473,7 +475,15 @@ export function actionPrompt(
   if (carried) return prompt("carry", `Drop ${carried.name}`);
 
   const downed = nearestDownedAlly(view, position);
-  if (downed) return prompt("carry", `Lift ${downed.name}`);
+  if (downed) {
+    // Reviving outranks lifting when the player has salts and the ally can take them; lifting is
+    // still on its own key.
+    const salts = self.inventory.findIndex(usedOnDownedAlly);
+    const revivable = salts >= 0 ? nearestRevivableAlly(view, position) : null;
+    const slotAction = USE_SLOT_ACTIONS[salts];
+    if (revivable && slotAction) return prompt(slotAction, `Revive ${revivable.name}`);
+    return prompt("carry", `Lift ${downed.name}`);
+  }
 
   const loot = nearestLoot(view, position);
   if (loot) {

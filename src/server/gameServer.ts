@@ -436,7 +436,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           message.type === "pickupItem"
             ? pickupItem(member.session, playerId, message.itemId)
             : message.type === "useItem"
-              ? useItem(member.session, playerId, message.itemId)
+              ? useItem(member.session, playerId, message.itemId, now(), message.targetPlayerId ?? null)
               : message.type === "dropItem"
                 ? dropItem(member.session, playerId, message.itemId)
                 : message.type === "giveItem"

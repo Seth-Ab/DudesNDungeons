@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   CONSUMABLE_ICONS,
+  type CONSUMABLE_TARGETS,
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_STACK_SIZE,
@@ -233,12 +234,32 @@ export const consumableEffectSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("heal"), amount: z.number().int().positive() }),
   z.object({ type: z.literal("restoreResistance"), amount: z.number().int().positive() }),
   z.object({ type: z.literal("restoreStamina"), amount: z.number().int().positive() }),
+  /**
+   * Puts a temporary light at the user's feet. `radius` is in world units, like any light, and the
+   * dungeon removes it `durationMs` after it is placed.
+   */
+  z.object({
+    type: z.literal("flare"),
+    radius: z.number().positive(),
+    durationMs: z.number().int().positive(),
+  }),
+  /**
+   * Stands a downed ally in reach back up at `healthFraction` of max health, costing the user
+   * `staminaCost`. The only targeted effect, so it must be a consumable's sole effect.
+   */
+  z.object({
+    type: z.literal("revive"),
+    healthFraction: z.number().positive().max(1),
+    staminaCost: z.number().int().nonnegative(),
+  }),
 ]);
 export type ConsumableEffect = z.infer<typeof consumableEffectSchema>;
 
 /**
  * Effects apply in order. Using the item is refused only when every one of them would be wasted,
- * so a misclick at full health cannot spend it; the item is otherwise consumed.
+ * so a misclick at full health cannot spend it; the item is otherwise consumed. A flare is never
+ * wasted. A revive acts on someone else, so it stands alone rather than mixing with effects on the
+ * user.
  */
 const consumableDefinitionSchema = z.object({
   id: contentIdSchema,
@@ -246,8 +267,21 @@ const consumableDefinitionSchema = z.object({
   kind: z.literal("consumable"),
   description: z.string().min(1).max(MAX_ITEM_DESCRIPTION_LENGTH),
   icon: z.enum(CONSUMABLE_ICONS).default("tonic"),
-  effects: z.array(consumableEffectSchema).min(1),
+  effects: z
+    .array(consumableEffectSchema)
+    .min(1)
+    .refine(
+      (effects) => effects.length === 1 || effects.every((effect) => effect.type !== "revive"),
+      { message: "A revive must be the consumable's only effect" },
+    ),
 });
+
+/** Who a consumable is used on, from its effects: a revive needs a downed ally, the rest the user. */
+export function consumableTarget(
+  item: Extract<ItemDefinition, { kind: "consumable" }>,
+): (typeof CONSUMABLE_TARGETS)[number] {
+  return item.effects.some((effect) => effect.type === "revive") ? "downedAlly" : "self";
+}
 
 const skillScrollDefinitionSchema = z.object({
   id: contentIdSchema,

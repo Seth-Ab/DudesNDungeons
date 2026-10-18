@@ -132,6 +132,7 @@ describe("using items", () => {
       itemId: "grand-draught",
       description: "Restores health, stamina, and resistance.",
       icon: "tonic",
+      useOn: "self",
     });
 
     expect(useItem(session, "alpha", "88888888-8888-4888-8888-888888888888")).toEqual({ ok: true });

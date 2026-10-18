@@ -12,12 +12,13 @@ import type {
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
-import type {
-  AuthoredDungeon,
-  ItemDefinition,
-  MonsterType,
-  PuzzleType,
-  TrapType,
+import {
+  consumableTarget,
+  type AuthoredDungeon,
+  type ItemDefinition,
+  type MonsterType,
+  type PuzzleType,
+  type TrapType,
 } from "../content/schema.js";
 import { createRng, type Rng } from "./random.js";
 
@@ -122,6 +123,7 @@ export function lootInstance(item: ItemDefinition, position: Vector2, id: string
         itemId: item.id,
         description: item.description,
         icon: item.icon,
+        useOn: consumableTarget(item),
       };
     case "weapon":
       return { ...instance, kind: item.kind, itemId: item.id, weaponKind: item.weapon.kind };

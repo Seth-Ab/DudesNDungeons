@@ -31,7 +31,9 @@
   "loot": [
     { "itemId": "minor-tonic", "min": 0, "max": 2 },
     { "itemId": "warding-salve", "min": 0, "max": 1 },
-    { "itemId": "travelers-torch", "min": 0, "max": 1 }
+    { "itemId": "travelers-torch", "min": 0, "max": 1 },
+    { "itemId": "stamina-draught", "min": 0, "max": 1 },
+    { "itemId": "smelling-salts", "min": 1, "max": 1, "chance": 0.2 }
   ],
   "chests": [{ "lootTableId": "common-chest", "min": 0, "max": 1 }]
 }

@@ -67,9 +67,15 @@ export const pickupItemSchema = z.object({
   itemId: entityIdSchema,
 });
 
+/**
+ * Uses an inventory item. `targetPlayerId` names the downed ally a `downedAlly` consumable (smelling
+ * salts) is used on, and must be absent for anything else. The server checks the target's state,
+ * reach, and the user's stamina itself.
+ */
 export const useItemSchema = z.object({
   type: z.literal("useItem"),
   itemId: entityIdSchema,
+  targetPlayerId: playerIdSchema.nullish(),
 });
 
 /** Puts a carried item (inventory or hand) on the floor at the sender's feet as loot anyone can pick up again. */

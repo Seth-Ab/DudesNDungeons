@@ -28,6 +28,7 @@ export const TONIC_FIELDS = {
   itemId: "minor-tonic",
   description: "Restores 35 health.",
   icon: "tonic",
+  useOn: "self",
 } as const;
 
 export const WARDING_SALVE_ID = "99999999-9999-4999-8999-999999999999";
@@ -156,6 +157,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     projectileRuns: new Map(),
     trapRearmAt: new Map(),
     puzzleHeldSince: new Map(),
+    flareExpiresAt: new Map(),
   };
 }
 
