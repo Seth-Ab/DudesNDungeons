@@ -83,6 +83,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.projectileRuns.clear();
   session.trapRearmAt.clear();
   session.puzzleHeldSince.clear();
+  session.flareExpiresAt.clear();
 
   for (const player of session.players.values()) {
     resetPlayerForWorld(player, built.dungeon.map);

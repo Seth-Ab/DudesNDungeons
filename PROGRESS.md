@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v26.
-- Last completed work: lootable chests placed by room templates (issue #88, protocol v26);
+  everyone to the hub under protocol v27.
+- Last completed work: stamina draught, flare, and smelling salts consumables, with revive of a
+  downed ally (issue #85, protocol v27); earlier, lootable chests placed by room templates (issue #88, protocol v26);
   earlier, stackable arrows that take one inventory slot (issue #115, protocol v25); earlier, server-lit tiles, so remembered and shared map stays dark (issue #120, protocol v24); earlier, the Rusted Sword and swinging in the hub (issue #114, protocol v23);
   earlier, a held-item slot and the `weapon` item kind (issue #113, protocol v22); earlier, ranged and charging monster behaviours (issue #91, protocol v21); earlier,
   a minimap that fills in as the party explores (issue #105); earlier,
@@ -122,6 +123,7 @@ Resolved:
 - [x] Add the Rusted Sword and allow attacks in the hub (issue #114, protocol v23). A `melee` weapon block carries `damage`, `range`, `arcCos`, `cooldownMs` and `staminaCost`; `resolvePlayerAttack` reads them from the held weapon's content at each swing (weapon items now carry their content `itemId`) and falls back to the unarmed constants otherwise. `attackDamageBonus` stacks on top. `rusted-sword` (today's unarmed values) lies in the hub spawn area. Hub swings hit nothing but cost stamina and cooldown, and stamina regenerates in the hub. Own sprite `loot-rusted-sword`, generic `loot-weapon` fallback. Bow, projectiles and weapon traits remain out of scope.
 - [x] Add stackable arrows (issue #115, protocol v25). New `ammo` item kind with a content `maxStack` (at most 99) and a `count` on loot and inventory entries; a stack takes one slot. Pickup tops up carried stacks of the same item, then takes a free slot, leaving any remainder on the floor. Drop and give move the whole stack, and give refuses unless it all fits. `consumeFromStack` spends from a stack and removes it at zero, ready for the bow. `arrow` (`maxStack` 8) lies as a stack of 5 beside the hub sword; authored placements take an optional `count`. Saved stacks without a `count` load as 1. HUD shows the count on the slot and in the pickup prompt; sprite `loot-arrow`. Splitting stacks and the bow remain out of scope.
 - [x] Add lootable chests (issue #88, protocol v26). Named tables live in `content/loot-tables/` (the monster loot-table shape plus an `id`). A `ChestState` entity (`lootTableId`, `opened`, `locked`) is placed by a template `chests` rule or an authored `chests` list; the tile alphabet is unchanged. `playerInteract` on a chest in reach rolls its table once from the session drop stream and spills the items as loot at least 1.5 world units beside it; an opened chest refuses further tries, and a locked one spends a key like a locked door. Snapshots carry chests on tiles the viewer can see. `sunken-maze` always holds a `common-chest`, `ashen-hall` sometimes does, and `warden-crucible` holds a `vault-chest`; no shipped chest is locked. Client: "Open chest"/"Unlock chest" prompt and `chest-closed`/`chest-open` sprites. Mimics, trapped and two-player chests remain out of scope.
+- [x] Add stamina, light, and revive consumables (issue #85, protocol v27). Content-only Stamina Draught (`restoreStamina`). New consumable effects `flare` (`radius`, `durationMs`: a dungeon-owned light of kind `flare` at the user's feet, lit fresh each tick rather than cached, removed when `session.flareExpiresAt` passes) and `revive` (`healthFraction`, `staminaCost`: Smelling Salts stand a downed, connected, uncarried ally in `INTERACT_RANGE` back up; it must be the item's only effect). `useItem` takes an optional `targetPlayerId`, required for a revive item and refused for anything else; consumables carry `useOn` (`self`/`downedAlly`, defaulting to `self` for banked items). All three roll from the chest tables, and the Ashen Hall and Sunken Maze templates place them at low odds. Client: a "Revive <name>" prompt on the salts' slot key near a downed ally, plus `loot-draught`, `loot-flare`, `loot-salts`, and `flare-lit` sprites. Hub shops, rarity UI, and throwing physics remain out of scope.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
 
@@ -409,6 +411,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-18: Stamina Draught, Flare, and Smelling Salts consumables; revive a downed ally (#85, v27).
 - 2026-10-18: Lootable chests placed by room templates, rolling named loot tables (#88, v26).
 - 2026-10-18: Stackable arrows and the `ammo` item kind (#115, v25).
 - 2026-10-15: Snapshots carry the viewer's lit tiles; only those draw lit (#120, v24).

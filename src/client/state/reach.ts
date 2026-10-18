@@ -1,6 +1,6 @@
 import { INTERACT_RANGE } from "../../shared/constants/game.js";
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
-import type { EntityId, PlayerState, Vector2 } from "../../shared/types/core.js";
+import type { EntityId, InventoryItem, PlayerState, Vector2 } from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
 
 /**
@@ -27,6 +27,23 @@ export function nearestDownedAlly(
       .filter((p) => p.id !== view.selfId && p.health <= 0 && !p.carriedByPlayerId)
       .map((p) => ({ id: p.id, name: p.name, gap: distance(position, p.position) })),
   );
+}
+
+/** A downed, connected ally nobody is carrying: the only kind smelling salts can revive. */
+export function nearestRevivableAlly(
+  view: SessionView,
+  position: Vector2,
+): (ReachTarget & { gap: number }) | null {
+  return closest(
+    view.players
+      .filter((p) => p.id !== view.selfId && p.health <= 0 && !p.carriedByPlayerId && p.connected)
+      .map((p) => ({ id: p.id, name: p.name, gap: distance(position, p.position) })),
+  );
+}
+
+/** Whether an item is used on a downed ally rather than on its holder. */
+export function usedOnDownedAlly(item: InventoryItem | undefined): boolean {
+  return item?.kind === "consumable" && item.useOn === "downedAlly";
 }
 
 /** A standing, connected party member, the only kind `giveItem` accepts. */

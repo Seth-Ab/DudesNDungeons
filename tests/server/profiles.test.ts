@@ -135,6 +135,7 @@ describe("persisting profiles", () => {
         itemId: "minor-tonic",
         description: "Restores 35 health.",
         icon: "tonic",
+        useOn: "self",
       },
       {
         id: "22222222-2222-4222-8222-222222222222",
@@ -143,6 +144,7 @@ describe("persisting profiles", () => {
         itemId: "warding-salve",
         description: "Restores 25 resistance.",
         icon: "ward",
+        useOn: "self",
       },
       { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
     ]);

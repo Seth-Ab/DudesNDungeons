@@ -158,6 +158,8 @@ export interface Session {
   trapRearmAt: Map<EntityId, number>;
   /** When each puzzle's plates all became held at once. Absent while any plate is free. */
   puzzleHeldSince: Map<EntityId, number>;
+  /** When each burning flare in `dungeon.lightSources` goes out. Server-side only. */
+  flareExpiresAt: Map<EntityId, number>;
 }
 
 export interface JoinRequest {
@@ -270,6 +272,7 @@ export class SessionStore {
       projectileRuns: new Map(),
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
+      flareExpiresAt: new Map(),
     };
     this.#sessions.set(roomCode, session);
     return session;

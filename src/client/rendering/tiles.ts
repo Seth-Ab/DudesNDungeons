@@ -78,6 +78,11 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["loot-key", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-draught", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-flare", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-salts", { tilesWide: 1, tilesHigh: 1 }],
+  // A flare once it is lit and lying where it was put down: drawn over its light, like a pillar.
+  ["flare-lit", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-skill-scroll", { tilesWide: 1, tilesHigh: 1 }],
   // The fallback for a weapon without its own art in `WEAPON_SPRITES`.
   ["loot-weapon", { tilesWide: 1, tilesHigh: 1 }],
@@ -111,6 +116,9 @@ export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, Spri
 export const CONSUMABLE_SPRITES: Record<ConsumableIcon, SpriteName> = {
   tonic: "loot-tonic",
   ward: "loot-ward",
+  draught: "loot-draught",
+  flare: "loot-flare",
+  salts: "loot-salts",
 };
 
 /**

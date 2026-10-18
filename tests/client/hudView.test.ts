@@ -57,7 +57,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
 }
 
 function item(name: string): InventoryItem {
-  return { id: "a1111111-1111-4111-8111-111111111111", name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic" };
+  return { id: "a1111111-1111-4111-8111-111111111111", name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic", useOn: "self" };
 }
 
 function view(overrides: Partial<SessionView> = {}): SessionView {
@@ -346,7 +346,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
 }
 
 function loot(name: string, x: number): LootState {
-  return { id: `loot-${name}`, name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic", position: { x, y: 0 }, pickedUp: false };
+  return { id: `loot-${name}`, name, kind: "consumable", itemId: "minor-tonic", description: "Restores 35 health.", icon: "tonic", useOn: "self", position: { x, y: 0 }, pickedUp: false };
 }
 
 afterEach(() => resetBindings());
@@ -383,6 +383,31 @@ describe("rebound keys", () => {
 
     const empty = { ...self, inventory: [] };
     expect(actionPrompt(standing, empty, origin)).toBeNull();
+  });
+
+  it("prompts to revive a downed ally with carried salts, on the salts' slot key, else to lift", () => {
+    const salts: InventoryItem = {
+      id: "e1111111-1111-4111-8111-111111111111",
+      name: "Smelling Salts",
+      kind: "consumable",
+      itemId: "smelling-salts",
+      description: "Revives a downed ally in reach with 35 health.",
+      icon: "salts",
+      useOn: "downedAlly",
+    };
+    const reviver = { ...self, inventory: [item("Tonic"), salts] };
+    const down = player("Rook", { position: { x: 0.5, y: 0 }, health: 0 });
+    const nearby = view({ ...inSession, players: [reviver, down], dungeon: dungeon() });
+    expect(actionPrompt(nearby, reviver, origin)).toMatchObject({
+      action: "useSlot2",
+      keyHint: "2",
+      text: "Revive Rook",
+    });
+
+    // No salts, or an ally the salts cannot reach (disconnected), falls back to lifting.
+    expect(actionPrompt(nearby, self, origin)).toMatchObject({ action: "carry", text: "Lift Rook" });
+    const gone = view({ ...inSession, players: [reviver, { ...down, connected: false }], dungeon: dungeon() });
+    expect(actionPrompt(gone, reviver, origin)).toMatchObject({ action: "carry", text: "Lift Rook" });
   });
 
   it("show on the hotbar slots", () => {
@@ -442,6 +467,7 @@ describe("hotbar", () => {
       itemId: "warding-salve",
       description: "Restores 25 resistance.",
       icon: "ward",
+      useOn: "self",
     };
     const key: InventoryItem = { id: "b1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" };
     const self = player("Maya", { id: SELF_ID, inventory: [salve, key] });
