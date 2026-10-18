@@ -5,6 +5,7 @@ import { packageRoot } from "../paths.js";
 import {
   dungeonDefinitionSchema,
   itemDefinitionSchema,
+  lootTableDefinitionSchema,
   monsterTypeSchema,
   roomTemplateSchema,
   skillDefinitionSchema,
@@ -13,6 +14,7 @@ import {
   upgradeDefinitionSchema,
   type DungeonDefinition,
   type ItemDefinition,
+  type LootTableDefinition,
   type MonsterType,
   type RoomTemplate,
   type SkillDefinition,
@@ -38,6 +40,8 @@ export interface GameContent {
   upgrades: ReadonlyMap<string, UpgradeDefinition>;
   traps: ReadonlyMap<string, TrapType>;
   puzzles: ReadonlyMap<string, PuzzleType>;
+  /** Named tables that content refers to by id, such as the one a chest rolls when opened. */
+  lootTables: ReadonlyMap<string, LootTableDefinition>;
   templates: ReadonlyMap<string, RoomTemplate>;
   dungeons: ReadonlyMap<string, DungeonDefinition>;
 }
@@ -191,6 +195,16 @@ function validateReferences(content: GameContent): void {
     }
   }
 
+  for (const table of content.lootTables.values()) {
+    for (const [index, entry] of table.entries.entries()) {
+      if (!content.items.has(entry.itemId)) {
+        throw new Error(
+          `Loot table "${table.id}" field entries.${index}.itemId names unknown item "${entry.itemId}"`,
+        );
+      }
+    }
+  }
+
   for (const puzzle of content.puzzles.values()) {
     if (!content.items.has(puzzle.rewardItemId)) {
       throw new Error(`Puzzle "${puzzle.id}" rewards unknown item "${puzzle.rewardItemId}"`);
@@ -287,6 +301,12 @@ function validateReferences(content: GameContent): void {
         throw new Error(`${label} spawns unknown item "${rule.itemId}"`);
       }
     }
+
+    for (const rule of template.chests) {
+      if (!content.lootTables.has(rule.lootTableId)) {
+        throw new Error(`${label} spawns a chest with unknown loot table "${rule.lootTableId}"`);
+      }
+    }
   }
 
   for (const dungeon of content.dungeons.values()) {
@@ -320,6 +340,11 @@ function validateReferences(content: GameContent): void {
       for (const placed of dungeon.puzzles) {
         if (!content.puzzles.has(placed.typeId)) {
           throw new Error(`${label} places unknown puzzle type "${placed.typeId}"`);
+        }
+      }
+      for (const placed of dungeon.chests) {
+        if (!content.lootTables.has(placed.lootTableId)) {
+          throw new Error(`${label} places a chest with unknown loot table "${placed.lootTableId}"`);
         }
       }
       for (const placed of dungeon.loot) {
@@ -359,6 +384,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     upgrades: loadCollection(join(contentRoot, "upgrades"), upgradeDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
+    lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),
     templates: loadCollection(join(contentRoot, "dungeons", "templates"), roomTemplateSchema),
     dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema),
   };

@@ -61,26 +61,38 @@ export function nearestLoot(
 
 /**
  * A door is measured to the nearest point of its span, the way the server judges reach; measured
- * to the centre, no locked door could be opened from the UI.
+ * to the centre, no locked door could be opened from the UI. An opened chest is spent and is no
+ * longer a target.
  */
 export function nearestInteraction(
   view: SessionView,
   position: Vector2,
-): (ReachTarget & { gap: number; kind: "door" | "exit" }) | null {
+): (ReachTarget & { gap: number; kind: "door" | "exit" | "chest"; locked: boolean }) | null {
   if (!view.dungeon) return null;
   return closest([
+    ...view.dungeon.chests
+      .filter((chest) => !chest.opened)
+      .map((chest) => ({
+        id: chest.id,
+        name: "chest",
+        kind: "chest" as const,
+        locked: chest.locked,
+        gap: distance(position, chest.position),
+      })),
     ...view.dungeon.doors
       .filter((door) => !door.open)
       .map((door) => ({
         id: door.id,
         name: "door",
         kind: "door" as const,
+        locked: door.locked,
         gap: distanceToDoor(position, door),
       })),
     ...view.dungeon.exits.map((exit) => ({
       id: exit.id,
       name: "exit",
       kind: "exit" as const,
+      locked: false,
       gap: distance(position, exit.position),
     })),
   ]);

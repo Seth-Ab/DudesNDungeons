@@ -44,7 +44,8 @@ and not the other fails the bake rather than drawing a hole in the floor.
   painted last, over the side lips, which is why there are no separate corner sprites.
 - Props: `torch-pillar`, `torch-flame`, `glow-mote`, `door-closed-h`/`-v`, `door-jamb-h`/`-v`,
   `door-lock`, `loot-key`, `loot-tonic`, `loot-ward`, `loot-skill-scroll`, `loot-weapon` (any weapon
-  without its own art), `loot-rusted-sword`, `loot-arrow` (any ammo), `loot-torch`, `exit-stairs`.
+  without its own art), `loot-rusted-sword`, `loot-arrow` (any ammo), `loot-torch`,
+  `chest-closed`, `chest-open` (a locked chest adds `door-lock` over its face), `exit-stairs`.
 
 Players and monsters are still drawn as flat figures. They are Frontend step 6.
 

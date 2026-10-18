@@ -399,6 +399,15 @@ describe("parseServerMessage", () => {
             pickedUp: false,
           },
         ],
+        chests: [
+          {
+            id: "99999999-9999-4999-8999-999999999999",
+            lootTableId: "common-chest",
+            position: { x: 2, y: 1 },
+            opened: false,
+            locked: true,
+          },
+        ],
         traps: [],
         puzzles: [],
         doors: [],
@@ -444,6 +453,7 @@ describe("parseServerMessage", () => {
           monsters: [],
           projectiles: [],
           loot: [],
+          chests: [],
           doors: [],
           exits: [],
           traps: [],

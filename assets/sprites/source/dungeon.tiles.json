@@ -379,6 +379,47 @@
         "2*0000000000000000"
       ]
     },
+    "chest-closed": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "2*0000000000000000",
+        "0011111111111100",
+        "01cccccccccccc10",
+        "01dbbbbbbbbbbd10",
+        "01dbbbbbbbbbbd10",
+        "01dddddiiddddd10",
+        "01daaaajjaaaad10",
+        "01dbbbbiibbbbd10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "0011111111111100",
+        "2*0000000000000000"
+      ]
+    },
+    "chest-open": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000000000000000",
+        "0011111111111100",
+        "01cccccccccccc10",
+        "01bbbbbbbbbbbb10",
+        "01dbbbbbbbbbbd10",
+        "0011111111111100",
+        "0122222222222210",
+        "0123333333333210",
+        "01dddddddddddd10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "0011111111111100",
+        "2*0000000000000000"
+      ]
+    },
     "exit-stairs": {
       "tilesWide": 4,
       "tilesHigh": 4,

@@ -58,6 +58,7 @@ function dungeon(overrides: Partial<DungeonSnapshot> = {}): DungeonSnapshot {
     monsters: [],
     projectiles: [],
     loot: [],
+    chests: [],
     traps: [],
     puzzles: [],
     doors: [],

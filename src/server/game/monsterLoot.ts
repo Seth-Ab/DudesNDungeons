@@ -55,17 +55,21 @@ function crowded(dungeon: DungeonState, position: Vector2): boolean {
 }
 
 /**
- * The corpse position if it is free, else the nearest open floor around it, found by searching
- * rings outward. Walls and doorways (open or closed) never qualify. When nothing nearby is free it
- * falls back to the corpse position, which is still the floor the monster stood on.
+ * The origin if it is free, else the nearest open floor around it, found by searching rings
+ * outward. Walls and doorways (open or closed) never qualify. When nothing nearby is free it falls
+ * back to the origin, which is still the floor the monster or chest stood on.
+ *
+ * `clearance` keeps drops at least that far out, for an origin something is still standing on: a
+ * chest's loot spills beside it rather than underneath where its sprite would hide it.
  */
-function dropPosition(dungeon: DungeonState, origin: Vector2): Vector2 {
+function dropPosition(dungeon: DungeonState, origin: Vector2, clearance = 0): Vector2 {
   const usable = (position: Vector2): boolean =>
     isFloor(dungeon, position) && !inDoorway(dungeon, position) && !crowded(dungeon, position);
 
-  if (usable(origin)) return { ...origin };
+  if (clearance === 0 && usable(origin)) return { ...origin };
 
-  for (let radius = DROP_SPACING; radius <= DROP_SEARCH_MAX_RADIUS; radius += DROP_SPACING) {
+  const first = Math.max(DROP_SPACING, clearance);
+  for (let radius = first; radius <= DROP_SEARCH_MAX_RADIUS; radius += DROP_SPACING) {
     for (let step = 0; step < DROP_SEARCH_ANGLES; step += 1) {
       const angle = (step / DROP_SEARCH_ANGLES) * Math.PI * 2;
       const candidate = {
@@ -79,18 +83,33 @@ function dropPosition(dungeon: DungeonState, origin: Vector2): Vector2 {
   return { ...origin };
 }
 
-/** Rolls the dead monster's table and puts each drop on open floor at or near the corpse. */
-export function dropMonsterLoot(session: Session, monster: MonsterState): void {
+/**
+ * Rolls `table` from the session's drop stream and puts each result on open floor near `origin`,
+ * no closer than `clearance`. `source` names what dropped it, for the error a bad item id raises.
+ */
+export function spillLootTable(
+  session: Session,
+  table: LootTable,
+  origin: Vector2,
+  source: string,
+  clearance = 0,
+): void {
   const content = contentForSession(session);
-  const table = content.monsters.get(monster.typeId)?.loot;
-  if (!table) return;
 
   for (const itemId of rollLootTable(table, session.lootRng)) {
     const item = content.items.get(itemId);
-    if (!item) throw new Error(`Monster "${monster.typeId}" drops unknown item "${itemId}"`);
+    if (!item) throw new Error(`${source} drops unknown item "${itemId}"`);
 
     session.dungeon.loot.push(
-      lootInstance(item, dropPosition(session.dungeon, monster.position), session.lootRng.uuid()),
+      lootInstance(item, dropPosition(session.dungeon, origin, clearance), session.lootRng.uuid()),
     );
   }
+}
+
+/** Rolls the dead monster's table and puts each drop on open floor at or near the corpse. */
+export function dropMonsterLoot(session: Session, monster: MonsterState): void {
+  const table = contentForSession(session).monsters.get(monster.typeId)?.loot;
+  if (!table) return;
+
+  spillLootTable(session, table, monster.position, `Monster "${monster.typeId}"`);
 }

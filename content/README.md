@@ -40,7 +40,14 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   among the players holding a plate shortens the hold by `holdReductionMsPerPower`, never below
   `minHoldMs`. Solving drops `rewardItemId` on the first plate. Templates spawn puzzles with a
   `puzzles` rule list (`typeId` plus two or more local `plates`) and authored dungeons place them.
-- `dungeons/templates/`: reusable rooms for procedural generation.
+- `loot-tables/`: named loot tables with the same shape as a monster's `loot` (`rolls`, weighted
+  `entries`, `nothingWeight`) plus an `id`. Chests refer to one by `lootTableId`; an unknown id or
+  an unknown entry `itemId` fails validation.
+- `dungeons/templates/`: reusable rooms for procedural generation. A `chests` rule list
+  (`lootTableId`, inclusive `min`/`max`, optional `chance`, optional `locked`) places chests on the
+  room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
+  and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
+  dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
 - `dungeons/`: authored dungeons and generated-dungeon profiles.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
 - `upgrades/`: ordered improvements associated with a skill.

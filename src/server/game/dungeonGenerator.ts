@@ -1,4 +1,5 @@
 import type {
+  ChestState,
   DoorState,
   ExitState,
   LightSourceState,
@@ -11,7 +12,14 @@ import type {
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
-import { lootInstance, monsterInstance, puzzleInstance, trapInstance, type BuiltDungeon } from "./dungeonBuilder.js";
+import {
+  chestInstance,
+  lootInstance,
+  monsterInstance,
+  puzzleInstance,
+  trapInstance,
+  type BuiltDungeon,
+} from "./dungeonBuilder.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -390,7 +398,7 @@ function stampRooms(grid: TileGrid, rooms: readonly PlacedRoom[]): void {
 }
 
 /**
- * Scatters a template's monsters and loot across its floor, one entity per tile.
+ * Scatters a template's monsters, loot, traps, and chests across its floor, one entity per tile.
  *
  * Tiles are shuffled from the seeded stream and taken in order, so placement is replayable. A rule
  * asking for more than there is room for simply places what fits rather than failing: content should
@@ -401,7 +409,7 @@ function populate(
   content: GameContent,
   rng: Rng,
   reserved: Set<string>,
-): { monsters: MonsterState[]; loot: LootState[]; traps: TrapState[] } {
+): { monsters: MonsterState[]; loot: LootState[]; traps: TrapState[]; chests: ChestState[] } {
   const key = (tile: Vector2): string => `${tile.x},${tile.y}`;
   const open = rng.shuffle(floorTilesOf(room).filter((tile) => !reserved.has(key(tile))));
   let cursor = 0;
@@ -460,7 +468,24 @@ function populate(
     }
   }
 
-  return { monsters, loot, traps };
+  // Last, so giving a template a chest leaves its monsters, loot, and traps where they were.
+  const chests: ChestState[] = [];
+  for (const rule of room.template.chests) {
+    if (!content.lootTables.has(rule.lootTableId)) {
+      throw new Error(`Template "${room.template.id}" spawns a chest with unknown loot table "${rule.lootTableId}"`);
+    }
+
+    if (rule.chance < 1 && rng.next() > rule.chance) continue;
+
+    const count = rng.int(rule.min, rule.max);
+    for (let index = 0; index < count; index += 1) {
+      const tile = take();
+      if (!tile) break;
+      chests.push(chestInstance(rule.lootTableId, tile, rng.uuid(), rule.locked));
+    }
+  }
+
+  return { monsters, loot, traps, chests };
 }
 
 export function generateDungeon(
@@ -479,6 +504,7 @@ export function generateDungeon(
   const monsters: MonsterState[] = [];
   const loot: LootState[] = [];
   const traps: TrapState[] = [];
+  const chests: ChestState[] = [];
   const puzzles: PuzzleState[] = [];
   const lightSources: LightSourceState[] = [];
   const corridorTiles: Vector2[] = [];
@@ -524,6 +550,7 @@ export function generateDungeon(
     monsters.push(...populated.monsters);
     loot.push(...populated.loot);
     traps.push(...populated.traps);
+    chests.push(...populated.chests);
   }
 
   const light = definition.corridorLight;
@@ -584,6 +611,7 @@ export function generateDungeon(
       monsters,
       projectiles: [],
       loot,
+      chests,
       traps,
       puzzles,
       doors,

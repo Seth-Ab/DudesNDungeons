@@ -86,6 +86,9 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // Unlit, because this is a torch lying on the floor. The flame is `torch-flame`, drawn over the
   // player once they are carrying it and it is an active light source.
   ["loot-torch", { tilesWide: 1, tilesHigh: 1 }],
+  // Drawn at twice a loot sprite's size, so a reward spot reads from across the room.
+  ["chest-closed", { tilesWide: 1, tilesHigh: 1 }],
+  ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
 ];
 

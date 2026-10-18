@@ -453,8 +453,8 @@ export interface ActionPromptView {
 /**
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
- * `actionRejected`. Priority: dropping a carried ally, lifting a downed one, loot, then doors and
- * exits.
+ * `actionRejected`. Priority: dropping a carried ally, lifting a downed one, loot, then chests,
+ * doors, and exits.
  */
 export function actionPrompt(
   view: SessionView,
@@ -483,6 +483,7 @@ export function actionPrompt(
 
   const target = nearestInteraction(view, position);
   if (target?.kind === "door") return prompt("interact", "Open door");
+  if (target?.kind === "chest") return prompt("interact", target.locked ? "Unlock chest" : "Open chest");
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }

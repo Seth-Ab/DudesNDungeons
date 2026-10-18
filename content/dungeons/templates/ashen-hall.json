@@ -32,5 +32,6 @@
     { "itemId": "minor-tonic", "min": 0, "max": 2 },
     { "itemId": "warding-salve", "min": 0, "max": 1 },
     { "itemId": "travelers-torch", "min": 0, "max": 1 }
-  ]
+  ],
+  "chests": [{ "lootTableId": "common-chest", "min": 0, "max": 1 }]
 }

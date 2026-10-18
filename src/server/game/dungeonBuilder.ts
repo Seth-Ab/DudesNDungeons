@@ -1,4 +1,5 @@
 import type {
+  ChestState,
   DoorState,
   DungeonState,
   ExitState,
@@ -98,6 +99,10 @@ export function puzzleInstance(type: PuzzleType, plates: Vector2[], id: string):
   };
 }
 
+export function chestInstance(lootTableId: string, position: Vector2, id: string, locked: boolean): ChestState {
+  return { id, lootTableId, position: { ...position }, opened: false, locked };
+}
+
 /** `count` is the stack size for ammo, clamped to its `maxStack`, and ignored for anything else. */
 export function lootInstance(item: ItemDefinition, position: Vector2, id: string, count = 1): LootState {
   const instance = {
@@ -192,6 +197,14 @@ export function buildAuthoredDungeon(
     return puzzleInstance(type, placed.plates, authoredId(placed.entityId, rng));
   });
 
+  const chests: ChestState[] = definition.chests.map((placed) => {
+    if (!content.lootTables.has(placed.lootTableId)) {
+      throw new Error(`Dungeon "${definition.id}" places a chest with unknown loot table "${placed.lootTableId}"`);
+    }
+
+    return chestInstance(placed.lootTableId, { x: placed.x, y: placed.y }, authoredId(placed.entityId, rng), placed.locked);
+  });
+
   const doors: DoorState[] = definition.doors.map((placed) => ({
     id: authoredId(placed.entityId, rng),
     position: { x: placed.x, y: placed.y },
@@ -231,6 +244,7 @@ export function buildAuthoredDungeon(
       monsters,
       projectiles: [],
       loot,
+      chests,
       traps,
       puzzles,
       doors,
