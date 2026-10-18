@@ -1,0 +1,9 @@
+{
+  "id": "vault-chest",
+  "rolls": 2,
+  "entries": [
+    { "itemId": "minor-tonic", "weight": 2 },
+    { "itemId": "warding-salve", "weight": 2 },
+    { "itemId": "iron-will-scroll", "weight": 1 }
+  ]
+}

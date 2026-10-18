@@ -337,6 +337,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     map: { name: "Test", width: 4, height: 4, tiles: [] },
     monsters: [],
     loot: [],
+    chests: [],
     doors: [],
     exits: [],
     rooms: [],
@@ -535,6 +536,23 @@ describe("action prompt", () => {
     });
     expect(actionPrompt(exitView, self, origin)?.text).toBe("Enter the dungeon");
     expect(actionPrompt({ ...exitView, location: "dungeon" }, self, origin)?.text).toBe("Leave the dungeon");
+  });
+
+  it("offers to open a closed chest, and to unlock a locked one", () => {
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: false, locked: false };
+    const v = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) });
+    expect(actionPrompt(v, self, origin)).toEqual({ action: "interact", keyHint: "E", text: "Open chest" });
+
+    const locked = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [{ ...chest, locked: true }] }) });
+    expect(actionPrompt(locked, self, origin)?.text).toBe("Unlock chest");
+  });
+
+  it("skips an opened chest, but still offers the loot it spilled", () => {
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: true, locked: false };
+    expect(actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) }), self, origin)).toBeNull();
+
+    const spilled = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest], loot: [loot("Tonic", 0.9)] }) });
+    expect(actionPrompt(spilled, self, origin)?.text).toBe("Pick up Tonic");
   });
 
   it("skips an open door", () => {

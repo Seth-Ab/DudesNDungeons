@@ -7,6 +7,7 @@ import {
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
+  ChestState,
   DoorState,
   EntityId,
   InventoryItem,
@@ -16,6 +17,7 @@ import type {
 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { spillLootTable } from "./monsterLoot.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { healPlayer, restoreResistance, restoreStamina } from "./vitals.js";
@@ -367,7 +369,7 @@ function applyConsumable(session: Session, player: SessionPlayer, itemId: string
   return applied;
 }
 
-/** Opens a door, or uses the current world's exit to transition the whole party. */
+/** Opens a door or a chest, or uses the current world's exit to transition the whole party. */
 export function interact(
   session: Session,
   playerId: PlayerId,
@@ -379,6 +381,9 @@ export function interact(
 
   const door = session.dungeon.doors.find((candidate) => candidate.id === targetId);
   if (door) return openDoor(player, door);
+
+  const chest = session.dungeon.chests.find((candidate) => candidate.id === targetId);
+  if (chest) return openChest(session, player, chest);
 
   const exit = session.dungeon.exits.find((candidate) => candidate.id === targetId);
   if (exit) {
@@ -400,13 +405,47 @@ function openDoor(player: SessionPlayer, door: DoorState): ItemResult {
   if (door.open) return reject("notPermitted");
 
   if (door.locked) {
-    const key = player.inventory.find((candidate) => candidate.kind === "key");
-    if (!key) return reject("notPermitted");
-
-    player.inventory = player.inventory.filter((candidate) => candidate !== key);
+    if (!spendKey(player)) return reject("notPermitted");
     door.locked = false;
   }
 
   door.open = true;
+  return OK;
+}
+
+/** Removes one key from the player's inventory. False, changing nothing, when they carry none. */
+function spendKey(player: SessionPlayer): boolean {
+  const key = player.inventory.find((candidate) => candidate.kind === "key");
+  if (!key) return false;
+
+  player.inventory = player.inventory.filter((candidate) => candidate !== key);
+  return true;
+}
+
+/**
+ * Keeps a chest's spill out from under its own sprite, which the client draws two world units
+ * across: just past the corner of that square.
+ */
+const CHEST_SPILL_CLEARANCE = 1.5;
+
+/**
+ * Opens a chest once: rolls its table from the session's drop stream and spills the result beside
+ * it as ordinary loot. An opened chest stays open and refuses every later try, so it pays out once
+ * however many players reach it. A locked one spends a key first, exactly as a locked door does.
+ */
+function openChest(session: Session, player: SessionPlayer, chest: ChestState): ItemResult {
+  if (!withinReach(player, chest.position)) return reject("outOfRange");
+  if (chest.opened) return reject("notPermitted");
+
+  const table = contentForSession(session).lootTables.get(chest.lootTableId);
+  if (!table) return reject("notPermitted");
+
+  if (chest.locked) {
+    if (!spendKey(player)) return reject("notPermitted");
+    chest.locked = false;
+  }
+
+  chest.opened = true;
+  spillLootTable(session, table, chest.position, `Loot table "${table.id}"`, CHEST_SPILL_CLEARANCE);
   return OK;
 }

@@ -34,6 +34,7 @@ function authoredCorridor(): BuiltDungeon {
       monsters: [],
       projectiles: [],
       loot: [],
+      chests: [],
       traps: [],
       puzzles: [],
       doors: [

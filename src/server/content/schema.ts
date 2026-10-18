@@ -49,6 +49,13 @@ export const lootTableSchema = z
   .strict();
 export type LootTable = z.infer<typeof lootTableSchema>;
 
+/**
+ * A named loot table under `content/loot-tables/`, for whatever refers to one by id rather than
+ * carrying its own. Chests do: a template says which table a chest rolls, not what is in it.
+ */
+export const lootTableDefinitionSchema = lootTableSchema.extend({ id: contentIdSchema }).strict();
+export type LootTableDefinition = z.infer<typeof lootTableDefinitionSchema>;
+
 /** A ranged monster's bolt. World units, like every distance here. */
 export const projectileStatsSchema = z
   .object({
@@ -407,6 +414,19 @@ export const lootSpawnRuleSchema = spawnCountSchema.and(
   }),
 );
 
+/**
+ * A chest in a room template. Placed like loot, but what it holds is rolled from `lootTableId`
+ * only when a player opens it. A `locked` chest takes a key to open, like a locked door.
+ */
+export const chestSpawnRuleSchema = spawnCountSchema.and(
+  z.object({
+    lootTableId: contentIdSchema,
+    /** Chance that this rule runs at all, as for loot. */
+    chance: z.number().min(0).max(1).default(1),
+    locked: z.boolean().default(false),
+  }),
+);
+
 export const roomTemplateSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -419,6 +439,7 @@ export const roomTemplateSchema = z.object({
   loot: z.array(lootSpawnRuleSchema).default([]),
   traps: z.array(trapSpawnRuleSchema).default([]),
   puzzles: z.array(puzzleSpawnRuleSchema).default([]),
+  chests: z.array(chestSpawnRuleSchema).default([]),
 });
 export type RoomTemplate = z.infer<typeof roomTemplateSchema>;
 
@@ -449,6 +470,11 @@ const placedPuzzleSchema = z.object({
   typeId: contentIdSchema,
   plates: z.array(z.object({ x: z.number(), y: z.number() })).min(2),
   entityId: z.string().uuid().optional(),
+});
+
+const placedChestSchema = placedEntitySchema.extend({
+  lootTableId: contentIdSchema,
+  locked: z.boolean().default(false),
 });
 
 const placedDoorSchema = placedEntitySchema.extend({ locked: z.boolean().default(false) });
@@ -488,6 +514,7 @@ export const authoredDungeonSchema = z.object({
   loot: z.array(placedLootSchema).default([]),
   traps: z.array(placedTrapSchema).default([]),
   puzzles: z.array(placedPuzzleSchema).default([]),
+  chests: z.array(placedChestSchema).default([]),
   doors: z.array(placedDoorSchema).default([]),
   exits: z.array(placedExitSchema).default([]),
   lights: z.array(placedLightSchema).default([]),

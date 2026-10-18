@@ -1,6 +1,7 @@
 import { TILE_SCALE } from "../../shared/constants/game.js";
 import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
 import type {
+  ChestState,
   DoorState,
   DungeonMapState,
   DungeonState,
@@ -61,6 +62,8 @@ const colors = {
   stunnedMonster: "#8a8f94",
   projectile: "#ffb347",
   loot: "#d6a84c",
+  chest: "#856a42",
+  openChest: "#3b2f20",
   trapArmed: "#b5452f",
   trapSpent: "#4a3c36",
   plateIdle: "#5b6f8c",
@@ -504,6 +507,17 @@ export function createCanvasRenderer(getScene: () => Scene) {
     drawSprite(itemSprite(loot), loot.position, 1, 1, camera);
   };
 
+  /** Two world units across, twice a loot sprite, with a padlock on its face while it is locked. */
+  const drawChest = (chest: ChestState, camera: Vector2): void => {
+    if (!tileset.ready) {
+      drawWorldRect(chest.position, 1.4, chest.opened ? colors.openChest : colors.chest, camera);
+      return;
+    }
+
+    drawSprite(chest.opened ? "chest-open" : "chest-closed", chest.position, 2, 2, camera);
+    if (chest.locked) drawSprite("door-lock", chest.position, 1, 1, camera);
+  };
+
   /**
    * The hub's named areas, drawn from the room metadata the snapshot already carries.
    *
@@ -750,6 +764,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
         ),
       ),
     );
+    // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
+    scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));
     scene.dungeon.lightSources.forEach((light) => drawLightSource(light, camera));
     scene.dungeon.loot.filter((loot) => !loot.pickedUp).forEach((loot) => drawLoot(loot, camera));
     scene.dungeon.monsters

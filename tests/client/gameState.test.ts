@@ -24,6 +24,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     monsters: [],
     projectiles: [],
     loot: [],
+    chests: [],
     traps: [],
     puzzles: [],
     doors: [],

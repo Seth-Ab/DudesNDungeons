@@ -451,6 +451,9 @@ function visibleDungeon(
     loot: session.dungeon.loot
       .filter((loot) => !loot.pickedUp && tileVisible(visible, loot.position))
       .map((loot) => ({ ...loot, position: { ...loot.position } })),
+    chests: session.dungeon.chests
+      .filter((chest) => tileVisible(visible, chest.position))
+      .map((chest) => ({ ...chest, position: { ...chest.position } })),
     traps: session.dungeon.traps
       .filter((trap) => tileVisible(visible, trap.position))
       .map((trap) => ({ ...trap, position: { ...trap.position } })),

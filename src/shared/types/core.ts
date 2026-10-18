@@ -260,6 +260,21 @@ export const doorStateSchema = z.object({
 });
 export type DoorState = z.infer<typeof doorStateSchema>;
 
+/**
+ * A chest placed by a room template. Its contents are not chosen until it is opened: the server
+ * rolls `lootTableId` then and spills the result beside it as ordinary loot, so a client learns
+ * what was inside only by seeing it on the floor. A locked chest takes a key, like a locked door.
+ */
+export const chestStateSchema = z.object({
+  id: entityIdSchema,
+  /** Content id of the loot table it rolls. The table's entries stay on the server. */
+  lootTableId: contentIdSchema,
+  position: vector2Schema,
+  opened: z.boolean(),
+  locked: z.boolean(),
+});
+export type ChestState = z.infer<typeof chestStateSchema>;
+
 export const exitStateSchema = z.object({
   id: entityIdSchema,
   position: vector2Schema,
@@ -376,6 +391,8 @@ export const dungeonStateSchema = z.object({
   /** Only projectiles on tiles the viewer can currently see. */
   projectiles: z.array(projectileStateSchema),
   loot: z.array(lootStateSchema),
+  /** Only chests on tiles the viewer can currently see, like loot. */
+  chests: z.array(chestStateSchema),
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),
   /** Only traps on tiles the viewer can currently see, like loot. */
