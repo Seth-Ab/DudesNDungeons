@@ -254,7 +254,10 @@ describe("snapshots", () => {
     client.join(roomCode, "Alpha");
     await until(client, (v) => v.tick > 0);
 
-    expect(JSON.stringify(client.view)).not.toMatch(/[0-9a-f]{32}/);
+    // A ground grid's rows are long runs of `c` and `d`, which are hex digits too, so they are left
+    // out rather than mistaken for a token.
+    const view = JSON.stringify(client.view, (key, value: unknown) => (key === "ground" ? undefined : value));
+    expect(view).not.toMatch(/[0-9a-f]{32}/);
   });
 });
 

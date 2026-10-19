@@ -373,6 +373,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [ ] Add sprites, sound effects, and visual feedback.
   - Player character sprites, the character design screen, and cosmetics are designed and owner-approved in `docs/design/character-sprite-bible.html` (decisions on #63 and #128). Open it in a browser; its `SPRITES` object is the pixel data to port. Monster sprites still need their own design pass.
+  - [x] Give the hub a ground layer and a hue-shifted palette (issue #144). Rounded cobble with a plum gap, grass and dirt, ragged grass edges, the forest canopy overhanging the floor with a 25% shade, contact shadows under props, and one muted awning colour per stall. The ramps are documented in `assets/sprites/README.md`.
   - [x] Port the character bodies and hair to source art and bake a character sheet (issue #136). `assets/sprites/source/characters.tiles.json` holds `body-{guy,girl}` and six hair styles, each facing `down`, `up` and `side`, as whole 16 x 24 frames ported pixel for pixel from the reference. Skin, hair and tunic are baked in nine key colours (`CHARACTER_KEY_COLOURS`) for the renderer to swap; everything else is a fixed colour. `npm run build:sprites` also bakes `assets/sprites/characters.png`, deriving `walk1`/`walk2` frames by lifting one half's boots a row. `src/client/rendering/characters.ts` lists the layers and frame cells. Drawing characters in game, hats and cloaks, and attack and downed frames remain out of scope.
   - [x] Draw players as layered pixel-art characters with party colours (issue #132). `characters.ts` recolours the sheet's key colours by exact swap from the bible's ramps (`characterPalettes.ts`, keyed by the shared ids), closes the eyes for a blink, picks the facing (left mirrors `side`) and the 8 fps walk from whether the drawn position moved, and caches one composite per `body|skinTone|hairStyle|hairColor|partyColor`. `characterSprites.ts` stamps them at `pixelsPerWorldUnit / 16`, feet on `position.y + PLAYER_RADIUS`, over a 13 x 5 party-colour ring, in `y` order, with names tinted in the party colour. Downed and disconnected players draw at 45% alpha; a null appearance is not drawn. Every client still sends `DEFAULT_APPEARANCE` until the design screen exists. Hats, cloaks, dyes, attack and downed frames remain out of scope.
 - [ ] Test with 2-4 players in the same dungeon.
@@ -405,7 +406,10 @@ Complete on `feature/hub-run-flow`.
   room metadata in the snapshot, and the gate is captioned with what it is waiting for. Storage has
   no world entity to draw, so the bank is a HUD panel. Hub Revamp Phase 1 (#143) added a `forest`
   map theme and render-only props (fountain, stall, quest board, tree, bush, gate, sign) sent once
-  with their first discovered tile; ground, layout, and lighting are Phases 2-4.
+  with their first discovered tile. Phase 2 (#144) added an optional render-only `ground` grid
+  (grass, cobble, dirt) sent with the discovery runs it describes, grass fringes onto cobble, the
+  forest canopy's overhang and shade, prop contact shadows, stall awning tints, and hue-shifted
+  ramps; layout and lighting are Phases 3-4.
 - [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
   not ready, the run start is announced, and the return to the hub reports what this player got out
   with or lost.
@@ -430,6 +434,8 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Hub ground layer, canopy overhang, contact shadows, stall tints and hue-shifted
+  palette (#144, Hub Revamp Phase 2, protocol unchanged at v31).
 - 2026-10-19: Players drawn as recoloured, animated pixel-art characters with party rings (#132).
 - 2026-10-19: Hub training dummies with a rolling damage-per-second readout (#150, v31).
 - 2026-10-19: Emote wheel with server-validated, rate-limited, visibility-gated emotes (#149, v30).

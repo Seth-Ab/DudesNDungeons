@@ -9,10 +9,12 @@ import {
 } from "../../shared/constants/game.js";
 import {
   DEFAULT_MAP_THEME,
+  GROUND_ROW_PATTERN,
   LIGHT_TINTS,
   MAP_PROP_KINDS,
   MAP_THEMES,
   MAX_PROP_LABEL_LENGTH,
+  STALL_TINTS,
 } from "../../shared/constants/scenery.js";
 
 /**
@@ -544,12 +546,19 @@ const placedLightSchema = placedEntitySchema.extend({
  * may be fractional to nudge a small prop within its tile. `loadContent` checks that the whole of
  * its footprint (`MAP_PROP_SIZES`) is on the map.
  */
-const placedPropSchema = z.object({
-  kind: z.enum(MAP_PROP_KINDS),
-  x: z.number().nonnegative(),
-  y: z.number().nonnegative(),
-  label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
-});
+const placedPropSchema = z
+  .object({
+    kind: z.enum(MAP_PROP_KINDS),
+    x: z.number().nonnegative(),
+    y: z.number().nonnegative(),
+    label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
+    /** A stall's awning colour. Only a stall has an awning. */
+    tint: z.enum(STALL_TINTS).optional(),
+  })
+  .refine((prop) => prop.tint === undefined || prop.kind === "stall", {
+    message: "Only a stall takes a tint",
+    path: ["tint"],
+  });
 export type PlacedProp = z.infer<typeof placedPropSchema>;
 
 const authoredRoomSchema = z.object({
@@ -576,6 +585,12 @@ export const authoredDungeonSchema = z.object({
   /** How the tiles are drawn; collision is the same either way. */
   theme: z.enum(MAP_THEMES).default(DEFAULT_MAP_THEME),
   props: z.array(placedPropSchema).default([]),
+  /**
+   * What each floor tile is drawn as, row for row with `tiles`: `g` grass, `c` cobble, `d` dirt,
+   * `.` the theme's own floor. Optional; `loadContent` checks it is the same size as `tiles`.
+   * Render-only, so it never changes where anyone can walk.
+   */
+  ground: z.array(z.string().regex(GROUND_ROW_PATTERN)).min(1).optional(),
   spawnPoints: z.array(localPointSchema).min(1),
   rooms: z.array(authoredRoomSchema).default([]),
   monsters: z.array(placedMonsterSchema).default([]),

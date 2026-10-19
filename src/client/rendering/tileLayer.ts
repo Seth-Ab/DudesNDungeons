@@ -1,8 +1,11 @@
+import { DEFAULT_GROUND } from "../../shared/constants/scenery.js";
 import type { DungeonMapState, MapTheme } from "../../shared/types/core.js";
 import {
-  floorSprite,
+  grassFringes,
+  groundSprite,
   LIT_FLOOR,
   LIT_WALL,
+  overhangSprite,
   SPRITE_TILE_SIZE,
   tileLook,
   UNKNOWN,
@@ -42,6 +45,14 @@ function surfaceOf(tile: string): number {
 /** The character `wallMask` expects for each surface; it only needs to tell wall, floor, and unseen apart. */
 const SURFACE_TILE = [UNKNOWN, LIT_FLOOR, LIT_WALL] as const;
 
+/** Ground characters, indexed by the code `SurfaceGrid` stores. Code 0 is the theme's own floor. */
+const GROUND_CODES = [DEFAULT_GROUND, "g", "c", "d"] as const;
+
+function groundCodeOf(character: string | undefined): number {
+  const code = GROUND_CODES.indexOf(character as (typeof GROUND_CODES)[number]);
+  return code < 0 ? 0 : code;
+}
+
 /**
  * What the client knows of the world's surfaces, accumulated across snapshots.
  *
@@ -55,6 +66,7 @@ export class SurfaceGrid {
   readonly chunksAcross: number;
   readonly chunksDown: number;
   readonly #surfaces: Uint8Array;
+  readonly #ground: Uint8Array;
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -62,12 +74,19 @@ export class SurfaceGrid {
     this.chunksAcross = Math.max(1, Math.ceil(width / CHUNK_TILES));
     this.chunksDown = Math.max(1, Math.ceil(height / CHUNK_TILES));
     this.#surfaces = new Uint8Array(Math.max(0, width * height));
+    this.#ground = new Uint8Array(Math.max(0, width * height));
   }
 
   /** Wall, floor, or unseen. Anything outside the world is unseen, which a wall edge treats as solid. */
   at(x: number, y: number): number {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return SURFACE_UNKNOWN;
     return this.#surfaces[y * this.width + x] ?? SURFACE_UNKNOWN;
+  }
+
+  /** A floor tile's ground character, or `null` for a wall, unseen space, or outside the world. */
+  groundAt(x: number, y: number): string | null {
+    if (this.at(x, y) !== SURFACE_FLOOR) return null;
+    return GROUND_CODES[this.#ground[y * this.width + x] ?? 0] ?? DEFAULT_GROUND;
   }
 
   chunkIndex(chunkX: number, chunkY: number): number {
@@ -77,8 +96,9 @@ export class SurfaceGrid {
   /**
    * Folds a snapshot window in and returns the chunks whose picture changed.
    *
-   * A changed tile dirties its own chunk, and the neighbouring chunk too when it sits on the edge:
-   * a wall chooses its edge sprite from the tile beside it, and that tile may be across the border.
+   * A changed tile dirties its own chunk, and the neighbouring chunks too when it sits on the edge:
+   * a wall chooses its edge sprite from the tile beside it, a floor its grass fringe and overhang
+   * from the tiles around it, and those may be across the border.
    */
   merge(map: DungeonMapState): Set<number> {
     const dirty = new Set<number>();
@@ -86,6 +106,7 @@ export class SurfaceGrid {
     for (let row = 0; row < map.tiles.length; row += 1) {
       const y = map.originY + row;
       const line = map.tiles[row] ?? "";
+      const groundLine = map.ground?.[row];
       if (y < 0 || y >= this.height) continue;
 
       for (let column = 0; column < line.length; column += 1) {
@@ -93,10 +114,12 @@ export class SurfaceGrid {
         if (x < 0 || x >= this.width) continue;
 
         const surface = surfaceOf(line[column] ?? UNKNOWN);
+        const ground = groundCodeOf(groundLine?.[column]);
         const index = y * this.width + x;
-        if (this.#surfaces[index] === surface) continue;
+        if (this.#surfaces[index] === surface && this.#ground[index] === ground) continue;
 
         this.#surfaces[index] = surface;
+        this.#ground[index] = ground;
         this.#markDirty(dirty, x, y);
       }
     }
@@ -105,7 +128,17 @@ export class SurfaceGrid {
   }
 
   #markDirty(dirty: Set<number>, x: number, y: number): void {
-    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [0, 0],
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ] as const) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= this.width || ny >= this.height) continue;
@@ -180,12 +213,14 @@ export function createTileLayer<Image, Context extends ChunkContext>({
   let currentWorld = "";
   let theme: MapTheme = "stone";
   let lastTiles: readonly string[] | null = null;
+  let lastGround: readonly string[] | undefined = undefined;
   const chunks = new Map<number, ChunkSurface<Image, Context>>();
   const stale = new Set<number>();
   /** Chunks drawn this frame, so eviction never throws away one that is on screen. */
   const used = new Set<number>();
 
   const readSurfaceTile = (x: number, y: number): string | null => SURFACE_TILE[grid?.at(x, y) ?? SURFACE_UNKNOWN] ?? UNKNOWN;
+  const readGround = (x: number, y: number): string | null => grid?.groundAt(x, y) ?? null;
 
   function rebuild(chunk: ChunkSurface<Image, Context>, chunkX: number, chunkY: number): void {
     if (!grid) return;
@@ -199,9 +234,19 @@ export function createTileLayer<Image, Context extends ChunkContext>({
         const surface = grid.at(x, y);
         if (surface === SURFACE_UNKNOWN) continue;
 
-        const sprite =
-          surface === SURFACE_WALL ? wallSprite(wallMask(readSurfaceTile, x, y), theme) : floorSprite(x, y, theme);
-        tileset.draw(context, sprite, column * SPRITE_TILE_SIZE, row * SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE);
+        const stamp = (sprite: string): void =>
+          tileset.draw(context, sprite, column * SPRITE_TILE_SIZE, row * SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE);
+
+        if (surface === SURFACE_WALL) {
+          stamp(wallSprite(wallMask(readSurfaceTile, x, y), theme));
+          continue;
+        }
+
+        // Ground, then grass fringing onto it, then the canopy over both: back to front.
+        stamp(groundSprite(grid.groundAt(x, y), x, y, theme));
+        for (const fringe of grassFringes(readGround, x, y)) stamp(fringe);
+        const overhang = overhangSprite(readSurfaceTile, x, y, theme);
+        if (overhang) stamp(overhang);
       }
     }
   }
@@ -217,11 +262,13 @@ export function createTileLayer<Image, Context extends ChunkContext>({
         chunks.clear();
         stale.clear();
         lastTiles = null;
+        lastGround = undefined;
       }
 
-      // A snapshot replaces the row array whole, so an unchanged reference means nothing arrived.
-      if (map.tiles === lastTiles) return;
+      // A snapshot replaces the row arrays whole, so unchanged references mean nothing arrived.
+      if (map.tiles === lastTiles && map.ground === lastGround) return;
       lastTiles = map.tiles;
+      lastGround = map.ground;
       for (const index of grid.merge(map)) stale.add(index);
     },
 

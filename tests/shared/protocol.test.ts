@@ -884,3 +884,33 @@ describe("map scenery on the wire", () => {
     ).toBe(false);
   });
 });
+
+describe("map ground on the wire", () => {
+  const base = { id: "hub", name: "Hub", width: 8, height: 8, reset: true, lit: [] };
+
+  it("accepts a run with ground covering exactly its tiles, and a run without", () => {
+    expect(
+      mapDiscoverySchema.safeParse({
+        ...base,
+        discovered: [{ x: 0, y: 0, tiles: "#..", ground: ".gc" }, { x: 0, y: 1, tiles: "." }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("refuses ground of another length than its run, or with an unknown character", () => {
+    expect(
+      mapDiscoverySchema.safeParse({ ...base, discovered: [{ x: 0, y: 0, tiles: "..", ground: "g" }] }).success,
+    ).toBe(false);
+    expect(
+      mapDiscoverySchema.safeParse({ ...base, discovered: [{ x: 0, y: 0, tiles: "..", ground: "gx" }] }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a stall tint and refuses an unknown one", () => {
+    const stall = { kind: "stall", x: 0, y: 0 };
+    const withTint = (tint: string) => ({ ...base, discovered: [], props: [{ ...stall, tint }] });
+
+    expect(mapDiscoverySchema.safeParse(withTint("plum")).success).toBe(true);
+    expect(mapDiscoverySchema.safeParse(withTint("gold")).success).toBe(false);
+  });
+});

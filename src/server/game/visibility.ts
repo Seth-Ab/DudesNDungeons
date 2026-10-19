@@ -9,7 +9,7 @@ import {
   tileAt,
   tileOf,
 } from "../../shared/game/movement.js";
-import { DEFAULT_MAP_THEME, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
+import { DEFAULT_GROUND, DEFAULT_MAP_THEME, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import type {
   DiscoveredRun,
   DungeonMapState,
@@ -497,6 +497,7 @@ function visibleDungeon(
 
 function runsOf(map: DungeonMapState, indexes: ArrayLike<number>): DiscoveredRun[] {
   const runs: DiscoveredRun[] = [];
+  const grounds: string[] = [];
   let open: DiscoveredRun | null = null;
   let next = -1;
 
@@ -505,14 +506,26 @@ function runsOf(map: DungeonMapState, indexes: ArrayLike<number>): DiscoveredRun
     const x = index % map.width;
     const y = (index - x) / map.width;
     const tile = map.tiles[y]?.[x] === "#" ? "#" : ".";
+    const ground = map.ground?.[y]?.[x] ?? DEFAULT_GROUND;
 
     if (open !== null && index === next && x !== 0) {
       open.tiles += tile;
+      grounds[grounds.length - 1] += ground;
     } else {
       open = { x, y, tiles: tile };
       runs.push(open);
+      grounds.push(ground);
     }
     next = index + 1;
+  }
+
+  // Ground rides on the run it describes, and only where it says something: a run of nothing but
+  // the theme's floor, which is every run of a map without a ground grid, carries none.
+  if (map.ground) {
+    runs.forEach((run, n) => {
+      const ground = grounds[n]!;
+      if (/[^.]/.test(ground)) run.ground = ground;
+    });
   }
 
   return runs;

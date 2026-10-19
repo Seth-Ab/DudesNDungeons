@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 import {
+  EDGE_OVERLAY_SETS,
   SHEET_HEIGHT,
   SHEET_WIDTH,
   SPRITE_NAMES,
@@ -38,6 +39,11 @@ const WALL_PREFIXES = [...new Set(Object.values(THEME_SPRITES).map((theme) => th
 /** Authored pieces a theme's wall cells are composed from. They are not packed into the sheet. */
 function wallPieces(prefix: string): string[] {
   return [`${prefix}-fill`, `${prefix}-edge-n`, `${prefix}-edge-e`, `${prefix}-edge-s`, `${prefix}-edge-w`];
+}
+
+/** Authored strips an edge overlay set is composed from. Also not packed. */
+function overlayPieces(set: string): string[] {
+  return [`${set}-n`, `${set}-e`, `${set}-s`, `${set}-w`];
 }
 
 interface AuthoredSprite {
@@ -71,14 +77,21 @@ export function fail(message: string): never {
   throw new SpriteSourceError(message);
 }
 
+/**
+ * `#rrggbb` is opaque. `#rrggbbaa` is for a shade laid over whatever is beneath it, such as the
+ * forest canopy's shadow on the ground; the sheet keeps the alpha and the canvas blends it.
+ */
 export function parseColor(name: string, value: string): Rgba {
   if (value === TRANSPARENT) return CLEAR;
 
-  const match = /^#([0-9a-fA-F]{6})$/.exec(value);
-  if (!match?.[1]) fail(`palette entry '${name}' is neither '${TRANSPARENT}' nor #rrggbb: ${value}`);
+  const match = /^#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$/.exec(value);
+  if (!match?.[1]) {
+    fail(`palette entry '${name}' is neither '${TRANSPARENT}' nor #rrggbb or #rrggbbaa: ${value}`);
+  }
 
   const hex = Number.parseInt(match[1], 16);
-  return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff, 255];
+  const alpha = match[2] === undefined ? 255 : Number.parseInt(match[2], 16);
+  return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff, alpha];
 }
 
 /** Expands the `N*row` shorthand. A palette character is never `*`, so the prefix is unambiguous. */
@@ -182,6 +195,55 @@ function composeWalls(authored: Map<string, Bitmap>, prefix: string): Map<string
   return walls;
 }
 
+/** Source-over compositing of one straight-alpha pixel onto another. */
+function blendOver(base: Rgba, top: Rgba): Rgba {
+  const topAlpha = top[3] / 255;
+  const baseAlpha = (base[3] / 255) * (1 - topAlpha);
+  const alpha = topAlpha + baseAlpha;
+  if (alpha === 0) return CLEAR;
+  const channel = (index: 0 | 1 | 2): number => Math.round((top[index] * topAlpha + base[index] * baseAlpha) / alpha);
+  return [channel(0), channel(1), channel(2), Math.round(alpha * 255)];
+}
+
+/**
+ * Builds the fifteen cells of an edge overlay set (see `EDGE_OVERLAY_SETS`) from its four strips,
+ * on a clear cell, with a strip wherever the mask has that side's bit.
+ *
+ * In two passes: every strip's translucent pixels first, blended, and then every strip's opaque
+ * ones. So where two sides meet, one side's shade falls on the ground under the other's canopy
+ * rather than across it, and shades that overlap deepen rather than replace each other.
+ */
+function composeOverlays(authored: Map<string, Bitmap>, set: string): Map<string, Bitmap> {
+  // `overlayPieces` lists north, east, south, west: the neighbour bits 1, 2, 4 and 8 in order.
+  const strips = overlayPieces(set).map((name, index) => {
+    const bit = 1 << index;
+    const bitmap = authored.get(name);
+    if (!bitmap) fail(`source art is missing '${name}', which the ${set} cells are composed from`);
+    return { bit, bitmap };
+  });
+
+  const cells = new Map<string, Bitmap>();
+
+  for (let mask = 1; mask < 16; mask += 1) {
+    const { width, height } = strips[0]!.bitmap;
+    const pixels = new Array<Rgba>(width * height).fill(CLEAR);
+    const drawn = strips.filter((strip) => (mask & strip.bit) !== 0);
+
+    for (const opaque of [false, true]) {
+      for (const { bitmap } of drawn) {
+        bitmap.pixels.forEach((pixel, index) => {
+          if (pixel[3] === 0 || (pixel[3] === 255) !== opaque) return;
+          pixels[index] = opaque ? pixel : blendOver(pixels[index] ?? CLEAR, pixel);
+        });
+      }
+    }
+
+    cells.set(`${set}-${mask}`, { width, height, pixels });
+  }
+
+  return cells;
+}
+
 function crcTable(): Uint32Array {
   const table = new Uint32Array(256);
 
@@ -278,7 +340,10 @@ export function bakeSheet(source: SourceArt): Buffer {
 
   // Checked before anything is composed or packed, so the report names the sprite that should not
   // be there rather than the first one that happens to be missing further down.
-  const composition = new Set<string>(WALL_PREFIXES.flatMap(wallPieces));
+  const composition = new Set<string>([
+    ...WALL_PREFIXES.flatMap(wallPieces),
+    ...EDGE_OVERLAY_SETS.flatMap(overlayPieces),
+  ]);
   const unused = [...authored.keys()].filter(
     (name) => !SPRITE_NAMES.includes(name) && !composition.has(name),
   );
@@ -289,6 +354,7 @@ export function bakeSheet(source: SourceArt): Buffer {
   const available = new Map<string, Bitmap>([
     ...authored,
     ...WALL_PREFIXES.flatMap((prefix) => [...composeWalls(authored, prefix)]),
+    ...EDGE_OVERLAY_SETS.flatMap((set) => [...composeOverlays(authored, set)]),
   ]);
 
   const sheet: Bitmap = {

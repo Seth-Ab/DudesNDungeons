@@ -14,9 +14,14 @@ import {
   SPRITE_NAMES,
   SPRITE_TILE_SIZE,
   UNKNOWN,
+  GROUND_VARIANTS,
+  cobbleSprite,
   doorOrientation,
   floorSprite,
+  grassFringes,
+  groundSprite,
   itemSprite,
+  overhangSprite,
   propSprite,
   spriteRect,
   tileLook,
@@ -24,7 +29,7 @@ import {
   wallSprite,
   type TileReader,
 } from "../../src/client/rendering/tiles.js";
-import { MAP_PROP_KINDS, MAP_PROP_SIZES } from "../../src/shared/constants/scenery.js";
+import { MAP_PROP_KINDS, MAP_PROP_SIZES, STALL_TINTS } from "../../src/shared/constants/scenery.js";
 
 /** Reads a tile out of a small map drawn as text, the way a snapshot window is laid out. */
 function readerFor(rows: string[]): TileReader {
@@ -249,5 +254,121 @@ describe("map themes and props", () => {
       expect(rect.width).toBe(MAP_PROP_SIZES[kind].tilesWide * SPRITE_TILE_SIZE);
       expect(rect.height).toBe(MAP_PROP_SIZES[kind].tilesHigh * SPRITE_TILE_SIZE);
     }
+  });
+});
+
+describe("the ground layer", () => {
+  /** A ground reader over text rows: `#` is wall (no ground) and a space is unseen. */
+  function groundFor(rows: string[]): (x: number, y: number) => string | null {
+    return (x, y) => {
+      const character = rows[y]?.[x];
+      return character === undefined || character === "#" || character === " " ? null : character;
+    };
+  }
+
+  it("draws `.` as the theme's own floor and each ground kind from its own variants", () => {
+    for (let y = 0; y < 30; y += 1) {
+      for (let x = 0; x < 30; x += 1) {
+        expect(groundSprite(".", x, y)).toBe(floorSprite(x, y));
+        expect(groundSprite(null, x, y, "forest")).toBe(floorSprite(x, y, "forest"));
+        expect(groundSprite("c", x, y)).toMatch(/^cobble-[0-3]$/);
+        expect(groundSprite("g", x, y)).toMatch(/^grass-[0-2]$/);
+        expect(groundSprite("d", x, y)).toMatch(/^dirt-[01]$/);
+      }
+    }
+  });
+
+  it("uses every variant it declares, and the sheet has a cell for each", () => {
+    const seen = new Set<string>();
+    for (let y = 0; y < 40; y += 1) {
+      for (let x = 0; x < 40; x += 1) for (const ground of ["c", "g", "d"]) seen.add(groundSprite(ground, x, y));
+    }
+    for (const [kind, count] of Object.entries(GROUND_VARIANTS)) {
+      for (let variant = 0; variant < count; variant += 1) {
+        expect(seen).toContain(`${kind}-${variant}`);
+        expect(SPRITE_NAMES).toContain(`${kind}-${variant}`);
+      }
+    }
+  });
+
+  it("never puts the same cobble on two tiles that share an edge", () => {
+    for (let y = -50; y < 50; y += 1) {
+      for (let x = -50; x < 50; x += 1) {
+        expect(cobbleSprite(x, y)).not.toBe(cobbleSprite(x + 1, y));
+        expect(cobbleSprite(x, y)).not.toBe(cobbleSprite(x, y + 1));
+      }
+    }
+  });
+
+  it("fringes cobble or dirt on each side that touches grass, and never grass itself", () => {
+    const rows = [
+      "ggg",
+      "gcd",
+      "cdg",
+    ];
+    const read = groundFor(rows);
+
+    // The cobble in the middle has grass north and west, and at its south-east corner; the dirt
+    // beside it has grass north and south.
+    expect(grassFringes(read, 1, 1)).toEqual([`grass-edge-${NEIGHBOUR_NORTH | NEIGHBOUR_WEST}`, "grass-corner-se"]);
+    expect(grassFringes(read, 2, 1)).toEqual([`grass-edge-${NEIGHBOUR_NORTH | NEIGHBOUR_SOUTH}`]);
+    expect(grassFringes(read, 0, 0)).toEqual([]);
+    expect(grassFringes(read, 2, 2)).toEqual([]);
+  });
+
+  it("adds a corner piece only where grass touches at a diagonal and at neither side beside it", () => {
+    const read = groundFor([
+      "gcg",
+      "ccc",
+      "gcc",
+    ]);
+
+    expect(grassFringes(read, 1, 1)).toEqual(["grass-corner-ne", "grass-corner-sw", "grass-corner-nw"]);
+    // Grass straight above already fringes the top edge, so its diagonal neighbours add no corner.
+    expect(grassFringes(groundFor(["ggg", "ccc"]), 1, 1)).toEqual([`grass-edge-${NEIGHBOUR_NORTH}`]);
+  });
+
+  it("ignores walls and unseen space when looking for grass", () => {
+    expect(grassFringes(groundFor(["#g ", "c#c"]), 0, 1)).toEqual(["grass-corner-ne"]);
+    expect(grassFringes(groundFor(["# #", " c ", "# #"]), 1, 1)).toEqual([]);
+  });
+
+  it("names a cell for every fringe and overhang it can ask for", () => {
+    for (let mask = 1; mask < 16; mask += 1) {
+      expect(SPRITE_NAMES).toContain(`grass-edge-${mask}`);
+      expect(SPRITE_NAMES).toContain(`forest-overhang-${mask}`);
+    }
+    for (const corner of ["ne", "se", "sw", "nw"]) expect(SPRITE_NAMES).toContain(`grass-corner-${corner}`);
+  });
+});
+
+describe("the forest canopy", () => {
+  it("overhangs a floor tile from each side where known forest stands", () => {
+    const read = readerFor([
+      "#+#",
+      "#..",
+      " . ",
+    ]);
+
+    expect(overhangSprite(read, 1, 1, "forest")).toBe(`forest-overhang-${NEIGHBOUR_NORTH | NEIGHBOUR_WEST}`);
+    // Remembered forest counts; unseen space does not.
+    expect(overhangSprite(read, 1, 2, "forest")).toBeNull();
+    expect(overhangSprite(readerFor(["+", ".", " "]), 0, 1, "forest")).toBe(`forest-overhang-${NEIGHBOUR_NORTH}`);
+  });
+
+  it("draws no overhang for a theme without one", () => {
+    expect(overhangSprite(readerFor(["###", "#.#", "###"]), 1, 1, "stone")).toBeNull();
+    expect(overhangSprite(readerFor(["###", "#.#", "###"]), 1, 1)).toBeNull();
+  });
+});
+
+describe("stall awnings", () => {
+  it("gives each tint its own stall, defaulting to ember, and leaves other props alone", () => {
+    expect(propSprite("stall")).toBe("prop-stall-ember");
+    for (const tint of STALL_TINTS) {
+      expect(propSprite("stall", tint)).toBe(`prop-stall-${tint}`);
+      expect(spriteRect(propSprite("stall", tint)).width).toBe(MAP_PROP_SIZES.stall.tilesWide * SPRITE_TILE_SIZE);
+    }
+    expect(propSprite("fountain", "moss")).toBe("prop-fountain");
   });
 });

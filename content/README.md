@@ -49,17 +49,26 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
 - `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
-  `theme` (`stone`, the default, or `forest`, which draws walls as woodland) and a `props` list of
-  scenery: `{ kind, x, y, label? }`, with `kind` one of `fountain`, `stall`, `quest-board`,
+  `theme` (`stone`, the default, or `forest`, which draws walls as woodland, with its canopy
+  overhanging the floor beside it) and a `props` list of
+  scenery: `{ kind, x, y, label?, tint? }`, with `kind` one of `fountain`, `stall`, `quest-board`,
   `tree`, `bush`, `dungeon-gate` or `sign`. A prop's `x`/`y` is the authored tile at its
   top-left (fractions allowed) and its size is fixed per kind in `src/shared/constants/scenery.ts`;
   the whole of it must be on the map. Props never collide, so put `#` under anything a player
-  should not walk through. `label` (32 characters at most) is carried but not drawn yet. A light
-  may add `tint` (`warm`, the default, or `red`); the client does not draw a red light differently
-  yet.
+  should not walk through. `label` (32 characters at most) is carried but not drawn yet. A stall,
+  and only a stall, may set `tint` for its awning: `ember` (the default), `moss`, `azure` or
+  `plum`. A light may add `tint` (`warm`, the default, or `red`); the client does not draw a red
+  light differently yet.
   An authored dungeon may also list training `dummies`, `{ entityId, x, y }`, each on a floor tile
   with an id unique in the dungeon. A dummy is struck like a monster but never takes damage, dies,
   moves, or attacks, and shows a rolling five-second damage readout; the hub has two.
+- An authored dungeon may also set `ground`: a grid of strings the same size as `tiles`, saying what
+  each floor tile is drawn as. `g` is grass, `c` cobble, `d` dirt, and `.` the theme's own floor,
+  so a map without `ground` looks exactly as it did. It is render-only: collision always comes from
+  `tiles`, and a character under a `#` is ignored. Loading fails on a grid of another size or a
+  character outside `gcd.`. Grass draws a ragged fringe onto the cobble or dirt beside it, so
+  boundaries need no art of their own; the hub is the example. Ground scales with the map, so each
+  character covers a `TILE_SCALE` block, and reaches a client with the tiles it describes.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
 - `upgrades/`: ordered improvements associated with a skill.
 

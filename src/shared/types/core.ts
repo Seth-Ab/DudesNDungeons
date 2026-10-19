@@ -23,7 +23,14 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
 } from "../constants/game.js";
-import { LIGHT_TINTS, MAP_PROP_KINDS, MAP_THEMES, MAX_PROP_LABEL_LENGTH } from "../constants/scenery.js";
+import {
+  GROUND_ROW_PATTERN,
+  LIGHT_TINTS,
+  MAP_PROP_KINDS,
+  MAP_THEMES,
+  MAX_PROP_LABEL_LENGTH,
+  STALL_TINTS,
+} from "../constants/scenery.js";
 
 export const vector2Schema = z.object({
   x: z.number().finite(),
@@ -58,6 +65,8 @@ export const mapPropSchema = z.object({
   y: z.number().finite(),
   /** A caption drawn over the prop, such as the name of a stall. */
   label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
+  /** A stall's awning colour. Absent means `ember`; content only allows it on a stall. */
+  tint: z.enum(STALL_TINTS).optional(),
 });
 export type MapProp = z.infer<typeof mapPropSchema>;
 
@@ -75,6 +84,12 @@ export const dungeonMapSchema = z.object({
   theme: mapThemeSchema.optional(),
   /** Scenery the holder knows of. A client holds only props it has discovered part of. */
   props: z.array(mapPropSchema).optional(),
+  /**
+   * What each floor tile is drawn as, row for row with `tiles`: `g` grass, `c` cobble, `d` dirt, `.`
+   * the theme's own floor. A client's rows hold spaces where it has discovered nothing. Absent means
+   * every tile is `.`. Render-only: collision is `tiles`.
+   */
+  ground: z.array(z.string()).optional(),
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
 
@@ -475,11 +490,21 @@ export type DungeonState = z.infer<typeof dungeonStateSchema>;
  * `#` for wall and `.` for anything walkable. Lit versus remembered is not part of it; that travels
  * separately, in `lit`.
  */
-export const discoveredRunSchema = z.object({
-  x: z.number().int().nonnegative(),
-  y: z.number().int().nonnegative(),
-  tiles: z.string().min(1).regex(/^[#.]+$/),
-});
+export const discoveredRunSchema = z
+  .object({
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    tiles: z.string().min(1).regex(/^[#.]+$/),
+    /**
+     * The ground under the same tiles, one character each (see `DungeonMapState.ground`). Sent only
+     * for a map with a ground grid, and only when some of the run is not `.`.
+     */
+    ground: z.string().min(1).regex(GROUND_ROW_PATTERN).optional(),
+  })
+  .refine((run) => run.ground === undefined || run.ground.length === run.tiles.length, {
+    message: "A run's ground must cover exactly its tiles",
+    path: ["ground"],
+  });
 export type DiscoveredRun = z.infer<typeof discoveredRunSchema>;
 
 /**

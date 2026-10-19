@@ -83,3 +83,44 @@ describe("applyMapDiscovery", () => {
     expect(rebased.theme).toBeUndefined();
   });
 });
+
+describe("applyMapDiscovery with a ground grid", () => {
+  it("holds no ground for a map whose runs carry none", () => {
+    const map = applyMapDiscovery(null, discovery({ reset: true, discovered: [{ x: 1, y: 1, tiles: "#." }] }));
+
+    expect(map.ground).toBeUndefined();
+  });
+
+  it("lays ground alongside the tiles it arrives with, blank where nothing is known", () => {
+    const map = applyMapDiscovery(
+      null,
+      discovery({ reset: true, discovered: [{ x: 1, y: 1, tiles: "...", ground: "gcd" }] }),
+    );
+
+    expect(map.tiles).toEqual(["     ", " ... ", "     "]);
+    expect(map.ground).toEqual(["     ", " gcd ", "     "]);
+  });
+
+  it("fills theme floor for tiles known before the first ground, and for runs that carry none", () => {
+    const first = applyMapDiscovery(null, discovery({ reset: true, discovered: [{ x: 0, y: 0, tiles: ".." }] }));
+    const second = applyMapDiscovery(
+      first,
+      discovery({ discovered: [{ x: 0, y: 2, tiles: "..", ground: "cg" }, { x: 3, y: 2, tiles: "#." }] }),
+    );
+
+    expect(second.ground).toEqual(["..   ", "     ", "cg .."]);
+    expect(first.ground).toBeUndefined();
+  });
+
+  it("keeps ground it already holds across deltas, and drops it on a reset", () => {
+    const first = applyMapDiscovery(
+      null,
+      discovery({ reset: true, discovered: [{ x: 0, y: 0, tiles: "..", ground: "gg" }] }),
+    );
+    const second = applyMapDiscovery(first, discovery({ discovered: [{ x: 4, y: 1, tiles: ".", ground: "d" }] }));
+    const rebased = applyMapDiscovery(second, discovery({ reset: true, discovered: [{ x: 0, y: 0, tiles: "." }] }));
+
+    expect(second.ground).toEqual(["gg   ", "    d", "     "]);
+    expect(rebased.ground).toBeUndefined();
+  });
+});

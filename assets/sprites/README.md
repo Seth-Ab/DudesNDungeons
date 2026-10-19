@@ -24,7 +24,8 @@ client reads the source JSON, so the only rule is that each sprite stays in the 
 ```
 
 - One palette character per pixel. `0` is transparent by convention; every other character is
-  opaque `#rrggbb`.
+  opaque `#rrggbb`, or `#rrggbbaa` for a translucent shade laid over whatever is beneath it (the
+  forest canopy's shadow is the only one so far).
 - A row may be prefixed with `N*` to repeat it N times. A palette character is never `*`, so the
   prefix is unambiguous. This is what keeps regular masonry and the stairs readable.
 - `tilesWide`/`tilesHigh` are in world tiles. A sprite's rows must expand to exactly
@@ -44,10 +45,44 @@ and not the other fails the bake rather than drawing a hole in the floor.
   painted last, over the side lips, which is why there are no separate corner sprites.
 - `forest-0` to `forest-15`: the `forest` map theme's walls, which the hub uses, composed from
   `forest-fill` and `forest-edge-*` exactly as the stone ones are. `tiles.ts` names each theme's
-  prefixes in `THEME_SPRITES`; the forest shares the stone floor for now.
+  prefixes in `THEME_SPRITES`; the forest shares the stone floor, which the hub covers with ground.
+  `forest-edge-s` is empty: the canopy overhang below carries that edge instead.
+- Ground, for a map's `ground` grid (see `content/README.md`): `cobble-0` to `cobble-3`,
+  `grass-0` to `grass-2` and `dirt-0` to `dirt-1`. Grass and dirt pick a variant from a weighted
+  hash, like the flagstones. Cobble picks by checkerboard: even tiles take `cobble-0` or `-1` and
+  odd tiles `-2` or `-3`, so no two tiles that share an edge are ever the same stone. The four
+  cobbles share every stone within three pixels of their edges, which is what lets a stone cross a
+  seam into whichever variant is next door, so the tile grid never shows as a line.
+- `grass-edge-1` to `-15` and `forest-overhang-1` to `-15`: **composed, not authored**, like the
+  walls, from four strips each (`grass-edge-n`/`-e`/`-s`/`-w`, `forest-overhang-n`/...). The number
+  is the sides with something to draw, with the wall-mask bits (north 1, east 2, south 4, west 8);
+  `tiles.ts` lists the sets in `EDGE_OVERLAY_SETS`. A grass edge is the ragged fringe grass lays
+  one tile deep onto the cobble or dirt beside it, with `grass-corner-ne`/`-se`/`-sw`/`-nw` where
+  grass only touches at a diagonal. An overhang is the forest canopy reaching half a tile out over
+  any floor tile beside it, with a 25% strip of shade beyond. Translucent strips are composed
+  before opaque ones, so one side's shade falls under another side's leaves, not across them.
 - Map props, one per kind at the footprint `src/shared/constants/scenery.ts` gives it: `prop-fountain`,
-  `prop-stall`, `prop-quest-board`, `prop-tree`, `prop-bush`, `prop-dungeon-gate` (its opening
-  sits over the exit tile, where the stairs are drawn on top of it) and `prop-sign`.
+  `prop-stall-ember`/`-moss`/`-azure`/`-plum` (one per awning `tint`), `prop-quest-board`,
+  `prop-tree`, `prop-bush`, `prop-dungeon-gate` (its opening sits over the exit tile, where the
+  stairs are drawn on top of it) and `prop-sign`. Props stand on the ground with no backdrop or
+  shadow of their own: the renderer draws each one's contact shadow, from `MAP_PROP_SHADOWS`.
+
+### The hub's colour ramps
+
+Every ramp is hue-shifted rather than a tint of one colour: shadows lean cool, highlights warm, as
+if all of it shared one warm light from above. Big surfaces keep their ramps close together and
+quiet, so whatever a player can use carries the accent colour.
+
+| Ramp            | Characters        | Shadow to highlight                                          |
+| --------------- | ----------------- | ------------------------------------------------------------ |
+| cobble          | `! % & ( ) +`     | gap `#3b2c3c`, plum-grey `#54464f` up to ochre `#a88c5e`      |
+| grass           | `: ; < = >`       | teal `#284e4a` up to yellow-green `#8ea245`                   |
+| dirt            | `? @ [ ]`         | plum `#3f3138` up to tan `#91714d`                            |
+| forest          | `p q r t u`       | `#081216` to `#2a5243`: darker and cooler than the grass, so the boundary recedes |
+| tree and bush   | `{ \| } ~ _`       | `#183632` to `#74983f`: between the forest and the grass       |
+| fountain stone  | `$ - /`           | warm grey `#5e5059` to `#ab9c8a`, lit like the cobble          |
+| canopy shade    | `^`               | `#0b0f1c40`: a cool near-black at 25%                          |
+| stall awnings   | `Q R`, `W V`, `Y X`, `s Z` | ember, moss, azure and plum, each shadow then main, over the shared cream `S T` |
 - Props: `torch-pillar`, `torch-flame`, `glow-mote`, `door-closed-h`/`-v`, `door-jamb-h`/`-v`,
   `door-lock`, `loot-key`, `loot-tonic`, `loot-ward`, `loot-draught`, `loot-flare`, `loot-salts`,
   `flare-lit` (a burning flare's light), `loot-skill-scroll`, `loot-weapon` (any weapon

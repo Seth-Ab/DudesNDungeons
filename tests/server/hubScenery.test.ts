@@ -148,3 +148,76 @@ describe("the hub's scenery", () => {
     expect(discovery.props).toBeUndefined();
   });
 });
+
+describe("the hub's ground", () => {
+  it("scales its ground grid with the tiles, a block per authored tile", () => {
+    const { session } = hub();
+    const { map } = session.dungeon;
+
+    expect(map.ground).toHaveLength(map.height);
+    for (const row of map.ground ?? []) expect(row).toHaveLength(map.width);
+    // Authored (8, 6) is the fountain's cobble; authored (18, 10) is the grove's grass.
+    expect(map.ground?.[6 * TILE_SCALE + 1]?.[8 * TILE_SCALE + 2]).toBe("c");
+    expect(map.ground?.[10 * TILE_SCALE + 3]?.[18 * TILE_SCALE]).toBe("g");
+  });
+
+  it("covers every floor tile with grass, cobble or dirt", () => {
+    const { session } = hub();
+    const { map } = session.dungeon;
+
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        if (map.tiles[y]![x] === ".") expect("gcd").toContain(map.ground![y]![x]);
+      }
+    }
+  });
+
+  it("never changes collision", () => {
+    const { session } = hub();
+    const { map } = session.dungeon;
+    // Each tile's centre and two points near its corners, so the edge of a block is covered too.
+    const points: Vector2[] = [];
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        for (const [dx, dy] of [[0, 0], [-0.4, -0.4], [0.4, 0.4]] as const) points.push({ x: x + dx, y: y + dy });
+      }
+    }
+    const before = points.map((point) => isOpen(session.dungeon, [], point));
+    const allGrass = map.ground!.map((row) => "g".repeat(row.length));
+
+    delete map.ground;
+    expect(points.map((point) => isOpen(session.dungeon, [], point))).toEqual(before);
+    map.ground = allGrass;
+    expect(points.map((point) => isOpen(session.dungeon, [], point))).toEqual(before);
+  });
+
+  it("sends ground with the runs it describes, and only where the map has some", () => {
+    const { session, viewer } = hub();
+    visibilityFrameForPlayer(session, viewer);
+    const { discovered } = takeMapDiscovery(session, viewer);
+    const { map } = session.dungeon;
+
+    expect(discovered.some((run) => run.ground !== undefined)).toBe(true);
+    for (const run of discovered) {
+      const expected = map.ground![run.y]!.slice(run.x, run.x + run.tiles.length);
+      if (run.ground !== undefined) expect(run.ground).toBe(expected);
+      else expect(expected).toMatch(/^\.+$/);
+    }
+  });
+
+  it("sends no ground for a dungeon without a ground grid", () => {
+    const session = testSession([testPlayer("viewer")]);
+    const viewer = session.players.get("viewer")!;
+    visibilityFrameForPlayer(session, viewer);
+    const { discovered } = takeMapDiscovery(session, viewer);
+
+    expect(session.dungeon.map.ground).toBeUndefined();
+    expect(discovered.length).toBeGreaterThan(0);
+    expect(discovered.every((run) => run.ground === undefined)).toBe(true);
+  });
+
+  it("gives the stall its awning colour", () => {
+    const { session } = hub();
+    expect(session.dungeon.map.props?.find((prop) => prop.kind === "stall")?.tint).toBe("ember");
+  });
+});
