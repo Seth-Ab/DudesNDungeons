@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { PROTOCOL_VERSION } from "../../src/shared/constants/game.js";
 import {
   createGameServer,
@@ -76,6 +77,17 @@ async function join(roomCode: string, name: string): Promise<Client> {
   const joined = inbox.find((m) => m.type === "sessionJoined");
   if (joined?.type !== "sessionJoined")
     throw new Error("expected sessionJoined");
+  // Designed and spawned before the test starts, so its actions come from a player in the world.
+  ws.send(JSON.stringify({ type: "setAppearance", appearance: DEFAULT_APPEARANCE }));
+  await vi.waitFor(() =>
+    expect(
+      inbox.some(
+        (m) =>
+          m.type === "stateSnapshot" &&
+          m.players.some((p) => p.id === joined.playerId && p.appearance !== null),
+      ),
+    ).toBe(true),
+  );
   return { inbox, ws, playerId: joined.playerId };
 }
 

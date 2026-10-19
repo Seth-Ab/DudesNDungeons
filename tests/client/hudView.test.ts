@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { resetBindings, setBinding } from "../../src/client/input/keyBindings.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
@@ -51,6 +52,8 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     bankedItems: [],
     ...overrides,
   };

@@ -1,5 +1,12 @@
 import { z } from "zod";
 import {
+  BODY_TYPES,
+  HAIR_COLORS,
+  HAIR_STYLES,
+  PARTY_COLORS,
+  SKIN_TONES,
+} from "../constants/appearance.js";
+import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
   CONSUMABLE_TARGETS,
@@ -558,6 +565,36 @@ export const upgradeViewSchema = z.object({
 });
 export type UpgradeView = z.infer<typeof upgradeViewSchema>;
 
+export const bodyTypeSchema = z.enum(BODY_TYPES);
+export type BodyType = z.infer<typeof bodyTypeSchema>;
+
+export const skinToneSchema = z.enum(SKIN_TONES);
+export type SkinTone = z.infer<typeof skinToneSchema>;
+
+export const hairStyleSchema = z.enum(HAIR_STYLES);
+export type HairStyle = z.infer<typeof hairStyleSchema>;
+
+export const hairColorSchema = z.enum(HAIR_COLORS);
+export type HairColor = z.infer<typeof hairColorSchema>;
+
+export const partyColorSchema = z.enum(PARTY_COLORS);
+export type PartyColor = z.infer<typeof partyColorSchema>;
+
+/**
+ * A designed character: one id from each shared list in `constants/appearance.ts`. Strict, because
+ * it is client-sent in `setAppearance`, and a field the server does not know is a malformed look
+ * rather than one to quietly trim.
+ */
+export const playerAppearanceSchema = z
+  .object({
+    body: bodyTypeSchema,
+    skinTone: skinToneSchema,
+    hairStyle: hairStyleSchema,
+    hairColor: hairColorSchema,
+  })
+  .strict();
+export type PlayerAppearance = z.infer<typeof playerAppearanceSchema>;
+
 /**
  * The server's view of a player, broadcast to clients. Clients never author this shape: position,
  * health, and inventory are server-owned outputs, not inputs.
@@ -591,6 +628,14 @@ export const playerStateSchema = z.object({
   carryingPlayerId: playerIdSchema.nullable(),
   /** The player carrying this one, or null. Set only while this player is downed. */
   carriedByPlayerId: playerIdSchema.nullable(),
+  /**
+   * The look this player designed, public to the whole party. Null while they are still designing
+   * it: such a player holds a slot but is not in the world yet, so clients do not draw them, and
+   * they can neither act nor ready up until `setAppearance` succeeds.
+   */
+  appearance: playerAppearanceSchema.nullable(),
+  /** Assigned by the server on join, unique in the session, and kept for the life of the slot. */
+  partyColor: partyColorSchema,
   /**
    * What this player's profile holds. Owned by the profile, so it survives a restart, and owner
    * data: present only on the receiving player's own entry, absent from every teammate's.

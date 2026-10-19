@@ -81,12 +81,15 @@ export interface MinimapAlly {
 
 /**
  * Allies on the map are exactly the ones in the latest snapshot's visible `players` list, the same
- * rule party frames follow. A player who has walked out of sight is not remembered here.
+ * rule party frames follow. A player who has walked out of sight is not remembered here, and one
+ * still designing a character is not in the world to be marked.
  */
 export function minimapAllies(view: SessionView): MinimapAlly[] {
   const visible = new Set(view.visiblePlayerIds);
   return view.players
-    .filter((player) => player.id !== view.selfId && visible.has(player.id))
+    .filter(
+      (player) => player.id !== view.selfId && visible.has(player.id) && player.appearance !== null,
+    )
     .map((player) => ({
       id: player.id,
       tile: tileOf(player.position),

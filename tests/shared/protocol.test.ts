@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  BODY_TYPES,
+  DEFAULT_APPEARANCE,
+  HAIR_COLORS,
+  HAIR_STYLES,
+  PARTY_COLORS,
+  SKIN_TONES,
+} from "../../src/shared/constants/appearance.js";
+import {
   MAX_CLIENT_MESSAGE_BYTES,
   MAX_CLIENT_MESSAGE_CHARS,
   MAX_PLAYER_NAME_LENGTH,
@@ -12,6 +20,7 @@ import {
   serializeServerMessage,
   type ServerMessage,
 } from "../../src/shared/protocol/index.js";
+import type { PlayerState } from "../../src/shared/types/core.js";
 
 const PLAYER_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const TARGET_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
@@ -232,6 +241,165 @@ describe("parseClientMessage", () => {
   });
 });
 
+describe("appearance contract", () => {
+  const LOOK = { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" };
+
+  function setAppearance(appearance: unknown) {
+    return parseClientMessage(JSON.stringify({ type: "setAppearance", appearance }));
+  }
+
+  /** A full player entry as the server sends it, with `fields` replaced, possibly by bad values. */
+  function playerWith(fields: Partial<Record<keyof PlayerState, unknown>>) {
+    return {
+      id: PLAYER_ID,
+      name: "Grix",
+      position: { x: 2, y: 2 },
+      facing: { x: 0, y: 1 },
+      health: 100,
+      resistance: 40,
+      stamina: 100,
+      ready: false,
+      connected: true,
+      inventory: [],
+      held: null,
+      carryingTorch: false,
+      carryingPlayerId: null,
+      carriedByPlayerId: null,
+      appearance: LOOK,
+      partyColor: "ember",
+      ...fields,
+    };
+  }
+
+  it("is on protocol v28, the version that added appearance", () => {
+    expect(PROTOCOL_VERSION).toBe(28);
+  });
+
+  it("ships the id lists the design fixed", () => {
+    expect(BODY_TYPES).toEqual(["guy", "girl"]);
+    expect(SKIN_TONES).toEqual(["porcelain", "fair", "olive", "tan", "brown", "deep"]);
+    expect(HAIR_STYLES).toEqual(["crop", "spiky", "long", "ponytail", "bun", "shaved"]);
+    expect(HAIR_COLORS).toEqual([
+      "black",
+      "brown",
+      "chestnut",
+      "blonde",
+      "ginger",
+      "silver",
+      "azure",
+      "moss",
+    ]);
+    expect(PARTY_COLORS).toEqual(["ember", "moss", "azure", "plum"]);
+  });
+
+  it("accepts a setAppearance naming one id from each list", () => {
+    const result = setAppearance(LOOK);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.message).toEqual({ type: "setAppearance", appearance: LOOK });
+    expect(setAppearance(DEFAULT_APPEARANCE).ok).toBe(true);
+  });
+
+  it("rejects an unknown id in each field, naming the message it claimed to be", () => {
+    for (const field of ["body", "skinTone", "hairStyle", "hairColor"]) {
+      const result = setAppearance({ ...LOOK, [field]: "chartreuse" });
+
+      expect(result.ok, field).toBe(false);
+      if (!result.ok) expect(result.claimedType).toBe("setAppearance");
+    }
+  });
+
+  it("rejects a missing field, an extra field, or no appearance at all", () => {
+    const { hairColor: _dropped, ...missing } = LOOK;
+
+    expect(setAppearance(missing).ok).toBe(false);
+    expect(setAppearance({ ...LOOK, hat: "crown" }).ok).toBe(false);
+    expect(setAppearance(null).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "setAppearance" })).ok).toBe(false);
+  });
+
+  it("names no claimed type for a message type the protocol does not have", () => {
+    const result = parseClientMessage(JSON.stringify({ type: "setHat", hat: "crown" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.claimedType).toBeUndefined();
+  });
+
+  it("round-trips a designed player, a designing one, and sessionJoined's needsAppearance", () => {
+    const message: ServerMessage = {
+      type: "sessionJoined",
+      sessionId: SESSION_ID,
+      roomCode: "BCDFGH",
+      playerId: PLAYER_ID,
+      resumeToken: RESUME_TOKEN,
+      resumed: false,
+      needsAppearance: true,
+      tickRate: 20,
+      players: [
+        playerWith({ appearance: null, partyColor: "moss" }) as PlayerState,
+        playerWith({ id: TARGET_ID }) as PlayerState,
+      ],
+      profile: {
+        id: PROFILE_ID,
+        displayName: "Grix",
+        bankedItems: [],
+        unlockedSkillIds: [],
+        unlockedUpgradeIds: [],
+        runsEscaped: 0,
+        runsLost: 0,
+      },
+      profileSecret: null,
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.message).toEqual(message);
+  });
+
+  it("rejects a player state with a malformed look or party colour", () => {
+    for (const fields of [
+      { appearance: { ...LOOK, body: "ogre" } },
+      { appearance: { ...LOOK, cape: "red" } },
+      { appearance: undefined },
+      { partyColor: "teal" },
+      { partyColor: undefined },
+    ]) {
+      const result = parseServerMessage(
+        JSON.stringify({ type: "playerJoined", player: playerWith(fields) }),
+      );
+      expect(result.ok, JSON.stringify(fields)).toBe(false);
+    }
+  });
+
+  it("rejects a sessionJoined that does not say whether a look is needed", () => {
+    const result = parseServerMessage(
+      JSON.stringify({
+        type: "sessionJoined",
+        sessionId: SESSION_ID,
+        roomCode: "BCDFGH",
+        playerId: PLAYER_ID,
+        resumeToken: RESUME_TOKEN,
+        resumed: false,
+        tickRate: 20,
+        players: [],
+        profile: {
+          id: PROFILE_ID,
+          displayName: "Grix",
+          bankedItems: [],
+          unlockedSkillIds: [],
+          unlockedUpgradeIds: [],
+          runsEscaped: 0,
+          runsLost: 0,
+        },
+        profileSecret: null,
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe("parseServerMessage", () => {
   it("round-trips a serialized server message", () => {
     const message: ServerMessage = {
@@ -255,6 +423,7 @@ describe("parseServerMessage", () => {
       playerId: PLAYER_ID,
       resumeToken: RESUME_TOKEN,
       resumed: true,
+      needsAppearance: false,
       tickRate: 20,
       players: [],
       profile: {
@@ -503,6 +672,8 @@ describe("parseServerMessage", () => {
         carryingTorch: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,
+        appearance: { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" },
+        partyColor: "plum",
         bankedItems: [],
       },
     };

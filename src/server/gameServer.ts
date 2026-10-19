@@ -11,13 +11,14 @@ import {
 import {
   parseClientMessage,
   serializeServerMessage,
+  type ClientMessageType,
   type ErrorCode,
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId, PlayerState } from "../shared/types/core.js";
 import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
-import { movePlayer } from "./game/dungeonState.js";
+import { isSpawned, movePlayer } from "./game/dungeonState.js";
 import { dropItem, giveItem, interact, pickupItem, swapHeld, useItem } from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
@@ -30,6 +31,24 @@ import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
 import { SessionStore, rosterOf, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
+
+/**
+ * What a player still designing their character may not do. They hold a slot but are not in the
+ * world, so anything that acts on it, or readies them to leave it, waits for `setAppearance`.
+ */
+const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMessageType>([
+  "setReady",
+  "playerMoveIntent",
+  "playerAttack",
+  "playerInteract",
+  "pickupItem",
+  "useItem",
+  "dropItem",
+  "giveItem",
+  "swapHeld",
+  "liftPlayer",
+  "dropCarry",
+]);
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
 /** A tick this slow is a tenth of the way to dropping the 20 Hz pace; see `slowTickMs`. */
@@ -235,7 +254,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
       if (!result.ok) {
         note(`[ws] rejected message: ${result.error}`);
-        sendError(socket, "invalidMessage", result.error);
+        // The character designer shows this code on its error line, so a bad look is named as one.
+        sendError(
+          socket,
+          result.claimedType === "setAppearance" ? "invalidAppearance" : "invalidMessage",
+          result.error,
+        );
         return;
       }
 
@@ -302,6 +326,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           playerId: player.id,
           resumeToken: player.resumeToken,
           resumed,
+          needsAppearance: !isSpawned(player),
           tickRate: SERVER_TICK_RATE_HZ,
           players: visibilityFrameForPlayer(session, player).players,
           profile: toProfileState(player.profile),
@@ -353,6 +378,30 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           note(`[session] ${member.session.roomCode}: ${member.player.name} left`);
         }
         return;
+      }
+
+      if (message.type === "setAppearance") {
+        const set = store.setAppearance(playerId, message.appearance);
+        if (!set.ok) {
+          sendError(socket, set.code, set.message);
+          return;
+        }
+
+        // No message of its own: the next tick's snapshots carry the look to the whole party.
+        note(`[session] ${set.member.session.roomCode}: ${set.member.player.name} designed a character`);
+        return;
+      }
+
+      if (REFUSED_WHILE_DESIGNING.has(message.type)) {
+        const member = store.findMember(playerId);
+        if (member && !isSpawned(member.player)) {
+          send(socket, {
+            type: "actionRejected",
+            sequence: "sequence" in message ? message.sequence : null,
+            reason: "notPermitted",
+          });
+          return;
+        }
       }
 
       if (message.type === "setReady") {

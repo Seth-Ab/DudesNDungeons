@@ -108,6 +108,14 @@ export function isDown(player: SessionPlayer): boolean {
 }
 
 /**
+ * Whether a player has designed their look and so is in the world. One who has not holds a slot
+ * only: they block nobody, cannot be handed anything, and the server refuses their actions.
+ */
+export function isSpawned(player: SessionPlayer): boolean {
+  return player.appearance !== null;
+}
+
+/**
  * The first spawn point nobody is standing on. Choosing by party size is not enough: after someone
  * leaves, the next arrival would land on top of a player who stayed.
  */
@@ -129,7 +137,7 @@ export function findSpawnPoint(session: Session): Vector2 {
 
 function blockingPlayerPositions(session: Session, mover?: SessionPlayer): Vector2[] {
   return [...session.players.values()]
-    .filter((player) => player.id !== mover?.id && !isDown(player))
+    .filter((player) => player.id !== mover?.id && !isDown(player) && isSpawned(player))
     .map((player) => player.position);
 }
 

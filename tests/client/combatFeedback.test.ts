@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import {
   applyServerMessage,
   initialSessionView,
@@ -35,6 +36,8 @@ function player(id: string, x: number): PlayerState {
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     bankedItems: [],
   };
 }

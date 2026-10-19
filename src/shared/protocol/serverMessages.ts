@@ -35,6 +35,10 @@ export const errorCodeSchema = z.enum([
    * nobody in the sender's dungeon. Players in other dungeons are reported exactly like unknown ids.
    */
   "signalTargetUnavailable",
+  /** A `setAppearance` with an unknown id, a missing field, or an extra one. */
+  "invalidAppearance",
+  /** A `setAppearance` from a player whose look is already set. It is fixed for the slot's life. */
+  "appearanceLocked",
   "rateLimited",
   "notImplemented",
   "internalError",
@@ -74,6 +78,12 @@ export const sessionJoinedSchema = z.object({
   resumed: z.boolean(),
   tickRate: z.number().int().positive(),
   players: z.array(playerStateSchema),
+  /**
+   * True when this slot has no look yet: a fresh slot, or a resumed one whose player had not finished
+   * designing. The client shows the character designer and sends `setAppearance`; until it does, the
+   * player is not in the world. False on a resume of a slot that already has its look.
+   */
+  needsAppearance: z.boolean(),
   /** The profile this slot now plays as, whether it was recognised or created just now. */
   profile: profileStateSchema,
   /**

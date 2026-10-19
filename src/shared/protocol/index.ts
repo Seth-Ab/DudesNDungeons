@@ -6,7 +6,13 @@ export * from "./clientMessages.js";
 export * from "./serverMessages.js";
 export * from "./voice.js";
 
-export type ParseResult<T> = { ok: true; message: T } | { ok: false; error: string };
+/**
+ * A failed parse names the message `type` it claimed, when it claimed a known one, so the server can
+ * answer a malformed message with a code specific to it rather than a bare `invalidMessage`.
+ */
+export type ParseResult<T> =
+  | { ok: true; message: T }
+  | { ok: false; error: string; claimedType?: string };
 
 function formatIssues(error: { issues: { path: PropertyKey[]; message: string }[] }): string {
   return error.issues
@@ -15,6 +21,16 @@ function formatIssues(error: { issues: { path: PropertyKey[]; message: string }[
       return path ? `${path}: ${issue.message}` : issue.message;
     })
     .join("; ");
+}
+
+const CLIENT_MESSAGE_TYPES: ReadonlySet<string> = new Set(
+  clientMessageSchema.options.map((option) => option.shape.type.value),
+);
+
+function claimedTypeOf(payload: unknown): string | undefined {
+  if (typeof payload !== "object" || payload === null || !("type" in payload)) return undefined;
+  const { type } = payload;
+  return typeof type === "string" && CLIENT_MESSAGE_TYPES.has(type) ? type : undefined;
 }
 
 /**
@@ -35,7 +51,12 @@ export function parseClientMessage(raw: string): ParseResult<ClientMessage> {
 
   const result = clientMessageSchema.safeParse(payload);
   if (!result.success) {
-    return { ok: false, error: formatIssues(result.error) };
+    const claimedType = claimedTypeOf(payload);
+    return {
+      ok: false,
+      error: formatIssues(result.error),
+      ...(claimedType === undefined ? {} : { claimedType }),
+    };
   }
 
   return { ok: true, message: result.data };

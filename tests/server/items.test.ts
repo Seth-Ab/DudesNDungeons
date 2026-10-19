@@ -383,6 +383,7 @@ describe("giving", () => {
     ["full", { inventory: Array.from({ length: MAX_INVENTORY_SIZE }, () => ({ ...KEY })) }, "notPermitted"],
     ["downed", { health: 0 }, "notPermitted"],
     ["disconnected", { connected: false }, "notPermitted"],
+    ["still designing", { appearance: null }, "notPermitted"],
     ["out of range", { position: at(12, 12) }, "outOfRange"],
   ] as const)("refuses a %s target and changes nothing", (_label, overrides, reason) => {
     const { giver, receiver, session } = pair(overrides);

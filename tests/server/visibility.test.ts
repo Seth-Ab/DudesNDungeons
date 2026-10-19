@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
 import {
   takeMapDiscovery,
@@ -585,6 +586,7 @@ describe("discovery memory", () => {
     const session = store.createSession();
     const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Grix" }));
     if (!joined.ok) throw new Error(joined.message);
+    store.setAppearance(joined.player.id, DEFAULT_APPEARANCE);
     return { store, session, player: joined.player };
   }
 

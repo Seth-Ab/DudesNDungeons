@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   entityIdSchema,
+  playerAppearanceSchema,
   playerIdSchema,
   playerNameSchema,
   profileSecretSchema,
@@ -36,6 +37,16 @@ export const leaveSessionSchema = z.object({
 export const setReadySchema = z.object({
   type: z.literal("setReady"),
   ready: z.boolean(),
+});
+
+/**
+ * The character a player designed, sent once after a `sessionJoined` that said `needsAppearance`.
+ * Every field must be an id from the shared lists, with nothing extra; the server answers a bad one
+ * with `invalidAppearance` and any call after the first with `appearanceLocked`.
+ */
+export const setAppearanceSchema = z.object({
+  type: z.literal("setAppearance"),
+  appearance: playerAppearanceSchema,
 });
 
 /**
@@ -121,6 +132,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   joinSessionSchema,
   leaveSessionSchema,
   setReadySchema,
+  setAppearanceSchema,
   playerMoveIntentSchema,
   playerAttackSchema,
   playerInteractSchema,

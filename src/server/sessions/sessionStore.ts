@@ -1,4 +1,5 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
+import { PARTY_COLORS } from "../../shared/constants/appearance.js";
 import {
   EMPTY_SESSION_TTL_MS,
   MAX_PARTY_SIZE,
@@ -15,6 +16,8 @@ import type {
   DungeonState,
   EntityId,
   InventoryItem,
+  PartyColor,
+  PlayerAppearance,
   PlayerId,
   PlayerName,
   PlayerState,
@@ -65,6 +68,15 @@ export interface SessionPlayer {
   carryingPlayerId: PlayerId | null;
   /** The player carrying this one, or null. Set only while this player is downed. */
   carriedByPlayerId: PlayerId | null;
+  /**
+   * The designed look, or null while the player is still designing it. Null means the slot is held
+   * but the player is not in the world: they block nobody, and the server refuses their actions and
+   * their ready until `SessionStore.setAppearance` spawns them. Set once and locked for the slot's
+   * life; run saves will persist it later.
+   */
+  appearance: PlayerAppearance | null;
+  /** First colour free in the session when the slot was created, kept through reconnects. */
+  partyColor: PartyColor;
   /**
    * The roguelite profile playing this slot, owned by `ProfileStore` and shared by reference.
    *
@@ -186,6 +198,10 @@ export interface SessionMember {
   session: Session;
   player: SessionPlayer;
 }
+
+export type SetAppearanceResult =
+  | { ok: true; member: SessionMember }
+  | { ok: false; code: ErrorCode; message: string };
 
 export interface SessionStoreOptions {
   now?: () => number;
@@ -349,7 +365,8 @@ export class SessionStore {
       };
     }
 
-    if (session.players.size >= this.#maxPartySize) {
+    const partyColor = freePartyColor(session);
+    if (session.players.size >= this.#maxPartySize || partyColor === undefined) {
       return { ok: false, code: "sessionFull", message: "This dungeon is full" };
     }
 
@@ -369,6 +386,8 @@ export class SessionStore {
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
+      appearance: null,
+      partyColor,
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Uint8Array(0),
       discoveredRoomIds: new Set(),
@@ -385,6 +404,31 @@ export class SessionStore {
     session.players.set(player.id, player);
     this.#sessionByPlayer.set(player.id, session.roomCode);
     return { ok: true, resumed: false, session, player };
+  }
+
+  /**
+   * Stores a designed look and spawns its player. The look is validated by the protocol schema
+   * before it gets here; this owns the rule that it can be set only once per slot.
+   *
+   * The spawn point is chosen again now rather than kept from the join, because a player who is
+   * still designing blocks nobody, so someone else may be standing on the point they were given.
+   */
+  setAppearance(playerId: PlayerId, appearance: PlayerAppearance): SetAppearanceResult {
+    const member = this.findMember(playerId);
+    if (!member) {
+      return { ok: false, code: "notInSession", message: "Join a dungeon before sending this message" };
+    }
+    if (member.player.appearance !== null) {
+      return {
+        ok: false,
+        code: "appearanceLocked",
+        message: "Your character is already designed and cannot be changed",
+      };
+    }
+
+    member.player.position = findSpawnPoint(member.session);
+    member.player.appearance = { ...appearance };
+    return { ok: true, member };
   }
 
   setReady(playerId: PlayerId, ready: boolean): SessionMember | undefined {
@@ -493,6 +537,15 @@ export class SessionStore {
 }
 
 /**
+ * The first party colour nobody in the session holds, or undefined when all of them are taken.
+ * Counted from the slots that exist now, so a released slot's colour goes to the next arrival.
+ */
+function freePartyColor(session: Session): PartyColor | undefined {
+  const taken = new Set([...session.players.values()].map((player) => player.partyColor));
+  return PARTY_COLORS.find((color) => !taken.has(color));
+}
+
+/**
  * Public view of a player. Drops `resumeToken`, `disconnectedAt`, pacing timers, and the profile's
  * bank, none of which are broadcast. Resistance and stamina are rounded here: they move by fractions of a point per tick on
  * the server, and a HUD bar has no use for that precision.
@@ -516,6 +569,8 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,
+    appearance: player.appearance ? { ...player.appearance } : null,
+    partyColor: player.partyColor,
   };
 }
 

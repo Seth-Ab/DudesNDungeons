@@ -7,7 +7,7 @@ import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { DungeonMapState } from "../../shared/types/core.js";
 import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
-import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID } from "./dungeonState.js";
+import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID, isSpawned } from "./dungeonState.js";
 import { lootRngFor } from "./monsterLoot.js";
 import { bankRunSkills, discardRunSkills } from "./progression.js";
 import { createDiscoveredGrid } from "./tileGrid.js";
@@ -16,12 +16,18 @@ export type RunTransitionResult =
   | { ok: true }
   | { ok: false; reason: RejectionReason };
 
-/** A run is party-wide: every reserved slot must be connected and ready before anyone can start. */
+/**
+ * A run is party-wide: every reserved slot must be connected, designed, and ready before anyone can
+ * start. A player still designing cannot ready up, so the appearance check is a second lock on the
+ * same door rather than the only one.
+ */
 export function partyReadyForRun(session: Session): boolean {
   return (
     session.location === "hub" &&
     session.players.size > 0 &&
-    [...session.players.values()].every((player) => player.connected && player.ready)
+    [...session.players.values()].every(
+      (player) => player.connected && player.ready && isSpawned(player),
+    )
   );
 }
 
