@@ -7,6 +7,9 @@ import {
   CHARACTER_FRAME_WIDTH,
   COMPOSITE_HEIGHT,
   COMPOSITE_WIDTH,
+  PORTRAIT_SIZE,
+  SILHOUETTE_COLOUR,
+  SILHOUETTE_LOOK,
   WALK_POSES,
   bodyFrame,
   characterFrameRect,
@@ -18,7 +21,9 @@ import {
   createMotionTracker,
   hairFrame,
   pickCharacterPose,
+  portraitRect,
   recolourPixels,
+  silhouettePixels,
   type CharacterLook,
 } from "./characters.js";
 
@@ -88,71 +93,77 @@ function drawRing(
   }
 }
 
-export function createCharacterSprites(onReady?: () => void) {
-  let sheet: HTMLImageElement | null = null;
+/**
+ * One canvas per look holding every frame it can show, already recoloured, with hair over the body
+ * and a blinking copy of each. Drawing a player is then a single stamp.
+ */
+function buildComposite(sheet: HTMLImageElement, look: CharacterLook): HTMLCanvasElement {
+  const { canvas, context } = createSurface(COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
+  const cells = CHARACTER_FACINGS.flatMap((facing) =>
+    WALK_POSES.flatMap((pose) =>
+      [false, true].map((blinking) => ({ facing, pose, blinking })),
+    ),
+  );
+  const stamp = (frame: string, x: number, y: number): void => {
+    const rect = characterFrameRect(frame);
+    context.drawImage(
+      sheet,
+      rect.x,
+      rect.y,
+      CHARACTER_FRAME_WIDTH,
+      CHARACTER_FRAME_HEIGHT,
+      x,
+      y,
+      CHARACTER_FRAME_WIDTH,
+      CHARACTER_FRAME_HEIGHT,
+    );
+  };
 
+  for (const { facing, pose, blinking } of cells) {
+    const cell = compositeCell(facing, pose, blinking);
+    stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
+  }
+
+  // Eyes close on the bare body, before hair could cover a pixel beside one.
+  const bodies = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
+  for (const { facing, pose, blinking } of cells) {
+    if (!blinking) continue;
+    const cell = compositeCell(facing, pose, blinking);
+    closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
+  }
+  context.putImageData(bodies, 0, 0);
+
+  for (const { facing, pose, blinking } of cells) {
+    const cell = compositeCell(facing, pose, blinking);
+    stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y);
+  }
+
+  const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
+  recolourPixels(pixels.data, characterSwaps(look));
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+/** Loads the character sheet once per caller. The browser caches the file, so a second load is free. */
+function loadCharacterSheet(onLoad: (sheet: HTMLImageElement) => void): void {
   const image = new Image();
   image.decoding = "async";
-  image.onload = (): void => {
-    sheet = image;
-    onReady?.();
-  };
+  image.onload = (): void => onLoad(image);
   image.onerror = (): void => {
-    // Not fatal: players keep a flat party-coloured stand-in, which is playable.
+    // Not fatal: players keep a flat party-coloured stand-in and portraits stay blank.
     console.error(`Could not load the character sheet from ${CHARACTER_SHEET_URL}.`);
   };
   image.src = CHARACTER_SHEET_URL;
+}
 
-  /**
-   * One canvas per look holding every frame it can show, already recoloured, with hair over the
-   * body and a blinking copy of each. Drawing a player is then a single stamp.
-   */
-  const composites = createCompositeCache((look): HTMLCanvasElement => {
-    const { canvas, context } = createSurface(COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    const cells = CHARACTER_FACINGS.flatMap((facing) =>
-      WALK_POSES.flatMap((pose) =>
-        [false, true].map((blinking) => ({ facing, pose, blinking })),
-      ),
-    );
-    const stamp = (frame: string, x: number, y: number): void => {
-      const rect = characterFrameRect(frame);
-      context.drawImage(
-        sheet!,
-        rect.x,
-        rect.y,
-        CHARACTER_FRAME_WIDTH,
-        CHARACTER_FRAME_HEIGHT,
-        x,
-        y,
-        CHARACTER_FRAME_WIDTH,
-        CHARACTER_FRAME_HEIGHT,
-      );
-    };
-
-    for (const { facing, pose, blinking } of cells) {
-      const cell = compositeCell(facing, pose, blinking);
-      stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
-    }
-
-    // Eyes close on the bare body, before hair could cover a pixel beside one.
-    const bodies = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    for (const { facing, pose, blinking } of cells) {
-      if (!blinking) continue;
-      const cell = compositeCell(facing, pose, blinking);
-      closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
-    }
-    context.putImageData(bodies, 0, 0);
-
-    for (const { facing, pose, blinking } of cells) {
-      const cell = compositeCell(facing, pose, blinking);
-      stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y);
-    }
-
-    const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    recolourPixels(pixels.data, characterSwaps(look));
-    context.putImageData(pixels, 0, 0);
-    return canvas;
+export function createCharacterSprites(onReady?: () => void) {
+  let sheet: HTMLImageElement | null = null;
+  loadCharacterSheet((image) => {
+    sheet = image;
+    onReady?.();
   });
+
+  const composites = createCompositeCache((look) => buildComposite(sheet!, look));
 
   const motion = createMotionTracker();
   const blinks = createBlinkClock();
@@ -223,6 +234,53 @@ export function createCharacterSprites(onReady?: () => void) {
         ctx.fillText(player.label, at.x, at.y + 16);
       });
       ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/**
+ * Paints party-frame portraits from the same composites the world draws, so a portrait is the
+ * player as teammates see them. `onReady` fires once the sheet decodes, since portraits asked for
+ * before then are left blank and need repainting.
+ */
+export function createCharacterPortraits(onReady?: () => void) {
+  let sheet: HTMLImageElement | null = null;
+  loadCharacterSheet((image) => {
+    sheet = image;
+    onReady?.();
+  });
+
+  const composites = createCompositeCache((look) => buildComposite(sheet!, look));
+  let silhouette: HTMLCanvasElement | null = null;
+
+  const silhouetteComposite = (): HTMLCanvasElement => {
+    if (silhouette) return silhouette;
+    silhouette = buildComposite(sheet!, SILHOUETTE_LOOK);
+    const context = silhouette.getContext("2d")!;
+    const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
+    silhouettePixels(pixels.data, SILHOUETTE_COLOUR);
+    context.putImageData(pixels, 0, 0);
+    return silhouette;
+  };
+
+  return {
+    /** A canvas sized for one portrait, scaled up by CSS. */
+    createCanvas(): HTMLCanvasElement {
+      return createSurface(PORTRAIT_SIZE, PORTRAIT_SIZE).canvas;
+    },
+
+    /**
+     * A null look is a player still designing, drawn as a grey silhouette. Until the sheet loads
+     * this only clears.
+     */
+    paint(canvas: HTMLCanvasElement, look: CharacterLook | null): void {
+      const context = canvas.getContext("2d")!;
+      context.clearRect(0, 0, PORTRAIT_SIZE, PORTRAIT_SIZE);
+      if (!sheet) return;
+
+      const composite = look ? composites.get(look) : silhouetteComposite();
+      const rect = portraitRect();
+      context.drawImage(composite, rect.x, rect.y, PORTRAIT_SIZE, PORTRAIT_SIZE, 0, 0, PORTRAIT_SIZE, PORTRAIT_SIZE);
     },
   };
 }

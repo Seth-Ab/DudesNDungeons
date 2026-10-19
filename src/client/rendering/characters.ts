@@ -279,6 +279,44 @@ export function compositeCell(
 }
 
 /**
+ * A party frame's portrait: the head and shoulders of the front-facing standing frame, frame rows
+ * 4 to 19, cropped square as the sprite bible's `headCrop()` does.
+ */
+export const PORTRAIT_SIZE = 16;
+const PORTRAIT_TOP = 4;
+
+/** Where the portrait sits in a look's composite. Open-eyed: a portrait does not blink. */
+export function portraitRect(): CharacterFrameRect {
+  const cell = compositeCell("down", "stand", false);
+  return { x: cell.x, y: cell.y + PORTRAIT_TOP };
+}
+
+/**
+ * Who stands in for a player still designing: any body will do once it is flattened to one grey,
+ * so this is the plain one the sprite bible's roster uses.
+ */
+export const SILHOUETTE_LOOK: CharacterLook = {
+  body: "guy",
+  skinTone: "porcelain",
+  hairStyle: "shaved",
+  hairColor: "black",
+  partyColor: "ember",
+};
+
+export const SILHOUETTE_COLOUR = "#2b3037";
+
+/** Paints every opaque pixel one colour, in place, leaving the shape and nothing else. */
+export function silhouettePixels(data: Uint8ClampedArray, colour: string): void {
+  const fill = rgb(colour);
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] === 0) continue;
+    data[offset] = fill >> 16;
+    data[offset + 1] = (fill >> 8) & 0xff;
+    data[offset + 2] = fill & 0xff;
+  }
+}
+
+/**
  * Builds each look's composite once and hands back the same one after. Composites are small, a
  * party has four looks, and a look changes only when someone redesigns, so nothing is evicted.
  */
