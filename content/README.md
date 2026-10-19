@@ -48,7 +48,15 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
   and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
-- `dungeons/`: authored dungeons and generated-dungeon profiles.
+- `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
+  `theme` (`stone`, the default, or `forest`, which draws walls as woodland) and a `props` list of
+  scenery: `{ kind, x, y, label? }`, with `kind` one of `fountain`, `stall`, `quest-board`,
+  `tree`, `bush`, `dungeon-gate` or `sign`. A prop's `x`/`y` is the authored tile at its
+  top-left (fractions allowed) and its size is fixed per kind in `src/shared/constants/scenery.ts`;
+  the whole of it must be on the map. Props never collide, so put `#` under anything a player
+  should not walk through. `label` (32 characters at most) is carried but not drawn yet. A light
+  may add `tint` (`warm`, the default, or `red`); the client does not draw a red light differently
+  yet.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
 - `upgrades/`: ordered improvements associated with a skill.
 

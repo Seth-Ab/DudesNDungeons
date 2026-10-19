@@ -7,6 +7,13 @@ import {
   MAX_STACK_SIZE,
   MONSTER_BEHAVIORS,
 } from "../../shared/constants/game.js";
+import {
+  DEFAULT_MAP_THEME,
+  LIGHT_TINTS,
+  MAP_PROP_KINDS,
+  MAP_THEMES,
+  MAX_PROP_LABEL_LENGTH,
+} from "../../shared/constants/scenery.js";
 
 /**
  * The contract for everything under `content/`.
@@ -519,7 +526,21 @@ const placedLightSchema = placedEntitySchema.extend({
   name: z.string().min(1),
   /** World units, not authored tiles. */
   radius: z.number().positive(),
+  tint: z.enum(LIGHT_TINTS).optional(),
 });
+
+/**
+ * Scenery, drawn and never collided with. `x`/`y` is the authored tile at the prop's top-left, and
+ * may be fractional to nudge a small prop within its tile. `loadContent` checks that the whole of
+ * its footprint (`MAP_PROP_SIZES`) is on the map.
+ */
+const placedPropSchema = z.object({
+  kind: z.enum(MAP_PROP_KINDS),
+  x: z.number().nonnegative(),
+  y: z.number().nonnegative(),
+  label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
+});
+export type PlacedProp = z.infer<typeof placedPropSchema>;
 
 const authoredRoomSchema = z.object({
   id: contentIdSchema,
@@ -542,6 +563,9 @@ export const authoredDungeonSchema = z.object({
   name: z.string().min(1),
   layout: z.literal("authored"),
   tiles: z.array(z.string().regex(/^[#.]+$/)).min(1),
+  /** How the tiles are drawn; collision is the same either way. */
+  theme: z.enum(MAP_THEMES).default(DEFAULT_MAP_THEME),
+  props: z.array(placedPropSchema).default([]),
   spawnPoints: z.array(localPointSchema).min(1),
   rooms: z.array(authoredRoomSchema).default([]),
   monsters: z.array(placedMonsterSchema).default([]),

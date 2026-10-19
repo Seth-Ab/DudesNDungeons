@@ -1,4 +1,5 @@
 import { TILE_SCALE } from "../../shared/constants/game.js";
+import { MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
 import type {
   ChestState,
@@ -7,6 +8,7 @@ import type {
   DungeonState,
   LightSourceState,
   LootState,
+  MapProp,
   MonsterState,
   PlayerState,
   RoomState,
@@ -16,6 +18,7 @@ import type {
 import {
   doorOrientation,
   itemSprite,
+  propSprite,
   type SpriteName,
 } from "./tiles.js";
 import { createLightShader, shadingTile, type SceneLight } from "./lighting.js";
@@ -604,6 +607,31 @@ export function createCanvasRenderer(getScene: () => Scene) {
   };
 
   /**
+   * Scenery: fountains, stalls, trees, the gate. Collision is the tiles beneath, so this is only a
+   * picture. Drawn by the bottom edge, top to bottom, so a tree in front overlaps the one behind it.
+   */
+  const drawProps = (props: readonly MapProp[], camera: Vector2): void => {
+    if (!tileset.ready || props.length === 0) return;
+
+    const bottom = (prop: MapProp): number => prop.y + MAP_PROP_SIZES[prop.kind].tilesHigh;
+    for (const prop of [...props].sort((a, b) => bottom(a) - bottom(b))) {
+      const size = MAP_PROP_SIZES[prop.kind];
+      const topLeft = worldToScreen({ x: prop.x - 0.5, y: prop.y - 0.5 }, camera);
+      const width = size.tilesWide * pixelsPerWorldUnit;
+      const height = size.tilesHigh * pixelsPerWorldUnit;
+      if (
+        topLeft.x > viewportWidth ||
+        topLeft.y > viewportHeight ||
+        topLeft.x + width < 0 ||
+        topLeft.y + height < 0
+      ) {
+        continue;
+      }
+      tileset.draw(ctx, propSprite(prop.kind), topLeft.x, topLeft.y, width, height);
+    }
+  };
+
+  /**
    * Signage: area names and what the gate is waiting for.
    *
    * Drawn after the lightmap, unlike every other label, because it is the one thing in the hub a
@@ -787,8 +815,9 @@ export function createCanvasRenderer(getScene: () => Scene) {
     }
 
     if (scene.location === "hub") drawAreas(scene.dungeon.rooms, camera);
+    drawProps(scene.dungeon.map.props ?? [], camera);
 
-    // Stairs first: they are cut into the floor, so everything else stands on top of them.
+    // Stairs after the scenery, so a gate frames them, and before everything that stands on them.
     scene.dungeon.exits.forEach((exit) =>
       tileset.ready
         ? drawSprite("exit-stairs", exit.position, TILE_SCALE, TILE_SCALE, camera)

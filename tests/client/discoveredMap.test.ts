@@ -58,4 +58,28 @@ describe("applyMapDiscovery", () => {
 
     expect(map.tiles).toEqual(["     ", "     ", "     "]);
   });
+
+  it("carries the theme and accumulates props as they are discovered", () => {
+    const fountain = { kind: "fountain", x: 0, y: 0 } as const;
+    const tree = { kind: "tree", x: 4, y: 0 } as const;
+    const first = applyMapDiscovery(
+      null,
+      discovery({ reset: true, theme: "forest", discovered: [{ x: 0, y: 0, tiles: "#" }], props: [fountain] }),
+    );
+    const second = applyMapDiscovery(first, discovery({ theme: "forest", props: [tree] }));
+
+    expect(first).toMatchObject({ theme: "forest", props: [fountain] });
+    expect(second).not.toBe(first);
+    expect(second.props).toEqual([fountain, tree]);
+    expect(second.tiles).toEqual(first.tiles);
+    expect(applyMapDiscovery(second, discovery({ theme: "forest" }))).toBe(second);
+  });
+
+  it("drops held props on a reset, keeping only what the baseline carries", () => {
+    const first = applyMapDiscovery(null, discovery({ reset: true, props: [{ kind: "bush", x: 1, y: 1 }] }));
+    const rebased = applyMapDiscovery(first, discovery({ reset: true }));
+
+    expect(rebased.props).toEqual([]);
+    expect(rebased.theme).toBeUndefined();
+  });
 });

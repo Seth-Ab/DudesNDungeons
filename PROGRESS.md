@@ -392,7 +392,9 @@ Complete on `feature/hub-run-flow`.
 
 - [x] Render the hub, entrance, torch supply, and storage. Areas are outlined and named from the
   room metadata in the snapshot, and the gate is captioned with what it is waiting for. Storage has
-  no world entity to draw, so the bank is a HUD panel.
+  no world entity to draw, so the bank is a HUD panel. Hub Revamp Phase 1 (#143) added a `forest`
+  map theme and render-only props (fountain, stall, quest board, tree, bush, gate, sign) sent once
+  with their first discovered tile; ground, layout, and lighting are Phases 2-4.
 - [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
   not ready, the run start is announced, and the return to the hub reports what this player got out
   with or lost.
@@ -417,6 +419,8 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Map themes and render-only props; the hub draws forest walls and one of each prop
+  (#143, Hub Revamp Phase 1, protocol unchanged at v29).
 - 2026-10-19: Animated weapon swings from server-resolved reach and arc (#129, v29).
 - 2026-10-19: Server-validated player appearance and party colours, `setAppearance` (#131, v28).
 - 2026-10-18: Stamina Draught, Flare, and Smelling Salts consumables; revive a downed ally (#85, v27).

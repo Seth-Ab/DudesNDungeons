@@ -17,12 +17,14 @@ import {
   doorOrientation,
   floorSprite,
   itemSprite,
+  propSprite,
   spriteRect,
   tileLook,
   wallMask,
   wallSprite,
   type TileReader,
 } from "../../src/client/rendering/tiles.js";
+import { MAP_PROP_KINDS, MAP_PROP_SIZES } from "../../src/shared/constants/scenery.js";
 
 /** Reads a tile out of a small map drawn as text, the way a snapshot window is laid out. */
 function readerFor(rows: string[]): TileReader {
@@ -222,5 +224,30 @@ describe("weapon art", () => {
       itemSprite({ id: "c1111111-1111-4111-8111-111111111111", name: "Arrows", kind: "ammo", itemId: "arrow", count: 3 }),
     ).toBe("loot-arrow");
     expect(SPRITE_NAMES).toContain("loot-arrow");
+  });
+});
+
+describe("map themes and props", () => {
+  it("names a forest wall for every mask, and gives the forest the stone floor", () => {
+    for (let mask = 0; mask < 16; mask += 1) {
+      expect(wallSprite(mask)).toBe(`wall-${mask}`);
+      expect(wallSprite(mask, "forest")).toBe(`forest-${mask}`);
+      expect(SPRITE_NAMES).toContain(wallSprite(mask, "forest"));
+    }
+    for (let y = 0; y < 20; y += 1) {
+      for (let x = 0; x < 20; x += 1) {
+        expect(floorSprite(x, y, "forest")).toBe(floorSprite(x, y));
+      }
+    }
+    // A shared floor is packed once.
+    expect(SPRITE_NAMES.filter((name) => name === "floor-0")).toHaveLength(1);
+  });
+
+  it("reserves a cell for every prop kind at the size the server validates it against", () => {
+    for (const kind of MAP_PROP_KINDS) {
+      const rect = spriteRect(propSprite(kind));
+      expect(rect.width).toBe(MAP_PROP_SIZES[kind].tilesWide * SPRITE_TILE_SIZE);
+      expect(rect.height).toBe(MAP_PROP_SIZES[kind].tilesHigh * SPRITE_TILE_SIZE);
+    }
   });
 });

@@ -22,6 +22,7 @@ import {
   SPRITE_NAMES,
   SPRITE_TILE_SIZE,
   spriteRect,
+  THEME_SPRITES,
 } from "../src/client/rendering/tiles.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -31,9 +32,13 @@ export const SHEET_PATH = resolve(here, "../assets/sprites/dungeon.png");
 
 const TRANSPARENT = "transparent";
 
-/** Authored pieces the wall cells are composed from. They are not packed into the sheet. */
-const WALL_FILL = "wall-fill";
-const WALL_EDGES = ["wall-edge-n", "wall-edge-e", "wall-edge-s", "wall-edge-w"] as const;
+/** Each theme's wall prefix, such as `wall` for stone and `forest` for the hub. */
+const WALL_PREFIXES = [...new Set(Object.values(THEME_SPRITES).map((theme) => theme.wall))];
+
+/** Authored pieces a theme's wall cells are composed from. They are not packed into the sheet. */
+function wallPieces(prefix: string): string[] {
+  return [`${prefix}-fill`, `${prefix}-edge-n`, `${prefix}-edge-e`, `${prefix}-edge-s`, `${prefix}-edge-w`];
+}
 
 interface AuthoredSprite {
   tilesWide: number;
@@ -149,18 +154,18 @@ function overlay(under: Bitmap, over: Bitmap): Bitmap {
  * two sides shows an unbroken face with the side lip returning into it. That ordering is why there
  * are no separate corner sprites: the strips already meet correctly.
  */
-function composeWalls(authored: Map<string, Bitmap>): Map<string, Bitmap> {
+function composeWalls(authored: Map<string, Bitmap>, prefix: string): Map<string, Bitmap> {
   const piece = (name: string): Bitmap => {
     const bitmap = authored.get(name);
     if (!bitmap) fail(`source art is missing '${name}', which the wall cells are composed from`);
     return bitmap;
   };
 
-  const fill = piece(WALL_FILL);
-  const north = piece("wall-edge-n");
-  const east = piece("wall-edge-e");
-  const west = piece("wall-edge-w");
-  const south = piece("wall-edge-s");
+  const fill = piece(`${prefix}-fill`);
+  const north = piece(`${prefix}-edge-n`);
+  const east = piece(`${prefix}-edge-e`);
+  const west = piece(`${prefix}-edge-w`);
+  const south = piece(`${prefix}-edge-s`);
 
   const walls = new Map<string, Bitmap>();
 
@@ -171,7 +176,7 @@ function composeWalls(authored: Map<string, Bitmap>): Map<string, Bitmap> {
     if ((mask & 2) === 0) cell = overlay(cell, east);
     if ((mask & 8) === 0) cell = overlay(cell, west);
     if ((mask & 4) === 0) cell = overlay(cell, south);
-    walls.set(`wall-${mask}`, cell);
+    walls.set(`${prefix}-${mask}`, cell);
   }
 
   return walls;
@@ -273,7 +278,7 @@ export function bakeSheet(source: SourceArt): Buffer {
 
   // Checked before anything is composed or packed, so the report names the sprite that should not
   // be there rather than the first one that happens to be missing further down.
-  const composition = new Set<string>([WALL_FILL, ...WALL_EDGES]);
+  const composition = new Set<string>(WALL_PREFIXES.flatMap(wallPieces));
   const unused = [...authored.keys()].filter(
     (name) => !SPRITE_NAMES.includes(name) && !composition.has(name),
   );
@@ -281,7 +286,10 @@ export function bakeSheet(source: SourceArt): Buffer {
     fail(`source art defines sprites tiles.ts never asks for: ${unused.join(", ")}`);
   }
 
-  const available = new Map<string, Bitmap>([...authored, ...composeWalls(authored)]);
+  const available = new Map<string, Bitmap>([
+    ...authored,
+    ...WALL_PREFIXES.flatMap((prefix) => [...composeWalls(authored, prefix)]),
+  ]);
 
   const sheet: Bitmap = {
     width: SHEET_WIDTH,

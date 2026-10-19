@@ -1,4 +1,5 @@
-import type { ConsumableIcon, InventoryItem, LootState } from "../../shared/types/core.js";
+import { MAP_PROP_KINDS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
+import type { ConsumableIcon, InventoryItem, LootState, MapPropKind, MapTheme } from "../../shared/types/core.js";
 /**
  * What the tilesheet contains and which cell a given tile draws with.
  *
@@ -28,6 +29,26 @@ export const FLOOR_VARIANTS = 4;
 const FLOOR_WEIGHTS: readonly number[] = [24, 3, 3, 2];
 const FLOOR_WEIGHT_TOTAL = FLOOR_WEIGHTS.reduce((total, weight) => total + weight, 0);
 
+/**
+ * The wall and floor sprite prefixes each map theme draws with. A theme's walls are composed by the
+ * baker from `<wall>-fill` and four `<wall>-edge-*` strips, the same way for every theme. The forest
+ * has no floor of its own yet, so it shares the stone one.
+ */
+export const THEME_SPRITES: Readonly<Record<MapTheme, { wall: string; floor: string }>> = {
+  stone: { wall: "wall", floor: "floor" },
+  forest: { wall: "forest", floor: "floor" },
+};
+
+/** Distinct sprite prefixes for one part of a theme, since themes may share one. */
+function themePrefixes(part: "wall" | "floor"): string[] {
+  return [...new Set(Object.values(THEME_SPRITES).map((theme) => theme[part]))];
+}
+
+/** A prop's sprite. One per kind, named after it. */
+export function propSprite(kind: MapPropKind): SpriteName {
+  return `prop-${kind}`;
+}
+
 export interface SpriteRect {
   /** Left edge in the sheet, in art pixels. */
   x: number;
@@ -49,18 +70,23 @@ interface SpriteSize {
  * Every sprite the sheet holds, in the order it is packed.
  *
  * Walls come first as a contiguous run of sixteen, indexed by the neighbour mask below, so a wall
- * lookup is arithmetic rather than a string search. Order is otherwise only a packing detail; the
- * renderer always goes through `spriteRect`.
+ * lookup is arithmetic rather than a string search. Each theme has its own run of walls, and of
+ * floors unless it shares one. Order is otherwise only a packing detail; the renderer always goes
+ * through `spriteRect`.
  */
 const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
-  ...Array.from({ length: 16 }, (_unused, mask): readonly [string, SpriteSize] => [
-    `wall-${mask}`,
-    { tilesWide: 1, tilesHigh: 1 },
-  ]),
-  ...Array.from({ length: FLOOR_VARIANTS }, (_unused, variant): readonly [string, SpriteSize] => [
-    `floor-${variant}`,
-    { tilesWide: 1, tilesHigh: 1 },
-  ]),
+  ...themePrefixes("wall").flatMap((wall) =>
+    Array.from({ length: 16 }, (_unused, mask): readonly [string, SpriteSize] => [
+      `${wall}-${mask}`,
+      { tilesWide: 1, tilesHigh: 1 },
+    ]),
+  ),
+  ...themePrefixes("floor").flatMap((floor) =>
+    Array.from({ length: FLOOR_VARIANTS }, (_unused, variant): readonly [string, SpriteSize] => [
+      `${floor}-${variant}`,
+      { tilesWide: 1, tilesHigh: 1 },
+    ]),
+  ),
   // A pillar is two tiles tall and stands on its light's position, so the flame sits above the
   // floor the light was authored on rather than buried in it.
   ["torch-pillar", { tilesWide: 1, tilesHigh: 2 }],
@@ -95,6 +121,8 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["chest-closed", { tilesWide: 1, tilesHigh: 1 }],
   ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
+  // Scenery, at the footprint the server validated it against.
+  ...MAP_PROP_KINDS.map((kind): readonly [string, SpriteSize] => [propSprite(kind), MAP_PROP_SIZES[kind]]),
 ];
 
 export type SpriteName = string;
@@ -260,8 +288,8 @@ export function wallMask(readTile: TileReader, x: number, y: number): number {
   );
 }
 
-export function wallSprite(mask: number): SpriteName {
-  return `wall-${mask}`;
+export function wallSprite(mask: number, theme: MapTheme = "stone"): SpriteName {
+  return `${THEME_SPRITES[theme].wall}-${mask}`;
 }
 
 /** Whether a tile blocks sight and movement, counting unknown and off-window space as solid. */
@@ -305,7 +333,8 @@ export function doorOrientation(
  * place every frame, on every client, and after a reconnect. Per-frame randomness here would make
  * a large sparse hall shimmer, which is worse than the tiling it was meant to break up.
  */
-export function floorSprite(x: number, y: number): SpriteName {
+export function floorSprite(x: number, y: number, theme: MapTheme = "stone"): SpriteName {
+  const prefix = THEME_SPRITES[theme].floor;
   let hash = Math.imul(x, 0x1f1f1f1f) ^ Math.imul(y, 0x27d4eb2d);
   hash = Math.imul(hash ^ (hash >>> 15), 0x2c1b3c6d);
   hash = Math.imul(hash ^ (hash >>> 12), 0x297a2d39);
@@ -315,8 +344,8 @@ export function floorSprite(x: number, y: number): SpriteName {
 
   for (let variant = 0; variant < FLOOR_WEIGHTS.length; variant += 1) {
     roll -= FLOOR_WEIGHTS[variant] as number;
-    if (roll < 0) return `floor-${variant}`;
+    if (roll < 0) return `${prefix}-${variant}`;
   }
 
-  return "floor-0";
+  return `${prefix}-0`;
 }

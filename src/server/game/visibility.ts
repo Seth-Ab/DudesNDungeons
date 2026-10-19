@@ -9,6 +9,7 @@ import {
   tileAt,
   tileOf,
 } from "../../shared/game/movement.js";
+import { DEFAULT_MAP_THEME, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import type {
   DiscoveredRun,
   DungeonMapState,
@@ -17,6 +18,7 @@ import type {
   LightSourceState,
   LitRun,
   MapDiscovery,
+  MapProp,
   PlayerId,
   PlayerState,
   RoomState,
@@ -568,6 +570,8 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
   viewer.pendingDiscovery = [];
   viewer.mapSyncedTo = map;
 
+  const props = map.props && map.props.length > 0 ? propsDiscovered(map, discovered, reset ? null : indexes) : [];
+
   return {
     id: map.id,
     name: map.name,
@@ -576,7 +580,51 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
     reset,
     discovered: runsOf(map, indexes),
     lit: litRunsFor(viewer, map),
+    ...(map.theme && map.theme !== DEFAULT_MAP_THEME ? { theme: map.theme } : {}),
+    ...(props.length > 0 ? { props } : {}),
   };
+}
+
+/**
+ * The props a snapshot should carry: on a baseline (`fresh` null), every prop with any tile of its
+ * footprint discovered; otherwise only those whose first discovered tiles are among `fresh`, so each
+ * prop reaches a client exactly once. Scenery, so a prop is sent whole the moment any of it is seen.
+ */
+function propsDiscovered(
+  map: DungeonMapState,
+  discovered: Uint8Array,
+  fresh: ArrayLike<number> | null,
+): MapProp[] {
+  if (fresh !== null && fresh.length === 0) return [];
+  const isFresh = fresh === null ? null : new Set(Array.from(fresh));
+  const found: MapProp[] = [];
+
+  for (const prop of map.props ?? []) {
+    const size = MAP_PROP_SIZES[prop.kind];
+    const left = Math.max(0, Math.floor(prop.x));
+    const top = Math.max(0, Math.floor(prop.y));
+    const right = Math.min(map.width, Math.ceil(prop.x + size.tilesWide));
+    const bottom = Math.min(map.height, Math.ceil(prop.y + size.tilesHigh));
+    let seenNow = false;
+    let seenBefore = false;
+
+    for (let y = top; y < bottom && !seenBefore; y += 1) {
+      for (let x = left; x < right; x += 1) {
+        const index = y * map.width + x;
+        if (discovered[index] !== 1) continue;
+        if (isFresh === null || isFresh.has(index)) {
+          seenNow = true;
+        } else {
+          seenBefore = true;
+          break;
+        }
+      }
+    }
+
+    if (seenNow && !seenBefore) found.push({ ...prop });
+  }
+
+  return found;
 }
 
 /**
