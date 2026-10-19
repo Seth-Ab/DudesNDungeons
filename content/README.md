@@ -55,10 +55,11 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `tree`, `bush`, `dungeon-gate` or `sign`. A prop's `x`/`y` is the authored tile at its
   top-left (fractions allowed) and its size is fixed per kind in `src/shared/constants/scenery.ts`;
   the whole of it must be on the map. Props never collide, so put `#` under anything a player
-  should not walk through. `label` (32 characters at most) is carried but not drawn yet. A stall,
+  should not walk through. `label` (32 characters at most) is drawn in the hub as a name plate when the player is within four authored tiles (a small icon marks a stall from farther off); `hanging-lantern` is a scenery lantern for an awning, paired with a `fixture: "none"` light. A stall,
   and only a stall, may set `tint` for its awning: `ember` (the default), `moss`, `azure` or
-  `plum`. A light may add `tint` (`warm`, the default, or `red`); the client does not draw a red
-  light differently yet.
+  `plum`. A light may add `tint` (`warm`, the default, or `red`, a red glow), `fixture` (`pillar`,
+  the default torch stand, `campfire`, or `none` for a light whose source is a prop already drawn) and
+  `flicker` (0 to 1, how much its reach wavers; every client shows the same waver).
   An authored dungeon may also list training `dummies`, `{ entityId, x, y }`, each on a floor tile
   with an id unique in the dungeon. A dummy is struck like a monster but never takes damage, dies,
   moves, or attacks, and shows a rolling five-second damage readout; the hub has two.

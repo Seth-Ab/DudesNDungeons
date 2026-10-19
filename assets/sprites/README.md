@@ -64,7 +64,7 @@ and not the other fails the bake rather than drawing a hole in the floor.
 - Map props, one per kind at the footprint `src/shared/constants/scenery.ts` gives it: `prop-fountain`,
   `prop-stall-ember`/`-moss`/`-azure`/`-plum` (one per awning `tint`), `prop-quest-board`,
   `prop-tree`, `prop-bush`, `prop-dungeon-gate` (its opening sits over the exit tile, where the
-  stairs are drawn on top of it) and `prop-sign`. Props stand on the ground with no backdrop or
+  stairs are drawn on top of it) `prop-sign` and `prop-hanging-lantern` (one tile wide, two tall, hung from an awning). `campfire-logs` is the ground under a campfire light; its flame is `torch-flame`. Props stand on the ground with no backdrop or
   shadow of their own: the renderer draws each one's contact shadow, from `MAP_PROP_SHADOWS`.
 
 ### The hub's colour ramps

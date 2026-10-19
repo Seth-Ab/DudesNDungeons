@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_MAP_THEME,
   GROUND_ROW_PATTERN,
+  LIGHT_FIXTURES,
   LIGHT_TINTS,
   MAP_PROP_KINDS,
   MAP_THEMES,
@@ -539,6 +540,8 @@ const placedLightSchema = placedEntitySchema.extend({
   /** World units, not authored tiles. */
   radius: z.number().positive(),
   tint: z.enum(LIGHT_TINTS).optional(),
+  fixture: z.enum(LIGHT_FIXTURES).optional(),
+  flicker: z.number().min(0).max(1).optional(),
 });
 
 /**

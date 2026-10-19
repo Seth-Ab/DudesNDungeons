@@ -240,6 +240,8 @@ export function buildAuthoredDungeon(
     position: { x: placed.x, y: placed.y },
     radius: placed.radius,
     ...(placed.tint ? { tint: placed.tint } : {}),
+    ...(placed.fixture ? { fixture: placed.fixture } : {}),
+    ...(placed.flicker ? { flicker: placed.flicker } : {}),
   }));
 
   return {

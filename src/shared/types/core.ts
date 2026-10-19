@@ -25,6 +25,7 @@ import {
 } from "../constants/game.js";
 import {
   GROUND_ROW_PATTERN,
+  LIGHT_FIXTURES,
   LIGHT_TINTS,
   MAP_PROP_KINDS,
   MAP_THEMES,
@@ -383,6 +384,13 @@ export const lightSourceStateSchema = z.object({
   radius: z.number().positive(),
   /** How a fixed light glows. Absent means `warm`. */
   tint: z.enum(LIGHT_TINTS).optional(),
+  /** What a fixed light is drawn as. Absent means `pillar`. */
+  fixture: z.enum(LIGHT_FIXTURES).optional(),
+  /**
+   * How much a fixed light's reach wavers, from 0 (steady) to 1. Absent means steady. Render-only:
+   * the client derives the waver from the wall clock and this light's id, so every client agrees.
+   */
+  flicker: z.number().min(0).max(1).optional(),
 });
 export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
 
