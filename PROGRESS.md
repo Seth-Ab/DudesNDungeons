@@ -358,6 +358,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 ### 6. Polish and Playtesting
 
 - [ ] Add sprites, sound effects, and visual feedback.
+  - Player character sprites, the character design screen, and cosmetics are designed and owner-approved in `docs/design/character-sprite-bible.html` (decisions on #63 and #128). Open it in a browser; its `SPRITES` object is the pixel data to port. Monster sprites still need their own design pass.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
 - [ ] Capture screenshots or short recordings for pull requests.
