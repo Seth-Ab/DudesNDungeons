@@ -1,3 +1,4 @@
+import { DEFAULT_GROUND } from "../../shared/constants/scenery.js";
 import type { DungeonMapState, MapDiscovery } from "../../shared/types/core.js";
 
 const UNKNOWN = " ";
@@ -14,6 +15,9 @@ const UNKNOWN = " ";
  * renderers can tell by reference that nothing changed. A map of another world or size than
  * `previous` also starts afresh, which covers a baseline that was somehow missed. Props accumulate
  * the same way as tiles, and the theme rides along with every delta.
+ *
+ * Ground is held only once a run has carried some, so a map without a ground grid never grows one.
+ * A run without ground on a map that has it is all theme floor (`.`).
  */
 export function applyMapDiscovery(
   previous: DungeonMapState | null,
@@ -29,16 +33,24 @@ export function applyMapDiscovery(
   const newProps = discovery.props ?? [];
   if (continues && discovery.discovered.length === 0 && newProps.length === 0) return previous;
 
-  const tiles = continues
-    ? [...previous.tiles]
-    : Array.from({ length: discovery.height }, () => UNKNOWN.repeat(discovery.width));
+  const blank = (): string[] => Array.from({ length: discovery.height }, () => UNKNOWN.repeat(discovery.width));
+  const tiles = continues ? [...previous.tiles] : blank();
+  const previousGround = continues ? previous.ground : undefined;
+  let ground = previousGround ? [...previousGround] : null;
 
   for (const run of discovery.discovered) {
     const row = tiles[run.y];
     // A run outside the world is the server's mistake; ignoring it beats corrupting a row.
     if (row === undefined || run.x + run.tiles.length > discovery.width) continue;
 
-    tiles[run.y] = row.slice(0, run.x) + run.tiles + row.slice(run.x + run.tiles.length);
+    tiles[run.y] = splice(row, run.x, run.tiles);
+    if (run.ground === undefined && ground === null) continue;
+
+    if (ground === null) {
+      // The first ground to arrive: every tile discovered before it was plain theme floor.
+      ground = tiles.map((line) => line.replace(/[^ ]/g, DEFAULT_GROUND));
+    }
+    ground[run.y] = splice(ground[run.y] ?? "", run.x, run.ground ?? DEFAULT_GROUND.repeat(run.tiles.length));
   }
 
   return {
@@ -52,5 +64,10 @@ export function applyMapDiscovery(
     ...(discovery.theme ? { theme: discovery.theme } : {}),
     // A prop arrives once, so a continuing map keeps what it had and adds what is new.
     props: continues ? [...(previous.props ?? []), ...newProps] : newProps,
+    ...(ground ? { ground } : {}),
   };
+}
+
+function splice(row: string, at: number, text: string): string {
+  return row.slice(0, at) + text + row.slice(at + text.length);
 }

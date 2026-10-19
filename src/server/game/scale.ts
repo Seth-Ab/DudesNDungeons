@@ -61,6 +61,8 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
         width: dungeon.map.width * scale,
         height: dungeon.map.height * scale,
         tiles: scaleTiles(dungeon.map.tiles, scale),
+        // Ground is a grid of the same shape, so a tile of grass becomes a block of grass.
+        ...(dungeon.map.ground ? { ground: scaleTiles(dungeon.map.ground, scale) } : {}),
         // A prop is anchored at a tile's corner rather than its centre, so it scales like a room.
         ...(dungeon.map.props
           ? { props: dungeon.map.props.map((prop) => ({ ...prop, x: prop.x * scale, y: prop.y * scale })) }

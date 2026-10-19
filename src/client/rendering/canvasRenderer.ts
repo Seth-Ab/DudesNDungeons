@@ -1,5 +1,5 @@
 import { TILE_SCALE } from "../../shared/constants/game.js";
-import { MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
+import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
 import type {
   ChestState,
@@ -58,6 +58,10 @@ const colors = {
   floor: "#2d3033",
   wall: "#0e0f12",
   unknown: "#050609",
+  // A prop's contact shadow: the cool near-black of the canopy's shade, fading out to its rim.
+  contactShadow: "rgba(14, 10, 28, 0.55)",
+  contactShadowEdge: "rgba(14, 10, 28, 0.34)",
+  contactShadowClear: "rgba(14, 10, 28, 0)",
   grid: "#3a3329",
   localPlayer: "#d9b85f",
   remotePlayer: "#7eb3c7",
@@ -620,6 +624,9 @@ export function createCanvasRenderer(getScene: () => Scene) {
   const drawProps = (props: readonly MapProp[], camera: Vector2): void => {
     if (!tileset.ready || props.length === 0) return;
 
+    // Every shadow before any prop, so one never falls across a neighbour's sprite.
+    for (const prop of props) drawContactShadow(prop, camera);
+
     const bottom = (prop: MapProp): number => prop.y + MAP_PROP_SIZES[prop.kind].tilesHigh;
     for (const prop of [...props].sort((a, b) => bottom(a) - bottom(b))) {
       const size = MAP_PROP_SIZES[prop.kind];
@@ -634,8 +641,42 @@ export function createCanvasRenderer(getScene: () => Scene) {
       ) {
         continue;
       }
-      tileset.draw(ctx, propSprite(prop.kind), topLeft.x, topLeft.y, width, height);
+      tileset.draw(ctx, propSprite(prop.kind, prop.tint), topLeft.x, topLeft.y, width, height);
     }
+  };
+
+  /**
+   * A soft ellipse of cool shade on the ground under a prop, from `MAP_PROP_SHADOWS`, so it sits on
+   * the floor instead of floating over it. Densest at the middle and gone at the rim.
+   */
+  const drawContactShadow = (prop: MapProp, camera: Vector2): void => {
+    const shadow = MAP_PROP_SHADOWS[prop.kind];
+    if (!shadow) return;
+
+    const centre = worldToScreen({ x: prop.x - 0.5 + shadow.x, y: prop.y - 0.5 + shadow.y }, camera);
+    const radiusX = shadow.rx * pixelsPerWorldUnit;
+    const radiusY = shadow.ry * pixelsPerWorldUnit;
+    if (
+      centre.x - radiusX > viewportWidth ||
+      centre.y - radiusY > viewportHeight ||
+      centre.x + radiusX < 0 ||
+      centre.y + radiusY < 0
+    ) {
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(centre.x, centre.y);
+    ctx.scale(1, radiusY / radiusX);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+    gradient.addColorStop(0, colors.contactShadow);
+    gradient.addColorStop(0.55, colors.contactShadowEdge);
+    gradient.addColorStop(1, colors.contactShadowClear);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   };
 
   /**

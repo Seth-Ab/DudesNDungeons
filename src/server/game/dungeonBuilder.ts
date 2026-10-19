@@ -254,6 +254,7 @@ export function buildAuthoredDungeon(
         tiles: [...definition.tiles],
         theme: definition.theme,
         props: definition.props.map((prop) => ({ ...prop })),
+        ...(definition.ground ? { ground: [...definition.ground] } : {}),
       },
       rooms,
       monsters,

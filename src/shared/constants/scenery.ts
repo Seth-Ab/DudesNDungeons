@@ -48,3 +48,42 @@ export const MAX_PROP_LABEL_LENGTH = 32;
  * ominous glow with no torch of its own, which the client does not draw differently yet.
  */
 export const LIGHT_TINTS = ["warm", "red"] as const;
+
+/**
+ * What an authored map's optional `ground` grid may say about a floor tile: grass, cobble or dirt,
+ * or `.` for whatever the theme draws by default. Render-only: collision is always `tiles`, and
+ * ground under a wall is ignored.
+ */
+export const GROUND_KINDS = { g: "grass", c: "cobble", d: "dirt" } as const;
+
+export type GroundKind = (typeof GROUND_KINDS)[keyof typeof GROUND_KINDS];
+
+export const DEFAULT_GROUND = ".";
+
+/** One row of a ground grid: only the characters above. */
+export const GROUND_ROW_PATTERN = /^[gcd.]+$/;
+
+/**
+ * A stall's awning colour, over a cream shared by all four. Muted on purpose: the hub's big
+ * surfaces stay quiet so whatever a player can use carries the accent.
+ */
+export const STALL_TINTS = ["ember", "moss", "azure", "plum"] as const;
+
+export const DEFAULT_STALL_TINT = "ember";
+
+/**
+ * Where a prop's contact shadow sits, in world tiles from its top-left: an ellipse centred at
+ * `x`/`y` with radii `rx`/`ry`. Drawn on the ground before any prop, so the prop seems to stand on
+ * the floor rather than be pasted over it. A kind without an entry casts none; the gate is built
+ * into the forest edge and the canopy already shades it.
+ */
+export const MAP_PROP_SHADOWS: Readonly<
+  Partial<Record<(typeof MAP_PROP_KINDS)[number], { x: number; y: number; rx: number; ry: number }>>
+> = {
+  fountain: { x: 2, y: 3.55, rx: 2.15, ry: 0.7 },
+  stall: { x: 4, y: 3.8, rx: 4.1, ry: 0.45 },
+  "quest-board": { x: 4, y: 3.75, rx: 3.6, ry: 0.5 },
+  tree: { x: 2, y: 3.6, rx: 1.7, ry: 0.55 },
+  bush: { x: 1, y: 1.75, rx: 0.95, ry: 0.35 },
+  sign: { x: 1, y: 1.85, rx: 0.55, ry: 0.2 },
+};

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createTileLayer, CHUNK_TILES, SurfaceGrid } from "../../src/client/rendering/tileLayer.js";
+import { cobbleSprite, floorSprite, groundSprite, wallMask, wallSprite } from "../../src/client/rendering/tiles.js";
 import type { DungeonMapState } from "../../src/shared/types/core.js";
 
 const SIZE = CHUNK_TILES * 2;
@@ -132,15 +133,61 @@ describe("the tile layer", () => {
     expect(stamps).toEqual(["wall-15"]);
   });
 
-  it("draws a forest-themed map's walls as woodland, on the shared floor", () => {
+  it("draws a forest-themed map's walls as woodland, on the shared floor, under the canopy", () => {
     const { layer, draw, stamps } = harness();
     const rows = withTile(filled(" "), 1, 1, "#");
     layer.sync({ ...windowOf(withTile(rows, 2, 1, ".")), theme: "forest" }, "hub");
     draw();
 
-    expect(stamps).toHaveLength(2);
-    expect(stamps).toContain("forest-13");
-    expect(stamps.find((name) => name !== "forest-13")).toMatch(/^floor-\d$/);
+    // The wall is west of the floor, so the canopy reaches over the floor from that side.
+    expect(stamps).toEqual(["forest-13", floorSprite(2, 1, "forest"), "forest-overhang-8"]);
+  });
+
+  it("stamps a stone map without ground exactly as it did before ground existed", () => {
+    const rows = withTile(withTile(withTile(filled("."), 4, 4, "#"), 5, 4, "#"), 4, 5, "#");
+    const map = windowOf(rows);
+    const read = (x: number, y: number): string | null => rows[y]?.[x] ?? null;
+    // What the layer drew before ground: a wall by its mask, a floor by its hashed variant, and
+    // nothing laid over either.
+    const before = rows.flatMap((row, y) =>
+      [...row].map((tile, x) => (tile === "#" ? wallSprite(wallMask(read, x, y)) : floorSprite(x, y))),
+    );
+
+    const plain = harness();
+    plain.layer.sync(map, "dungeon");
+    plain.draw();
+    const allDefault = harness();
+    allDefault.layer.sync({ ...map, ground: filled(".") }, "dungeon");
+    allDefault.draw();
+
+    expect([...plain.stamps].sort()).toEqual([...before].sort());
+    expect(allDefault.stamps).toEqual(plain.stamps);
+  });
+
+  it("lays ground, then the grass fringe, then the canopy, for one floor tile", () => {
+    const { layer, draw, stamps } = harness();
+    const tiles = withTile(withTile(withTile(filled(" "), 2, 2, "."), 2, 1, "."), 1, 2, "#");
+    const ground = withTile(withTile(filled(" "), 2, 2, "c"), 2, 1, "g");
+    layer.sync({ ...windowOf(tiles), theme: "forest", ground }, "hub");
+    draw();
+
+    // Two floor tiles: the grass, and below it the cobble, fringed from the north and shaded by
+    // the forest to its west.
+    expect(stamps.filter((name) => name.startsWith("grass-"))).toEqual([groundSprite("g", 2, 1), "grass-edge-1"]);
+    expect(stamps.slice(-3)).toEqual([cobbleSprite(2, 2), "grass-edge-1", "forest-overhang-8"]);
+  });
+
+  it("restamps a chunk when only its ground changes", () => {
+    const { layer, draw, stamps } = harness();
+    const tiles = filled(".");
+    layer.sync({ ...windowOf(tiles), ground: filled("c") }, "hub");
+    draw();
+    stamps.length = 0;
+
+    layer.sync({ ...windowOf(tiles), ground: withTile(filled("c"), 3, 3, "g") }, "hub");
+    draw();
+    expect(stamps).toContain(groundSprite("g", 3, 3));
+    expect(stamps).toContain("grass-edge-4");
   });
 
   it("restamps everything when the same world changes theme", () => {

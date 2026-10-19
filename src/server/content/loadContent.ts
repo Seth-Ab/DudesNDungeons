@@ -318,6 +318,13 @@ function validateReferences(content: GameContent): void {
       assertRectangular(label, dungeon.tiles);
 
       const width = dungeon.tiles[0]?.length ?? 0;
+      if (
+        dungeon.ground &&
+        (dungeon.ground.length !== dungeon.tiles.length || dungeon.ground.some((row) => row.length !== width))
+      ) {
+        throw new Error(`${label} has a ground grid that is not the same size as its tiles`);
+      }
+
       for (const prop of dungeon.props) {
         const size = MAP_PROP_SIZES[prop.kind];
         // Footprints are in world tiles and placements in authored ones.

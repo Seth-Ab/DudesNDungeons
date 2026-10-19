@@ -7,6 +7,7 @@ import {
   SHEET_PATH,
   SpriteSourceError,
   bakeSheet,
+  parseColor,
   readSourceArt,
   type SourceArt,
 } from "../../scripts/spriteSheet.js";
@@ -67,5 +68,25 @@ describe("the source art", () => {
     const source = sourceWith(["16*1111111111111111"]);
     source.sprites["floor-spare"] = { tilesWide: 1, tilesHigh: 1, rows: ["16*1111111111111111"] };
     expect(() => bakeSheet(source)).toThrow(/never asks for: floor-spare/);
+  });
+});
+
+describe("translucent palette entries and composed overlays", () => {
+  it("reads #rrggbbaa as a colour with its own alpha, and #rrggbb as opaque", () => {
+    expect(parseColor("^", "#0b0f1c40")).toEqual([11, 15, 28, 64]);
+    expect(parseColor("1", "#112233")).toEqual([17, 34, 51, 255]);
+    expect(() => parseColor("x", "#123")).toThrow(/#rrggbb or #rrggbbaa/);
+  });
+
+  it("reports a missing strip of an edge overlay set by name", () => {
+    const source = readSourceArt();
+    delete source.sprites["grass-edge-n"];
+    expect(() => bakeSheet(source)).toThrow(/missing 'grass-edge-n', which the grass-edge cells are composed from/);
+  });
+
+  it("names a composed cell for every side combination of each overlay set", () => {
+    for (const set of ["grass-edge", "forest-overhang"]) {
+      expect(SPRITE_NAMES.filter((name) => new RegExp(`^${set}-\\d+$`).test(name))).toHaveLength(15);
+    }
   });
 });

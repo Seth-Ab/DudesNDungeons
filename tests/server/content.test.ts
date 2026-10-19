@@ -562,3 +562,59 @@ describe("training dummy content", () => {
     expect(() => loadContent(yard({ dummies: [{ x: 1, y: 1 }] }))).toThrow(/yard\.json is not valid content.*dummies/s);
   });
 });
+
+describe("map ground content", () => {
+  /** The same small plaza as above: 5x3 authored tiles, with whatever ground a test gives it. */
+  function plaza(extra: Record<string, unknown>) {
+    return contentRoot({
+      "dungeons/plaza.json": {
+        id: "plaza",
+        name: "Plaza",
+        layout: "authored",
+        tiles: ["#####", "#.#.#", "#####"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        ...extra,
+      },
+    });
+  }
+
+  it("ships a hub whose ground grid matches its tiles", () => {
+    const hub = loadContent().dungeons.get("hub");
+    if (hub?.layout !== "authored") throw new Error("the hub is authored");
+
+    expect(hub.ground).toHaveLength(hub.tiles.length);
+    for (const [index, row] of (hub.ground ?? []).entries()) expect(row).toHaveLength(hub.tiles[index]!.length);
+  });
+
+  it("leaves ground optional, and accepts every ground character", () => {
+    const plain = loadContent(plaza({})).dungeons.get("plaza");
+    expect(plain?.layout === "authored" && plain.ground).toBeUndefined();
+
+    expect(() => loadContent(plaza({ ground: [".....", ".gcd.", "....."] }))).not.toThrow();
+  });
+
+  it("refuses a ground grid of the wrong size", () => {
+    expect(() => loadContent(plaza({ ground: [".....", "....."] }))).toThrow(
+      /plaza" has a ground grid that is not the same size as its tiles/,
+    );
+    expect(() => loadContent(plaza({ ground: [".....", "......", "....."] }))).toThrow(/not the same size/);
+    expect(() => loadContent(plaza({ ground: [".....", "....", "....."] }))).toThrow(/not the same size/);
+  });
+
+  it("refuses an unknown ground character", () => {
+    expect(() => loadContent(plaza({ ground: [".....", ".gxd.", "....."] }))).toThrow(
+      /plaza\.json is not valid content.*ground/s,
+    );
+    expect(() => loadContent(plaza({ ground: [".....", ".#...", "....."] }))).toThrow(/ground/);
+  });
+
+  it("takes a tint on a stall and refuses one on anything else, or one it does not know", () => {
+    expect(() => loadContent(plaza({ props: [{ kind: "stall", x: 1, y: 1, tint: "azure" }] }))).not.toThrow();
+    expect(() => loadContent(plaza({ props: [{ kind: "tree", x: 1, y: 1, tint: "azure" }] }))).toThrow(
+      /Only a stall takes a tint/,
+    );
+    expect(() => loadContent(plaza({ props: [{ kind: "stall", x: 1, y: 1, tint: "crimson" }] }))).toThrow(
+      /plaza\.json is not valid content.*tint/s,
+    );
+  });
+});

@@ -1,5 +1,19 @@
-import { MAP_PROP_KINDS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
-import type { ConsumableIcon, InventoryItem, LootState, MapPropKind, MapTheme } from "../../shared/types/core.js";
+import {
+  DEFAULT_STALL_TINT,
+  GROUND_KINDS,
+  type GroundKind,
+  MAP_PROP_KINDS,
+  MAP_PROP_SIZES,
+  STALL_TINTS,
+} from "../../shared/constants/scenery.js";
+import type {
+  ConsumableIcon,
+  InventoryItem,
+  LootState,
+  MapProp,
+  MapPropKind,
+  MapTheme,
+} from "../../shared/types/core.js";
 /**
  * What the tilesheet contains and which cell a given tile draws with.
  *
@@ -27,25 +41,55 @@ export const FLOOR_VARIANTS = 4;
  * be worth noticing.
  */
 const FLOOR_WEIGHTS: readonly number[] = [24, 3, 3, 2];
-const FLOOR_WEIGHT_TOTAL = FLOOR_WEIGHTS.reduce((total, weight) => total + weight, 0);
 
 /**
  * The wall and floor sprite prefixes each map theme draws with. A theme's walls are composed by the
  * baker from `<wall>-fill` and four `<wall>-edge-*` strips, the same way for every theme. The forest
- * has no floor of its own yet, so it shares the stone one.
+ * has no floor of its own, so it shares the stone one; the hub covers it with a ground grid.
+ *
+ * `overhang`, when a theme has one, is laid over a floor tile beside its wall: the forest's canopy
+ * reaching half a tile out over the ground, with the shade it casts.
  */
-export const THEME_SPRITES: Readonly<Record<MapTheme, { wall: string; floor: string }>> = {
+export const THEME_SPRITES: Readonly<Record<MapTheme, { wall: string; floor: string; overhang?: string }>> = {
   stone: { wall: "wall", floor: "floor" },
-  forest: { wall: "forest", floor: "floor" },
+  forest: { wall: "forest", floor: "floor", overhang: "forest-overhang" },
 };
+
+/** How many variants each ground kind picks between. Must match the authored `<kind>-N` sprites. */
+export const GROUND_VARIANTS: Readonly<Record<GroundKind, number>> = {
+  cobble: 4,
+  grass: 3,
+  dirt: 2,
+};
+
+/** How often each grass or dirt variant comes up. Cobble is picked by `cobbleSprite` instead. */
+const GROUND_WEIGHTS: Readonly<Record<Exclude<GroundKind, "cobble">, readonly number[]>> = {
+  grass: [6, 3, 2],
+  dirt: [3, 2],
+};
+
+/**
+ * Overlays the baker composes the way it composes walls: four authored strips, `<set>-n`, `-e`, `-s`
+ * and `-w`, painted onto a clear cell in every combination. `<set>-<mask>` has the strip for each
+ * side whose neighbour bit (below) is set. Mask 0 would be an empty cell, so it is never packed.
+ */
+export const EDGE_OVERLAY_SETS: readonly string[] = [
+  // Grass spilling a ragged fringe onto the cobble or dirt beside it.
+  "grass-edge",
+  ...Object.values(THEME_SPRITES).flatMap((theme) => (theme.overhang ? [theme.overhang] : [])),
+];
+
+/** Grass fringes for a tile that touches grass only at a corner. */
+export const GRASS_CORNERS = ["ne", "se", "sw", "nw"] as const;
 
 /** Distinct sprite prefixes for one part of a theme, since themes may share one. */
 function themePrefixes(part: "wall" | "floor"): string[] {
   return [...new Set(Object.values(THEME_SPRITES).map((theme) => theme[part]))];
 }
 
-/** A prop's sprite. One per kind, named after it. */
-export function propSprite(kind: MapPropKind): SpriteName {
+/** A prop's sprite. One per kind, named after it, except that a stall has one per awning colour. */
+export function propSprite(kind: MapPropKind, tint?: MapProp["tint"]): SpriteName {
+  if (kind === "stall") return `prop-stall-${tint ?? DEFAULT_STALL_TINT}`;
   return `prop-${kind}`;
 }
 
@@ -87,6 +131,22 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
       { tilesWide: 1, tilesHigh: 1 },
     ]),
   ),
+  ...Object.entries(GROUND_VARIANTS).flatMap(([kind, count]) =>
+    Array.from({ length: count }, (_unused, variant): readonly [string, SpriteSize] => [
+      `${kind}-${variant}`,
+      { tilesWide: 1, tilesHigh: 1 },
+    ]),
+  ),
+  ...EDGE_OVERLAY_SETS.flatMap((set) =>
+    Array.from({ length: 15 }, (_unused, index): readonly [string, SpriteSize] => [
+      `${set}-${index + 1}`,
+      { tilesWide: 1, tilesHigh: 1 },
+    ]),
+  ),
+  ...GRASS_CORNERS.map((corner): readonly [string, SpriteSize] => [
+    `grass-corner-${corner}`,
+    { tilesWide: 1, tilesHigh: 1 },
+  ]),
   // A pillar is two tiles tall and stands on its light's position, so the flame sits above the
   // floor the light was authored on rather than buried in it.
   ["torch-pillar", { tilesWide: 1, tilesHigh: 2 }],
@@ -122,7 +182,11 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
   // Scenery, at the footprint the server validated it against.
-  ...MAP_PROP_KINDS.map((kind): readonly [string, SpriteSize] => [propSprite(kind), MAP_PROP_SIZES[kind]]),
+  ...MAP_PROP_KINDS.flatMap((kind): Array<readonly [string, SpriteSize]> =>
+    kind === "stall"
+      ? STALL_TINTS.map((tint) => [propSprite(kind, tint), MAP_PROP_SIZES[kind]] as const)
+      : [[propSprite(kind), MAP_PROP_SIZES[kind]]],
+  ),
 ];
 
 export type SpriteName = string;
@@ -334,18 +398,106 @@ export function doorOrientation(
  * a large sparse hall shimmer, which is worse than the tiling it was meant to break up.
  */
 export function floorSprite(x: number, y: number, theme: MapTheme = "stone"): SpriteName {
-  const prefix = THEME_SPRITES[theme].floor;
+  return `${THEME_SPRITES[theme].floor}-${weightedVariant(tileHash(x, y), FLOOR_WEIGHTS)}`;
+}
+
+function tileHash(x: number, y: number): number {
   let hash = Math.imul(x, 0x1f1f1f1f) ^ Math.imul(y, 0x27d4eb2d);
   hash = Math.imul(hash ^ (hash >>> 15), 0x2c1b3c6d);
   hash = Math.imul(hash ^ (hash >>> 12), 0x297a2d39);
   hash ^= hash >>> 15;
+  return hash >>> 0;
+}
 
-  let roll = (hash >>> 0) % FLOOR_WEIGHT_TOTAL;
+function weightedVariant(hash: number, weights: readonly number[]): number {
+  let roll = hash % weights.reduce((total, weight) => total + weight, 0);
 
-  for (let variant = 0; variant < FLOOR_WEIGHTS.length; variant += 1) {
-    roll -= FLOOR_WEIGHTS[variant] as number;
-    if (roll < 0) return `${prefix}-${variant}`;
+  for (let variant = 0; variant < weights.length; variant += 1) {
+    roll -= weights[variant] as number;
+    if (roll < 0) return variant;
   }
 
-  return `${prefix}-0`;
+  return 0;
+}
+
+/** A ground grid character as a kind, or `null` for `.`, unseen space, or anything else. */
+export function groundKind(character: string | null | undefined): GroundKind | null {
+  return GROUND_KINDS[character as keyof typeof GROUND_KINDS] ?? null;
+}
+
+/**
+ * Which cobble a tile draws with, so that no two tiles sharing an edge are the same stone.
+ *
+ * A checkerboard splits the four variants in two: a tile picks one of the first pair, by hash, when
+ * `x + y` is even, and one of the second pair when it is odd. Every edge neighbour sits on the other
+ * colour of the board, so it can never match, and the hash keeps either half from settling into a
+ * pattern the eye picks out.
+ */
+export function cobbleSprite(x: number, y: number): SpriteName {
+  return `cobble-${((x + y) & 1) * 2 + (tileHash(x, y) & 1)}`;
+}
+
+/** What a floor tile draws as: its ground kind's variant, or the theme's own floor for `.`. */
+export function groundSprite(ground: string | null, x: number, y: number, theme: MapTheme = "stone"): SpriteName {
+  const kind = groundKind(ground);
+  if (kind === null) return floorSprite(x, y, theme);
+  if (kind === "cobble") return cobbleSprite(x, y);
+  return `${kind}-${weightedVariant(tileHash(x, y), GROUND_WEIGHTS[kind])}`;
+}
+
+/** Reads a floor tile's ground character, or `null` for a wall, unseen space, or off the map. */
+export type GroundReader = (x: number, y: number) => string | null;
+
+/**
+ * The grass fringes laid over a floor tile that is not grass itself: one composed edge for the sides
+ * that touch grass, and a corner piece for each diagonal that does when neither side beside it is
+ * grass already. Grass itself is never fringed, so wherever it meets cobble or dirt the ragged edge
+ * falls on the other side of the line, one tile deep.
+ */
+export function grassFringes(readGround: GroundReader, x: number, y: number): SpriteName[] {
+  if (groundKind(readGround(x, y)) === "grass") return [];
+  const grass = (dx: number, dy: number): boolean => groundKind(readGround(x + dx, y + dy)) === "grass";
+
+  const north = grass(0, -1);
+  const east = grass(1, 0);
+  const south = grass(0, 1);
+  const west = grass(-1, 0);
+  const mask =
+    (north ? NEIGHBOUR_NORTH : 0) |
+    (east ? NEIGHBOUR_EAST : 0) |
+    (south ? NEIGHBOUR_SOUTH : 0) |
+    (west ? NEIGHBOUR_WEST : 0);
+
+  const sprites: SpriteName[] = mask === 0 ? [] : [`grass-edge-${mask}`];
+  if (!north && !east && grass(1, -1)) sprites.push("grass-corner-ne");
+  if (!south && !east && grass(1, 1)) sprites.push("grass-corner-se");
+  if (!south && !west && grass(-1, 1)) sprites.push("grass-corner-sw");
+  if (!north && !west && grass(-1, -1)) sprites.push("grass-corner-nw");
+  return sprites;
+}
+
+/**
+ * The theme's overhang over a floor tile, for each side where a known wall stands, or `null` when
+ * there is none. Unlike `wallMask`, unknown space does not count: the canopy only reaches out of
+ * forest the viewer has seen, so it never sketches the edge of somewhere unexplored.
+ */
+export function overhangSprite(
+  readTile: TileReader,
+  x: number,
+  y: number,
+  theme: MapTheme = "stone",
+): SpriteName | null {
+  const set = THEME_SPRITES[theme].overhang;
+  if (!set) return null;
+  const wall = (nx: number, ny: number): boolean => {
+    const tile = readTile(nx, ny);
+    return tile === LIT_WALL || tile === KNOWN_WALL;
+  };
+
+  const mask =
+    (wall(x, y - 1) ? NEIGHBOUR_NORTH : 0) |
+    (wall(x + 1, y) ? NEIGHBOUR_EAST : 0) |
+    (wall(x, y + 1) ? NEIGHBOUR_SOUTH : 0) |
+    (wall(x - 1, y) ? NEIGHBOUR_WEST : 0);
+  return mask === 0 ? null : `${set}-${mask}`;
 }
