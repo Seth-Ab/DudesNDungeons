@@ -1,5 +1,5 @@
 import { FIXED_LIGHT_RADIUS, TILE_SCALE } from "../../shared/constants/game.js";
-import { isOpen, stepFrom } from "../../shared/game/movement.js";
+import { isOpen, stepFrom, tileAt, tileOf } from "../../shared/game/movement.js";
 import type { DungeonState, PlayerState, Vector2 } from "../../shared/types/core.js";
 
 export type MoveDirection = "north" | "south" | "east" | "west";
@@ -132,6 +132,26 @@ export function predictMove(
   // Downed players block nobody on the server, so they must not block the prediction either.
   const positions = others.filter((player) => player.health > 0).map((player) => player.position);
   return isOpen(dungeon, positions, step.next, from) ? step.next : from;
+}
+
+/** A tile the server has never shown this client, matching `UNKNOWN` in the discovered map. */
+const UNDISCOVERED = " ";
+
+/**
+ * Whether a step lands on ground this client has never been shown, so there is nothing to predict
+ * it against. Floor and wall are both unknown there, and the server will often accept the move.
+ *
+ * Regression: without a torch nothing ahead is ever discovered, so `predictMove` refused every step
+ * the server accepted. The player froze on screen until the drift passed `MAX_PREDICTION_ERROR` and
+ * reconciliation snapped them forward, over and over, which read as heavy lag in the dark. Such a
+ * step is sent unpredicted instead, and the player follows the server until known ground is ahead.
+ */
+export function stepsIntoUndiscovered(dungeon: DungeonState, from: Vector2, direction: Vector2): boolean {
+  const step = stepFrom(from, direction);
+  if (!step) return false;
+
+  const { x, y } = tileOf(step.next);
+  return tileAt(dungeon.map, x, y) === UNDISCOVERED;
 }
 
 /** Once no intent has been sent for this long, every in-flight move has been answered. */
