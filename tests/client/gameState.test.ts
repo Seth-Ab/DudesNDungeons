@@ -6,6 +6,7 @@ import {
   headingFrom,
   predictMove,
   reconcile,
+  stepsIntoUndiscovered,
 } from "../../src/client/state/gameState.js";
 import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import type { DungeonState, PlayerState } from "../../src/shared/types/core.js";
@@ -149,6 +150,30 @@ describe("predictMove", () => {
     const from = { x: 2, y: 1.5 };
 
     expect(predictMove(dungeon(), [], from, { x: 0, y: 0 })).toBe(from);
+  });
+});
+
+// Regression: without a torch nothing ahead is discovered, and prediction refused each step the
+// server accepted, so the player froze and snapped forward in the dark.
+describe("stepsIntoUndiscovered", () => {
+  // Discovered floor on the left, ground never shown on the right.
+  const dark = () => {
+    const map = dungeon();
+    map.map = { ...map.map, tiles: ["######", "#..  #", "#..  #", "######"] };
+    return map;
+  };
+
+  it("flags a step onto ground the client has never been shown", () => {
+    expect(stepsIntoUndiscovered(dark(), { x: 2.45, y: 1.5 }, { x: 1, y: 0 })).toBe(true);
+  });
+
+  it("predicts as normal on discovered floor and against a discovered wall", () => {
+    expect(stepsIntoUndiscovered(dark(), { x: 1.5, y: 1.5 }, { x: 1, y: 0 })).toBe(false);
+    expect(stepsIntoUndiscovered(dark(), { x: 0.6, y: 1 }, { x: -1, y: 0 })).toBe(false);
+  });
+
+  it("ignores a zero heading", () => {
+    expect(stepsIntoUndiscovered(dark(), { x: 2.45, y: 1.5 }, { x: 0, y: 0 })).toBe(false);
   });
 });
 

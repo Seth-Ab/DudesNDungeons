@@ -29,7 +29,12 @@ import {
   type SessionView,
 } from "./network/sessionState.js";
 import { createCanvasRenderer } from "./rendering/canvasRenderer.js";
-import { createPlaceholderDungeon, predictMove, reconcile } from "./state/gameState.js";
+import {
+  createPlaceholderDungeon,
+  predictMove,
+  reconcile,
+  stepsIntoUndiscovered,
+} from "./state/gameState.js";
 import type { LitTileSet } from "./state/litTiles.js";
 import {
   emptyRemoteInterpolation,
@@ -108,7 +113,8 @@ let renderedDungeon = createPlaceholderDungeon();
 let renderedLit: LitTileSet | null = null;
 /** Locally predicted position. Only drawn once the server has placed this player. */
 let localPosition: Vector2 = { x: 0, y: 0 };
-let lastIntentAt = Number.NEGATIVE_INFINITY;
+/** When the last predicted move was sent. Unpredicted moves leave the server in charge of placement. */
+let lastPredictionAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
 /** Buffered remote positions, drawn slightly in the past. Local prediction never touches this. */
 let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
@@ -225,7 +231,13 @@ setInterval(() => {
   // Intent only. The server owns placement; snapshots correct the prediction.
   if (!client.sendMoveIntent(heading)) return;
 
-  lastIntentAt = performance.now();
+  // Into the dark there is no map to predict against, so follow the server's placement instead.
+  if (stepsIntoUndiscovered(view.dungeon, localPosition, heading)) {
+    lastPredictionAt = Number.NEGATIVE_INFINITY;
+    return;
+  }
+
+  lastPredictionAt = performance.now();
   localPosition = predictMove(view.dungeon, spawnedOthersOf(view), localPosition, heading);
   hud.setPosition(localPosition);
 }, MOVE_INTERVAL_MS);
@@ -273,7 +285,7 @@ client.subscribe((next) => {
     // kept until it settles or drifts.
     localPosition = joinedNow
       ? { ...self.position }
-      : reconcile(localPosition, self.position, performance.now() - lastIntentAt);
+      : reconcile(localPosition, self.position, performance.now() - lastPredictionAt);
     hud.setPosition(localPosition);
   }
 

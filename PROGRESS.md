@@ -312,6 +312,10 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
   (issue #62), fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is
   untouched. A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE`
   snaps instead of sliding. Monsters still draw at raw snapshot position; interpolation was scoped to players only.
+  Local prediction skips a step onto ground the client has never been shown (`stepsIntoUndiscovered`
+  in `src/client/state/gameState.ts`) and follows the server's placement instead. Without a torch
+  nothing ahead is discovered, and predicting against unknown tiles as walls froze the player and
+  snapped them forward over and over in the dark.
 - [x] Show connection, join, leave, and disconnect states.
 
 #### 2a. Client Networking
