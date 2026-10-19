@@ -8,8 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v31.
-- Last completed work: hub training dummies with a server-kept damage-per-second readout (issue
-  #150, protocol v31); earlier, an emote wheel with server-validated, rate-limited emotes (issue #149,
+- Last completed work: players drawn as layered pixel-art characters in their own look and party
+  colour (issue #132, protocol unchanged at v31); earlier, hub training dummies with a server-kept
+  damage-per-second readout (issue #150, protocol v31); earlier, an emote wheel with server-validated, rate-limited emotes (issue #149,
   protocol v30); earlier, animated weapon swings drawn from server-resolved reach and arc (issue #129,
   protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
   v28); earlier, stamina draught, flare, and smelling salts consumables, with revive of a
@@ -373,6 +374,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [ ] Add sprites, sound effects, and visual feedback.
   - Player character sprites, the character design screen, and cosmetics are designed and owner-approved in `docs/design/character-sprite-bible.html` (decisions on #63 and #128). Open it in a browser; its `SPRITES` object is the pixel data to port. Monster sprites still need their own design pass.
   - [x] Port the character bodies and hair to source art and bake a character sheet (issue #136). `assets/sprites/source/characters.tiles.json` holds `body-{guy,girl}` and six hair styles, each facing `down`, `up` and `side`, as whole 16 x 24 frames ported pixel for pixel from the reference. Skin, hair and tunic are baked in nine key colours (`CHARACTER_KEY_COLOURS`) for the renderer to swap; everything else is a fixed colour. `npm run build:sprites` also bakes `assets/sprites/characters.png`, deriving `walk1`/`walk2` frames by lifting one half's boots a row. `src/client/rendering/characters.ts` lists the layers and frame cells. Drawing characters in game, hats and cloaks, and attack and downed frames remain out of scope.
+  - [x] Draw players as layered pixel-art characters with party colours (issue #132). `characters.ts` recolours the sheet's key colours by exact swap from the bible's ramps (`characterPalettes.ts`, keyed by the shared ids), closes the eyes for a blink, picks the facing (left mirrors `side`) and the 8 fps walk from whether the drawn position moved, and caches one composite per `body|skinTone|hairStyle|hairColor|partyColor`. `characterSprites.ts` stamps them at `pixelsPerWorldUnit / 16`, feet on `position.y + PLAYER_RADIUS`, over a 13 x 5 party-colour ring, in `y` order, with names tinted in the party colour. Downed and disconnected players draw at 45% alpha; a null appearance is not drawn. Every client still sends `DEFAULT_APPEARANCE` until the design screen exists. Hats, cloaks, dyes, attack and downed frames remain out of scope.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
 - [ ] Capture screenshots or short recordings for pull requests.
@@ -428,6 +430,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Players drawn as recoloured, animated pixel-art characters with party rings (#132).
 - 2026-10-19: Hub training dummies with a rolling damage-per-second readout (#150, v31).
 - 2026-10-19: Emote wheel with server-validated, rate-limited, visibility-gated emotes (#149, v30).
 - 2026-10-19: Map themes and render-only props; the hub draws forest walls and one of each prop

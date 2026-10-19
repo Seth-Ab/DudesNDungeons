@@ -36,6 +36,7 @@ import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 import type { PlacedEmote } from "../state/emotes.js";
 import { drawEmoteBubbles } from "./emoteBubbles.js";
 import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
+import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js";
 
 /**
  * Screen pixels per world unit.
@@ -50,19 +51,14 @@ import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
  */
 const pixelsPerWorldUnit = 32;
 
-/** Player figure, in world units. Its width is the body the server collides with. */
+/** The body the server collides a player with, in world units. Monsters are sized from it. */
 const figureWidth = PLAYER_RADIUS * 2;
-const figureHeight = PLAYER_RADIUS * 2.6;
 
 const colors = {
   floor: "#2d3033",
   wall: "#0e0f12",
   unknown: "#050609",
   grid: "#3a3329",
-  localPlayer: "#d9b85f",
-  remotePlayer: "#7eb3c7",
-  disconnectedPlayer: "#5a5f63",
-  downedPlayer: "#6c4d5f",
   monster: "#b8584c",
   rangedMonster: "#c9893f",
   chargerMonster: "#7d5a8c",
@@ -158,6 +154,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
   // Redrawn once the sheet arrives, so the first painted frame is not left flat until something
   // else happens to ask for a render.
   const tileset = loadTileset(() => render());
+  const characters = createCharacterSprites(() => render());
 
   /**
    * Floor and wall sprites, stamped into cached chunks and blitted. A wall picks its cell from its
@@ -302,31 +299,22 @@ export function createCanvasRenderer(getScene: () => Scene) {
   const carryLabel = (player: PlayerState): string =>
     player.carryingPlayerId ? `${player.name} [carrying]` : player.name;
 
-  const drawFigure = (
-    position: Vector2,
-    label: string,
-    color: string,
-    faded: boolean,
-    camera: Vector2,
-  ): void => {
-    const center = worldToScreen(position, camera);
-    const width = figureWidth * pixelsPerWorldUnit;
-    const height = figureHeight * pixelsPerWorldUnit;
-    const eye = Math.max(2, width * 0.17);
-
-    ctx.globalAlpha = faded ? 0.45 : 1;
-    ctx.fillStyle = color;
-    ctx.fillRect(center.x - width / 2, center.y - height / 2, width, height);
-    ctx.fillStyle = "#17120c";
-    ctx.fillRect(center.x - width * 0.22 - eye / 2, center.y - height * 0.25, eye, eye);
-    ctx.fillRect(center.x + width * 0.22 - eye / 2, center.y - height * 0.25, eye, eye);
-    // Names stay a fixed size: a label is read, not inhabited, so it is not part of the world.
-    ctx.fillStyle = colors.label;
-    ctx.font = "12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(label, center.x, center.y + height / 2 + 14);
-    ctx.globalAlpha = 1;
-  };
+  /**
+   * A player as drawn this frame, or null for one still designing their character, who is not in
+   * the world. Downed and disconnected players are drawn faded; a carried player is drawn where the
+   * snapshot puts them, like anyone else.
+   */
+  const drawnPlayer = (player: PlayerState, position: Vector2): DrawnPlayer | null =>
+    player.appearance === null
+      ? null
+      : {
+          id: player.id,
+          look: { ...player.appearance, partyColor: player.partyColor },
+          facing: player.facing,
+          position,
+          label: carryLabel(player),
+          faded: player.health <= 0 || !player.connected,
+        };
 
   /**
    * The cone a winding-up monster is about to strike. The outline marks the full area; the fill grows
@@ -865,15 +853,11 @@ export function createCanvasRenderer(getScene: () => Scene) {
       ctx.fill();
     });
 
-    for (const player of scene.others) {
-      const color = player.health > 0 ? colors.remotePlayer : colors.downedPlayer;
-      drawFigure(player.position, carryLabel(player), color, !player.connected, camera);
-    }
-
-    if (scene.self) {
-      const color = scene.self.health > 0 ? colors.localPlayer : colors.downedPlayer;
-      drawFigure(scene.localPosition, carryLabel(scene.self), color, false, camera);
-    }
+    const players = [
+      ...scene.others.map((player) => drawnPlayer(player, player.position)),
+      scene.self ? drawnPlayer(scene.self, scene.localPosition) : null,
+    ].filter((player): player is DrawnPlayer => player !== null);
+    characters.draw(ctx, players, toScreen, pixelsPerWorldUnit, performance.now());
 
     drawLightmap(scene, camera);
     drawSigns(scene, camera);

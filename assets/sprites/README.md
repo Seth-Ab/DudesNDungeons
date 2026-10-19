@@ -54,8 +54,8 @@ and not the other fails the bake rather than drawing a hole in the floor.
   without its own art), `loot-rusted-sword`, `loot-arrow` (any ammo), `loot-torch`,
   `chest-closed`, `chest-open` (a locked chest adds `door-lock` over its face), `exit-stairs`.
 
-Players and monsters are still drawn as flat figures in game. The character sheet below is baked
-but not drawn yet; monster sprites are still to be designed. Both are Frontend step 6.
+Monsters are still drawn as flat figures in game; their sprites are still to be designed (Frontend
+step 6). Players are drawn from the character sheet below.
 
 ## The character sheet
 
@@ -87,6 +87,10 @@ pixel data is ported from the owner-approved `docs/design/character-sprite-bible
   stand, walk1, stand, walk2.
 - `src/client/rendering/characters.ts` is the one list of layers and frame cells, the way `tiles.ts`
   is for the tilesheet. A layer in one and not the other fails the bake.
+- Eyes are baked in the outline colour, so the renderer finds them by position for the blink: an
+  outline-colour pixel in the head rows with no transparent neighbour. The girl's lashes count as
+  eye pixels and close with them. Keep the head's outline on its silhouette, or a stray dark pixel
+  inside the face will blink too.
 
 ### Key colours
 
