@@ -435,6 +435,186 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+/* The character design step: a full-screen overlay between the lobby and the hub. */
+.design {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #121417;
+}
+
+.design[hidden] {
+  display: none;
+}
+
+.design__panel {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 26rem);
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: start;
+  margin: 0 auto;
+  max-width: 62rem;
+}
+
+.design__stage,
+.design__form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #3c3630;
+  border-radius: 10px;
+  background: #1b1c1f;
+}
+
+.design__stage {
+  justify-items: center;
+}
+
+.design__large {
+  max-width: 100%;
+  image-rendering: pixelated;
+  background: #17181b;
+  border-radius: 8px;
+}
+
+.design__game {
+  max-width: 100%;
+  image-rendering: pixelated;
+  border-radius: 6px;
+}
+
+.design__turns,
+.design__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.design__actions {
+  justify-content: space-between;
+}
+
+.design__actions button:last-child {
+  flex: 1;
+}
+
+.design__toggle--on {
+  background: #5f5132;
+}
+
+.design__caption,
+.design__group-label {
+  color: #d8ceb1;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.design__form h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.design__room {
+  margin: 0;
+  color: #d8ceb1;
+  font-size: 0.85rem;
+}
+
+.design__name {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+}
+
+.design__name-value {
+  overflow-wrap: anywhere;
+}
+
+.design__chip {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--chip, #5f5132);
+  border-radius: 999px;
+  color: var(--chip, #f7f0da);
+  font-size: 0.8rem;
+}
+
+.design__group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.design__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.design__choice {
+  display: grid;
+  place-items: center;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.25rem;
+  background: #121417;
+  border-color: #3c3630;
+}
+
+.design__choice canvas {
+  image-rendering: pixelated;
+}
+
+.design__choice--swatch {
+  width: 2.4rem;
+  padding: 0;
+  background: var(--swatch);
+}
+
+.design__choice--selected {
+  border-color: #f7f0da;
+  box-shadow: 0 0 0 2px #caa85a;
+}
+
+.design__choice:focus-visible,
+.design button:focus-visible {
+  outline: 2px solid #f7f0da;
+  outline-offset: 2px;
+}
+
+.design__secondary {
+  background: transparent;
+}
+
+.design__error {
+  margin: 0;
+  min-height: 1.2rem;
+  color: #f0a0a0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .design {
+    padding: 0.5rem;
+  }
+
+  .design__panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .design__stage,
+  .design__form {
+    padding: 0.9rem;
+  }
+}
+
 /* Vitals sit bottom-left. Health is the big bar; resistance and stamina are thinner. */
 .hud__vitals {
   display: flex;

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /** World position of the hub's first training dummy: authored tile (15, 7), centred in its block. */
 const DUMMY = { x: 61.5, y: 29.5 };
@@ -104,6 +105,7 @@ test.describe("Training dummies", () => {
     const hostReadouts = recordReadouts(host);
     await host.getByPlaceholder("Your name").fill("Maya");
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(host);
     const room = host.locator(".hud__stat", { hasText: "Room:" }).locator("span");
     await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
     const roomCode = (await room.textContent()) ?? "";
@@ -113,6 +115,7 @@ test.describe("Training dummies", () => {
     await guest.getByPlaceholder("Your name").fill("Theo");
     await guest.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.getByRole("button", { name: "Join dungeon" }).click();
+    await enterHub(guest);
     await expect(guest.locator(".hud__vitals")).toBeVisible();
     await expect(host.locator(".hud__frames")).toContainText("Theo", { timeout: 15_000 });
     await expect(host.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);

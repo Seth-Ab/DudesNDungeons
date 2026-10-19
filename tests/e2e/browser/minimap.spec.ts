@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 async function box(locator: Locator) {
   const rect = await locator.boundingBox();
@@ -21,6 +22,7 @@ test.describe("Minimap", () => {
     await host.goto("/");
     await host.getByPlaceholder("Your name").fill("Maya");
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(host);
     await expect(host.locator(".hud__hub-status")).toBeVisible();
     const code = await host.locator(".hud__panel--session").innerText();
     const roomCode = /[A-Z0-9]{4,8}/.exec(code.replace(/Room:?/i, ""))?.[0];
