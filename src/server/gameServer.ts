@@ -16,9 +16,11 @@ import {
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId, PlayerState } from "../shared/types/core.js";
+import { EMOTE_BURST, EMOTE_REFILL_PER_SECOND } from "../shared/constants/emotes.js";
 import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { isSpawned, movePlayer } from "./game/dungeonState.js";
+import { emoteAudience, emoteRefusal, playerEmotedFor } from "./game/emotes.js";
 import { dropItem, giveItem, interact, pickupItem, swapHeld, useItem } from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
@@ -48,6 +50,7 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "swapHeld",
   "liftPlayer",
   "dropCarry",
+  "emote",
 ]);
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -107,6 +110,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
   const signalLimiter = new SignalRateLimiter();
+  const emoteLimiter = new SignalRateLimiter(EMOTE_BURST, EMOTE_REFILL_PER_SECOND);
   /** Parties whose downed state has been snapshotted but who are not yet returned to the hub. */
   const wipeAnnounced = new WeakSet<Session>();
   /**
@@ -367,6 +371,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         signalLimiter.forget(playerId);
+        emoteLimiter.forget(playerId);
         playerId = null;
 
         if (member) {
@@ -552,6 +557,32 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         return;
       }
 
+      if (message.type === "emote") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const refusal = emoteRefusal(member.player, message.kind);
+        if (refusal) {
+          send(socket, { type: "actionRejected", sequence: null, reason: refusal });
+          return;
+        }
+
+        if (!emoteLimiter.tryConsume(playerId, now())) {
+          sendError(socket, "rateLimited", "Too many emotes; slow down");
+          return;
+        }
+
+        const emoted = playerEmotedFor(member.session, member.player, message.kind);
+        for (const viewerId of emoteAudience(member.session, member.player)) {
+          const viewerSocket = socketsByPlayer.get(viewerId);
+          if (viewerSocket) send(viewerSocket, emoted);
+        }
+        return;
+      }
+
       // Every client message is handled above. A message added to the protocol fails to compile
       // here until it is handled, and answers `notImplemented` if a build skipped the check.
       const unhandled: never = message;
@@ -641,6 +672,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       socketsByPlayer.delete(member.player.id);
       lastProgressionSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
+      emoteLimiter.forget(member.player.id);
       broadcast(member.session, {
         type: "playerLeft",
         playerId: member.player.id,
@@ -680,6 +712,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       socketsByPlayer.clear();
       lastProgressionSent.clear();
       signalLimiter.clear();
+      emoteLimiter.clear();
       return new Promise((resolve) => {
         wss.close(() => httpServer.close(() => resolve()));
       });

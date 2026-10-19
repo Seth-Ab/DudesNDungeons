@@ -7,6 +7,7 @@ import {
   PARTY_COLORS,
   SKIN_TONES,
 } from "../../src/shared/constants/appearance.js";
+import { EMOTES } from "../../src/shared/constants/emotes.js";
 import {
   MAX_CLIENT_MESSAGE_BYTES,
   MAX_CLIENT_MESSAGE_CHARS,
@@ -275,8 +276,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v29, the version that added swing geometry", () => {
-    expect(PROTOCOL_VERSION).toBe(29);
+  it("is on protocol v30, the version that added emotes", () => {
+    expect(PROTOCOL_VERSION).toBe(30);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -429,6 +430,53 @@ describe("attackResolved swing geometry", () => {
     expect(parse({ ...attack, swing: { ...swing, arcCos: 1.5 } }).ok).toBe(false);
     expect(parse({ ...attack, swing: { ...swing, arcCos: -1.5 } }).ok).toBe(false);
     expect(parse({ ...attack, swing: { ...swing, origin: undefined } }).ok).toBe(false);
+  });
+});
+
+describe("emote contract", () => {
+  const emoted = { type: "playerEmoted", playerId: PLAYER_ID, kind: "wave", at: 12 };
+  const parseServer = (message: unknown) => parseServerMessage(JSON.stringify(message));
+  const parseClient = (message: unknown) => parseClientMessage(JSON.stringify(message));
+
+  it("ships the emote ids the issue fixed, in wheel order", () => {
+    expect(EMOTES).toEqual(["wave", "cheer", "point", "bow", "dance", "followMe", "wait", "help"]);
+  });
+
+  it("accepts an emote of every known kind", () => {
+    for (const kind of EMOTES) {
+      const result = parseClient({ type: "emote", kind });
+      expect(result.ok, kind).toBe(true);
+      if (result.ok) expect(result.message).toEqual({ type: "emote", kind });
+    }
+  });
+
+  it("rejects an unknown, missing, or mistyped kind, naming the message it claimed to be", () => {
+    for (const message of [
+      { type: "emote", kind: "flex" },
+      { type: "emote", kind: "WAVE" },
+      { type: "emote" },
+      { type: "emote", kind: 1 },
+      { type: "emote", kind: null },
+    ]) {
+      const result = parseClient(message);
+      expect(result.ok, JSON.stringify(message)).toBe(false);
+      if (!result.ok) expect(result.claimedType).toBe("emote");
+    }
+  });
+
+  it("round-trips playerEmoted", () => {
+    const result = parseServer(emoted);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.message).toEqual(emoted);
+  });
+
+  it("rejects a malformed playerEmoted", () => {
+    const { at: _at, ...withoutAt } = emoted;
+    expect(parseServer(withoutAt).ok).toBe(false);
+    expect(parseServer({ ...emoted, kind: "flex" }).ok).toBe(false);
+    expect(parseServer({ ...emoted, at: -1 }).ok).toBe(false);
+    expect(parseServer({ ...emoted, at: 1.5 }).ok).toBe(false);
+    expect(parseServer({ ...emoted, playerId: "not-a-uuid" }).ok).toBe(false);
   });
 });
 

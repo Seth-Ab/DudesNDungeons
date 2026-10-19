@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EMOTES } from "../constants/emotes.js";
 import {
   entityIdSchema,
   playerAppearanceSchema,
@@ -122,6 +123,17 @@ export const dropCarrySchema = z.object({
   type: z.literal("dropCarry"),
 });
 
+export const emoteKindSchema = z.enum(EMOTES);
+
+/**
+ * A quick social signal, shown over the sender for a moment. The server refuses one from a player
+ * with no character yet, anything but `help` from a downed player, and more than its rate allows.
+ */
+export const emoteSchema = z.object({
+  type: z.literal("emote"),
+  kind: emoteKindSchema,
+});
+
 export const voiceSignalMessageSchema = z.object({
   type: z.literal("voiceSignal"),
   targetPlayerId: playerIdSchema,
@@ -143,6 +155,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   swapHeldSchema,
   liftPlayerSchema,
   dropCarrySchema,
+  emoteSchema,
   voiceSignalMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;

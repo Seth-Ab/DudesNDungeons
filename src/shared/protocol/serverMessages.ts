@@ -16,6 +16,7 @@ import {
   upgradeViewSchema,
   vector2Schema,
 } from "../types/core.js";
+import { emoteKindSchema } from "./clientMessages.js";
 import { voiceSignalSchema } from "./voice.js";
 
 export const errorCodeSchema = z.enum([
@@ -208,6 +209,18 @@ export const voiceSignalRelaySchema = z.object({
   signal: voiceSignalSchema,
 });
 
+/**
+ * A party member emoted. Sent only to the members whose visible frame holds the emoter when the
+ * server accepted it, so an emote never gives away a position in the dark; the sender always gets
+ * their own. `at` is the session tick it was accepted on.
+ */
+export const playerEmotedSchema = z.object({
+  type: z.literal("playerEmoted"),
+  playerId: playerIdSchema,
+  kind: emoteKindSchema,
+  at: z.number().int().nonnegative(),
+});
+
 /** Tells the client a well-formed action was refused, so it can roll back its prediction. */
 export const actionRejectedSchema = z.object({
   type: z.literal("actionRejected"),
@@ -233,6 +246,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   attackResolvedSchema,
   voiceRangeUpdatedSchema,
   voiceSignalRelaySchema,
+  playerEmotedSchema,
   actionRejectedSchema,
   sessionErrorSchema,
 ]);

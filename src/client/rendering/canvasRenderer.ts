@@ -33,6 +33,8 @@ import {
 } from "../state/combatFeedback.js";
 import { isTileLit, type LitTileSet } from "../state/litTiles.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
+import type { PlacedEmote } from "../state/emotes.js";
+import { drawEmoteBubbles } from "./emoteBubbles.js";
 
 /**
  * Screen pixels per world unit.
@@ -133,6 +135,8 @@ export interface Scene {
   popups: readonly ActivePopup[];
   /** Player swings currently animating, with the geometry the server resolved. */
   swings: readonly ActiveSwing[];
+  /** Emote bubbles, each already pinned to where its emoter is drawn. */
+  emotes: readonly PlacedEmote[];
 }
 
 export function createCanvasRenderer(getScene: () => Scene) {
@@ -870,6 +874,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
     drawSigns(scene, camera);
     drawSwings(scene.swings, camera);
     drawPopups(scene.popups, camera);
+    drawEmoteBubbles(ctx, scene.emotes, (position) => worldToScreen(position, camera));
   }
 
   window.addEventListener("resize", resize);

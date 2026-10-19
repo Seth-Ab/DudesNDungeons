@@ -1,6 +1,7 @@
 import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
+import { emoteFeedLine, type EmoteRecord } from "../state/emotes.js";
 import { litTilesFrom, type LitTileSet } from "../state/litTiles.js";
 import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
@@ -100,6 +101,13 @@ export interface SessionView {
   /** Sequence of the newest entry in `recentAttacks`. */
   attackSeq: number;
   /**
+   * The latest emotes this player was sent, newest last, for bubbles. The server only sends the
+   * ones whose emoter this player can see. Capped like `recentAttacks`.
+   */
+  recentEmotes: EmoteRecord[];
+  /** Sequence of the newest entry in `recentEmotes`. */
+  emoteSeq: number;
+  /**
    * Per-peer voice volume from the latest `voiceRangeUpdated`. A party member missing from it is
    * out of earshot or out of sight and must be silent.
    */
@@ -111,6 +119,7 @@ export interface SessionView {
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
 
 const MAX_RECENT_ATTACKS = 32;
+const MAX_RECENT_EMOTES = 16;
 
 export const initialSessionView: SessionView = {
   phase: "offline",
@@ -131,6 +140,8 @@ export const initialSessionView: SessionView = {
   staminaRefusals: 0,
   recentAttacks: [],
   attackSeq: 0,
+  recentEmotes: [],
+  emoteSeq: 0,
   voiceRange: [],
   progression: null,
 };
@@ -298,6 +309,17 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
           message.damage > 0
             ? `${message.targetDefeated ? "Defeated target" : "Hit target"} for ${message.damage}`
             : "Swing missed",
+      };
+
+    case "playerEmoted":
+      return {
+        ...view,
+        emoteSeq: view.emoteSeq + 1,
+        recentEmotes: [
+          ...view.recentEmotes,
+          { seq: view.emoteSeq + 1, playerId: message.playerId, kind: message.kind },
+        ].slice(-MAX_RECENT_EMOTES),
+        lastAction: emoteFeedLine(view.players, view.selfId, message.playerId, message.kind),
       };
 
     case "actionRejected":

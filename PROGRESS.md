@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v29.
-- Last completed work: animated weapon swings drawn from server-resolved reach and arc (issue #129,
+  everyone to the hub under protocol v30.
+- Last completed work: an emote wheel with server-validated, rate-limited emotes (issue #149,
+  protocol v30); earlier, animated weapon swings drawn from server-resolved reach and arc (issue #129,
   protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
   v28); earlier, stamina draught, flare, and smelling salts consumables, with revive of a
   downed ally (issue #85, protocol v27); earlier, lootable chests placed by room templates (issue #88, protocol v26);
@@ -336,6 +337,12 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
   worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
   world. No protocol change.
+- [x] Add an emote wheel (issue #149, protocol v30). `EMOTES` in `src/shared/constants/emotes.ts`; the
+  `emote { kind }` message is refused for a player with no look, anything but `help` while downed, and
+  more than one a second (`rateLimited`). `playerEmoted` goes only to the sender and the party members
+  whose visible frame holds the emoter (`src/server/game/emotes.ts`). The client opens the wheel on a
+  rebindable key (B) or the HUD's Emote button, picks by mouse, touch, or keys 1-8, draws a ~2 s
+  bubble (`rendering/emoteBubbles.ts`), and writes a line to the Action feed.
 - [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
 
 ### 4. Combat and Dungeon Interaction
@@ -419,6 +426,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Emote wheel with server-validated, rate-limited, visibility-gated emotes (#149, v30).
 - 2026-10-19: Map themes and render-only props; the hub draws forest walls and one of each prop
   (#143, Hub Revamp Phase 1, protocol unchanged at v29).
 - 2026-10-19: Animated weapon swings from server-resolved reach and arc (#129, v29).

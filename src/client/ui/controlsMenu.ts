@@ -75,6 +75,11 @@ const CONTROL_GROUPS: ControlGroup[] = [
         action: "Show or hide the minimap (it starts shown in each new world)",
         rebind: "toggleMinimap",
       },
+      {
+        input: bound("emoteWheel"),
+        action: "Open the emote wheel; pick with the mouse, a tap, or keys 1-8 while it is open",
+        rebind: "emoteWheel",
+      },
     ],
   },
   {

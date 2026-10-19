@@ -60,7 +60,9 @@ import {
   gatePrompt,
   SEALED_EXIT_MESSAGE,
 } from "./state/runFlow.js";
+import { createEmoteField, newEmotes, placeEmotes } from "./state/emotes.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
+import { createEmoteWheel } from "./ui/emoteWheel.js";
 import { createHud } from "./ui/hud.js";
 import { createLobby } from "./ui/lobby.js";
 import "./styles.css";
@@ -113,6 +115,9 @@ let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 const popupField = createPopupField();
 const swingField = createSwingField();
 let lastAttackSeq = 0;
+/** Emote bubbles over heads, and the last emote sequence already turned into one. */
+const emoteField = createEmoteField();
+let lastEmoteSeq = 0;
 
 const client = createSessionClient({
   httpUrl: endpoints.httpUrl,
@@ -123,23 +128,37 @@ const client = createSessionClient({
 
 const renderer = createCanvasRenderer(() => {
   const now = performance.now();
+  const self = selfOf(view);
+  const others = visibleOthersOf(view).map((player) => ({
+    ...player,
+    position: remoteInterpolatedPosition(remoteInterpolation, player.id, now, player.position),
+  }));
   return {
     dungeon: renderedDungeon,
     lit: renderedLit,
     localPosition,
-    self: selfOf(view),
-    others: visibleOthersOf(view).map((player) => ({
-      ...player,
-      position: remoteInterpolatedPosition(remoteInterpolation, player.id, now, player.position),
-    })),
+    self,
+    others,
     location: view.location,
     gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
     popups: popupField.active(now),
     swings: swingField.active(now),
+    // Pinned to where each emoter is drawn, so a bubble rides the prediction and interpolation.
+    emotes: placeEmotes(emoteField.active(now), (playerId) =>
+      playerId === self?.id
+        ? localPosition
+        : (others.find((player) => player.id === playerId)?.position ?? null),
+    ),
   };
 });
 
 const controlsMenu = createControlsMenu(hudSettingsStore());
+
+const emoteWheel = createEmoteWheel({
+  onEmote: (kind) => {
+    if (!client.emote(kind)) hud.setActionStatus("No connection");
+  },
+});
 
 const iceServers = iceServersFrom(import.meta.env.VITE_ICE_SERVERS);
 
@@ -170,6 +189,7 @@ const hud = createHud({
   onAction: (action) => performAction(action),
   onUseSlot: (slot) => useInventorySlot(slot),
   onOpenControls: () => controlsMenu.open(),
+  onOpenEmotes: () => emoteWheel.open(),
 });
 
 const lobby = createLobby({
@@ -185,7 +205,7 @@ const lobby = createLobby({
   onJoinRoom: (roomCode, playerName) => client.join(roomCode, playerName),
 });
 
-app.append(hud.element, lobby.element, controlsMenu.element, renderer.canvas);
+app.append(hud.element, lobby.element, controlsMenu.element, emoteWheel.element, renderer.canvas);
 renderer.resize();
 
 const input = createInputController({ onAction: performAction });
@@ -254,6 +274,9 @@ client.subscribe((next) => {
   }
 
   showDamageNumbers();
+  showEmotes();
+  emoteWheel.setSelf(selfOf(view));
+  if (view.phase !== "inSession") emoteWheel.close();
 
   hud.syncTo(view);
   lobby.syncTo(view);
@@ -277,6 +300,21 @@ function showDamageNumbers(): void {
   lastAttackSeq = view.attackSeq;
 }
 
+/** Puts a bubble over each emoter the view has heard from since the last call. */
+function showEmotes(): void {
+  // A fresh view (leaving a session) restarts the sequence.
+  if (view.emoteSeq < lastEmoteSeq) {
+    lastEmoteSeq = 0;
+    emoteField.clear();
+  }
+
+  const now = performance.now();
+  for (const emote of newEmotes(view.recentEmotes, lastEmoteSeq)) {
+    emoteField.add(emote.playerId, emote.kind, now);
+  }
+  lastEmoteSeq = view.emoteSeq;
+}
+
 input.start();
 lobby.focus();
 
@@ -294,6 +332,12 @@ function performAction(action: GameplayAction): void {
   // An overlay, not an act in the world: a downed player can still read the map.
   if (action === "toggleMinimap") {
     hud.toggleMinimap();
+    return;
+  }
+
+  // Before the downed check below: a downed player can still call for help.
+  if (action === "emoteWheel") {
+    if (view.phase === "inSession") emoteWheel.toggle();
     return;
   }
 
