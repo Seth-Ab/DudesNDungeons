@@ -7,10 +7,13 @@ import {
 } from "../../src/client/network/sessionState.js";
 import {
   createPopupField,
+  createSwingField,
   damagePopup,
   monsterBarView,
   newAttacks,
   POPUP_LIFETIME_MS,
+  SWING_LIFETIME_MS,
+  swingArc,
   type AttackRecord,
 } from "../../src/client/state/combatFeedback.js";
 import type { DungeonState, MonsterState, PlayerState } from "../../src/shared/types/core.js";
@@ -59,7 +62,7 @@ function view(overrides: Partial<SessionView> = {}): SessionView {
 }
 
 function attack(overrides: Partial<AttackRecord>): AttackRecord {
-  return { seq: 1, attackerId: SELF, targetId: MONSTER, damage: 5, targetDefeated: false, ...overrides };
+  return { seq: 1, attackerId: SELF, targetId: MONSTER, damage: 5, targetDefeated: false, swing: null, ...overrides };
 }
 
 const here = { x: 1.5, y: 0.5 };
@@ -107,6 +110,7 @@ describe("recorded attacks", () => {
       damage,
       targetHealth: 1,
       targetDefeated: false,
+      swing: null,
     }) as const;
 
   it("numbers each attackResolved so none is shown twice", () => {
@@ -161,5 +165,60 @@ describe("monsterBarView", () => {
     expect(monsterBarView(6, 20).low).toBe(true);
     expect(monsterBarView(-3, 20).ratio).toBe(0);
     expect(monsterBarView(5, 0).ratio).toBe(0);
+  });
+});
+
+describe("swingArc", () => {
+  const geometry = { origin: { x: 1, y: 0 }, facing: { x: 0, y: 1 }, range: 2.5, arcCos: 0.5 };
+  const swung = (overrides: Partial<AttackRecord> = {}) => attack({ swing: geometry, ...overrides });
+
+  it("turns facing, range and arcCos into a heading, half-angle and reach", () => {
+    const arc = swingArc(view(), swung());
+
+    expect(arc?.origin).toEqual({ x: 1, y: 0 });
+    expect(arc?.heading).toBeCloseTo(Math.PI / 2);
+    expect(arc?.halfArc).toBeCloseTo(Math.PI / 3);
+    expect(arc?.range).toBe(2.5);
+  });
+
+  it("clamps a degenerate arcCos instead of producing NaN", () => {
+    expect(swingArc(view(), swung({ swing: { ...geometry, arcCos: -1 } }))?.halfArc).toBeCloseTo(Math.PI);
+    expect(swingArc(view(), swung({ swing: { ...geometry, arcCos: 1 } }))?.halfArc).toBeCloseTo(0);
+  });
+
+  it("marks a hit with an impact point and a miss without one", () => {
+    expect(swingArc(view(), swung())).toMatchObject({ hit: true, impact: { x: 7, y: 5 } });
+    expect(swingArc(view(), swung({ targetId: null, damage: 0 }))).toMatchObject({
+      hit: false,
+      impact: null,
+    });
+  });
+
+  it("draws the local player's swing and a visible teammate's", () => {
+    expect(swingArc(view(), swung({ attackerId: SELF }))).not.toBeNull();
+    expect(swingArc(view(), swung({ attackerId: ALLY }))).not.toBeNull();
+  });
+
+  it("draws nothing for an attacker outside the visible frame", () => {
+    expect(swingArc(view({ visiblePlayerIds: [SELF] }), swung({ attackerId: ALLY }))).toBeNull();
+  });
+
+  it("draws nothing for an attack without swing geometry", () => {
+    expect(swingArc(view(), attack({ swing: null }))).toBeNull();
+  });
+});
+
+describe("swing field", () => {
+  const arc = swingArc(
+    view(),
+    attack({ swing: { origin: { x: 0, y: 0 }, facing: { x: 1, y: 0 }, range: 1, arcCos: 0 } }),
+  )!;
+
+  it("animates a swing and drops it once it has faded", () => {
+    const field = createSwingField();
+    field.add(arc, 1000);
+
+    expect(field.active(1000 + SWING_LIFETIME_MS / 2)[0]?.progress).toBeCloseTo(0.5);
+    expect(field.active(1000 + SWING_LIFETIME_MS)).toEqual([]);
   });
 });

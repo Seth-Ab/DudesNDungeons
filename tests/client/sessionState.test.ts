@@ -416,6 +416,7 @@ describe("action feedback", () => {
       damage: 3,
       targetHealth: 97,
       targetDefeated: false,
+      swing: null,
     });
     const afterRejection = applyServerMessage(afterAttack, {
       type: "actionRejected",

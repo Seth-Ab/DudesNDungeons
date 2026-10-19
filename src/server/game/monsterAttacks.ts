@@ -48,6 +48,7 @@ function hitPlayer(
     damage: dealt,
     targetHealth: player.health,
     targetDefeated: isDown(player),
+    swing: null,
   };
 }
 

@@ -6,8 +6,10 @@ import { canOccupy, HUB_DUNGEON_ID, monsterStatsFor } from "../../src/server/gam
 import { pickupItem } from "../../src/server/game/items.js";
 import {
   ATTACK_STAMINA_COST,
+  PLAYER_ATTACK_ARC_COS,
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_DAMAGE,
+  PLAYER_ATTACK_RANGE,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_STAMINA,
   STAMINA_REGEN_PER_SECOND,
@@ -41,6 +43,12 @@ describe("player attacks", () => {
         damage: PLAYER_ATTACK_DAMAGE,
         targetHealth: 12 - PLAYER_ATTACK_DAMAGE,
         targetDefeated: false,
+        swing: {
+          origin: at(11, 2, -IN_REACH),
+          facing: { x: 1, y: 0 },
+          range: PLAYER_ATTACK_RANGE,
+          arcCos: PLAYER_ATTACK_ARC_COS,
+        },
       },
     });
     expect(monster(session, ASH_IMP_ID).health).toBe(12 - PLAYER_ATTACK_DAMAGE);
@@ -161,6 +169,44 @@ describe("weapon swings", () => {
       reason: "onCooldown",
     });
     expect(resolvePlayerAttack(session, "alpha", { x: 1, y: 0 }, null, 800).ok).toBe(true);
+  });
+
+  it("reports the held weapon's reach and arc, for a hit and for a miss", () => {
+    const hit = withBlade(testSession([testPlayer("alpha", { position: at(11, 2, -2), held: IN_HAND })]));
+    const miss = withBlade(testSession([testPlayer("alpha", { position: at(2, 2), held: IN_HAND })]));
+    const { range, arcCos } = TEST_BLADE.weapon as { range: number; arcCos: number };
+
+    const struck = resolvePlayerAttack(hit, "alpha", { x: 1, y: 0 }, null, 0);
+    const missed = resolvePlayerAttack(miss, "alpha", { x: 0, y: 1 }, null, 0);
+
+    expect(struck.ok && struck.event.targetId).toBe(ASH_IMP_ID);
+    expect(struck.ok && struck.event.swing).toEqual({
+      origin: at(11, 2, -2),
+      facing: { x: 1, y: 0 },
+      range,
+      arcCos,
+    });
+    expect(missed.ok && missed.event.targetId).toBeNull();
+    expect(missed.ok && missed.event.swing).toEqual({
+      origin: at(2, 2),
+      facing: { x: 0, y: 1 },
+      range,
+      arcCos,
+    });
+  });
+
+  it("reports the unarmed reach and arc for an empty hand or an unknown weapon", () => {
+    const empty = testPlayer("alpha", { position: at(2, 2) });
+    const orphan = testPlayer("beta", { position: at(2, 2), held: { ...IN_HAND, itemId: "no-such-blade" } });
+
+    for (const player of [empty, orphan]) {
+      const swing = resolvePlayerAttack(testSession([player]), player.id, { x: 0, y: 1 }, null, 0);
+      expect(swing.ok && swing.event.swing).toMatchObject({
+        range: PLAYER_ATTACK_RANGE,
+        arcCos: PLAYER_ATTACK_ARC_COS,
+        facing: { x: 0, y: 1 },
+      });
+    }
   });
 
   it("follows an edit to the content file with no code change", () => {
@@ -346,6 +392,7 @@ describe("monster behavior", () => {
         damage,
         targetHealth: PLAYER_MAX_HEALTH - damage,
         targetDefeated: false,
+        swing: null,
       },
     ]);
     expect(imp.action).toBe("idle");

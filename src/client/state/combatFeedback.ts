@@ -15,6 +15,16 @@ export interface AttackRecord {
   targetId: string | null;
   damage: number;
   targetDefeated: boolean;
+  /** The server-resolved geometry of a player's swing; null for monster attacks. */
+  swing: SwingGeometry | null;
+}
+
+/** Mirrors the protocol's swing geometry: what the server resolved, drawn as given. */
+export interface SwingGeometry {
+  origin: Vector2;
+  facing: Vector2;
+  range: number;
+  arcCos: number;
 }
 
 /** `dealt`: the local player hit something. `taken`: the local player was hit. `ally`: anyone else. */
@@ -60,6 +70,47 @@ export function damagePopup(
   return null;
 }
 
+export interface SwingArc {
+  origin: Vector2;
+  /** Direction of the arc's centre line, in radians. */
+  heading: number;
+  /** Half the arc's width, in radians. */
+  halfArc: number;
+  /** Reach in world units. */
+  range: number;
+  /** True when the swing connected, so it reads brighter than a miss. */
+  hit: boolean;
+  /** Where the impact flash goes on a hit; null on a miss. */
+  impact: Vector2 | null;
+}
+
+/**
+ * The arc to animate for one attack, or null when there is nothing to draw: a monster's attack, or
+ * a swing by someone this client cannot see (the server sends every attack to the whole party).
+ * The local player's own swing is always drawn.
+ */
+export function swingArc(view: SessionView, attack: AttackRecord): SwingArc | null {
+  const swing = attack.swing;
+  if (!swing) return null;
+  if (attack.attackerId !== view.selfId && !view.visiblePlayerIds.includes(attack.attackerId)) {
+    return null;
+  }
+
+  const hit = attack.targetId !== null && attack.damage > 0;
+  const target =
+    hit && attack.targetId !== null
+      ? view.dungeon?.monsters.find((monster) => monster.id === attack.targetId)
+      : undefined;
+  return {
+    origin: swing.origin,
+    heading: Math.atan2(swing.facing.y, swing.facing.x),
+    halfArc: Math.acos(Math.min(Math.max(swing.arcCos, -1), 1)),
+    range: swing.range,
+    hit,
+    impact: target ? target.position : null,
+  };
+}
+
 /** Attacks the view has recorded since `lastSeq`, oldest first. */
 export function newAttacks(view: SessionView, lastSeq: number): AttackRecord[] {
   return view.recentAttacks.filter((attack) => attack.seq > lastSeq);
@@ -102,6 +153,42 @@ export function createPopupField() {
 
     clear(): void {
       popups = [];
+    },
+  };
+}
+
+export const SWING_LIFETIME_MS = 180;
+const MAX_SWINGS = 16;
+
+export interface ActiveSwing extends SwingArc {
+  /** 0 when the swing starts, 1 when it is gone. */
+  progress: number;
+}
+
+interface TimedSwing extends SwingArc {
+  bornAt: number;
+}
+
+/** The swings currently animating. Time is passed in so tests do not wait. */
+export function createSwingField() {
+  let swings: TimedSwing[] = [];
+
+  return {
+    add(arc: SwingArc, now: number): void {
+      swings.push({ ...arc, bornAt: now });
+      if (swings.length > MAX_SWINGS) swings = swings.slice(swings.length - MAX_SWINGS);
+    },
+
+    active(now: number): ActiveSwing[] {
+      swings = swings.filter((swing) => now - swing.bornAt < SWING_LIFETIME_MS);
+      return swings.map(({ bornAt, ...arc }) => ({
+        ...arc,
+        progress: Math.max(0, (now - bornAt) / SWING_LIFETIME_MS),
+      }));
+    },
+
+    clear(): void {
+      swings = [];
     },
   };
 }

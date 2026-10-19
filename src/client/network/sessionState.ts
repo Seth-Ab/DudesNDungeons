@@ -291,6 +291,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
             targetId: message.targetId,
             damage: message.damage,
             targetDefeated: message.targetDefeated,
+            swing: message.swing,
           },
         ].slice(-MAX_RECENT_ATTACKS),
         lastAction:

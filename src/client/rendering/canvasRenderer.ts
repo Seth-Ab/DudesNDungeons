@@ -25,6 +25,7 @@ import {
   monsterBarView,
   POPUP_RISE,
   type ActivePopup,
+  type ActiveSwing,
   type DamagePopupKind,
 } from "../state/combatFeedback.js";
 import { isTileLit, type LitTileSet } from "../state/litTiles.js";
@@ -82,6 +83,11 @@ const colors = {
   telegraph: "rgba(214, 74, 58, 0.4)",
   telegraphFlash: "rgba(255, 140, 110, 0.65)",
   telegraphEdge: "rgba(255, 120, 100, 0.8)",
+  swingHit: "rgba(255, 236, 170, 0.55)",
+  swingHitEdge: "rgba(255, 248, 210, 0.95)",
+  swingMiss: "rgba(190, 200, 215, 0.22)",
+  swingMissEdge: "rgba(190, 200, 215, 0.55)",
+  swingImpact: "rgba(255, 244, 200, 0.8)",
   monsterBar: "#caa85a",
   monsterBarLow: "#d2503f",
 };
@@ -122,6 +128,8 @@ export interface Scene {
   gatePrompt: string | null;
   /** Damage numbers currently floating, positioned in world units. */
   popups: readonly ActivePopup[];
+  /** Player swings currently animating, with the geometry the server resolved. */
+  swings: readonly ActiveSwing[];
 }
 
 export function createCanvasRenderer(getScene: () => Scene) {
@@ -379,6 +387,42 @@ export function createCanvasRenderer(getScene: () => Scene) {
       ctx.textAlign = "center";
       ctx.fillText(monster.name, center.x, barY - 6);
     }
+  };
+
+  /**
+   * A slash sweeps across the arc out to the swing's exact reach, then fades; a hit is brighter and
+   * ends in a flash on the target. The arc never extends past the server's range.
+   */
+  const drawSwings = (swings: readonly ActiveSwing[], camera: Vector2): void => {
+    for (const swing of swings) {
+      const center = worldToScreen(swing.origin, camera);
+      const reach = swing.range * pixelsPerWorldUnit;
+      const sweep = Math.min(1, swing.progress * 2);
+      const from = swing.heading - swing.halfArc;
+      const to = swing.heading + swing.halfArc;
+      const edge = from + (to - from) * sweep;
+      ctx.globalAlpha = Math.max(0, 1 - swing.progress);
+      ctx.fillStyle = swing.hit ? colors.swingHit : colors.swingMiss;
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y);
+      ctx.arc(center.x, center.y, reach, from, edge);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = swing.hit ? colors.swingHitEdge : colors.swingMissEdge;
+      ctx.lineWidth = swing.hit ? 3 : 2;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, reach, from, edge);
+      ctx.stroke();
+
+      if (swing.impact) {
+        const at = worldToScreen(swing.impact, camera);
+        ctx.fillStyle = colors.swingImpact;
+        ctx.beginPath();
+        ctx.arc(at.x, at.y, (0.3 + 0.4 * swing.progress) * pixelsPerWorldUnit, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
   };
 
   /** Numbers rise and fade; red when the local player is hit, gold for their own hits. */
@@ -795,6 +839,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
 
     drawLightmap(scene, camera);
     drawSigns(scene, camera);
+    drawSwings(scene.swings, camera);
     drawPopups(scene.popups, camera);
   }
 
