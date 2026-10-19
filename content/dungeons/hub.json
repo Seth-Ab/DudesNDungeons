@@ -2,6 +2,7 @@
   "id": "hub",
   "name": "The Ember Hearth",
   "layout": "authored",
+  "theme": "forest",
   "tiles": [
     "#####################",
     "#...................#",
@@ -16,6 +17,15 @@
     "#...................#",
     "#...................#",
     "#####################"
+  ],
+  "props": [
+    { "kind": "dungeon-gate", "x": 9, "y": 0 },
+    { "kind": "sign", "x": 12.25, "y": 1.5 },
+    { "kind": "quest-board", "x": 2, "y": 1 },
+    { "kind": "stall", "x": 16, "y": 2 },
+    { "kind": "fountain", "x": 8, "y": 6 },
+    { "kind": "tree", "x": 18, "y": 10 },
+    { "kind": "bush", "x": 17.25, "y": 10.5 }
   ],
   "spawnPoints": [
     { "x": 8, "y": 9 },

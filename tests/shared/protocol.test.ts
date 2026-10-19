@@ -20,7 +20,11 @@ import {
   serializeServerMessage,
   type ServerMessage,
 } from "../../src/shared/protocol/index.js";
-import type { PlayerState } from "../../src/shared/types/core.js";
+import {
+  lightSourceStateSchema,
+  mapDiscoverySchema,
+  type PlayerState,
+} from "../../src/shared/types/core.js";
 
 const PLAYER_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const TARGET_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
@@ -777,5 +781,48 @@ describe("parseServerMessage", () => {
     );
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("map scenery on the wire", () => {
+  const base = { id: "hub", name: "Hub", width: 8, height: 8, reset: true, discovered: [], lit: [] };
+
+  it("accepts a theme, props with captions, and a tinted light, and leaves them optional", () => {
+    expect(mapDiscoverySchema.safeParse(base).success).toBe(true);
+    expect(
+      mapDiscoverySchema.safeParse({
+        ...base,
+        theme: "forest",
+        props: [{ kind: "stall", x: 8, y: 4, label: "Torches" }, { kind: "bush", x: 1.5, y: 2 }],
+      }).success,
+    ).toBe(true);
+    expect(
+      lightSourceStateSchema.safeParse({
+        id: PLAYER_ID,
+        name: "Gate Glow",
+        kind: "fixed",
+        position: { x: 1, y: 1 },
+        radius: 6,
+        tint: "red",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("refuses an unknown theme, prop kind, overlong caption, or tint", () => {
+    expect(mapDiscoverySchema.safeParse({ ...base, theme: "swamp" }).success).toBe(false);
+    expect(mapDiscoverySchema.safeParse({ ...base, props: [{ kind: "windmill", x: 0, y: 0 }] }).success).toBe(false);
+    expect(
+      mapDiscoverySchema.safeParse({ ...base, props: [{ kind: "sign", x: 0, y: 0, label: "x".repeat(33) }] }).success,
+    ).toBe(false);
+    expect(
+      lightSourceStateSchema.safeParse({
+        id: PLAYER_ID,
+        name: "Lamp",
+        kind: "fixed",
+        position: { x: 1, y: 1 },
+        radius: 6,
+        tint: "green",
+      }).success,
+    ).toBe(false);
   });
 });

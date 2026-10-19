@@ -23,6 +23,7 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
 } from "../constants/game.js";
+import { LIGHT_TINTS, MAP_PROP_KINDS, MAP_THEMES, MAX_PROP_LABEL_LENGTH } from "../constants/scenery.js";
 
 export const vector2Schema = z.object({
   x: z.number().finite(),
@@ -41,6 +42,25 @@ export type EntityId = z.infer<typeof entityIdSchema>;
  * dungeon holds the full map with an origin of (0, 0). A client holds the same shape, rebuilt from
  * the discovery deltas in snapshots (`mapDiscoverySchema`), with undiscovered tiles as spaces.
  */
+export const mapThemeSchema = z.enum(MAP_THEMES);
+export type MapTheme = z.infer<typeof mapThemeSchema>;
+
+export const mapPropKindSchema = z.enum(MAP_PROP_KINDS);
+export type MapPropKind = z.infer<typeof mapPropKindSchema>;
+
+/**
+ * Scenery drawn over the map: a fountain, a stall, a tree. Render-only; collision is the tiles.
+ * `x`/`y` is the world tile at the sprite's top-left, and its size is `MAP_PROP_SIZES[kind]`.
+ */
+export const mapPropSchema = z.object({
+  kind: mapPropKindSchema,
+  x: z.number().finite(),
+  y: z.number().finite(),
+  /** A caption drawn over the prop, such as the name of a stall. */
+  label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
+});
+export type MapProp = z.infer<typeof mapPropSchema>;
+
 export const dungeonMapSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -51,6 +71,10 @@ export const dungeonMapSchema = z.object({
   originX: z.number().int().nonnegative(),
   originY: z.number().int().nonnegative(),
   tiles: z.array(z.string().min(1)).min(1),
+  /** How the tiles are drawn. Absent means `stone`. */
+  theme: mapThemeSchema.optional(),
+  /** Scenery the holder knows of. A client holds only props it has discovered part of. */
+  props: z.array(mapPropSchema).optional(),
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
 
@@ -342,6 +366,8 @@ export const lightSourceStateSchema = z.object({
   kind: lightSourceKindSchema,
   position: vector2Schema,
   radius: z.number().positive(),
+  /** How a fixed light glows. Absent means `warm`. */
+  tint: z.enum(LIGHT_TINTS).optional(),
 });
 export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
 
@@ -462,6 +488,13 @@ export const mapDiscoverySchema = z.object({
    * discovered tile is remembered and draws dark. Only ever tiles the viewer has discovered.
    */
   lit: z.array(litRunSchema),
+  /** How the map is drawn. Absent means `stone`. */
+  theme: mapThemeSchema.optional(),
+  /**
+   * Props the viewer has newly discovered part of, or all they know of on a `reset`. Each arrives
+   * once, with the first of its tiles, so scenery deep in an unexplored wing stays off their map.
+   */
+  props: z.array(mapPropSchema).optional(),
 });
 export type MapDiscovery = z.infer<typeof mapDiscoverySchema>;
 
