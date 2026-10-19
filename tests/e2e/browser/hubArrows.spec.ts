@@ -1,7 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** World position of the hub's arrow stack: authored tile (11, 8), centred in its 4x4 block. */
-const ARROWS = { x: 45.5, y: 33.5 };
+/**
+ * Where to stand for the hub's arrow stack: against the Weapons stall's counter, which is
+ * wall. The pickup lies just inside it, at authored (13.25, 2.375) or world (54.5, 11), so a
+ * player pressed against the counter is 0.85 from it.
+ */
+const ARROWS = { x: 54.5, y: 11.85 };
+
+/**
+ * North of the first spawn and west of the fountain, on clear plaza in front of the stalls. Walking
+ * straight from spawn to the stall steers diagonally into the fountain and stops there.
+ */
+const PLAZA = { x: 33.5, y: 15 };
 
 async function position(page: Page): Promise<{ x: number; y: number }> {
   const text = (await page.getByText("Position:").textContent()) ?? "";
@@ -38,8 +48,9 @@ test.describe("Hub arrows", () => {
     await expect(page.locator(".hud__vitals")).toBeVisible();
     await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);
 
-    // Well inside `INTERACT_RANGE` (1.2), so the server's position agrees once it settles.
-    await walkTo(page, ARROWS, 0.6);
+    // At most 1.15 from the pickup, inside `INTERACT_RANGE` (1.2), once the counter stops the walk.
+    await walkTo(page, PLAZA, 0.6);
+    await walkTo(page, ARROWS, 0.3);
     // A hidden prompt keeps its last text, so only a visible one counts.
     await expect(page.locator(".hud__prompt", { hasText: "Pick up Arrows (5)" })).toBeVisible();
 

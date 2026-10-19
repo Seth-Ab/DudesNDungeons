@@ -1,8 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Hub positions in world units: a Traveler's Torch at authored (16, 3), the gate at (10, 1). */
-const TORCH = { x: 65.5, y: 13.5 };
-const GATE = { x: 41.5, y: 5.5 };
+/**
+ * Hub positions in world units. TORCH is where to stand against the torch stall's counter for the
+ * Traveler's Torch at world (14.75, 11); GATE is the exit at authored (9, 1). GATE_APPROACH is the
+ * plaza in front of the gate's recess, so the walk up to it does not catch on the forest beside it.
+ */
+const TORCH = { x: 14.75, y: 11.85 };
+const GATE_APPROACH = { x: 37.5, y: 13.5 };
+const GATE = { x: 37.5, y: 5.5 };
 /** Must match `pixelsPerWorldUnit` in `canvasRenderer.ts`. */
 const PIXELS_PER_WORLD_UNIT = 32;
 /** A pixel this dark or darker is the shade colour (6, 7, 10) at full opacity, not lit geometry. */
@@ -143,13 +148,14 @@ test.describe("Darkness", () => {
     await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);
 
     // A torch from the supply table, so the dungeon has a light that moves with the player.
-    await walkTo(page, TORCH, 0.6);
+    await walkTo(page, TORCH, 0.3);
     await expect(async () => {
       await page.keyboard.press("f");
       expect(self()?.carryingTorch).toBe(true);
     }).toPass({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Ready" }).click();
+    await walkTo(page, GATE_APPROACH, 1);
     await walkTo(page, GATE, 1);
     await expect(async () => {
       await page.keyboard.press("e");

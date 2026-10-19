@@ -8,8 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v29.
-- Last completed work: animated weapon swings drawn from server-resolved reach and arc (issue #129,
-  protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
+- Last completed work: the hub redesigned as a forest-ringed market around a fountain, with map
+  themes and render-only props (issue #127, protocol v29, additive); earlier, animated weapon swings
+  drawn from server-resolved reach and arc (issue #129, protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
   v28); earlier, stamina draught, flare, and smelling salts consumables, with revive of a
   downed ally (issue #85, protocol v27); earlier, lootable chests placed by room templates (issue #88, protocol v26);
   earlier, stackable arrows that take one inventory slot (issue #115, protocol v25); earlier, server-lit tiles, so remembered and shared map stays dark (issue #120, protocol v24); earlier, the Rusted Sword and swinging in the hub (issue #114, protocol v23);
@@ -229,7 +230,9 @@ check remains.
 Note: dungeon sizes here are now authored tiles, which the world builds at four times on each axis. See step 13.
 
 - [x] Add the hub as a lit, monster-free place with a dungeon entrance. `content/dungeons/hub.json`
-  uses only `#`/`.` and includes named quest, strategy, supply, and gate areas.
+  uses only `#`/`.`. Issue #127 re-authored it as a market round a fountain: Torches, Bank, Weapons
+  and Wardrobe stalls, a quest board and a grove, ringed by forest, with the gate on the north edge.
+  The whole hub map is lit for every viewer; dungeons still light only what a light reaches.
 - [x] Start players in the hub and generate the dungeon on entry. Every reserved player must be
   connected and ready; fresh joins are refused mid-run while reconnects remain available.
 - [x] Add the torch supply and between-run storage. Four hub torches are deliberate pickups, rare
@@ -363,6 +366,9 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [ ] Add sprites, sound effects, and visual feedback.
   - Player character sprites, the character design screen, and cosmetics are designed and owner-approved in `docs/design/character-sprite-bible.html` (decisions on #63 and #128). Open it in a browser; its `SPRITES` object is the pixel data to port. Monster sprites still need their own design pass.
+  - [x] Hub scenery art (issue #127): forest walls composed like stone ones, cobble floors, and
+    fountain, stall, quest board, tree, bush, gate, sign and grass sprites in `dungeon.tiles.json`.
+    Owner review of the art is still wanted.
   - [x] Port the character bodies and hair to source art and bake a character sheet (issue #136). `assets/sprites/source/characters.tiles.json` holds `body-{guy,girl}` and six hair styles, each facing `down`, `up` and `side`, as whole 16 x 24 frames ported pixel for pixel from the reference. Skin, hair and tunic are baked in nine key colours (`CHARACTER_KEY_COLOURS`) for the renderer to swap; everything else is a fixed colour. `npm run build:sprites` also bakes `assets/sprites/characters.png`, deriving `walk1`/`walk2` frames by lifting one half's boots a row. `src/client/rendering/characters.ts` lists the layers and frame cells. Drawing characters in game, hats and cloaks, and attack and downed frames remain out of scope.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
@@ -390,9 +396,12 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 Complete on `feature/hub-run-flow`.
 
-- [x] Render the hub, entrance, torch supply, and storage. Areas are outlined and named from the
-  room metadata in the snapshot, and the gate is captioned with what it is waiting for. Storage has
-  no world entity to draw, so the bank is a HUD panel.
+- [x] Render the hub, entrance, torch supply, and storage. The gate is captioned with what it is
+  waiting for. Storage has no world entity to draw, so the bank is a HUD panel, signposted by the
+  Bank stall. Issue #127 replaced the outlined room areas with themed tiles and props: an authored
+  map may set `theme` (`stone` or `forest`) and a render-only `props` list (fountain, stall,
+  quest-board, tree, bush, dungeon-gate, sign, grass, with optional captions), and a fixed light may
+  glow `red`. Props reach a client with the first of their tiles it discovers.
 - [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
   not ready, the run start is announced, and the return to the hub reports what this player got out
   with or lost.
@@ -417,6 +426,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Hub redesigned as a forest-ringed market with map themes and props (#127, v29).
 - 2026-10-19: Animated weapon swings from server-resolved reach and arc (#129, v29).
 - 2026-10-19: Server-validated player appearance and party colours, `setAppearance` (#131, v28).
 - 2026-10-18: Stamina Draught, Flare, and Smelling Salts consumables; revive a downed ally (#85, v27).

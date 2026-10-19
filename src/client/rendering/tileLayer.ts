@@ -1,4 +1,4 @@
-import type { DungeonMapState } from "../../shared/types/core.js";
+import type { DungeonMapState, MapTheme } from "../../shared/types/core.js";
 import {
   floorSprite,
   LIT_FLOOR,
@@ -178,6 +178,7 @@ export function createTileLayer<Image, Context extends ChunkContext>({
 }: TileLayerOptions<Image, Context>): TileLayer<Image> {
   let grid: SurfaceGrid | null = null;
   let currentWorld = "";
+  let theme: MapTheme = "stone";
   let lastTiles: readonly string[] | null = null;
   const chunks = new Map<number, ChunkSurface<Image, Context>>();
   const stale = new Set<number>();
@@ -198,7 +199,8 @@ export function createTileLayer<Image, Context extends ChunkContext>({
         const surface = grid.at(x, y);
         if (surface === SURFACE_UNKNOWN) continue;
 
-        const sprite = surface === SURFACE_WALL ? wallSprite(wallMask(readSurfaceTile, x, y)) : floorSprite(x, y);
+        const sprite =
+          surface === SURFACE_WALL ? wallSprite(wallMask(readSurfaceTile, x, y), theme) : floorSprite(x, y, theme);
         tileset.draw(context, sprite, column * SPRITE_TILE_SIZE, row * SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE);
       }
     }
@@ -206,10 +208,12 @@ export function createTileLayer<Image, Context extends ChunkContext>({
 
   return {
     sync(map, worldKey) {
-      const world = `${worldKey}:${map.width}x${map.height}`;
+      // The theme is part of the world: the same size of map drawn as forest is a different picture.
+      const world = `${worldKey}:${map.theme ?? "stone"}:${map.width}x${map.height}`;
       if (grid === null || world !== currentWorld) {
         grid = new SurfaceGrid(map.width, map.height);
         currentWorld = world;
+        theme = map.theme ?? "stone";
         chunks.clear();
         stale.clear();
         lastTiles = null;

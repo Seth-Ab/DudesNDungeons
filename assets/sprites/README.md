@@ -42,6 +42,12 @@ and not the other fails the bake rather than drawing a hole in the floor.
   and the four `wall-edge-*` strips, indexed by which sides continue as wall. Composing guarantees
   the lip on a corner cell lines up with the lip on the straight cell beside it. The south face is
   painted last, over the side lips, which is why there are no separate corner sprites.
+- `forest-0` to `forest-15` and `cobble-0` to `cobble-3`: the `forest` map theme's walls and floors,
+  which the hub uses. The walls are composed from `forest-fill` and `forest-edge-*` exactly as the
+  stone ones are; `tiles.ts` names each theme's prefixes in `THEME_SPRITES`.
+- Map props, one per kind at the footprint `src/shared/constants/scenery.ts` gives it: `prop-fountain`,
+  `prop-stall`, `prop-quest-board`, `prop-tree`, `prop-bush`, `prop-dungeon-gate` (its opening is the
+  exit tile, where the stairs are drawn over it), `prop-sign` and `prop-grass`.
 - Props: `torch-pillar`, `torch-flame`, `glow-mote`, `door-closed-h`/`-v`, `door-jamb-h`/`-v`,
   `door-lock`, `loot-key`, `loot-tonic`, `loot-ward`, `loot-draught`, `loot-flare`, `loot-salts`,
   `flare-lit` (a burning flare's light), `loot-skill-scroll`, `loot-weapon` (any weapon

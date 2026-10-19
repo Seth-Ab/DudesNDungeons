@@ -25,10 +25,14 @@ test.describe("Rebindable controls", () => {
     await page.keyboard.press("x");
     await page.getByRole("button", { name: "Close" }).click();
 
-    // The first spawn is two tiles west of the Dungeon Gate's column and several rows south: walk
-    // east, then north until the gate is in reach.
+    // The first spawn is south-west of the fountain, which stands in the Dungeon Gate's column: walk
+    // north past the fountain into the gate's recess, east to line up with the gate, then north
+    // until it is in reach.
+    await page.keyboard.down("w");
+    await page.waitForTimeout(4000);
+    await page.keyboard.up("w");
     await page.keyboard.down("d");
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(900);
     await page.keyboard.up("d");
     await page.keyboard.down("w");
     await expect(page.locator(".hud__prompt")).toContainText("[X]", { timeout: 15_000 });

@@ -2,6 +2,8 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { z } from "zod";
 import { packageRoot } from "../paths.js";
+import { TILE_SCALE } from "../../shared/constants/game.js";
+import { MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import {
   dungeonDefinitionSchema,
   itemDefinitionSchema,
@@ -314,6 +316,17 @@ function validateReferences(content: GameContent): void {
 
     if (dungeon.layout === "authored") {
       assertRectangular(label, dungeon.tiles);
+
+      const width = dungeon.tiles[0]?.length ?? 0;
+      for (const prop of dungeon.props) {
+        const size = MAP_PROP_SIZES[prop.kind];
+        // Footprints are in world tiles and placements in authored ones.
+        const right = prop.x + size.tilesWide / TILE_SCALE;
+        const bottom = prop.y + size.tilesHigh / TILE_SCALE;
+        if (right > width || bottom > dungeon.tiles.length) {
+          throw new Error(`${label} places a ${prop.kind} prop at (${prop.x}, ${prop.y}) that runs off the map`);
+        }
+      }
 
       for (const placed of dungeon.monsters) {
         const type = content.monsters.get(placed.typeId);

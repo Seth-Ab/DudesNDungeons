@@ -61,6 +61,10 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
         width: dungeon.map.width * scale,
         height: dungeon.map.height * scale,
         tiles: scaleTiles(dungeon.map.tiles, scale),
+        // A prop is anchored at a tile's corner rather than its centre, so it scales like a room.
+        ...(dungeon.map.props
+          ? { props: dungeon.map.props.map((prop) => ({ ...prop, x: prop.x * scale, y: prop.y * scale })) }
+          : {}),
       },
       // Room bounds are a block of whole tiles rather than a point, so they scale at both corners:
       // the top-left moves out and the size grows with it, leaving the room flush with its walls.

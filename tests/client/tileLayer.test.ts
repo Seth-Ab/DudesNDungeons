@@ -132,6 +132,29 @@ describe("the tile layer", () => {
     expect(stamps).toEqual(["wall-15"]);
   });
 
+  it("draws a forest-themed map as woodland and cobbles", () => {
+    const { layer, draw, stamps } = harness();
+    const rows = withTile(filled(" "), 1, 1, "#");
+    layer.sync({ ...windowOf(withTile(rows, 2, 1, ".")), theme: "forest" }, "hub");
+    draw();
+
+    expect(stamps).toHaveLength(2);
+    expect(stamps).toContain("forest-13");
+    expect(stamps.find((name) => name !== "forest-13")).toMatch(/^cobble-\d$/);
+  });
+
+  it("restamps everything when the same world changes theme", () => {
+    const { layer, draw, stamps } = harness();
+    layer.sync(windowOf(filled(".")), "hub");
+    draw();
+    stamps.length = 0;
+
+    layer.sync({ ...windowOf(filled(".")), theme: "forest" }, "hub");
+    draw();
+    expect(stamps).toHaveLength(SIZE * SIZE);
+    expect(stamps.every((name) => name.startsWith("cobble-"))).toBe(true);
+  });
+
   it("starts clean for a new world, even at the same size", () => {
     const { layer, draw, stamps } = harness();
     layer.sync(windowOf(filled(".")), "hub");

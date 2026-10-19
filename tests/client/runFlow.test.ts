@@ -170,7 +170,7 @@ describe("what the player is carrying", () => {
   it("warns in the hub only, where a torch can still be picked up", () => {
     const empty = player("Maya");
 
-    expect(torchNotice(empty, "hub")).toContain("Torch Supply");
+    expect(torchNotice(empty, "hub")).toContain("torch stall");
     expect(torchNotice(empty, "dungeon")).toBe("");
     expect(torchNotice(player("Maya", { carryingTorch: true }), "hub")).toBe("");
     expect(torchNotice(null, "hub")).toBe("");

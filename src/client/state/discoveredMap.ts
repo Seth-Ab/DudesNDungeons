@@ -12,7 +12,8 @@ const UNKNOWN = " ";
  *
  * Rows a delta does not touch keep their string, and an empty delta returns `previous` itself, so
  * renderers can tell by reference that nothing changed. A map of another world or size than
- * `previous` also starts afresh, which covers a baseline that was somehow missed.
+ * `previous` also starts afresh, which covers a baseline that was somehow missed. Props accumulate
+ * the same way as tiles, and the theme rides along with every delta.
  */
 export function applyMapDiscovery(
   previous: DungeonMapState | null,
@@ -25,7 +26,8 @@ export function applyMapDiscovery(
     previous.width === discovery.width &&
     previous.height === discovery.height;
 
-  if (continues && discovery.discovered.length === 0) return previous;
+  const newProps = discovery.props ?? [];
+  if (continues && discovery.discovered.length === 0 && newProps.length === 0) return previous;
 
   const tiles = continues
     ? [...previous.tiles]
@@ -47,5 +49,8 @@ export function applyMapDiscovery(
     originX: 0,
     originY: 0,
     tiles,
+    ...(discovery.theme ? { theme: discovery.theme } : {}),
+    // A prop arrives once, so a continuing map keeps what it had and adds what is new.
+    props: continues ? [...(previous.props ?? []), ...newProps] : newProps,
   };
 }

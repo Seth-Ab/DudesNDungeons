@@ -149,7 +149,7 @@ export function bankSummary(items: readonly InventoryItem[]): string[] {
  */
 export function torchNotice(self: PlayerState | null, location: SessionLocation | null): string {
   if (!self || location !== "hub" || self.carryingTorch) return "";
-  return "No torch. Take one from the Torch Supply before you use the gate.";
+  return "No torch. Take one from the torch stall before you use the gate.";
 }
 
 /**

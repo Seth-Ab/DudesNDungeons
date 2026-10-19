@@ -436,3 +436,70 @@ describe("puzzle content", () => {
     expect(() => loadContent(root)).toThrow(/minHoldMs/);
   });
 });
+
+describe("map scenery content", () => {
+  /** A small authored map, 5x3 authored tiles, with whatever scenery a test gives it. */
+  function plaza(scenery: Record<string, unknown>) {
+    return contentRoot({
+      "dungeons/plaza.json": {
+        id: "plaza",
+        name: "Plaza",
+        layout: "authored",
+        tiles: ["#####", "#.#.#", "#####"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        ...scenery,
+      },
+    });
+  }
+
+  it("ships a hub themed as forest, with props, that validates", () => {
+    const hub = loadContent().dungeons.get("hub");
+
+    expect(hub).toMatchObject({ layout: "authored", theme: "forest" });
+    expect(hub?.layout === "authored" && hub.props.length).toBeGreaterThan(0);
+  });
+
+  it("defaults an authored map to stone with no props", () => {
+    const plain = loadContent(plaza({})).dungeons.get("plaza");
+
+    expect(plain).toMatchObject({ theme: "stone", props: [] });
+  });
+
+  it("accepts props that fit on the map, fractional placements included", () => {
+    const root = plaza({
+      theme: "forest",
+      props: [
+        { kind: "fountain", x: 2, y: 1 },
+        { kind: "stall", x: 3, y: 2, label: "Torches" },
+        { kind: "bush", x: 4.5, y: 2.5 },
+      ],
+    });
+
+    expect(() => loadContent(root)).not.toThrow();
+  });
+
+  it("refuses an unknown theme", () => {
+    expect(() => loadContent(plaza({ theme: "swamp" }))).toThrow(/plaza\.json is not valid content.*theme/s);
+  });
+
+  it("refuses an unknown prop kind", () => {
+    expect(() => loadContent(plaza({ props: [{ kind: "windmill", x: 1, y: 1 }] }))).toThrow(
+      /plaza\.json is not valid content.*props/s,
+    );
+  });
+
+  it("refuses a prop that runs off the map", () => {
+    // A stall is two authored tiles wide, so at x 4 its right half hangs past the last column.
+    expect(() => loadContent(plaza({ props: [{ kind: "stall", x: 4, y: 1 }] }))).toThrow(
+      /places a stall prop at \(4, 1\) that runs off the map/,
+    );
+    expect(() => loadContent(plaza({ props: [{ kind: "tree", x: 1, y: 3 }] }))).toThrow(/runs off the map/);
+    expect(() => loadContent(plaza({ props: [{ kind: "tree", x: -1, y: 0 }] }))).toThrow(/props/);
+  });
+
+  it("refuses an unknown light tint", () => {
+    const root = plaza({ lights: [{ name: "Lamp", x: 1, y: 1, radius: 5, tint: "green" }] });
+
+    expect(() => loadContent(root)).toThrow(/tint/);
+  });
+});

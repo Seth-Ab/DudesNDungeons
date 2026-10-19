@@ -13,8 +13,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   adds its stats. The server reads the stats of the weapon in hand at each swing, so an edit applies
   after a restart with no code change; an empty hand (or anything that is not a melee weapon) swings
   with the unarmed constants. `attackDamageBonus` skills add to either. A weapon is carried in the
-  hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` lies in the hub's
-  spawn area.
+  hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` lies on the hub's
+  Weapons stall.
   Ammo has `kind: "ammo"` and a positive integer `maxStack` (at most 99). A stack of any count up
   to `maxStack` takes one inventory slot; a pickup tops up carried stacks of the same item, then
   takes a free slot, and leaves whatever does not fit on the floor. An authored dungeon's loot
@@ -48,7 +48,16 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
   and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
-- `dungeons/`: authored dungeons and generated-dungeon profiles.
+- `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
+  `theme` (`stone`, the default, or `forest`, which draws walls as woodland and floors as cobbles)
+  and a `props` list of scenery: `{ kind, x, y, label? }`, with `kind` one of `fountain`, `stall`,
+  `quest-board`, `tree`, `bush`, `dungeon-gate`, `sign` or `grass`. A prop's `x`/`y` is the authored
+  tile at its top-left (fractions allowed) and its size is fixed per kind in
+  `src/shared/constants/scenery.ts`; the whole of it must be on the map. Props never collide, so put
+  `#` under anything a player should not walk through, and a pickup meant to sit on a counter just
+  inside the counter's front edge, where a player can still reach it. `label` (32 characters at most)
+  is drawn over the prop. A light may add `tint: "red"`, an ominous glow with no torch of its own.
+  The hub is fully lit whatever its lights, which only shade it.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
 - `upgrades/`: ordered improvements associated with a skill.
 

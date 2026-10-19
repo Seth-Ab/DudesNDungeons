@@ -229,6 +229,7 @@ export function buildAuthoredDungeon(
     kind: "fixed" as const,
     position: { x: placed.x, y: placed.y },
     radius: placed.radius,
+    ...(placed.tint ? { tint: placed.tint } : {}),
   }));
 
   return {
@@ -241,6 +242,8 @@ export function buildAuthoredDungeon(
         originX: 0,
         originY: 0,
         tiles: [...definition.tiles],
+        theme: definition.theme,
+        props: definition.props.map((prop) => ({ ...prop })),
       },
       rooms,
       monsters,
