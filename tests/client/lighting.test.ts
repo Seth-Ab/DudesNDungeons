@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createLightShader,
+  flickerFactor,
+  HUB_AMBIENT_DARKNESS,
+  hubAmbientDarkness,
   litDarkness,
   REMEMBERED_DARKNESS,
   shadingTile,
@@ -232,5 +235,68 @@ describe("shading only what the server lit", () => {
     createLightShader()(rgba, columns, MAP.length, 0, 0, allRemembered, [westTorch]);
 
     for (let index = 0; index < columns * MAP.length; index += 1) expect(rgba[index * 4 + 3]).toBe(255);
+  });
+});
+
+describe("flicker", () => {
+  const lamps = ["lamp-a", "lamp-b", "lamp-c", "lamp-d", "lamp-e"];
+
+  it("is the same for a given time and light id", () => {
+    for (const id of lamps) {
+      expect(flickerFactor(id, 123_456, 0.3)).toBe(flickerFactor(id, 123_456, 0.3));
+    }
+  });
+
+  it("keeps a light within its flicker amount, and steady without one", () => {
+    for (let time = 0; time < 20_000; time += 137) {
+      const factor = flickerFactor("lamp-a", time, 0.25);
+      expect(factor).toBeGreaterThanOrEqual(0.75);
+      expect(factor).toBeLessThanOrEqual(1);
+      expect(flickerFactor("lamp-a", time, 0)).toBe(1);
+    }
+  });
+
+  it("does not move two lights in step", () => {
+    const at = (id: string, time: number) => flickerFactor(id, time, 0.3);
+    for (let first = 0; first < lamps.length; first += 1) {
+      for (let second = first + 1; second < lamps.length; second += 1) {
+        const series = (id: string) => Array.from({ length: 40 }, (_unused, step) => at(id, step * 90));
+        expect(series(lamps[first]!)).not.toEqual(series(lamps[second]!));
+      }
+    }
+  });
+});
+
+describe("hub ambient light", () => {
+  it("never leaves a tile of the hub black, and is darker toward the edge than the middle", () => {
+    const width = 84;
+    const height = 52;
+    let darkest = 0;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        darkest = Math.max(darkest, hubAmbientDarkness(x, y, width, height));
+      }
+    }
+
+    expect(darkest).toBeLessThan(0.7);
+    expect(hubAmbientDarkness(0, 20, width, height)).toBeGreaterThan(
+      hubAmbientDarkness(42, 26, width, height),
+    );
+    expect(hubAmbientDarkness(42, 26, width, height)).toBe(HUB_AMBIENT_DARKNESS);
+  });
+
+  it("lets a lantern pool out-shine the ambient floor, and leaves a dungeon's lit tiles dark without one", () => {
+    const ambient = (x: number, y: number) => hubAmbientDarkness(x, y, 30, 30);
+    const lantern = [{ position: { x: 15, y: 15 }, radius: 8 }];
+    const shade = createLightShader();
+    const rgba = new Uint8ClampedArray(30 * 30 * 4);
+    shade(rgba, 30, 30, 0, 0, () => ".", lantern, ambient);
+
+    const alphaAt = (x: number, y: number) => rgba[(y * 30 + x) * 4 + 3]!;
+    expect(alphaAt(15, 15)).toBeLessThan(alphaAt(15, 5));
+    expect(alphaAt(15, 5)).toBe(Math.round(ambient(15, 5) * 255));
+
+    shade(rgba, 30, 30, 0, 0, () => ".", []);
+    expect(alphaAt(15, 5)).toBe(Math.round(REMEMBERED_DARKNESS * 255));
   });
 });

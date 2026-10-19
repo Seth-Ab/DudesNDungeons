@@ -221,3 +221,23 @@ describe("the hub's ground", () => {
     expect(session.dungeon.map.props?.find((prop) => prop.kind === "stall")?.tint).toBe("ember");
   });
 });
+
+describe("the hub's lights", () => {
+  it("gives each light its own id and a campfire that flickers hardest", () => {
+    const { session } = hub();
+    const lights = session.dungeon.lightSources;
+    const flickers = lights.map((light) => light.flicker ?? 0);
+
+    expect(new Set(lights.map((light) => light.id)).size).toBe(lights.length);
+    expect(lights.filter((light) => (light.fixture ?? "pillar") === "pillar").length).toBeGreaterThanOrEqual(5);
+    const campfire = lights.find((light) => light.fixture === "campfire")!;
+    expect(campfire.flicker).toBe(Math.max(...flickers));
+  });
+
+  it("names the stall, the quest board and the fountain", () => {
+    const { session } = hub();
+    const labels = (session.dungeon.map.props ?? []).flatMap((prop) => (prop.label ? [prop.label] : []));
+
+    expect(labels).toEqual(expect.arrayContaining(["Torch Supply", "Quest Gallery", "Strategy Hearth"]));
+  });
+});

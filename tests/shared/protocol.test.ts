@@ -276,8 +276,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v31, the version that added training dummies", () => {
-    expect(PROTOCOL_VERSION).toBe(31);
+  it("is on protocol v32, the version that added light flicker and fixtures", () => {
+    expect(PROTOCOL_VERSION).toBe(32);
   });
 
   it("ships the id lists the design fixed", () => {

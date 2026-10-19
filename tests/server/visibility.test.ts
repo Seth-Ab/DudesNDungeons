@@ -893,3 +893,21 @@ describe("lit tiles in snapshots", () => {
     expect(litKeys(rebased)).toEqual(before);
   });
 });
+
+describe("hub visibility", () => {
+  it("lights every tile of the hub for a viewer, and not every tile of a dungeon", () => {
+    const viewer = testPlayer("viewer", { carryingTorch: false });
+    const session = testSession([viewer], "hub");
+    session.location = "hub";
+    viewer.position = { ...session.spawnPoints[0]! };
+    const { width, height } = session.dungeon.map;
+
+    const hub = visibleTilesForPlayer(session, viewer);
+    expect(hub.size).toBe(width * height);
+
+    const dungeon = testSession([testPlayer("runner")]);
+    const runner = dungeon.players.get("runner")!;
+    const lit = visibleTilesForPlayer(dungeon, runner);
+    expect(lit.size).toBeLessThan(dungeon.dungeon.map.width * dungeon.dungeon.map.height);
+  });
+});

@@ -36,11 +36,15 @@
   "props": [
     { "kind": "dungeon-gate", "x": 9, "y": 0 },
     { "kind": "sign", "x": 12.25, "y": 1.5 },
-    { "kind": "quest-board", "x": 2, "y": 1 },
-    { "kind": "stall", "x": 16, "y": 2, "tint": "ember" },
-    { "kind": "fountain", "x": 8, "y": 6 },
+    { "kind": "quest-board", "x": 2, "y": 1, "label": "Quest Gallery" },
+    { "kind": "stall", "x": 16, "y": 2, "tint": "ember", "label": "Torch Supply" },
+    { "kind": "fountain", "x": 8, "y": 6, "label": "Strategy Hearth" },
     { "kind": "tree", "x": 18, "y": 10 },
-    { "kind": "bush", "x": 17.25, "y": 10.5 }
+    { "kind": "bush", "x": 17.25, "y": 10.5 },
+    { "kind": "hanging-lantern", "x": 16.1, "y": 2 },
+    { "kind": "hanging-lantern", "x": 17.6, "y": 2 },
+    { "kind": "hanging-lantern", "x": 2.1, "y": 1 },
+    { "kind": "hanging-lantern", "x": 3.6, "y": 1 }
   ],
   "spawnPoints": [
     { "x": 8, "y": 9 },
@@ -70,6 +74,16 @@
     { "entityId": "b2222222-2222-4222-8222-222222222222", "x": 18, "y": 7 }
   ],
   "lights": [
-    { "entityId": "a6666666-6666-4666-8666-666666666666", "name": "Great Hearth", "x": 10, "y": 6, "radius": 100 }
+    { "entityId": "a6666666-6666-4666-8666-666666666666", "name": "Great Hearth", "x": 10, "y": 6, "radius": 18, "flicker": 0.12 },
+    { "entityId": "cff02021-db33-44cb-b1bf-acd0767a0ee0", "name": "Quest Lantern", "x": 4, "y": 4, "radius": 14, "flicker": 0.08 },
+    { "entityId": "17473021-6df5-4ae2-9499-183760d7d1db", "name": "Gate Lantern", "x": 14, "y": 3.5, "radius": 14, "flicker": 0.08 },
+    { "entityId": "f6d932ce-3308-40f6-a363-1f44c6ca563d", "name": "Garden Lantern", "x": 6, "y": 9, "radius": 14, "flicker": 0.1 },
+    { "entityId": "b72b39a7-bd80-4150-9fd3-1053cc2dd9b3", "name": "Grove Lantern", "x": 15, "y": 9, "radius": 14, "flicker": 0.1 },
+    { "entityId": "bf743198-e9a5-4def-b566-fc5f5c7a2d66", "name": "Campfire", "x": 3, "y": 8, "radius": 14, "fixture": "campfire", "flicker": 0.3 },
+    { "entityId": "6b2a9707-2e7d-4dd5-ad09-008e33214e3b", "name": "Gate Glow", "x": 10, "y": 1, "radius": 12, "tint": "red", "fixture": "none", "flicker": 0.06 },
+    { "entityId": "18d36883-69ab-40d6-85b6-65bf84fe0d07", "name": "Stall Lantern West", "x": 16.1, "y": 2.25, "radius": 10, "fixture": "none", "flicker": 0.14 },
+    { "entityId": "a988f9b0-0f59-4416-b3f2-daa0a3890719", "name": "Stall Lantern East", "x": 17.6, "y": 2.25, "radius": 10, "fixture": "none", "flicker": 0.14 },
+    { "entityId": "fb340cf3-6da5-4c34-815c-c5d869dfe7d8", "name": "Board Lantern West", "x": 2.1, "y": 1.25, "radius": 10, "fixture": "none", "flicker": 0.14 },
+    { "entityId": "c81eaed1-e1f4-4ff9-9fa6-e991fb007533", "name": "Board Lantern East", "x": 3.6, "y": 1.25, "radius": 10, "fixture": "none", "flicker": 0.14 }
   ]
 }

@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v31.
-- Last completed work: party frames with character portraits and a "Designing…" state, and a hub
+  everyone to the hub under protocol v32.
+- Last completed work: ambient hub lighting with varied, flickering lights and distance-based prop
+  name plates kept clear of the HUD (issue #146, Hub Revamp Phase 4, protocol v32); earlier, party frames with character portraits and a "Designing…" state, and a hub
   banner that names who is still designing (issue #134, protocol unchanged at v31); earlier, players
   drawn as layered pixel-art characters in their own look and party colour (issue #132); earlier, hub training dummies with a server-kept
   damage-per-second readout (issue #150, protocol v31); earlier, an emote wheel with server-validated, rate-limited emotes (issue #149,
@@ -442,6 +443,8 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Ambient hub lighting, flickering lanterns and campfire, and distance-based prop name
+  plates inside a HUD-safe area; the hub is fully visible to everyone (#146, Hub Revamp Phase 4, v32).
 - 2026-10-19: Party-frame portraits, a "Designing…" state, and a hub banner naming designers (#134).
 - 2026-10-19: Hub ground layer, canopy overhang, contact shadows, stall tints and hue-shifted
   palette (#144, Hub Revamp Phase 2, protocol unchanged at v31).

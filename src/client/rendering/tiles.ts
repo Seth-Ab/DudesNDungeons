@@ -151,6 +151,8 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // floor the light was authored on rather than buried in it.
   ["torch-pillar", { tilesWide: 1, tilesHigh: 2 }],
   ["torch-flame", { tilesWide: 1, tilesHigh: 1 }],
+  // The ground under a campfire light; the flame over it is `torch-flame`.
+  ["campfire-logs", { tilesWide: 1, tilesHigh: 1 }],
   ["glow-mote", { tilesWide: 1, tilesHigh: 1 }],
   // Door leaves tile along the opening rather than stretching across it, because an opening is
   // `TILE_SCALE` world tiles wide and one stretched sprite would be drawn at four times its size.

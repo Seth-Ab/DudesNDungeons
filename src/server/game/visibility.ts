@@ -275,6 +275,8 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
  * hand-authored 16x8 room and ruinous on a generated 96x64 one: it made this the most expensive
  * thing the server did, at several milliseconds per player per tick. A light can only ever reach
  * inside its own radius, so only that box is worth testing.
+ *
+ * In the hub every tile is visible; see below.
  */
 export function visibleTilesForPlayer(
   session: Session,
@@ -282,6 +284,15 @@ export function visibleTilesForPlayer(
   sources = activeLightSourcesForPlayer(session, viewer),
   visible = new LitTiles(session.dungeon.map.width, session.dungeon.map.height),
 ): LitTiles {
+  // The hub is a public plaza with no monsters or hidden loot, so there is nothing to withhold:
+  // every tile is in view for everyone, and the client shades it. Dungeons stay light by light.
+  if (session.location === "hub") {
+    for (let index = 0; index < session.dungeon.map.width * session.dungeon.map.height; index += 1) {
+      visible.addIndex(index);
+    }
+    return visible;
+  }
+
   const doors = doorSignature(session.dungeon);
 
   for (const source of sources) {

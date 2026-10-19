@@ -22,6 +22,7 @@ export const MAP_PROP_KINDS = [
   "bush",
   "dungeon-gate",
   "sign",
+  "hanging-lantern",
 ] as const;
 
 /**
@@ -38,6 +39,7 @@ export const MAP_PROP_SIZES: Readonly<
   bush: { tilesWide: 2, tilesHigh: 2 },
   "dungeon-gate": { tilesWide: 12, tilesHigh: 8 },
   sign: { tilesWide: 2, tilesHigh: 2 },
+  "hanging-lantern": { tilesWide: 1, tilesHigh: 2 },
 };
 
 /** Longest caption a prop may carry, such as a stall's name. */
@@ -48,6 +50,13 @@ export const MAX_PROP_LABEL_LENGTH = 32;
  * ominous glow with no torch of its own, which the client does not draw differently yet.
  */
 export const LIGHT_TINTS = ["warm", "red"] as const;
+
+/**
+ * What a fixed light is drawn as. `pillar` is a torch on a stand and the default; `campfire` is a
+ * fire on the ground; `none` draws nothing of its own, for a light whose source is a prop already
+ * in the scene, such as a hanging lantern.
+ */
+export const LIGHT_FIXTURES = ["pillar", "campfire", "none"] as const;
 
 /**
  * What an authored map's optional `ground` grid may say about a floor tile: grass, cobble or dirt,

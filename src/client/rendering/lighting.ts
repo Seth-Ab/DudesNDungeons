@@ -21,6 +21,58 @@ export interface SceneLight {
   radius: number;
 }
 
+/**
+ * How much of its reach a flickering light keeps, from `1 - flicker` to 1, at a wall-clock time.
+ *
+ * A pure function of the time and the light's id, so every client shows the same flame at the same
+ * moment and no two lights share a phase. Two sines at unrelated rates make the waver irregular
+ * enough to read as fire rather than a pulse; each rate and phase comes from a hash of the id.
+ */
+export function flickerFactor(lightId: string, timeMs: number, flicker: number): number {
+  if (flicker <= 0) return 1;
+
+  const hash = hashString(lightId);
+  const slow = Math.sin(timeMs / 1000 * (3.1 + (hash % 17) / 10) + (hash % 628) / 100);
+  const fast = Math.sin(timeMs / 1000 * (8.3 + ((hash >>> 8) % 23) / 10) + ((hash >>> 12) % 628) / 100);
+  const wave = (slow * 0.65 + fast * 0.35 + 1) / 2;
+
+  return 1 - flicker * (1 - wave);
+}
+
+/** 32-bit FNV-1a, so the same id gives the same number on every client. */
+function hashString(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * The hub's light floor: how dark a lit tile is before any light reaches it, as an alpha for the
+ * near-black overlay. 0.3 leaves about 70% of the tile's brightness, so nothing in the plaza reads
+ * as black while a lantern's pool is still visibly brighter. The one number to tune.
+ */
+export const HUB_AMBIENT_DARKNESS = 0.3;
+
+/** How much darker the very edge of the hub is than its plaza, added to the floor above. */
+export const HUB_EDGE_DARKNESS = 0.3;
+
+/** How far in from the map's edge, in world tiles, the forest-edge vignette reaches. */
+export const HUB_VIGNETTE_TILES = 16;
+
+/**
+ * Darkness of a hub tile with no light on it: the ambient floor, deepening toward the forest at the
+ * map's edge. Never reaches full darkness, so no tile of the hub can read as black.
+ */
+export function hubAmbientDarkness(x: number, y: number, width: number, height: number): number {
+  const edge = Math.min(x, y, width - 1 - x, height - 1 - y);
+  const depth = Math.max(0, Math.min(1, 1 - edge / HUB_VIGNETTE_TILES));
+
+  return HUB_AMBIENT_DARKNESS + HUB_EDGE_DARKNESS * depth * depth;
+}
+
 /** Overlay alpha for space the viewer has never seen. Opaque, so it matches the cleared frame. */
 export const UNSEEN_DARKNESS = 1;
 
@@ -104,6 +156,9 @@ export function tileDarkness(
  * most lights reach only a small part of the screen, so visiting just the tiles inside each light's
  * reach does a fraction of the work of asking every light about every tile. The scratch buffers
  * persist between calls, so a frame allocates nothing once the screen size settles.
+ *
+ * `ambient`, when given, is the darkness of a lit tile no light reaches. The hub passes one; a
+ * dungeon does not, and leaves unlit-but-visible tiles fully dark.
  */
 export function createLightShader() {
   let lit = new Uint8Array(0);
@@ -117,6 +172,7 @@ export function createLightShader() {
     minY: number,
     readTile: (x: number, y: number) => string | null,
     lights: readonly SceneLight[],
+    ambient?: (x: number, y: number) => number,
   ): void {
     const count = columns * rows;
     if (lit.length < count) {
@@ -136,7 +192,8 @@ export function createLightShader() {
           level[index] = REMEMBERED_DARKNESS;
         } else {
           lit[index] = 1;
-          level[index] = Number.POSITIVE_INFINITY;
+          // A lit tile with no ambient floor is dark until a light says otherwise.
+          level[index] = ambient ? ambient(minX + column, minY + row) : Number.POSITIVE_INFINITY;
         }
       }
     }
