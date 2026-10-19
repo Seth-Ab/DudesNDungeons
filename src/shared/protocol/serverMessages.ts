@@ -14,6 +14,7 @@ import {
   sessionIdSchema,
   skillViewSchema,
   upgradeViewSchema,
+  vector2Schema,
 } from "../types/core.js";
 import { voiceSignalSchema } from "./voice.js";
 
@@ -163,6 +164,18 @@ export const stateSnapshotSchema = z.object({
   run: runStateSchema,
 });
 
+/**
+ * Where a player's melee swing landed, as the server resolved it: the attacker's position and
+ * facing, the held weapon's (or the unarmed) reach, and the cosine of the half-angle of its arc.
+ * Clients draw exactly this and never recompute reach from content.
+ */
+export const swingGeometrySchema = z.object({
+  origin: vector2Schema,
+  facing: vector2Schema,
+  range: z.number().positive(),
+  arcCos: z.number().min(-1).max(1),
+});
+
 export const attackResolvedSchema = z.object({
   type: z.literal("attackResolved"),
   attackerId: entityIdSchema,
@@ -170,6 +183,8 @@ export const attackResolvedSchema = z.object({
   damage: z.number().int().nonnegative(),
   targetHealth: z.number().int().nonnegative(),
   targetDefeated: z.boolean(),
+  /** The swing's geometry, hit or miss. Null for monster attacks, which telegraph in snapshots. */
+  swing: swingGeometrySchema.nullable(),
 });
 
 /**

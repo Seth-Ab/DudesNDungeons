@@ -38,7 +38,13 @@ import {
   updateRemoteInterpolation,
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
-import { createPopupField, damagePopup, newAttacks } from "./state/combatFeedback.js";
+import {
+  createPopupField,
+  createSwingField,
+  damagePopup,
+  newAttacks,
+  swingArc,
+} from "./state/combatFeedback.js";
 import {
   nearestDownedAlly,
   nearestInteraction,
@@ -105,6 +111,7 @@ let view: SessionView = initialSessionView;
 let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 /** Floating damage numbers, and the last attack sequence already turned into one. */
 const popupField = createPopupField();
+const swingField = createSwingField();
 let lastAttackSeq = 0;
 
 const client = createSessionClient({
@@ -128,6 +135,7 @@ const renderer = createCanvasRenderer(() => {
     location: view.location,
     gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
     popups: popupField.active(now),
+    swings: swingField.active(now),
   };
 });
 
@@ -263,6 +271,8 @@ function showDamageNumbers(): void {
   for (const attack of newAttacks(view, lastAttackSeq)) {
     const popup = damagePopup(view, attack, localPosition);
     if (popup) popupField.add(popup, now);
+    const arc = swingArc(view, attack);
+    if (arc) swingField.add(arc, now);
   }
   lastAttackSeq = view.attackSeq;
 }

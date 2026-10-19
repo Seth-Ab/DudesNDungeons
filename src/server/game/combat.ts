@@ -118,6 +118,12 @@ export function resolvePlayerAttack(
 
   player.facing = heading;
   player.nextAttackAt = now + swing.cooldownMs;
+  const geometry = {
+    origin: { x: player.position.x, y: player.position.y },
+    facing: { x: heading.x, y: heading.y },
+    range: swing.range,
+    arcCos: swing.arcCos,
+  };
 
   if (!target) {
     return {
@@ -129,6 +135,7 @@ export function resolvePlayerAttack(
         damage: 0,
         targetHealth: 0,
         targetDefeated: false,
+        swing: geometry,
       },
     };
   }
@@ -150,6 +157,7 @@ export function resolvePlayerAttack(
       damage: dealt,
       targetHealth: target.health,
       targetDefeated: !target.alive,
+      swing: geometry,
     },
   };
 }
@@ -300,6 +308,7 @@ function resolveWindup(
       damage: dealt,
       targetHealth: player.health,
       targetDefeated: isDown(player),
+      swing: null,
     });
   }
   return events;

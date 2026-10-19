@@ -271,8 +271,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v28, the version that added appearance", () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+  it("is on protocol v29, the version that added swing geometry", () => {
+    expect(PROTOCOL_VERSION).toBe(29);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -397,6 +397,34 @@ describe("appearance contract", () => {
     );
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("attackResolved swing geometry", () => {
+  const swing = { origin: { x: 1, y: 2 }, facing: { x: 1, y: 0 }, range: 1.5, arcCos: 0.5 };
+  const attack = {
+    type: "attackResolved",
+    attackerId: PLAYER_ID,
+    targetId: null,
+    damage: 0,
+    targetHealth: 0,
+    targetDefeated: false,
+    swing,
+  };
+  const parse = (message: unknown) => parseServerMessage(JSON.stringify(message));
+
+  it("accepts a swing, and null for an attack that has none", () => {
+    expect(parse(attack).ok).toBe(true);
+    expect(parse({ ...attack, swing: null }).ok).toBe(true);
+  });
+
+  it("rejects missing or out-of-range geometry", () => {
+    const { swing: _omitted, ...withoutSwing } = attack;
+    expect(parse(withoutSwing).ok).toBe(false);
+    expect(parse({ ...attack, swing: { ...swing, range: 0 } }).ok).toBe(false);
+    expect(parse({ ...attack, swing: { ...swing, arcCos: 1.5 } }).ok).toBe(false);
+    expect(parse({ ...attack, swing: { ...swing, arcCos: -1.5 } }).ok).toBe(false);
+    expect(parse({ ...attack, swing: { ...swing, origin: undefined } }).ok).toBe(false);
   });
 });
 
