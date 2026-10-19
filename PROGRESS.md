@@ -7,8 +7,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v27.
-- Last completed work: stamina draught, flare, and smelling salts consumables, with revive of a
+  everyone to the hub under protocol v28.
+- Last completed work: server-validated player appearance and party colours (issue #131, protocol
+  v28); earlier, stamina draught, flare, and smelling salts consumables, with revive of a
   downed ally (issue #85, protocol v27); earlier, lootable chests placed by room templates (issue #88, protocol v26);
   earlier, stackable arrows that take one inventory slot (issue #115, protocol v25); earlier, server-lit tiles, so remembered and shared map stays dark (issue #120, protocol v24); earlier, the Rusted Sword and swinging in the hub (issue #114, protocol v23);
   earlier, a held-item slot and the `weapon` item kind (issue #113, protocol v22); earlier, ranged and charging monster behaviours (issue #91, protocol v21); earlier,
@@ -91,6 +92,7 @@ Resolved:
 - [x] Add player join, leave, reconnect, and disconnect handling. A drop holds the slot for `RECONNECT_GRACE_MS`; reconnect uses the resume token from `sessionJoined`.
 - [x] Track player identity, position, health, and ready state. See `SessionPlayer` in `src/server/sessions/sessionStore.ts`.
 - [x] Broadcast authoritative player state to all clients in a session. Lifecycle events plus a `stateSnapshot` each tick.
+- [x] Add a server-validated character look and party colour (issue #131, protocol v28). Shared id lists live in `src/shared/constants/appearance.ts`. `PlayerState` carries a public `appearance` (null while still designing) and a `partyColor`, the first colour free in the session, which is kept through reconnects and reused once the slot is released. `sessionJoined.needsAppearance` asks for a look, and `setAppearance` sets it once (`invalidAppearance`, `appearanceLocked`). A player still designing holds a slot but blocks nobody, cannot be given items, and has their move, attack, interact, item, carry and ready intents refused. `partyReadyForRun` waits on them, and the server spawns them on free ground once the look is set. Until the design screen exists, the client sends `DEFAULT_APPEARANCE` and skips players without a look when it draws, predicts, and fills the minimap. Run-save persistence (#122), the design screen and roster, and sprites remain out of scope.
 
 ### 3. Authoritative Dungeon State
 
@@ -412,6 +414,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Server-validated player appearance and party colours, `setAppearance` (#131, v28).
 - 2026-10-18: Stamina Draught, Flare, and Smelling Salts consumables; revive a downed ally (#85, v27).
 - 2026-10-18: Lootable chests placed by room templates, rolling named loot tables (#88, v26).
 - 2026-10-18: Stackable arrows and the `ammo` item kind (#115, v25).

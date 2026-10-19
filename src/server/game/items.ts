@@ -18,7 +18,7 @@ import type {
 } from "../../shared/types/core.js";
 import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
-import { isDown } from "./dungeonState.js";
+import { isDown, isSpawned } from "./dungeonState.js";
 import { placeFlare } from "./flares.js";
 import { spillLootTable } from "./monsterLoot.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
@@ -263,7 +263,7 @@ export function giveItem(
 
   const target = session.players.get(targetPlayerId);
   if (!target) return reject("targetMissing");
-  if (!target.connected || isDown(target)) return reject("notPermitted");
+  if (!target.connected || isDown(target) || !isSpawned(target)) return reject("notPermitted");
   if (!withinReach(player, target.position)) return reject("outOfRange");
   if (item.kind === "ammo") {
     const maxStack = maxStackOf(session, item.itemId);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { pickupItem } from "../../src/server/game/items.js";
 import {
   partyReadyForRun,
@@ -35,6 +36,7 @@ function hubParty(names: string[]) {
   const players = names.map((playerName) => {
     const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName }));
     if (!joined.ok) throw new Error(joined.message);
+    store.setAppearance(joined.player.id, DEFAULT_APPEARANCE);
     return joined.player;
   });
   return { session, players };
@@ -54,6 +56,16 @@ describe("starting a run", () => {
 
     players[1]!.connected = true;
     expect(partyReadyForRun(session)).toBe(true);
+  });
+
+  it("will not start while anyone is still designing a character", () => {
+    const { session, players } = hubParty(["Alpha", "Beta"]);
+    for (const player of players) player.ready = true;
+    players[1]!.appearance = null;
+
+    expect(partyReadyForRun(session)).toBe(false);
+    expect(startRun(session, 100)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(session.location).toBe("hub");
   });
 
   it("preserves only torches deliberately picked up before entering", () => {

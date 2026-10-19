@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
 import {
   MINIMAP_MAX_SCALE,
@@ -44,6 +45,8 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     ...overrides,
   } as PlayerState;
 }

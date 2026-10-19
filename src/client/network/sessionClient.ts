@@ -5,7 +5,7 @@ import {
   type ClientMessage,
   type VoiceSignal,
 } from "../../shared/protocol/index.js";
-import type { PlayerId, Vector2 } from "../../shared/types/core.js";
+import type { PlayerAppearance, PlayerId, Vector2 } from "../../shared/types/core.js";
 import {
   applyServerMessage,
   initialSessionView,
@@ -259,6 +259,11 @@ export function createSessionClient(options: SessionClientOptions) {
 
     setReady(ready: boolean): boolean {
       return send({ type: "setReady", ready });
+    },
+
+    /** Sent once per slot, after a `sessionJoined` that said `needsAppearance`. */
+    setAppearance(appearance: PlayerAppearance): boolean {
+      return send({ type: "setAppearance", appearance });
     },
 
     /**

@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import {
   PLAYER_BASE_RESISTANCE,
   PLAYER_MAX_STAMINA,
@@ -109,6 +110,8 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     carryingTorch: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     profile: testProfile(id),
     discoveredTiles: new Uint8Array(0),
     discoveredRoomIds: new Set(),

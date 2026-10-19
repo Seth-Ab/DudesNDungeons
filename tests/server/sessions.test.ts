@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { PLAYER_MAX_HEALTH } from "../../src/shared/constants/game.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import {
@@ -30,9 +31,11 @@ function createStore(overrides: Partial<ConstructorParameters<typeof SessionStor
   });
 }
 
-function joinOrThrow(store: SessionStore, session: Session, playerName: string) {
+/** Joins and, unless `designed` is false, designs a character so the player is in the world. */
+function joinOrThrow(store: SessionStore, session: Session, playerName: string, designed = true) {
   const result = store.join(joinRequest({ roomCode: session.roomCode, playerName }));
   if (!result.ok) throw new Error(`expected join to succeed, got ${result.code}`);
+  if (designed) store.setAppearance(result.player.id, DEFAULT_APPEARANCE);
   return result;
 }
 
@@ -330,6 +333,129 @@ describe("leaving and sweeping", () => {
     expect(first.players.size).toBe(1);
     expect(second.players.size).toBe(1);
     expect(store.findMember(alpha.player.id)?.session.id).toBe(first.id);
+  });
+});
+
+describe("appearance and party colour", () => {
+  const LOOK = { body: "girl", skinTone: "olive", hairStyle: "long", hairColor: "ginger" } as const;
+
+  it("gives a fresh slot no look and the first free party colour", () => {
+    const store = createStore();
+    const session = store.createSession();
+
+    const { player } = joinOrThrow(store, session, "Grix", false);
+
+    expect(player.appearance).toBeNull();
+    expect(player.partyColor).toBe("ember");
+    expect(toPlayerState(player)).toMatchObject({ appearance: null, partyColor: "ember" });
+  });
+
+  it("colours the party uniquely in join order and reuses a released colour", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const players = ["One", "Two", "Three", "Four"].map(
+      (name) => joinOrThrow(store, session, name, false).player,
+    );
+
+    expect(players.map((player) => player.partyColor)).toEqual(["ember", "moss", "azure", "plum"]);
+
+    store.leave(players[1]!.id);
+    expect(joinOrThrow(store, session, "Five", false).player.partyColor).toBe("moss");
+
+    store.markDisconnected(players[2]!.id);
+    clock += GRACE_MS;
+    store.sweep();
+    expect(joinOrThrow(store, session, "Six", false).player.partyColor).toBe("azure");
+  });
+
+  it("refuses a join with no party colour left, whatever the configured party size", () => {
+    const store = createStore({ maxPartySize: 6 });
+    const session = store.createSession();
+    for (const name of ["One", "Two", "Three", "Four"]) joinOrThrow(store, session, name, false);
+
+    const result = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Five" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("sessionFull");
+  });
+
+  it("stores a look once and locks it", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "Grix", false);
+
+    const first = store.setAppearance(player.id, LOOK);
+    expect(first.ok).toBe(true);
+    expect(player.appearance).toEqual(LOOK);
+    expect(toPlayerState(player).appearance).toEqual(LOOK);
+
+    const second = store.setAppearance(player.id, { ...LOOK, hairColor: "black" });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe("appearanceLocked");
+    expect(player.appearance).toEqual(LOOK);
+  });
+
+  it("refuses a look from a player who is not in a session", () => {
+    const store = createStore();
+
+    const result = store.setAppearance("player-nobody", LOOK);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("notInSession");
+  });
+
+  it("keeps the look and colour through a reconnect", () => {
+    const store = createStore();
+    const session = store.createSession();
+    joinOrThrow(store, session, "First");
+    const { player } = joinOrThrow(store, session, "Grix", false);
+    store.setAppearance(player.id, LOOK);
+
+    store.markDisconnected(player.id);
+    clock += GRACE_MS - 1;
+    const result = store.join(
+      joinRequest({ roomCode: session.roomCode, playerName: "Grix", resumeToken: player.resumeToken }),
+    );
+
+    expect(result.ok && result.resumed).toBe(true);
+    if (!result.ok) return;
+    expect(result.player.appearance).toEqual(LOOK);
+    expect(result.player.partyColor).toBe("moss");
+  });
+
+  it("holds a designing slot for the grace window, still without a look, then releases it", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "Grix", false);
+
+    store.markDisconnected(player.id);
+    clock += GRACE_MS - 1;
+    expect(store.sweep()).toEqual([]);
+    const resumed = store.join(
+      joinRequest({ roomCode: session.roomCode, playerName: "Grix", resumeToken: player.resumeToken }),
+    );
+    expect(resumed.ok && resumed.resumed).toBe(true);
+    if (!resumed.ok) return;
+    expect(resumed.player.appearance).toBeNull();
+    expect(resumed.player.partyColor).toBe("ember");
+
+    store.markDisconnected(player.id);
+    clock += GRACE_MS;
+    expect(store.sweep().map((member) => member.player.id)).toEqual([player.id]);
+    expect(session.players.size).toBe(0);
+  });
+
+  it("lets a designing player block nobody, then spawns them on free ground", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const designing = joinOrThrow(store, session, "Designing", false).player;
+    const spawned = joinOrThrow(store, session, "Spawned").player;
+
+    // A player still designing blocks nobody, so the next arrival is offered the same spawn point.
+    expect(spawned.position).toEqual(designing.position);
+
+    store.setAppearance(designing.id, LOOK);
+    expect(designing.position).not.toEqual(spawned.position);
   });
 });
 

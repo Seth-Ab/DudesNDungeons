@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import {
   bankSummary,
   entranceMessage,
@@ -32,6 +33,8 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     bankedItems: [],
     ...overrides,
   };

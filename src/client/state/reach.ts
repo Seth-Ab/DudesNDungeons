@@ -46,14 +46,14 @@ export function usedOnDownedAlly(item: InventoryItem | undefined): boolean {
   return item?.kind === "consumable" && item.useOn === "downedAlly";
 }
 
-/** A standing, connected party member, the only kind `giveItem` accepts. */
+/** A standing, connected party member with a character, the only kind `giveItem` accepts. */
 export function nearestStandingAlly(
   view: SessionView,
   position: Vector2,
 ): (ReachTarget & { gap: number }) | null {
   return closest(
     view.players
-      .filter((p) => p.id !== view.selfId && p.health > 0 && p.connected)
+      .filter((p) => p.id !== view.selfId && p.health > 0 && p.connected && p.appearance !== null)
       .map((p) => ({ id: p.id, name: p.name, gap: distance(position, p.position) })),
   );
 }

@@ -74,6 +74,14 @@ function until(
 
 const inSession = (view: SessionView): boolean => view.phase === "inSession";
 
+const LOOK = { body: "guy", skinTone: "brown", hairStyle: "spiky", hairColor: "moss" } as const;
+
+/** Sends a look and resolves once the server's snapshot shows this player spawned with it. */
+function design(client: SessionClient): Promise<SessionView> {
+  client.setAppearance(LOOK);
+  return until(client, (v) => v.players.some((p) => p.id === v.selfId && p.appearance !== null));
+}
+
 /**
  * Resolves once the server satisfies `predicate`. For the cases with nothing on the wire to wait
  * for, such as a departure nobody else is in the room to notice.
@@ -166,6 +174,7 @@ describe("ready state", () => {
     const roomCode = await host.createRoom();
     host.join(roomCode, "Alpha");
     await until(host, inSession);
+    await design(host);
 
     const guest = newClient();
     guest.join(roomCode, "Beta");
@@ -254,7 +263,8 @@ describe("movement intent", () => {
     const client = newClient();
     const roomCode = await client.createRoom();
     client.join(roomCode, "Alpha");
-    const joined = await until(client, inSession);
+    await until(client, inSession);
+    const joined = await design(client);
     const start = joined.players[0]?.position.x ?? 0;
 
     expect(client.sendMoveIntent({ x: 1, y: 0 })).toBe(true);
@@ -306,6 +316,30 @@ describe("reconnecting", () => {
 
     const view = await until(host, (v) => v.players.length === 1, 5000);
     expect(view.players[0]?.name).toBe("Alpha");
+  });
+});
+
+describe("character appearance", () => {
+  it("asks a fresh slot for a look, shows it to the party, and keeps it through a reconnect", async () => {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    const fresh = await until(host, inSession);
+    expect(fresh.needsAppearance).toBe(true);
+
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    await until(guest, inSession);
+    await design(host);
+
+    const seen = await until(guest, (v) => v.players.some((p) => p.name === "Alpha" && p.appearance !== null));
+    expect(seen.players.find((p) => p.name === "Alpha")?.appearance).toEqual(LOOK);
+
+    host.disconnect();
+    await until(guest, (v) => v.players.some((p) => !p.connected));
+    host.join(roomCode, "Alpha");
+    const back = await until(host, (v) => v.phase === "inSession" && v.players.length === 2);
+    expect(back.needsAppearance).toBe(false);
   });
 });
 

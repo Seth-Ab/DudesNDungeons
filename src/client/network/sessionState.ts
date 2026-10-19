@@ -61,6 +61,12 @@ export interface SessionView {
   selfId: PlayerId | null;
   roomCode: string | null;
   tickRate: number | null;
+  /**
+   * What the last `sessionJoined` said: this slot has no character yet, so the player must design
+   * one and send `setAppearance` before they can act. Until they do, the server leaves them out of
+   * the world, and the snapshot shows their own entry with a null `appearance`.
+   */
+  needsAppearance: boolean;
   tick: number;
   players: PlayerState[];
   visiblePlayerIds: PlayerId[];
@@ -111,6 +117,7 @@ export const initialSessionView: SessionView = {
   selfId: null,
   roomCode: null,
   tickRate: null,
+  needsAppearance: false,
   tick: 0,
   players: [],
   visiblePlayerIds: [],
@@ -168,6 +175,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         selfId: message.playerId,
         roomCode: message.roomCode,
         tickRate: message.tickRate,
+        needsAppearance: message.needsAppearance,
         players: message.players,
         visiblePlayerIds: message.players.map((player) => player.id),
         lastError: null,
@@ -338,7 +346,16 @@ export function othersOf(view: SessionView): PlayerState[] {
   return view.players.filter((player) => player.id !== view.selfId);
 }
 
+/**
+ * Party members who have a character, the only ones in the world. One still designing is in the
+ * roster but stands nowhere: the server lets them block nobody, so the client draws and predicts
+ * around them the same way.
+ */
+export function spawnedOthersOf(view: SessionView): PlayerState[] {
+  return othersOf(view).filter((player) => player.appearance !== null);
+}
+
 export function visibleOthersOf(view: SessionView): PlayerState[] {
   const visible = new Set(view.visiblePlayerIds);
-  return othersOf(view).filter((player) => visible.has(player.id));
+  return spawnedOthersOf(view).filter((player) => visible.has(player.id));
 }

@@ -178,11 +178,24 @@ async function createRoom(): Promise<string> {
   return body.roomCode;
 }
 
-/** Joins and returns the private `sessionJoined`, which is where the resume token lives. */
-async function joinRoom(roomCode: string, name: string, resumeToken?: string) {
+/** The look `joinRoom` designs, so the joined player is in the world and can act. */
+const LOOK = { body: "girl", skinTone: "tan", hairStyle: "bun", hairColor: "silver" } as const;
+
+/**
+ * Joins and returns the private `sessionJoined`, which is where the resume token lives. A slot that
+ * needs a look gets `LOOK` unless `designed` is false, and this waits until a snapshot shows it: the
+ * server spawns the player then, and a test that moves them on the server must not race the spawn.
+ */
+async function joinRoom(roomCode: string, name: string, resumeToken?: string, designed = true) {
   const client = await TestClient.connect();
   client.join(roomCode, name, resumeToken);
   const joined = await client.next("sessionJoined");
+  if (designed && joined.needsAppearance) {
+    client.send({ type: "setAppearance", appearance: LOOK });
+    await client.nextWhere("stateSnapshot", (snapshot) =>
+      snapshot.players.some((player) => player.id === joined.playerId && player.appearance !== null),
+    );
+  }
   return { client, joined };
 }
 
@@ -483,6 +496,177 @@ describe("joining a dungeon", () => {
     );
     expect(snapshot.run.decaying).toBe(false);
     expect(snapshot.run.decayStartsInMs).toBeGreaterThan(RESISTANCE_DECAY_GRACE_MS - 5_000);
+  });
+});
+
+describe("character appearance", () => {
+  const DESIGNED = { body: "guy", skinTone: "deep", hairStyle: "crop", hairColor: "azure" } as const;
+  const ANY_ID = "a1111111-1111-4111-8111-111111111111";
+
+  it("asks a fresh join for a look, then carries it to every party member", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+    const beta = await joinRoom(roomCode, "Beta");
+
+    expect(alpha.joined.needsAppearance).toBe(true);
+    expect(alpha.joined.players.find((p) => p.id === alpha.joined.playerId)).toMatchObject({
+      appearance: null,
+      partyColor: "ember",
+    });
+    expect(beta.joined.needsAppearance).toBe(true);
+    expect(beta.joined.players.find((p) => p.id === beta.joined.playerId)?.partyColor).toBe("moss");
+
+    alpha.client.send({ type: "setAppearance", appearance: DESIGNED });
+
+    for (const viewer of [alpha.client, beta.client]) {
+      const snapshot = await viewer.nextWhere("stateSnapshot", (message) =>
+        message.players.some((p) => p.id === alpha.joined.playerId && p.appearance !== null),
+      );
+      expect(snapshot.players.find((p) => p.id === alpha.joined.playerId)?.appearance).toEqual(
+        DESIGNED,
+      );
+    }
+    expect(alpha.client.received("sessionError")).toEqual([]);
+  });
+
+  it("refuses an unknown id in each field, a missing field, and an extra one", async () => {
+    const roomCode = await createRoom();
+    const { client, joined } = await joinRoom(roomCode, "Alpha", undefined, false);
+    const { hairColor: _dropped, ...missing } = DESIGNED;
+
+    for (const appearance of [
+      { ...DESIGNED, body: "ogre" },
+      { ...DESIGNED, skinTone: "green" },
+      { ...DESIGNED, hairStyle: "mohawk" },
+      { ...DESIGNED, hairColor: "chartreuse" },
+      missing,
+      { ...DESIGNED, hat: "crown" },
+    ]) {
+      client.send({ type: "setAppearance", appearance });
+      expect((await client.next("sessionError")).code, JSON.stringify(appearance)).toBe(
+        "invalidAppearance",
+      );
+    }
+
+    expect(server.store.findMember(joined.playerId)?.player.appearance).toBeNull();
+  });
+
+  it("locks the look after the first one", async () => {
+    const roomCode = await createRoom();
+    const { client, joined } = await joinRoom(roomCode, "Alpha", undefined, false);
+
+    client.send({ type: "setAppearance", appearance: DESIGNED });
+    client.send({ type: "setAppearance", appearance: { ...DESIGNED, hairColor: "black" } });
+
+    expect((await client.next("sessionError")).code).toBe("appearanceLocked");
+    expect(server.store.findMember(joined.playerId)?.player.appearance).toEqual(DESIGNED);
+  });
+
+  it("refuses a look before sessionJoined", async () => {
+    const client = await TestClient.connect();
+    client.send({ type: "setAppearance", appearance: DESIGNED });
+
+    expect((await client.next("sessionError")).code).toBe("notInSession");
+  });
+
+  it("refuses movement, interaction, attacks, items, and ready while designing", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+    const session = server.store.getSession(roomCode)!;
+    const player = session.players.get(alpha.joined.playerId)!;
+    const torch = session.dungeon.loot.find((loot) => loot.kind === "torch")!;
+    const entrance = session.dungeon.exits[0]!;
+    player.position = { ...torch.position };
+    player.inventory = [{ id: ANY_ID, name: "Copper Key", kind: "key" }];
+    const before = { ...player.position };
+
+    alpha.client.send({ type: "playerMoveIntent", sequence: 7, direction: { x: 1, y: 0 } });
+    expect(await alpha.client.next("actionRejected")).toMatchObject({ sequence: 7, reason: "notPermitted" });
+    alpha.client.send({ type: "playerAttack", sequence: 8, direction: { x: 1, y: 0 }, targetId: null });
+    expect(await alpha.client.next("actionRejected")).toMatchObject({ sequence: 8, reason: "notPermitted" });
+
+    for (const message of [
+      { type: "pickupItem", itemId: torch.id },
+      { type: "playerInteract", targetId: entrance.id },
+      { type: "useItem", itemId: ANY_ID },
+      { type: "dropItem", itemId: ANY_ID },
+      { type: "swapHeld", itemId: ANY_ID },
+      { type: "giveItem", itemId: ANY_ID, targetPlayerId: alpha.joined.playerId },
+      { type: "liftPlayer", targetPlayerId: alpha.joined.playerId },
+      { type: "dropCarry" },
+      { type: "setReady", ready: true },
+    ]) {
+      alpha.client.send(message);
+      expect(await alpha.client.next("actionRejected"), message.type).toMatchObject({
+        sequence: null,
+        reason: "notPermitted",
+      });
+    }
+
+    expect(player.position).toEqual(before);
+    expect(player.carryingTorch).toBe(false);
+    expect(player.inventory).toHaveLength(1);
+    expect(player.ready).toBe(false);
+    expect(alpha.client.received("playerReadyChanged")).toEqual([]);
+    expect(alpha.client.received("attackResolved")).toEqual([]);
+  });
+
+  it("keeps the party out of a run while anyone is still designing", async () => {
+    const roomCode = await createRoom();
+    const designing = await joinRoom(roomCode, "Designing", undefined, false);
+    const ready = await joinRoom(roomCode, "Ready");
+    const session = server.store.getSession(roomCode)!;
+    const entrance = session.dungeon.exits[0]!;
+    session.players.get(ready.joined.playerId)!.position = { ...entrance.position };
+    // Forced, because the server refuses the designer's own ready: what is under test is that a
+    // missing look keeps the door shut by itself.
+    session.players.get(designing.joined.playerId)!.ready = true;
+
+    ready.client.send({ type: "setReady", ready: true });
+    await ready.client.next("playerReadyChanged");
+    ready.client.send({ type: "playerInteract", targetId: entrance.id });
+
+    expect((await ready.client.next("actionRejected")).reason).toBe("notPermitted");
+    expect(session.location).toBe("hub");
+  });
+
+  it("holds a designing slot through the grace window, still asking for a look, then releases it", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const dropped = beta.client.next("playerConnectionChanged");
+    alpha.client.close();
+    await dropped;
+
+    const resumed = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken, false);
+    expect(resumed.joined.resumed).toBe(true);
+    expect(resumed.joined.needsAppearance).toBe(true);
+    expect(resumed.joined.players.find((p) => p.id === alpha.joined.playerId)).toMatchObject({
+      appearance: null,
+      partyColor: "ember",
+    });
+
+    resumed.client.close();
+    const left = await beta.client.next("playerLeft", 3000);
+    expect(left).toMatchObject({ playerId: alpha.joined.playerId, reason: "timedOut" });
+  });
+
+  it("resumes a designed slot without asking again, keeping its look and colour", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const dropped = alpha.client.next("playerConnectionChanged");
+    beta.client.close();
+    await dropped;
+
+    const resumed = await joinRoom(roomCode, "Beta", beta.joined.resumeToken);
+    expect(resumed.joined.needsAppearance).toBe(false);
+    expect(resumed.joined.players.find((p) => p.id === beta.joined.playerId)).toMatchObject({
+      appearance: LOOK,
+      partyColor: "moss",
+    });
   });
 });
 

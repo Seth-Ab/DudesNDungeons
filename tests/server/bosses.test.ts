@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { bossesRemain } from "../../src/server/game/bosses.js";
 import { resolvePlayerAttack } from "../../src/server/game/combat.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
@@ -194,6 +195,7 @@ describe("reconnecting mid-run", () => {
     const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Grix" }));
     if (!joined.ok) throw new Error("join failed");
     const { player } = joined;
+    store.setAppearance(player.id, DEFAULT_APPEARANCE);
     player.ready = true;
     expect(startRun(session, 0)).toEqual({ ok: true });
 

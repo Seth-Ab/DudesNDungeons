@@ -65,6 +65,14 @@ describe("dungeon movement", () => {
     expect(actor.position).toEqual(at(2, 2));
   });
 
+  it("lets a player walk through one who is still designing a character", () => {
+    const actor = testPlayer("alpha", { position: at(2, 2) });
+    const designing = testPlayer("beta", { position: at(2, 2, 0.6), appearance: null });
+    const session = testSession([actor, designing]);
+
+    expect(movePlayer(session, actor.id, { x: 1, y: 0 }, 0).ok).toBe(true);
+  });
+
   it("lets players who already overlap step apart, but not closer", () => {
     const actor = testPlayer("alpha", { position: at(2, 2) });
     const other = testPlayer("beta", { position: at(2, 2, 0.3) });

@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE } from "../shared/constants/appearance.js";
 import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
 import type { EntityId, Vector2 } from "../shared/types/core.js";
 import {
@@ -22,8 +23,8 @@ import { createSessionClient } from "./network/sessionClient.js";
 import {
   initialSessionView,
   inParty,
-  othersOf,
   selfOf,
+  spawnedOthersOf,
   visibleOthersOf,
   type SessionView,
 } from "./network/sessionState.js";
@@ -193,7 +194,7 @@ setInterval(() => {
   if (!client.sendMoveIntent(heading)) return;
 
   lastIntentAt = performance.now();
-  localPosition = predictMove(view.dungeon, othersOf(view), localPosition, heading);
+  localPosition = predictMove(view.dungeon, spawnedOthersOf(view), localPosition, heading);
   hud.setPosition(localPosition);
 }, MOVE_INTERVAL_MS);
 
@@ -208,6 +209,10 @@ client.subscribe((next) => {
   const snapshotArrived = next.tick !== view.tick;
   const rangeChanged = next.voiceRange !== view.voiceRange;
   view = next;
+
+  // Stand-in until the character design screen exists: a slot without a look takes the default one,
+  // so the player is spawned and can play. The server accepts it once and locks it for the slot.
+  if (joinedNow && view.needsAppearance) client.setAppearance({ ...DEFAULT_APPEARANCE });
 
   // Leaving, timing out, and a refused rejoin release the microphone and every peer link. A
   // reconnect keeps them: the audio does not run through the server.

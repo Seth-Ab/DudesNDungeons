@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import {
   MAX_PREDICTION_ERROR,
   PREDICTION_SETTLE_MS,
@@ -50,6 +51,8 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    appearance: { ...DEFAULT_APPEARANCE },
+    partyColor: "ember",
     bankedItems: [],
     ...overrides,
   };

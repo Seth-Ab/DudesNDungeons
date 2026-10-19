@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 27;
+export const PROTOCOL_VERSION = 28;
 
 export const MAX_PARTY_SIZE = 4;
 
