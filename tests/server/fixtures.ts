@@ -161,6 +161,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     trapRearmAt: new Map(),
     puzzleHeldSince: new Map(),
     flareExpiresAt: new Map(),
+    dummyHits: new Map(),
   };
 }
 

@@ -35,6 +35,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { lootRngFor } from "../game/monsterLoot.js";
+import type { DummyHit } from "../game/dummies.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
@@ -172,6 +173,8 @@ export interface Session {
   puzzleHeldSince: Map<EntityId, number>;
   /** When each burning flare in `dungeon.lightSources` goes out. Server-side only. */
   flareExpiresAt: Map<EntityId, number>;
+  /** Hits on each training dummy still inside the readout window. Server-side only. */
+  dummyHits: Map<EntityId, DummyHit[]>;
 }
 
 export interface JoinRequest {
@@ -289,6 +292,7 @@ export class SessionStore {
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
       flareExpiresAt: new Map(),
+      dummyHits: new Map(),
     };
     this.#sessions.set(roomCode, session);
     return session;

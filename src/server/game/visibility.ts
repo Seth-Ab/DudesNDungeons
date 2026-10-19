@@ -484,6 +484,14 @@ function visibleDungeon(
         ...light,
         position: { ...light.position },
       })),
+    // The readout rides along, so everyone who can see a dummy sees the same numbers on it.
+    dummies: session.dungeon.dummies
+      .filter((dummy) => tileVisible(visible, dummy.position))
+      .map((dummy) => ({
+        ...dummy,
+        position: { ...dummy.position },
+        attackers: dummy.attackers.map((attacker) => ({ ...attacker })),
+      })),
   };
 }
 

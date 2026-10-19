@@ -61,6 +61,7 @@ import {
   SEALED_EXIT_MESSAGE,
 } from "./state/runFlow.js";
 import { createEmoteField, newEmotes, placeEmotes } from "./state/emotes.js";
+import { createDummyWobbles } from "./state/trainingDummies.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createEmoteWheel } from "./ui/emoteWheel.js";
 import { createHud } from "./ui/hud.js";
@@ -114,6 +115,8 @@ let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 /** Floating damage numbers, and the last attack sequence already turned into one. */
 const popupField = createPopupField();
 const swingField = createSwingField();
+/** Training dummies swaying from a hit, so everyone who sees the blow sees it land. */
+const dummyWobbles = createDummyWobbles();
 let lastAttackSeq = 0;
 /** Emote bubbles over heads, and the last emote sequence already turned into one. */
 const emoteField = createEmoteField();
@@ -149,6 +152,7 @@ const renderer = createCanvasRenderer(() => {
         ? localPosition
         : (others.find((player) => player.id === playerId)?.position ?? null),
     ),
+    dummyWobbles: dummyWobbles.angles(now),
   };
 });
 
@@ -283,8 +287,9 @@ client.subscribe((next) => {
 });
 
 /**
- * Turns attacks the view has not shown yet into floating numbers. The server sends every attack in
- * the session to every member, so only those whose target this client can place are drawn.
+ * Turns attacks the view has not shown yet into floating numbers, swing arcs, and the sway of a
+ * struck training dummy. The server sends every attack in the session to every member, so only
+ * those whose target this client can place are drawn.
  */
 function showDamageNumbers(): void {
   // A fresh view (leaving a session) restarts the sequence.
@@ -296,6 +301,12 @@ function showDamageNumbers(): void {
     if (popup) popupField.add(popup, now);
     const arc = swingArc(view, attack);
     if (arc) swingField.add(arc, now);
+    const targetId = attack.targetId;
+    const struckDummy =
+      targetId !== null &&
+      attack.damage > 0 &&
+      view.dungeon?.dummies.some((dummy) => dummy.id === targetId);
+    if (struckDummy) dummyWobbles.hit(targetId, now);
   }
   lastAttackSeq = view.attackSeq;
 }

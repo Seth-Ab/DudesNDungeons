@@ -67,6 +67,7 @@ function dungeon(overrides: Partial<DungeonSnapshot> = {}): DungeonSnapshot {
     doors: [],
     exits: [],
     lightSources: [],
+    dummies: [],
     ...overrides,
   };
 }

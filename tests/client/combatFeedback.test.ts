@@ -22,6 +22,7 @@ const SELF = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const ALLY = "9a2e7c1f-7b5b-4a3f-8e2d-3c4b5d6e7f80";
 const MONSTER = "a1111111-1111-4111-8111-111111111111";
 const HIDDEN_MONSTER = "b2222222-2222-4222-8222-222222222222";
+const DUMMY = "c3333333-3333-4333-8333-333333333333";
 
 function player(id: string, x: number): PlayerState {
   return {
@@ -56,7 +57,10 @@ function view(overrides: Partial<SessionView> = {}): SessionView {
     selfId: SELF,
     players: [player(SELF, 1), player(ALLY, 3)],
     visiblePlayerIds: [SELF, ALLY],
-    dungeon: { monsters: [monster(MONSTER, 7)] } as unknown as DungeonState,
+    dungeon: {
+      monsters: [monster(MONSTER, 7)],
+      dummies: [{ id: DUMMY, position: { x: 4, y: 2 }, recentDamage: 0, dps: 0, attackers: [] }],
+    } as unknown as DungeonState,
     ...overrides,
   };
 }
@@ -74,6 +78,15 @@ describe("damagePopup", () => {
       text: "5",
       kind: "dealt",
     });
+  });
+
+  it("shows a hit on a training dummy at the dummy", () => {
+    expect(damagePopup(view(), attack({ targetId: DUMMY, damage: 9 }), here)).toEqual({
+      position: { x: 4, y: 2 },
+      text: "9",
+      kind: "dealt",
+    });
+    expect(damagePopup(view(), attack({ attackerId: ALLY, targetId: DUMMY }), here)?.kind).toBe("ally");
   });
 
   it("shows an ally's hit as an ally number", () => {
@@ -192,6 +205,10 @@ describe("swingArc", () => {
       hit: false,
       impact: null,
     });
+  });
+
+  it("puts the impact of a hit on a training dummy at the dummy", () => {
+    expect(swingArc(view(), swung({ targetId: DUMMY }))).toMatchObject({ hit: true, impact: { x: 4, y: 2 } });
   });
 
   it("draws the local player's swing and a visible teammate's", () => {

@@ -182,6 +182,7 @@ export const attackResolvedSchema = z.object({
   attackerId: entityIdSchema,
   targetId: entityIdSchema.nullable(),
   damage: z.number().int().nonnegative(),
+  /** A training dummy has no health: a hit on one reports 0 here and is never a defeat. */
   targetHealth: z.number().int().nonnegative(),
   targetDefeated: z.boolean(),
   /** The swing's geometry, hit or miss. Null for monster attacks, which telegraph in snapshots. */
