@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /** Hub positions in world units: a Traveler's Torch at authored (16, 3), the gate at (10, 1). */
 const TORCH = { x: 65.5, y: 13.5 };
@@ -139,6 +140,7 @@ test.describe("Darkness", () => {
     await page.goto("/?debug");
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
     await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);
 

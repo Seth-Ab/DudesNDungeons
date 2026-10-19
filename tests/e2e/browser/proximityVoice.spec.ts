@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /**
  * Two real browsers in one party, talking over a real WebRTC connection negotiated through the dev
@@ -76,6 +77,7 @@ test.describe("Proximity voice", () => {
     const host = await openPlayer(browser, true);
     await host.getByPlaceholder("Your name").fill("Maya");
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(host);
     const room = host.locator(".hud__stat", { hasText: "Room:" }).locator("span");
     await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
     const roomCode = (await room.textContent()) ?? "";
@@ -84,6 +86,7 @@ test.describe("Proximity voice", () => {
     await guest.getByPlaceholder("Your name").fill("Theo");
     await guest.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.getByRole("button", { name: "Join dungeon" }).click();
+    await enterHub(guest);
     await expect(guest.locator(".hud__stat", { hasText: "Room:" })).toContainText(roomCode);
 
     // Nothing is captured or connected until each player asks.
@@ -145,6 +148,7 @@ test.describe("Proximity voice", () => {
     await page.evaluate(REFUSE_MICROPHONE);
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
 
     await page.getByRole("button", { name: "Enable Voice" }).click();
     await expect(voiceStatus(page)).toContainText("microphone blocked");

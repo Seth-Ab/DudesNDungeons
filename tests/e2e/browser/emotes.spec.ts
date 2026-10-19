@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /**
  * Two real browsers in one party, in the lit hub where they can see each other. The host drives
@@ -19,6 +20,7 @@ test.describe("Emote wheel", () => {
     const host = await openPlayer(browser, false);
     await host.getByPlaceholder("Your name").fill("Maya");
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(host);
     const room = host.locator(".hud__stat", { hasText: "Room:" }).locator("span");
     await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
     const roomCode = (await room.textContent()) ?? "";
@@ -27,6 +29,7 @@ test.describe("Emote wheel", () => {
     await guest.getByPlaceholder("Your name").fill("Theo");
     await guest.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.getByRole("button", { name: "Join dungeon" }).click();
+    await enterHub(guest);
     await expect(guest.locator(".hud__vitals")).toBeVisible();
     await expect(host.locator(".hud__frames")).toContainText("Theo", { timeout: 15_000 });
 
@@ -76,6 +79,7 @@ test.describe("Emote wheel", () => {
     await page.goto("/");
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
 
     await page.getByRole("button", { name: "Controls" }).click();

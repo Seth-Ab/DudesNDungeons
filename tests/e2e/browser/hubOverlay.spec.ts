@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 test.describe("Hub overlay", () => {
   test("shows the gate status and a toggleable stash, with no run clock", async ({ page }, testInfo) => {
@@ -6,6 +7,7 @@ test.describe("Hub overlay", () => {
     await page.goto("/");
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
 
     const status = page.locator(".hud__hub-status");
     await expect(status).toBeVisible();

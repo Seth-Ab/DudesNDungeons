@@ -1,4 +1,3 @@
-import { DEFAULT_APPEARANCE } from "../shared/constants/appearance.js";
 import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
 import type { EntityId, Vector2 } from "../shared/types/core.js";
 import {
@@ -62,6 +61,11 @@ import {
 } from "./state/runFlow.js";
 import { createEmoteField, newEmotes, placeEmotes } from "./state/emotes.js";
 import { createDummyWobbles } from "./state/trainingDummies.js";
+import {
+  createLocalStorageLookStore,
+  createMemoryLookStore,
+} from "./state/characterDesign.js";
+import { createCharacterDesign } from "./ui/characterDesign.js";
 import { createControlsMenu } from "./ui/controlsMenu.js";
 import { createEmoteWheel } from "./ui/emoteWheel.js";
 import { createHud } from "./ui/hud.js";
@@ -91,6 +95,15 @@ function profileSecretStore() {
   } catch {
     // Same fallback, one step worse: progression then lasts only as long as the page.
     return createMemoryProfileSecretStore();
+  }
+}
+
+function lookStore() {
+  try {
+    return createLocalStorageLookStore(window.localStorage);
+  } catch {
+    // The design screen still works; it just cannot remember the last look.
+    return createMemoryLookStore();
   }
 }
 
@@ -209,7 +222,18 @@ const lobby = createLobby({
   onJoinRoom: (roomCode, playerName) => client.join(roomCode, playerName),
 });
 
-app.append(hud.element, lobby.element, controlsMenu.element, emoteWheel.element, renderer.canvas);
+// Between the lobby and the hub, for a slot that has no character yet.
+const design = createCharacterDesign({
+  store: lookStore(),
+  onConfirm: (look) => client.setAppearance(look),
+  onBack: () => {
+    client.leave();
+    lobby.setMessage("You left the dungeon.");
+    lobby.focus();
+  },
+});
+
+app.append(hud.element, lobby.element, design.element, controlsMenu.element, emoteWheel.element, renderer.canvas);
 renderer.resize();
 
 const input = createInputController({ onAction: performAction });
@@ -221,6 +245,8 @@ setInterval(() => {
   const self = selfOf(view);
   // A downed player cannot move; the server would refuse it, so do not predict it either.
   if (!heading || view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return;
+  // Still designing: the server refuses every intent, and the player has no place in the world yet.
+  if (self.appearance === null) return;
 
   // Intent only. The server owns placement; snapshots correct the prediction.
   if (!client.sendMoveIntent(heading)) return;
@@ -240,11 +266,10 @@ client.subscribe((next) => {
   // or it would read as confirmation that a moving player has stopped.
   const snapshotArrived = next.tick !== view.tick;
   const rangeChanged = next.voiceRange !== view.voiceRange;
+  // The server places a player the moment their look is accepted, far from wherever they were
+  // before it, so that position is adopted outright rather than reconciled against a prediction.
+  const spawnedNow = selfOf(view)?.appearance === null && selfOf(next)?.appearance != null;
   view = next;
-
-  // Stand-in until the character design screen exists: a slot without a look takes the default one,
-  // so the player is spawned and can play. The server accepts it once and locks it for the slot.
-  if (joinedNow && view.needsAppearance) client.setAppearance({ ...DEFAULT_APPEARANCE });
 
   // Leaving, timing out, and a refused rejoin release the microphone and every peer link. A
   // reconnect keeps them: the audio does not run through the server.
@@ -269,9 +294,9 @@ client.subscribe((next) => {
 
   const self = selfOf(view);
   if (self) {
-    // A fresh join or resume adopts the server's position outright; after that, the prediction is
+    // A fresh join, resume, or first spawn adopts the server's position outright; after that, the prediction is
     // kept until it settles or drifts.
-    localPosition = joinedNow
+    localPosition = joinedNow || spawnedNow
       ? { ...self.position }
       : reconcile(localPosition, self.position, performance.now() - lastIntentAt);
     hud.setPosition(localPosition);
@@ -284,6 +309,7 @@ client.subscribe((next) => {
 
   hud.syncTo(view);
   lobby.syncTo(view);
+  design.syncTo(view);
 });
 
 /**
@@ -354,6 +380,7 @@ function performAction(action: GameplayAction): void {
 
   const self = selfOf(view);
   if (view.phase !== "inSession" || !view.dungeon || !self || self.health <= 0) return;
+  if (self.appearance === null) return;
 
   switch (action) {
     case "attack": {

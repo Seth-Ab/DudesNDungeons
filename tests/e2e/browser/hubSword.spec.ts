@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /** World position of the hub's Rusted Sword: authored tile (10, 8), centred in its 4x4 block. */
 const SWORD = { x: 41.5, y: 33.5 };
@@ -35,6 +36,7 @@ test.describe("Hub sword", () => {
     await page.goto("/?debug");
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
     await expect(page.locator(".hud__slot--held")).toHaveAttribute("aria-label", /Empty hand/);
     await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);

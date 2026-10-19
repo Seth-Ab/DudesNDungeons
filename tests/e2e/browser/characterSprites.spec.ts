@@ -1,9 +1,10 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /**
- * A party in the hub, drawn as characters. The client has no character creator yet and sends the
- * default look, so each page rewrites its own `setAppearance` on the way out: the server still
- * validates it, and the party shows four different bodies, skins and hair.
+ * A party in the hub, drawn as characters. Each page confirms the design screen's random look, then
+ * rewrites its own `setAppearance` on the way out so the party is four known, different bodies,
+ * skins and hair. The server still validates it.
  */
 const LOOKS = [
   { name: "Maya", appearance: { body: "girl", skinTone: "tan", hairStyle: "ponytail", hairColor: "ginger" } },
@@ -44,6 +45,7 @@ test.describe("Character sprites", () => {
     const host = await openPlayer(browser, first.appearance, errors);
     await host.getByPlaceholder("Your name").fill(first.name);
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(host);
     const room = host.locator(".hud__stat", { hasText: "Room:" }).locator("span");
     await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
     const roomCode = (await room.textContent()) ?? "";
@@ -54,6 +56,7 @@ test.describe("Character sprites", () => {
       await guest.getByPlaceholder("Your name").fill(look.name);
       await guest.getByPlaceholder(/Room code/).fill(roomCode);
       await guest.getByRole("button", { name: "Join dungeon" }).click();
+      await enterHub(guest);
       await expect(guest.locator(".hud__vitals")).toBeVisible();
       await expect(host.locator(".hud__frames")).toContainText(look.name, { timeout: 15_000 });
       guests.push(guest);

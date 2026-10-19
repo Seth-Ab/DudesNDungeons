@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 test.describe("Rebindable controls", () => {
   test.beforeEach(async ({ page }) => {
@@ -6,6 +7,7 @@ test.describe("Rebindable controls", () => {
     await page.goto("/");
     await page.getByPlaceholder("Your name").fill("Maya");
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
     await page.getByRole("button", { name: "Controls" }).click();
   });
