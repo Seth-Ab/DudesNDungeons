@@ -23,6 +23,9 @@ export const MAP_PROP_KINDS = [
   "dungeon-gate",
   "sign",
   "hanging-lantern",
+  "bench",
+  "log",
+  "campfire",
 ] as const;
 
 /**
@@ -32,7 +35,8 @@ export const MAP_PROP_KINDS = [
 export const MAP_PROP_SIZES: Readonly<
   Record<(typeof MAP_PROP_KINDS)[number], { tilesWide: number; tilesHigh: number }>
 > = {
-  fountain: { tilesWide: 4, tilesHigh: 4 },
+  // Three authored tiles square: the hub's centrepiece, with a ring road round it.
+  fountain: { tilesWide: 12, tilesHigh: 12 },
   stall: { tilesWide: 8, tilesHigh: 4 },
   "quest-board": { tilesWide: 8, tilesHigh: 4 },
   tree: { tilesWide: 4, tilesHigh: 4 },
@@ -40,7 +44,25 @@ export const MAP_PROP_SIZES: Readonly<
   "dungeon-gate": { tilesWide: 12, tilesHigh: 8 },
   sign: { tilesWide: 2, tilesHigh: 2 },
   "hanging-lantern": { tilesWide: 1, tilesHigh: 2 },
+  // A whole authored tile, the solid block a bench or log stands on, with the picture across its
+  // middle; something to sit on round the fountain and the campfire.
+  bench: { tilesWide: 4, tilesHigh: 4 },
+  log: { tilesWide: 4, tilesHigh: 4 },
+  // The stone pit round a campfire light, which draws its own logs and flame in the middle. It lies
+  // flat on open floor, because a light on a solid tile shines on nothing.
+  campfire: { tilesWide: 4, tilesHigh: 4 },
 };
+
+/**
+ * Which way a prop faces. Art is drawn facing `south`, toward the viewer, and that is the default.
+ * A stall or bench south of what it serves faces `north`, and is drawn from behind.
+ */
+export const MAP_PROP_FACINGS = ["south", "north"] as const;
+
+export const DEFAULT_PROP_FACING = "south";
+
+/** The kinds with art for facing north. Content refuses `facing` on any other. */
+export const FACEABLE_PROP_KINDS: readonly (typeof MAP_PROP_KINDS)[number][] = ["stall", "bench"];
 
 /** Longest caption a prop may carry, such as a stall's name. */
 export const MAX_PROP_LABEL_LENGTH = 32;
@@ -89,10 +111,12 @@ export const DEFAULT_STALL_TINT = "ember";
 export const MAP_PROP_SHADOWS: Readonly<
   Partial<Record<(typeof MAP_PROP_KINDS)[number], { x: number; y: number; rx: number; ry: number }>>
 > = {
-  fountain: { x: 2, y: 3.55, rx: 2.15, ry: 0.7 },
+  fountain: { x: 6, y: 10.6, rx: 6.1, ry: 1.5 },
   stall: { x: 4, y: 3.8, rx: 4.1, ry: 0.45 },
   "quest-board": { x: 4, y: 3.75, rx: 3.6, ry: 0.5 },
   tree: { x: 2, y: 3.6, rx: 1.7, ry: 0.55 },
   bush: { x: 1, y: 1.75, rx: 0.95, ry: 0.35 },
   sign: { x: 1, y: 1.85, rx: 0.55, ry: 0.2 },
+  bench: { x: 2, y: 3.2, rx: 1.9, ry: 0.35 },
+  log: { x: 2, y: 2.85, rx: 1.8, ry: 0.35 },
 };

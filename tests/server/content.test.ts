@@ -469,7 +469,7 @@ describe("map scenery content", () => {
     const root = plaza({
       theme: "forest",
       props: [
-        { kind: "fountain", x: 2, y: 1 },
+        { kind: "fountain", x: 2, y: 0 },
         { kind: "stall", x: 3, y: 2, label: "Torches" },
         { kind: "bush", x: 4.5, y: 2.5 },
       ],
@@ -606,6 +606,18 @@ describe("map ground content", () => {
       /plaza\.json is not valid content.*ground/s,
     );
     expect(() => loadContent(plaza({ ground: [".....", ".#...", "....."] }))).toThrow(/ground/);
+  });
+
+  it("takes a north facing on a stall or bench and refuses one on anything else, or one it does not know", () => {
+    expect(() =>
+      loadContent(plaza({ props: [{ kind: "stall", x: 1, y: 1, facing: "north" }, { kind: "bench", x: 1, y: 2, facing: "north" }] })),
+    ).not.toThrow();
+    expect(() => loadContent(plaza({ props: [{ kind: "fountain", x: 1, y: 1, facing: "south" }] }))).toThrow(
+      /Only a stall or bench takes a facing/,
+    );
+    expect(() => loadContent(plaza({ props: [{ kind: "bench", x: 1, y: 1, facing: "east" }] }))).toThrow(
+      /plaza\.json is not valid content.*facing/s,
+    );
   });
 
   it("takes a tint on a stall and refuses one on anything else, or one it does not know", () => {

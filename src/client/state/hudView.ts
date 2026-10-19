@@ -72,7 +72,7 @@ export function actionableError(view: SessionView): string {
 
 /**
  * Named from the room metadata the snapshot already carries, which is the only thing that tells the
- * Torch Supply apart from the Quest Gallery: the hub is one open rectangle.
+ * Torch Supply apart from the Quest Gallery: props are pictures, not places.
  */
 export function placeStatusLabel(view: SessionView, self: PlayerState | null): string {
   if (!view.dungeon) return "-";

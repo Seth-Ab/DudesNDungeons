@@ -19,7 +19,7 @@ import { ASH_IMP_ID, at, monster, testPlayer, testProfile, testSession } from ".
 /** The hub's two dummies, from `content/dungeons/hub.json`. */
 const DUMMY_A = "b1111111-1111-4111-8111-111111111111";
 const DUMMY_B = "b2222222-2222-4222-8222-222222222222";
-const DUMMY_A_TILE = { x: 15, y: 7 };
+const DUMMY_A_TILE = { x: 19, y: 3 };
 
 /** World units west of dummy A: inside unarmed reach, outside the overlap radius. */
 const IN_REACH = 1;
@@ -90,7 +90,7 @@ describe("training dummies in the hub", () => {
   });
 
   it("takes an unarmed hit at full damage without dying", () => {
-    const session = hubSession([testPlayer("alpha", { position: at(15, 7, -IN_REACH) })]);
+    const session = hubSession([testPlayer("alpha", { position: at(19, 3, -IN_REACH) })]);
 
     expect(swingAt(session, "alpha", 0)).toEqual({
       ok: true,
@@ -102,7 +102,7 @@ describe("training dummies in the hub", () => {
         targetHealth: 0,
         targetDefeated: false,
         swing: {
-          origin: at(15, 7, -IN_REACH),
+          origin: at(19, 3, -IN_REACH),
           facing: { x: 1, y: 0 },
           range: PLAYER_ATTACK_RANGE,
           arcCos: PLAYER_ATTACK_ARC_COS,
@@ -114,7 +114,7 @@ describe("training dummies in the hub", () => {
 
   it("takes a hit from the held Rusted Sword, with attackDamageBonus on top", () => {
     const player = testPlayer("alpha", {
-      position: at(15, 7, -IN_REACH),
+      position: at(19, 3, -IN_REACH),
       held: RUSTED_SWORD,
       profile: testProfile("alpha", { unlockedSkillIds: [BATTLE_FOCUS.id] }),
     });
@@ -136,7 +136,7 @@ describe("training dummies in the hub", () => {
   });
 
   it("never dies, never moves, and leaves loot, the profile and monsters alone", () => {
-    const player = testPlayer("alpha", { position: at(15, 7, -IN_REACH) });
+    const player = testPlayer("alpha", { position: at(19, 3, -IN_REACH) });
     const session = hubSession([player]);
     const before = structuredClone(dummy(session).position);
     const lootBefore = structuredClone(session.dungeon.loot);
@@ -179,7 +179,7 @@ describe("training dummies in the hub", () => {
   });
 
   it("is not carried into a run, and a run starts with no dummy hits on record", () => {
-    const player = testPlayer("alpha", { position: at(15, 7, -IN_REACH), ready: true });
+    const player = testPlayer("alpha", { position: at(19, 3, -IN_REACH), ready: true });
     const session = hubSession([player]);
     session.runDungeon.dungeonId = "vault-run";
     swingAt(session, "alpha", 0);
@@ -194,8 +194,8 @@ describe("training dummies in the hub", () => {
 
 describe("training dummy reach", () => {
   it("misses a dummy out of reach or outside the arc, as it would a monster", () => {
-    const far = hubSession([testPlayer("alpha", { position: at(15, 7, -(PLAYER_ATTACK_RANGE + 0.3)) })]);
-    const behind = hubSession([testPlayer("alpha", { position: at(15, 7, -IN_REACH) })]);
+    const far = hubSession([testPlayer("alpha", { position: at(19, 3, -(PLAYER_ATTACK_RANGE + 0.3)) })]);
+    const behind = hubSession([testPlayer("alpha", { position: at(19, 3, -IN_REACH) })]);
 
     expect(swingAt(far, "alpha", 0)).toMatchObject({ ok: true, event: { targetId: null, damage: 0 } });
     expect(
@@ -206,8 +206,8 @@ describe("training dummy reach", () => {
   });
 
   it("refuses a swing aimed at a dummy out of reach, and accepts one in reach", () => {
-    const far = hubSession([testPlayer("alpha", { position: at(15, 7, -2) })]);
-    const near = hubSession([testPlayer("alpha", { position: at(15, 7, -IN_REACH) })]);
+    const far = hubSession([testPlayer("alpha", { position: at(19, 3, -2) })]);
+    const near = hubSession([testPlayer("alpha", { position: at(19, 3, -IN_REACH) })]);
 
     expect(resolvePlayerAttack(far, "alpha", { x: 1, y: 0 }, DUMMY_A, 0)).toEqual({
       ok: false,
@@ -220,8 +220,8 @@ describe("training dummy reach", () => {
   });
 
   it("takes its reach from the held weapon", () => {
-    const fist = hubSession([testPlayer("alpha", { position: at(15, 7, -2) })]);
-    const blade = hubSession([testPlayer("alpha", { position: at(15, 7, -2), held: LONG_BLADE_IN_HAND })]);
+    const fist = hubSession([testPlayer("alpha", { position: at(19, 3, -2) })]);
+    const blade = hubSession([testPlayer("alpha", { position: at(19, 3, -2), held: LONG_BLADE_IN_HAND })]);
 
     expect(swingAt(fist, "alpha", 0)).toMatchObject({ event: { targetId: null } });
     expect(swingAt(blade, "alpha", 0)).toMatchObject({
@@ -233,8 +233,8 @@ describe("training dummy reach", () => {
 describe("training dummy readout", () => {
   it("averages each attacker's damage over the rolling window, then empties after idle", () => {
     const session = hubSession([
-      testPlayer("alpha", { position: at(15, 7, -IN_REACH) }),
-      testPlayer("beta", { position: at(15, 7, 0, -IN_REACH) }),
+      testPlayer("alpha", { position: at(19, 3, -IN_REACH) }),
+      testPlayer("beta", { position: at(19, 3, 0, -IN_REACH) }),
     ]);
     const swingSouth = (now: number) => {
       const beta = session.players.get("beta")!;
@@ -286,7 +286,7 @@ describe("training dummy readout", () => {
   });
 
   it("keeps each dummy's readout to its own hits", () => {
-    const session = hubSession([testPlayer("alpha", { position: at(15, 7, -IN_REACH) })]);
+    const session = hubSession([testPlayer("alpha", { position: at(19, 3, -IN_REACH) })]);
 
     swingAt(session, "alpha", 0);
 
@@ -295,7 +295,7 @@ describe("training dummy readout", () => {
   });
 
   it("is refreshed by the simulation tick in the hub", () => {
-    const session = hubSession([testPlayer("alpha", { position: at(15, 7, -IN_REACH) })]);
+    const session = hubSession([testPlayer("alpha", { position: at(19, 3, -IN_REACH) })]);
     swingAt(session, "alpha", 0);
 
     simulate(session, TRAINING_DUMMY_WINDOW_MS - 1);
@@ -305,8 +305,8 @@ describe("training dummy readout", () => {
   });
 
   it("sends every viewer of the dummy the same readout", () => {
-    const alpha = testPlayer("alpha", { position: at(15, 7, -IN_REACH) });
-    const beta = testPlayer("beta", { position: at(17, 8) });
+    const alpha = testPlayer("alpha", { position: at(19, 3, -IN_REACH) });
+    const beta = testPlayer("beta", { position: at(19, 6) });
     const session = hubSession([alpha, beta]);
     swingAt(session, "alpha", 0);
     swingAt(session, "alpha", 600);

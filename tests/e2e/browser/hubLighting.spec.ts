@@ -45,11 +45,11 @@ test.describe("Hub lighting", () => {
       expect(await darkestCentre(page)).toBeGreaterThan(24);
       await page.screenshot({ path: testInfo.outputPath(`hub-lighting-far-${window.name}.png`) });
 
-      // Walk up to the Torch Supply stall in the north-east.
-      await page.keyboard.down("d");
+      // Walk up to the Torch Supply stall in the north-west, until its counter stops the player.
+      await page.keyboard.down("a");
       await page.keyboard.down("w");
-      await page.waitForTimeout(6500);
-      await page.keyboard.up("d");
+      await page.waitForTimeout(1500);
+      await page.keyboard.up("a");
       await page.keyboard.up("w");
       await page.waitForTimeout(300);
       await page.screenshot({ path: testInfo.outputPath(`hub-lighting-near-${window.name}.png`) });

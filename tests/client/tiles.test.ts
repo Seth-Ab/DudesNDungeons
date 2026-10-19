@@ -29,7 +29,12 @@ import {
   wallSprite,
   type TileReader,
 } from "../../src/client/rendering/tiles.js";
-import { MAP_PROP_KINDS, MAP_PROP_SIZES, STALL_TINTS } from "../../src/shared/constants/scenery.js";
+import {
+  FACEABLE_PROP_KINDS,
+  MAP_PROP_KINDS,
+  MAP_PROP_SIZES,
+  STALL_TINTS,
+} from "../../src/shared/constants/scenery.js";
 
 /** Reads a tile out of a small map drawn as text, the way a snapshot window is laid out. */
 function readerFor(rows: string[]): TileReader {
@@ -370,5 +375,25 @@ describe("stall awnings", () => {
       expect(spriteRect(propSprite("stall", tint)).width).toBe(MAP_PROP_SIZES.stall.tilesWide * SPRITE_TILE_SIZE);
     }
     expect(propSprite("fountain", "moss")).toBe("prop-fountain");
+  });
+});
+
+describe("prop facings", () => {
+  it("draws a stall or bench facing north from behind, at the same size, and ignores facing elsewhere", () => {
+    for (const tint of STALL_TINTS) {
+      expect(propSprite("stall", tint, "north")).toBe(`prop-stall-${tint}-north`);
+      expect(propSprite("stall", tint, "south")).toBe(`prop-stall-${tint}`);
+    }
+    expect(propSprite("stall", undefined, "north")).toBe("prop-stall-ember-north");
+    expect(propSprite("bench", undefined, "north")).toBe("prop-bench-north");
+    expect(propSprite("bench")).toBe("prop-bench");
+    // Content refuses a facing on other kinds; a stray one still draws the kind's own sprite.
+    expect(propSprite("tree", undefined, "north")).toBe("prop-tree");
+
+    for (const kind of FACEABLE_PROP_KINDS) {
+      const rect = spriteRect(propSprite(kind, undefined, "north"));
+      expect(rect.width).toBe(MAP_PROP_SIZES[kind].tilesWide * SPRITE_TILE_SIZE);
+      expect(rect.height).toBe(MAP_PROP_SIZES[kind].tilesHigh * SPRITE_TILE_SIZE);
+    }
   });
 });

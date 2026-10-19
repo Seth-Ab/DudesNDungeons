@@ -276,8 +276,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v32, the version that added light flicker and fixtures", () => {
-    expect(PROTOCOL_VERSION).toBe(32);
+  it("is on protocol v33, the version that added benches, logs, the campfire pit and prop facings", () => {
+    expect(PROTOCOL_VERSION).toBe(33);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -912,5 +912,21 @@ describe("map ground on the wire", () => {
 
     expect(mapDiscoverySchema.safeParse(withTint("plum")).success).toBe(true);
     expect(mapDiscoverySchema.safeParse(withTint("gold")).success).toBe(false);
+  });
+
+  it("accepts the hub's benches, logs and campfire, and a north facing, and refuses an unknown facing", () => {
+    const props = (facing?: string) => ({
+      ...base,
+      discovered: [],
+      props: [
+        { kind: "bench", x: 0, y: 0, ...(facing ? { facing } : {}) },
+        { kind: "log", x: 4, y: 0 },
+        { kind: "campfire", x: 8, y: 0 },
+      ],
+    });
+
+    expect(mapDiscoverySchema.safeParse(props()).success).toBe(true);
+    expect(mapDiscoverySchema.safeParse(props("north")).success).toBe(true);
+    expect(mapDiscoverySchema.safeParse(props("west")).success).toBe(false);
   });
 });

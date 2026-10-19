@@ -1,9 +1,23 @@
 import { expect, test, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
 
-/** Hub positions in world units: a Traveler's Torch at authored (16, 3), the gate at (10, 1). */
-const TORCH = { x: 65.5, y: 13.5 };
-const GATE = { x: 41.5, y: 5.5 };
+/**
+ * Hub positions in world units: a Traveler's Torch on the Torch Supply counter at authored
+ * (6, 5.3125), and the gate at (11, 1).
+ */
+const TORCH = { x: 25.5, y: 22.75 };
+const GATE = { x: 45.5, y: 5.5 };
+/** From the first spawn, west of the fountain, to the floor in front of the Torch Supply. */
+const TO_TORCHES = [
+  { x: 33.5, y: 29.5 },
+  { x: 33.5, y: 25.5 },
+];
+/** From the Torch Supply, round the benches on the north of the plaza, to the gate road. */
+const TO_GATE = [
+  { x: 33.5, y: 25.5 },
+  { x: 33.5, y: 17.5 },
+  { x: 45.5, y: 17.5 },
+];
 /** Must match `pixelsPerWorldUnit` in `canvasRenderer.ts`. */
 const PIXELS_PER_WORLD_UNIT = 32;
 /** A pixel this dark or darker is the shade colour (6, 7, 10) at full opacity, not lit geometry. */
@@ -144,14 +158,20 @@ test.describe("Darkness", () => {
     await expect(page.locator(".hud__vitals")).toBeVisible();
     await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);
 
-    // A torch from the supply table, so the dungeon has a light that moves with the player.
-    await walkTo(page, TORCH, 0.6);
+    // A torch from the supply table, so the dungeon has a light that moves with the player. The
+    // counter is solid: line up below the torch and walk into it.
+    for (const waypoint of TO_TORCHES) await walkTo(page, waypoint, 0.6);
+    await walkTo(page, { x: TORCH.x, y: TORCH.y + 1.75 }, 0.3);
+    await page.keyboard.down("w");
+    await page.waitForTimeout(400);
+    await page.keyboard.up("w");
     await expect(async () => {
       await page.keyboard.press("f");
       expect(self()?.carryingTorch).toBe(true);
     }).toPass({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Ready" }).click();
+    for (const waypoint of TO_GATE) await walkTo(page, waypoint, 0.6);
     await walkTo(page, GATE, 1);
     await expect(async () => {
       await page.keyboard.press("e");

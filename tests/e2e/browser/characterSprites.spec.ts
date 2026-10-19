@@ -65,15 +65,16 @@ test.describe("Character sprites", () => {
     // Let the sheet decode and a few frames draw, then catch one guest mid-stride.
     await host.waitForTimeout(500);
     await host.screenshot({ path: testInfo.outputPath("hub-party-idle.png") });
+    // The first guest spawns east of the fountain; east is open ground, so they keep walking.
     const walker = guests[0]!;
-    await walker.keyboard.down("a");
+    await walker.keyboard.down("d");
     await walker.waitForTimeout(400);
     await host.screenshot({ path: testInfo.outputPath("hub-party-walking.png") });
     await host.screenshot({
       path: testInfo.outputPath("hub-party-close-up.png"),
       clip: { x: 560, y: 300, width: 420, height: 240 },
     });
-    await walker.keyboard.up("a");
+    await walker.keyboard.up("d");
     await host.screenshot({ path: testInfo.outputPath("hub-party-after-walk.png") });
 
     expect(errors).toEqual([]);
