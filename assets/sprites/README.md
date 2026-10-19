@@ -48,7 +48,57 @@ and not the other fails the bake rather than drawing a hole in the floor.
   without its own art), `loot-rusted-sword`, `loot-arrow` (any ammo), `loot-torch`,
   `chest-closed`, `chest-open` (a locked chest adds `door-lock` over its face), `exit-stairs`.
 
-Players and monsters are still drawn as flat figures. They are Frontend step 6.
+Players and monsters are still drawn as flat figures in game. The character sheet below is baked
+but not drawn yet; monster sprites are still to be designed. Both are Frontend step 6.
+
+## The character sheet
+
+`characters.png` holds the player characters, baked from `source/characters.tiles.json` by the same
+`npm run build:sprites`, and `tests/client/characterSheet.test.ts` fails if the two disagree. The
+pixel data is ported from the owner-approved `docs/design/character-sprite-bible.html`.
+
+```json
+{
+  "frameWidth": 16,
+  "frameHeight": 24,
+  "palette": { "0": "transparent", "k": "#17120c", "S": "#ff60ff" },
+  "layers": {
+    "body-guy-down": { "rows": ["9*0000000000000000", "00000kkkkkk00000", "..."] }
+  }
+}
+```
+
+- A frame is **16 x 24**: a 16 x 16 body on frame rows 8 to 23, with the eight rows above it as
+  headroom for hair and, later, hats. Every layer is a whole frame, so its rows must expand to
+  exactly 24 rows of 16 pixels or the bake fails and names the layer. Rows, `N*` and `0` work as in
+  the tile source.
+- Layers stack in one frame, body first and hair over it. `body-guy` and `body-girl`, and
+  `hair-crop`, `-spiky`, `-long`, `-ponytail`, `-bun` and `-shaved`, each come in `down`, `up` and
+  `side`. Facing left is `side` mirrored.
+- Bodies are baked in three poses, `stand`, `walk1` and `walk2`, so the renderer only picks a frame.
+  The walk frames are **derived, not authored**: `walk1` moves the boot pixels in the right half of
+  the frame up one row onto the trousers, and `walk2` does the same for the left half. The cycle is
+  stand, walk1, stand, walk2.
+- `src/client/rendering/characters.ts` is the one list of layers and frame cells, the way `tiles.ts`
+  is for the tilesheet. A layer in one and not the other fails the bake.
+
+### Key colours
+
+Skin, hair and tunic are not baked in real colours. Each is baked in a three-step **key colour**
+ramp (light, mid, shadow) that the renderer swaps for a player's skin tone, hair colour and party
+colour, so one sheet covers every combination.
+
+| Ramp  | Characters | Key colours                     |
+| ----- | ---------- | ------------------------------- |
+| skin  | `s S T`    | `#ffb0ff` `#ff60ff` `#c000c0`   |
+| hair  | `h H G`    | `#b0ffff` `#00ffff` `#00a0a0`   |
+| tunic | `C c d`    | `#ffffa0` `#ffff00` `#a0a000`   |
+
+Every other colour is **fixed** and drawn as baked: outline and eyes `#17120c`, belt `#5c4930`,
+buckle `#d6a84c`, trousers `#2b3037`, boots `#3b2f20`, ribbon `#c23b2e` (`CHARACTER_FIXED_COLOURS`).
+The bake fails on a palette colour that is neither. A test also checks that no key colour appears in
+`dungeon.png`, since recolouring a character would otherwise recolour the floor under it. The key
+colours are deliberately garish, so one the renderer forgot to swap is obvious on screen.
 
 ## Scale
 
