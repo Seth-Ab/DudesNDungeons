@@ -1,0 +1,422 @@
+{
+  "$comment": [
+    "Source art for assets/sprites/characters.png. Run `npm run build:sprites` after editing.",
+    "Ported from docs/design/character-sprite-bible.html. Every layer is a whole 16 x 24 frame,",
+    "one palette character per pixel, with the body starting on frame row 8. A row may be",
+    "prefixed with `N*` to repeat it N times. Palette character `0` is transparent.",
+    "s S T, h H G and C c d are key colours the renderer swaps for skin, hair and tunic.",
+    "See assets/sprites/README.md."
+  ],
+  "frameWidth": 16,
+  "frameHeight": 24,
+  "palette": {
+    "0": "transparent",
+    "k": "#17120c",
+    "e": "#17120c",
+    "l": "#5c4930",
+    "L": "#d6a84c",
+    "p": "#2b3037",
+    "b": "#3b2f20",
+    "r": "#c23b2e",
+    "s": "#ffb0ff",
+    "S": "#ff60ff",
+    "T": "#c000c0",
+    "h": "#b0ffff",
+    "H": "#00ffff",
+    "G": "#00a0a0",
+    "C": "#ffffa0",
+    "c": "#ffff00",
+    "d": "#a0a000"
+  },
+  "layers": {
+    "body-guy-down": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000kSeSSSSeSk000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdcCCCCcdk000",
+        "00kSdcCCCCcdSk00",
+        "00kSdccccccdSk00",
+        "00kTkllLLllkTk00",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-up": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdccccccdk000",
+        "00kSdcCccCcdSk00",
+        "00kSdccccccdSk00",
+        "00kTkllllllkTk00",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-side": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeSk000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCck00000",
+        "00000kcdcck00000",
+        "00000kldSlk00000",
+        "00000kdccck00000",
+        "00000kpkkpk00000",
+        "00000kbbkbbk0000"
+      ]
+    },
+    "body-girl-down": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000keeSSSSeek000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCCCCck0000",
+        "000kScCCCCcSk000",
+        "000kSdccccdSk000",
+        "000kTlllLllTk000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-up": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCccCck0000",
+        "000kSccccccSk000",
+        "000kSdccccdSk000",
+        "000kTllllllTk000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-side": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeek000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCck00000",
+        "00000kcdcck00000",
+        "00000kldSlk00000",
+        "0000kdcccck00000",
+        "0000kkddddkk0000",
+        "00000kbk0kbk0000"
+      ]
+    },
+    "hair-crop-down": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHGHHGHHk000",
+        "000kG000000Gk000",
+        "10*0000000000000000"
+      ]
+    },
+    "hair-crop-up": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHHHk000",
+        "000kGHHHHHHGk000",
+        "000kTGGGGGGTk000",
+        "8*0000000000000000"
+      ]
+    },
+    "hair-crop-side": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHGGk000",
+        "000kHHHG0000k000",
+        "000kHHHG00000000",
+        "000kGGG000000000",
+        "8*0000000000000000"
+      ]
+    },
+    "hair-spiky-down": {
+      "rows": [
+        "6*0000000000000000",
+        "00000k00k00k0000",
+        "0000kHkkHkkHk000",
+        "000kHHHhHHhHHk00",
+        "000kHHHHHHHHHk00",
+        "00kHHhHHHHhHHHk0",
+        "00kHHHHHHHHHHHk0",
+        "000kHHGHHGHHk000",
+        "000kG000000Gk000",
+        "10*0000000000000000"
+      ]
+    },
+    "hair-spiky-up": {
+      "rows": [
+        "6*0000000000000000",
+        "00000k00k00k0000",
+        "0000kHkkHkkHk000",
+        "000kHHHhHHhHHk00",
+        "000kHHHHHHHHHk00",
+        "00kHHhHHHHhHHHk0",
+        "00kHHHHHHHHHHHk0",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHHHk000",
+        "000kGHGHHGHGk000",
+        "9*0000000000000000"
+      ]
+    },
+    "hair-spiky-side": {
+      "rows": [
+        "6*0000000000000000",
+        "0000k00k00k00000",
+        "000kHkkHkkHk0000",
+        "000kHHHhHHhHk000",
+        "00kHHHHHHHHHk000",
+        "00kHHhHHHHhHHk00",
+        "00kHHHHHHHHHk000",
+        "000kHHHHHHGGk000",
+        "000kHHHG0000k000",
+        "000kGHG000000000",
+        "9*0000000000000000"
+      ]
+    },
+    "hair-long-down": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "00kHHHHHHHHHHk00",
+        "00kHHG0000GHHk00",
+        "00kHG000000GHk00",
+        "00kHG000000GHk00",
+        "00kHG000000GHk00",
+        "00kHH000000HHk00",
+        "00kHH000000HHk00",
+        "00kGHk0000kHGk00",
+        "000kk000000kk000",
+        "4*0000000000000000"
+      ]
+    },
+    "hair-long-up": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "00kHHHHHHHHHHk00",
+        "00kHHHHHhHHHHk00",
+        "00kHHHHHHHHHHk00",
+        "00kHhHHHHHHHHk00",
+        "00kHHHHHHHhHHk00",
+        "00kHHHHHHHHHHk00",
+        "00kGHHHHHHHHGk00",
+        "00kGGHHHHHHGGk00",
+        "000kkGGGGGGkk000",
+        "4*0000000000000000"
+      ]
+    },
+    "hair-long-side": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "00kHHHHHHHHHk000",
+        "00kHHHHHHHGGk000",
+        "00kHHHHG0000k000",
+        "00kHHHHG00000000",
+        "00kHHHH000000000",
+        "00kHHHH000000000",
+        "00kHHHk000000000",
+        "00kGGk0000000000",
+        "000kk00000000000",
+        "4*0000000000000000"
+      ]
+    },
+    "hair-ponytail-down": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHGHHGHHk000",
+        "000kG000000Gkk00",
+        "000000000000kHk0",
+        "000000000000kHk0",
+        "0000000000000k00",
+        "7*0000000000000000"
+      ]
+    },
+    "hair-ponytail-up": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHrrHHHk000",
+        "000kHHkHhkHHk000",
+        "000kGHkHHkHGk000",
+        "000kTGkHHkGTk000",
+        "000000kHHk000000",
+        "000000kHHk000000",
+        "0000000kk0000000",
+        "5*0000000000000000"
+      ]
+    },
+    "hair-ponytail-side": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "00rkHHHHHHHHk000",
+        "0kHkHHHHHHGGk000",
+        "0kHkHHHG0000k000",
+        "0kHkHHG000000000",
+        "0kHHk00000000000",
+        "00kHk00000000000",
+        "000k000000000000",
+        "6*0000000000000000"
+      ]
+    },
+    "hair-bun-down": {
+      "rows": [
+        "6*0000000000000000",
+        "000000kkkk000000",
+        "00000kHhHHk00000",
+        "0000kkGHHGkk0000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHG0000GHk000",
+        "000kG000000Gk000",
+        "000kG000000Gk000",
+        "9*0000000000000000"
+      ]
+    },
+    "hair-bun-up": {
+      "rows": [
+        "6*0000000000000000",
+        "000000kkkk000000",
+        "00000kHhHHk00000",
+        "0000kkGHHGkk0000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHHHk000",
+        "000kGHHHHHHGk000",
+        "000kTGGGGGGTk000",
+        "8*0000000000000000"
+      ]
+    },
+    "hair-bun-side": {
+      "rows": [
+        "6*0000000000000000",
+        "00000kkkk0000000",
+        "0000kHhHHk000000",
+        "0000kGHHGkk00000",
+        "0000kHHhhHHk0000",
+        "000kHHHHHhHHk000",
+        "000kHHHHHHHHk000",
+        "000kHHHHHHGGk000",
+        "000kHHHG0000k000",
+        "000kHHG000000000",
+        "000kGG0000000000",
+        "8*0000000000000000"
+      ]
+    },
+    "hair-shaved-down": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kGHGGHGk0000",
+        "000kGGGHGGGGk000",
+        "000kTGTGGTGTk000",
+        "12*0000000000000000"
+      ]
+    },
+    "hair-shaved-up": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kGHGGHGk0000",
+        "000kGGGHGGGGk000",
+        "000kGGGGHGGGk000",
+        "000kGHGGGGHGk000",
+        "000kGGGGGGGGk000",
+        "000kTGTGGTGTk000",
+        "9*0000000000000000"
+      ]
+    },
+    "hair-shaved-side": {
+      "rows": [
+        "8*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kGHGGHGk0000",
+        "000kGGGHGGGGk000",
+        "000kGGGGGGTTk000",
+        "000kGGGGG000k000",
+        "000kGGG000000000",
+        "000kTG0000000000",
+        "9*0000000000000000"
+      ]
+    }
+  }
+}

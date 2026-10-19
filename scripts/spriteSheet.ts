@@ -48,25 +48,25 @@ export interface SourceArt {
 }
 
 /** Straight RGBA. A source palette entry is opaque hex or the literal `transparent`. */
-type Rgba = readonly [number, number, number, number];
+export type Rgba = readonly [number, number, number, number];
 
 /** A sprite as pixels: `width * height` colours, row-major. */
-interface Bitmap {
+export interface Bitmap {
   width: number;
   height: number;
   pixels: Rgba[];
 }
 
-const CLEAR: Rgba = [0, 0, 0, 0];
+export const CLEAR: Rgba = [0, 0, 0, 0];
 
 /** Thrown for anything wrong with the source art, so the CLI and the test report it the same way. */
 export class SpriteSourceError extends Error {}
 
-function fail(message: string): never {
+export function fail(message: string): never {
   throw new SpriteSourceError(message);
 }
 
-function parseColor(name: string, value: string): Rgba {
+export function parseColor(name: string, value: string): Rgba {
   if (value === TRANSPARENT) return CLEAR;
 
   const match = /^#([0-9a-fA-F]{6})$/.exec(value);
@@ -77,7 +77,7 @@ function parseColor(name: string, value: string): Rgba {
 }
 
 /** Expands the `N*row` shorthand. A palette character is never `*`, so the prefix is unambiguous. */
-function expandRows(name: string, rows: string[]): string[] {
+export function expandRows(name: string, rows: string[], kind = "sprite"): string[] {
   const expanded: string[] = [];
 
   for (const row of rows) {
@@ -88,7 +88,7 @@ function expandRows(name: string, rows: string[]): string[] {
     }
 
     const count = Number.parseInt(match[1], 10);
-    if (count < 1) fail(`sprite '${name}' repeats a row ${count} times`);
+    if (count < 1) fail(`${kind} '${name}' repeats a row ${count} times`);
     for (let repeat = 0; repeat < count; repeat += 1) expanded.push(match[2]);
   }
 
@@ -213,7 +213,7 @@ function chunk(type: string, data: Buffer): Buffer {
  * unfiltered image is one fewer thing to get subtly wrong in a file nothing else here can read.
  * Deterministic, which is what lets a test compare the bytes against the committed sheet.
  */
-function encodePng(image: Bitmap): Buffer {
+export function encodePng(image: Bitmap): Buffer {
   const stride = image.width * 4;
   const raw = Buffer.alloc((stride + 1) * image.height);
 
