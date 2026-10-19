@@ -7,8 +7,11 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v32.
-- Last completed work: ambient hub lighting with varied, flickering lights and distance-based prop
+  everyone to the hub under protocol v33.
+- Last completed work: the hub re-authored as a ring round a 3x3 fountain, with stalls on the
+  diagonals, a gate road, a campfire clearing, a training yard, benches and a ragged forest edge
+  (issue #145, Hub Revamp Phase 3, protocol v33); earlier, ambient hub lighting with varied,
+  flickering lights and distance-based prop
   name plates kept clear of the HUD (issue #146, Hub Revamp Phase 4, protocol v32); earlier, party frames with character portraits and a "Designing…" state, and a hub
   banner that names who is still designing (issue #134, protocol unchanged at v31); earlier, players
   drawn as layered pixel-art characters in their own look and party colour (issue #132); earlier, hub training dummies with a server-kept
@@ -129,7 +132,7 @@ Resolved:
 - [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
 - [x] Add a held-item ("in hand") slot and a `weapon` item kind (issue #113, protocol v22). `held` on the player is separate from the three inventory slots and the torch; a weapon pickup fills the hand, then inventory, then is refused. `swapHeld` swaps the hand with an inventory item (null stows it). Drop, give, banking and resume treat it like carried items. Client: hand slot beside the hotbar, rebindable swap key `V`. No concrete weapon or attack change yet; the sword, ammo and bow issues build on this.
 - [x] Animate player weapon swings (issue #129, protocol v29). `attackResolved` carries `swing` (attacker `origin`, `facing`, `range`, `arcCos`, taken from the held weapon or the unarmed constants, sent for misses too) and is `null` for monster attacks. The client's pure `swingArc` helper in `combatFeedback.ts` turns it into an arc and skips attackers outside the visible frame; the renderer sweeps a ~180 ms slash out to the exact reach, brighter with an impact flash on a hit. Held-weapon sprites and attack poses (#63), bow indicators (#117), and new weapons (#92) remain out of scope.
-- [x] Add hub training dummies with a damage readout (issue #150, protocol v31). A dummy is its own entity (`DummyState` in `dungeon.dummies`), not a monster kind, so monster AI, loot, boss gating, run results and progression never see it. Authored dungeons list `dummies` (`entityId`, `x`, `y`); content validation refuses one on a wall, off the map, or reusing an id. `resolvePlayerAttack` treats dummies as targets with the same reach and arc as monsters and reports the full damage (with `attackDamageBonus`), `targetHealth: 0`, never a defeat. `src/server/game/dummies.ts` keeps a 5 s rolling hit log per dummy and sends each viewer per-attacker `recentDamage` and `dps` (averaged over at least 1 s). The hub has two east of the hearth, near the stall, until the training yard (#145) lands. Client: `rendering/trainingDummies.ts` draws a straw dummy that wobbles when hit and a DPS plate while it has hits; damage numbers and swing impacts find dummies. Dummies do not block movement, like monsters.
+- [x] Add hub training dummies with a damage readout (issue #150, protocol v31). A dummy is its own entity (`DummyState` in `dungeon.dummies`), not a monster kind, so monster AI, loot, boss gating, run results and progression never see it. Authored dungeons list `dummies` (`entityId`, `x`, `y`); content validation refuses one on a wall, off the map, or reusing an id. `resolvePlayerAttack` treats dummies as targets with the same reach and arc as monsters and reports the full damage (with `attackDamageBonus`), `targetHealth: 0`, never a defeat. `src/server/game/dummies.ts` keeps a 5 s rolling hit log per dummy and sends each viewer per-attacker `recentDamage` and `dps` (averaged over at least 1 s). The hub has two, in the training yard since #145. Client: `rendering/trainingDummies.ts` draws a straw dummy that wobbles when hit and a DPS plate while it has hits; damage numbers and swing impacts find dummies. Dummies do not block movement, like monsters.
 - [x] Add the Rusted Sword and allow attacks in the hub (issue #114, protocol v23). A `melee` weapon block carries `damage`, `range`, `arcCos`, `cooldownMs` and `staminaCost`; `resolvePlayerAttack` reads them from the held weapon's content at each swing (weapon items now carry their content `itemId`) and falls back to the unarmed constants otherwise. `attackDamageBonus` stacks on top. `rusted-sword` (today's unarmed values) lies in the hub spawn area. Hub swings hit nothing but cost stamina and cooldown, and stamina regenerates in the hub. Own sprite `loot-rusted-sword`, generic `loot-weapon` fallback. Bow, projectiles and weapon traits remain out of scope.
 - [x] Add stackable arrows (issue #115, protocol v25). New `ammo` item kind with a content `maxStack` (at most 99) and a `count` on loot and inventory entries; a stack takes one slot. Pickup tops up carried stacks of the same item, then takes a free slot, leaving any remainder on the floor. Drop and give move the whole stack, and give refuses unless it all fits. `consumeFromStack` spends from a stack and removes it at zero, ready for the bow. `arrow` (`maxStack` 8) lies as a stack of 5 beside the hub sword; authored placements take an optional `count`. Saved stacks without a `count` load as 1. HUD shows the count on the slot and in the pickup prompt; sprite `loot-arrow`. Splitting stacks and the bow remain out of scope.
 - [x] Add lootable chests (issue #88, protocol v26). Named tables live in `content/loot-tables/` (the monster loot-table shape plus an `id`). A `ChestState` entity (`lootTableId`, `opened`, `locked`) is placed by a template `chests` rule or an authored `chests` list; the tile alphabet is unchanged. `playerInteract` on a chest in reach rolls its table once from the session drop stream and spills the items as loot at least 1.5 world units beside it; an opened chest refuses further tries, and a locked one spends a key like a locked door. Snapshots carry chests on tiles the viewer can see. `sunken-maze` always holds a `common-chest`, `ashen-hall` sometimes does, and `warden-crucible` holds a `vault-chest`; no shipped chest is locked. Client: "Open chest"/"Unlock chest" prompt and `chest-closed`/`chest-open` sprites. Mimics, trapped and two-player chests remain out of scope.
@@ -416,7 +419,17 @@ Complete on `feature/hub-run-flow`.
   with their first discovered tile. Phase 2 (#144) added an optional render-only `ground` grid
   (grass, cobble, dirt) sent with the discovery runs it describes, grass fringes onto cobble, the
   forest canopy's overhang and shade, prop contact shadows, stall awning tints, and hue-shifted
-  ramps; layout and lighting are Phases 3-4.
+  ramps. Phase 3 (#145, v33) re-authored the hub as a 23x15 ring round a 3x3 fountain: a two-tile
+  cobble ring road with four benches, the Torch Supply and Weapons stalls (pickups on their
+  counters) north-west and north-east, the Bank and Wardrobe south-west and south-east facing
+  north, the gate up a straight road with a clear strip before it, dirt paths to a campfire
+  clearing with the quest board (south-west) and a training yard holding the dummies (north-east),
+  and a ragged forest edge with single trees and bushes. Everything solid stands on `#`, and every
+  light on open floor; a `#` with `ground` beneath it draws as that ground, not forest. New props
+  `bench`, `log` and
+  `campfire`, and `facing: "north"` for stalls and benches. The four spawns sit level with the
+  fountain, two each side: at the renderer's zoom the gate is a few steps north of the first
+  screen, an owner-approved change from the issue's first criterion. Phase 4 (#146) did lighting.
 - [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
   not ready, the run start is announced, and the return to the hub reports what this player got out
   with or lost. Party frames show each teammate's head and shoulders cropped from their #132
@@ -443,6 +456,8 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Hub re-authored as a ring round a 3x3 fountain, with stalls on the diagonals, benches,
+  a gate road, campfire clearing and training yard (#145, Hub Revamp Phase 3, v33).
 - 2026-10-19: Ambient hub lighting, flickering lanterns and campfire, and distance-based prop name
   plates inside a HUD-safe area; the hub is fully visible to everyone (#146, Hub Revamp Phase 4, v32).
 - 2026-10-19: Party-frame portraits, a "Designing…" state, and a hub banner naming designers (#134).

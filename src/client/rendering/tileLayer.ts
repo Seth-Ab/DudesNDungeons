@@ -42,6 +42,11 @@ function surfaceOf(tile: string): number {
   return look.surface === "wall" ? SURFACE_WALL : SURFACE_FLOOR;
 }
 
+/** A wall with ground beneath it draws as that ground; see `SurfaceGrid.merge`. */
+function standingOn(surface: number, ground: number): number {
+  return surface === SURFACE_WALL && ground !== 0 ? SURFACE_FLOOR : surface;
+}
+
 /** The character `wallMask` expects for each surface; it only needs to tell wall, floor, and unseen apart. */
 const SURFACE_TILE = [UNKNOWN, LIT_FLOOR, LIT_WALL] as const;
 
@@ -113,8 +118,12 @@ export class SurfaceGrid {
         const x = map.originX + column;
         if (x < 0 || x >= this.width) continue;
 
-        const surface = surfaceOf(line[column] ?? UNKNOWN);
         const ground = groundCodeOf(groundLine?.[column]);
+        // A wall with ground beneath it is something solid standing on that ground, such as the
+        // hub's fountain or a stall, and its prop is the picture. It draws as the ground, so it is
+        // not mistaken for forest by its own tile or by the edges and canopy of its neighbours.
+        // Collision never reads this grid; the tiles still say it is solid.
+        const surface = standingOn(surfaceOf(line[column] ?? UNKNOWN), ground);
         const index = y * this.width + x;
         if (this.#surfaces[index] === surface && this.#ground[index] === ground) continue;
 

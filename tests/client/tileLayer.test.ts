@@ -177,6 +177,19 @@ describe("the tile layer", () => {
     expect(stamps.slice(-3)).toEqual([cobbleSprite(2, 2), "grass-edge-1", "forest-overhang-8"]);
   });
 
+  it("draws a wall with ground beneath it as that ground, with no forest edge or canopy beside it", () => {
+    const { layer, draw, stamps } = harness();
+    // A fountain's solid tile (cobble under a wall) beside open cobble, and real forest beyond.
+    const tiles = withTile(withTile(withTile(filled(" "), 1, 1, "#"), 2, 1, "."), 3, 1, "#");
+    const ground = withTile(withTile(filled(" "), 1, 1, "c"), 2, 1, "c");
+    layer.sync({ ...windowOf(tiles), theme: "forest", ground }, "hub");
+    draw();
+
+    // The solid cobble draws as cobble; the open tile beside it is shaded only from the forest to
+    // its east, not from the fountain's tile to its west, and the forest edges only toward it.
+    expect(stamps).toEqual([cobbleSprite(1, 1), cobbleSprite(2, 1), "forest-overhang-2", "forest-7"]);
+  });
+
   it("restamps a chunk when only its ground changes", () => {
     const { layer, draw, stamps } = harness();
     const tiles = filled(".");

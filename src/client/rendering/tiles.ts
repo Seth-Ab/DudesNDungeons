@@ -1,7 +1,9 @@
 import {
   DEFAULT_STALL_TINT,
+  FACEABLE_PROP_KINDS,
   GROUND_KINDS,
   type GroundKind,
+  MAP_PROP_FACINGS,
   MAP_PROP_KINDS,
   MAP_PROP_SIZES,
   STALL_TINTS,
@@ -87,10 +89,13 @@ function themePrefixes(part: "wall" | "floor"): string[] {
   return [...new Set(Object.values(THEME_SPRITES).map((theme) => theme[part]))];
 }
 
-/** A prop's sprite. One per kind, named after it, except that a stall has one per awning colour. */
-export function propSprite(kind: MapPropKind, tint?: MapProp["tint"]): SpriteName {
-  if (kind === "stall") return `prop-stall-${tint ?? DEFAULT_STALL_TINT}`;
-  return `prop-${kind}`;
+/**
+ * A prop's sprite. One per kind, named after it, except that a stall has one per awning colour, and
+ * a stall or bench facing north has its own, drawn from behind, suffixed `-north`.
+ */
+export function propSprite(kind: MapPropKind, tint?: MapProp["tint"], facing?: MapProp["facing"]): SpriteName {
+  const base = kind === "stall" ? `prop-stall-${tint ?? DEFAULT_STALL_TINT}` : `prop-${kind}`;
+  return facing === "north" && FACEABLE_PROP_KINDS.includes(kind) ? `${base}-north` : base;
 }
 
 export interface SpriteRect {
@@ -184,11 +189,13 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
   // Scenery, at the footprint the server validated it against.
-  ...MAP_PROP_KINDS.flatMap((kind): Array<readonly [string, SpriteSize]> =>
-    kind === "stall"
-      ? STALL_TINTS.map((tint) => [propSprite(kind, tint), MAP_PROP_SIZES[kind]] as const)
-      : [[propSprite(kind), MAP_PROP_SIZES[kind]]],
-  ),
+  ...MAP_PROP_KINDS.flatMap((kind): Array<readonly [string, SpriteSize]> => {
+    const tints = kind === "stall" ? STALL_TINTS : [undefined];
+    const facings = FACEABLE_PROP_KINDS.includes(kind) ? MAP_PROP_FACINGS : [undefined];
+    return tints.flatMap((tint) =>
+      facings.map((facing) => [propSprite(kind, tint, facing), MAP_PROP_SIZES[kind]] as const),
+    );
+  }),
 ];
 
 export type SpriteName = string;

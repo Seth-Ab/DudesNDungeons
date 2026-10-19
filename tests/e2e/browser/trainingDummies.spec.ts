@@ -1,13 +1,28 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
 
-/** World position of the hub's first training dummy: authored tile (15, 7), centred in its block. */
-const DUMMY = { x: 61.5, y: 29.5 };
+/** World position of the hub's first training dummy: authored tile (19, 3) in the training yard. */
+const DUMMY = { x: 77.5, y: 13.5 };
 const DUMMY_ID = "b1111111-1111-4111-8111-111111111111";
 /** Where to stand to swing east at it: a body's length to its west, inside unarmed reach. */
 const SWING_SPOT = { x: DUMMY.x - 0.7, y: DUMMY.y };
-/** World position of the hub's Rusted Sword: authored tile (10, 8). */
-const SWORD = { x: 41.5, y: 33.5 };
+/** World position of the hub's Rusted Sword, on the Weapons counter: authored (15.125, 5.3125). */
+const SWORD = { x: 62, y: 22.75 };
+/** From the first spawn, west of the fountain, up the plaza's west side to the dummy's row. */
+const SPAWN_TO_DUMMY_ROW = [
+  { x: 33.5, y: 29.5 },
+  { x: 33.5, y: 13.5 },
+];
+/** From the dummy's row, down the plaza's east side to the floor in front of the Weapons stall. */
+const DUMMY_ROW_TO_WEAPONS = [
+  { x: 57.5, y: 13.5 },
+  { x: 57.5, y: 25.5 },
+];
+/** And back again, round the Weapons stall. */
+const WEAPONS_TO_DUMMY_ROW = [
+  { x: 57.5, y: 25.5 },
+  { x: 57.5, y: 13.5 },
+];
 
 interface Readout {
   recentDamage: number;
@@ -71,11 +86,13 @@ async function walkTo(page: Page, target: { x: number; y: number }, reach: numbe
   throw new Error(`Never reached ${JSON.stringify(target)}`);
 }
 
-/** Lines up west of the dummy, facing it, and swings until the action feed reports a hit. */
-async function hitDummy(page: Page): Promise<void> {
-  // North to the dummy's row first, then east along it, which keeps clear of the teammate standing
-  // on the next spawn point. Within 0.4 of the spot is inside unarmed reach and the arc facing east.
-  await walkTo(page, { x: (await position(page)).x, y: SWING_SPOT.y }, 0.4);
+/**
+ * Lines up west of the dummy, facing it, and swings until the action feed reports a hit. `route`
+ * reaches the dummy's row; the walk then runs east along it, north of the teammate watching from
+ * the yard. Within 0.4 of the spot is inside unarmed reach and the arc facing east.
+ */
+async function hitDummy(page: Page, route: readonly { x: number; y: number }[]): Promise<void> {
+  for (const waypoint of route) await walkTo(page, waypoint, 0.6);
   await walkTo(page, SWING_SPOT, 0.4);
   const feed = page.locator(".hud__stat", { hasText: "Action:" });
   await expect(async () => {
@@ -125,13 +142,18 @@ test.describe("Training dummies", () => {
     await walkTo(guest, { x: DUMMY.x, y: DUMMY.y + 4 }, 0.6);
 
     // Unarmed.
-    await hitDummy(host);
+    await hitDummy(host, SPAWN_TO_DUMMY_ROW);
     // The guest is sent the same attackResolved, so it shows the same hit.
     await expect(guest.locator(".hud__stat", { hasText: "Action:" })).toContainText("Hit target for 6");
     await host.screenshot({ path: testInfo.outputPath("dummy-unarmed-host.png") });
 
     // With the Rusted Sword in hand.
-    await walkTo(host, SWORD, 0.6);
+    for (const waypoint of DUMMY_ROW_TO_WEAPONS) await walkTo(host, waypoint, 0.6);
+    // The counter is solid: line up below the sword and walk into it.
+    await walkTo(host, { x: SWORD.x, y: SWORD.y + 1.75 }, 0.3);
+    await host.keyboard.down("w");
+    await host.waitForTimeout(400);
+    await host.keyboard.up("w");
     await expect(host.locator(".hud__prompt", { hasText: "Pick up Rusted Sword" })).toBeVisible();
     await expect(async () => {
       await host.keyboard.press("f");
@@ -139,7 +161,7 @@ test.describe("Training dummies", () => {
         timeout: 1000,
       });
     }).toPass({ timeout: 10_000 });
-    await hitDummy(host);
+    await hitDummy(host, WEAPONS_TO_DUMMY_ROW);
     // A second blow after the cooldown, so the window holds at least two sword hits whatever the
     // walk back from the sword cost the unarmed one.
     await host.waitForTimeout(600);

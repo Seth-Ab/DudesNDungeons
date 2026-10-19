@@ -9,9 +9,11 @@ import {
 } from "../../shared/constants/game.js";
 import {
   DEFAULT_MAP_THEME,
+  FACEABLE_PROP_KINDS,
   GROUND_ROW_PATTERN,
   LIGHT_FIXTURES,
   LIGHT_TINTS,
+  MAP_PROP_FACINGS,
   MAP_PROP_KINDS,
   MAP_THEMES,
   MAX_PROP_LABEL_LENGTH,
@@ -557,10 +559,16 @@ const placedPropSchema = z
     label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
     /** A stall's awning colour. Only a stall has an awning. */
     tint: z.enum(STALL_TINTS).optional(),
+    /** `north` for a stall or bench that faces north, drawn from behind. Only those have the art. */
+    facing: z.enum(MAP_PROP_FACINGS).optional(),
   })
   .refine((prop) => prop.tint === undefined || prop.kind === "stall", {
     message: "Only a stall takes a tint",
     path: ["tint"],
+  })
+  .refine((prop) => prop.facing === undefined || FACEABLE_PROP_KINDS.includes(prop.kind), {
+    message: `Only a ${FACEABLE_PROP_KINDS.join(" or ")} takes a facing`,
+    path: ["facing"],
   });
 export type PlacedProp = z.infer<typeof placedPropSchema>;
 

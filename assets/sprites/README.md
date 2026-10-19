@@ -61,11 +61,15 @@ and not the other fails the bake rather than drawing a hole in the floor.
   grass only touches at a diagonal. An overhang is the forest canopy reaching half a tile out over
   any floor tile beside it, with a 25% strip of shade beyond. Translucent strips are composed
   before opaque ones, so one side's shade falls under another side's leaves, not across them.
-- Map props, one per kind at the footprint `src/shared/constants/scenery.ts` gives it: `prop-fountain`,
+- Map props, one per kind at the footprint `src/shared/constants/scenery.ts` gives it: `prop-fountain`
+  (twelve tiles square: a basin, a pedestal and an upper bowl),
   `prop-stall-ember`/`-moss`/`-azure`/`-plum` (one per awning `tint`), `prop-quest-board`,
   `prop-tree`, `prop-bush`, `prop-dungeon-gate` (its opening sits over the exit tile, where the
-  stairs are drawn on top of it) `prop-sign` and `prop-hanging-lantern` (one tile wide, two tall, hung from an awning). `campfire-logs` is the ground under a campfire light; its flame is `torch-flame`. Props stand on the ground with no backdrop or
+  stairs are drawn on top of it) `prop-sign` and `prop-hanging-lantern` (one tile wide, two tall, hung from an awning), `prop-bench`, `prop-log` and `prop-campfire` (a ring of stones; the campfire light draws its logs and flame in the middle). Bench, log and campfire are four tiles square, the authored tile they stand on, with the picture across its middle. `campfire-logs` is the ground under a campfire light; its flame is `torch-flame`. Props stand on the ground with no backdrop or
   shadow of their own: the renderer draws each one's contact shadow, from `MAP_PROP_SHADOWS`.
+- A stall or bench that faces north has its own sprite, drawn from behind, named with `-north`:
+  `prop-stall-<tint>-north` keeps the front's awning over a back wall of planks, and
+  `prop-bench-north` shows the seat beyond the backrest.
 
 ### The hub's colour ramps
 

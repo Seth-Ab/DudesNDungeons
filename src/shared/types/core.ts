@@ -27,6 +27,7 @@ import {
   GROUND_ROW_PATTERN,
   LIGHT_FIXTURES,
   LIGHT_TINTS,
+  MAP_PROP_FACINGS,
   MAP_PROP_KINDS,
   MAP_THEMES,
   MAX_PROP_LABEL_LENGTH,
@@ -68,6 +69,8 @@ export const mapPropSchema = z.object({
   label: z.string().min(1).max(MAX_PROP_LABEL_LENGTH).optional(),
   /** A stall's awning colour. Absent means `ember`; content only allows it on a stall. */
   tint: z.enum(STALL_TINTS).optional(),
+  /** Which way it faces. Absent means `south`; content only allows it on a stall or a bench. */
+  facing: z.enum(MAP_PROP_FACINGS).optional(),
 });
 export type MapProp = z.infer<typeof mapPropSchema>;
 

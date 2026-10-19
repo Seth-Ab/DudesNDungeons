@@ -653,7 +653,7 @@ export function createCanvasRenderer(
       ) {
         continue;
       }
-      tileset.draw(ctx, propSprite(prop.kind, prop.tint), topLeft.x, topLeft.y, width, height);
+      tileset.draw(ctx, propSprite(prop.kind, prop.tint, prop.facing), topLeft.x, topLeft.y, width, height);
     }
   };
 
