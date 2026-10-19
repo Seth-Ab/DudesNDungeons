@@ -276,8 +276,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v30, the version that added emotes", () => {
-    expect(PROTOCOL_VERSION).toBe(30);
+  it("is on protocol v31, the version that added training dummies", () => {
+    expect(PROTOCOL_VERSION).toBe(31);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -677,6 +677,15 @@ describe("parseServerMessage", () => {
             radius: 3.2,
           },
         ],
+        dummies: [
+          {
+            id: "66666666-6666-4666-8666-666666666666",
+            position: { x: 2, y: 2 },
+            recentDamage: 12,
+            dps: 4.5,
+            attackers: [{ playerId: PLAYER_ID, recentDamage: 12, dps: 4.5 }],
+          },
+        ],
       },
       run: { elapsedMs: 1_000, decayStartsInMs: 599_000, decaying: false, decayPerSecond: 0 },
     };
@@ -708,6 +717,7 @@ describe("parseServerMessage", () => {
           traps: [],
           puzzles: [],
           lightSources: [],
+          dummies: [],
         },
         run: { elapsedMs: 0, decayStartsInMs: 1000, decaying: false, decayPerSecond: 0 },
       });

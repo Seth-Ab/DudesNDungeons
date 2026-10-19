@@ -54,10 +54,10 @@ export function damagePopup(
     return { position: localPosition, text, kind: "taken" };
   }
 
-  const monster = view.dungeon?.monsters.find((candidate) => candidate.id === attack.targetId);
-  if (monster) {
+  const struck = struckPosition(view, attack.targetId);
+  if (struck) {
     return {
-      position: monster.position,
+      position: struck,
       text,
       kind: attack.attackerId === view.selfId ? "dealt" : "ally",
     };
@@ -97,18 +97,22 @@ export function swingArc(view: SessionView, attack: AttackRecord): SwingArc | nu
   }
 
   const hit = attack.targetId !== null && attack.damage > 0;
-  const target =
-    hit && attack.targetId !== null
-      ? view.dungeon?.monsters.find((monster) => monster.id === attack.targetId)
-      : undefined;
   return {
     origin: swing.origin,
     heading: Math.atan2(swing.facing.y, swing.facing.x),
     halfArc: Math.acos(Math.min(Math.max(swing.arcCos, -1), 1)),
     range: swing.range,
     hit,
-    impact: target ? target.position : null,
+    impact: hit && attack.targetId !== null ? struckPosition(view, attack.targetId) : null,
   };
+}
+
+/** Where a player's swing landed: a monster or a training dummy this client can see. */
+function struckPosition(view: SessionView, targetId: string): Vector2 | null {
+  const target =
+    view.dungeon?.monsters.find((monster) => monster.id === targetId) ??
+    view.dungeon?.dummies.find((dummy) => dummy.id === targetId);
+  return target ? target.position : null;
 }
 
 /** Attacks the view has recorded since `lastSeq`, oldest first. */

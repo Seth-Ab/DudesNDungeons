@@ -617,6 +617,8 @@ export function generateDungeon(
       doors,
       exits,
       lightSources,
+      // Training dummies are a hub fixture; a generated run has none.
+      dummies: [],
     },
     spawnPoints: spawnPoints.length > 0 ? spawnPoints : [centerOf(entrance)],
     seed,

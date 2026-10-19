@@ -503,3 +503,62 @@ describe("map scenery content", () => {
     expect(() => loadContent(root)).toThrow(/tint/);
   });
 });
+
+describe("training dummy content", () => {
+  const FIRST = "d1111111-1111-4111-8111-111111111111";
+  const SECOND = "d2222222-2222-4222-8222-222222222222";
+
+  /** The plaza from the scenery tests: floor at authored (1, 1) and (3, 1), wall everywhere else. */
+  function yard(fields: Record<string, unknown>) {
+    return contentRoot({
+      "dungeons/yard.json": {
+        id: "yard",
+        name: "Yard",
+        layout: "authored",
+        tiles: ["#####", "#.#.#", "#####"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        ...fields,
+      },
+    });
+  }
+
+  it("accepts dummies on floor with distinct ids, and defaults to none", () => {
+    const placed = loadContent(
+      yard({ dummies: [{ entityId: FIRST, x: 1, y: 1 }, { entityId: SECOND, x: 3, y: 1 }] }),
+    ).dungeons.get("yard");
+
+    expect(placed?.layout === "authored" && placed.dummies).toHaveLength(2);
+    expect(loadContent(yard({})).dungeons.get("yard")).toMatchObject({ dummies: [] });
+  });
+
+  it("refuses a dummy on a wall", () => {
+    expect(() => loadContent(yard({ dummies: [{ entityId: FIRST, x: 2, y: 1 }] }))).toThrow(
+      /places a training dummy at \(2, 1\) on a wall/,
+    );
+  });
+
+  it("refuses a dummy off the map", () => {
+    expect(() => loadContent(yard({ dummies: [{ entityId: FIRST, x: 5, y: 1 }] }))).toThrow(
+      /places a training dummy at \(5, 1\) off the map/,
+    );
+    expect(() => loadContent(yard({ dummies: [{ entityId: FIRST, x: 1, y: -1 }] }))).toThrow(/off the map/);
+  });
+
+  it("refuses a duplicate id, between dummies or against another placement", () => {
+    expect(() =>
+      loadContent(yard({ dummies: [{ entityId: FIRST, x: 1, y: 1 }, { entityId: FIRST, x: 3, y: 1 }] })),
+    ).toThrow(/reuses entity id "d1111111-1111-4111-8111-111111111111" for a training dummy/);
+    expect(() =>
+      loadContent(
+        yard({
+          lights: [{ entityId: FIRST, name: "Lamp", x: 3, y: 1, radius: 5 }],
+          dummies: [{ entityId: FIRST, x: 1, y: 1 }],
+        }),
+      ),
+    ).toThrow(/reuses entity id/);
+  });
+
+  it("refuses a dummy without an id", () => {
+    expect(() => loadContent(yard({ dummies: [{ x: 1, y: 1 }] }))).toThrow(/yard\.json is not valid content.*dummies/s);
+  });
+});

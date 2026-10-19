@@ -1,6 +1,7 @@
 import type {
   ChestState,
   DoorState,
+  DummyState,
   DungeonState,
   ExitState,
   LightSourceState,
@@ -223,6 +224,15 @@ export function buildAuthoredDungeon(
     sealed: false,
   }));
 
+  // A dummy starts with an empty readout; `dummies.ts` fills it in as it is hit.
+  const dummies: DummyState[] = definition.dummies.map((placed) => ({
+    id: placed.entityId,
+    position: { x: placed.x, y: placed.y },
+    recentDamage: 0,
+    dps: 0,
+    attackers: [],
+  }));
+
   const lightSources: LightSourceState[] = definition.lights.map((placed) => ({
     id: authoredId(placed.entityId, rng),
     name: placed.name,
@@ -255,6 +265,7 @@ export function buildAuthoredDungeon(
       doors,
       exits,
       lightSources,
+      dummies,
     },
     spawnPoints: definition.spawnPoints.map((point) => ({ x: point.x, y: point.y })),
     seed: null,

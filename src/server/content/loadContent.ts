@@ -328,6 +328,34 @@ function validateReferences(content: GameContent): void {
         }
       }
 
+      const pinnedIds = new Set<string>();
+      for (const placed of [
+        ...dungeon.monsters,
+        ...dungeon.loot,
+        ...dungeon.traps,
+        ...dungeon.puzzles,
+        ...dungeon.chests,
+        ...dungeon.doors,
+        ...dungeon.exits,
+        ...dungeon.lights,
+      ]) {
+        if (placed.entityId) pinnedIds.add(placed.entityId);
+      }
+      for (const placed of dungeon.dummies) {
+        // A dummy is struck where it stands, so it has to stand somewhere a player can reach.
+        const tile = dungeon.tiles[Math.round(placed.y)]?.[Math.round(placed.x)];
+        if (tile === undefined) {
+          throw new Error(`${label} places a training dummy at (${placed.x}, ${placed.y}) off the map`);
+        }
+        if (tile !== ".") {
+          throw new Error(`${label} places a training dummy at (${placed.x}, ${placed.y}) on a wall`);
+        }
+        if (pinnedIds.has(placed.entityId)) {
+          throw new Error(`${label} reuses entity id "${placed.entityId}" for a training dummy`);
+        }
+        pinnedIds.add(placed.entityId);
+      }
+
       for (const placed of dungeon.monsters) {
         const type = content.monsters.get(placed.typeId);
         if (!type) {

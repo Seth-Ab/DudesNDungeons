@@ -35,6 +35,7 @@ import { isTileLit, type LitTileSet } from "../state/litTiles.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 import type { PlacedEmote } from "../state/emotes.js";
 import { drawEmoteBubbles } from "./emoteBubbles.js";
+import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
 
 /**
  * Screen pixels per world unit.
@@ -137,6 +138,8 @@ export interface Scene {
   swings: readonly ActiveSwing[];
   /** Emote bubbles, each already pinned to where its emoter is drawn. */
   emotes: readonly PlacedEmote[];
+  /** How far each recently struck training dummy leans, by id. A dummy at rest is absent. */
+  dummyWobbles: ReadonlyMap<string, number>;
 }
 
 export function createCanvasRenderer(getScene: () => Scene) {
@@ -851,6 +854,8 @@ export function createCanvasRenderer(getScene: () => Scene) {
     scene.dungeon.monsters
       .filter((monster) => monster.alive)
       .forEach((monster) => drawMonster(monster, camera));
+    const toScreen = (position: Vector2): Vector2 => worldToScreen(position, camera);
+    drawTrainingDummies(ctx, scene.dungeon.dummies, scene.dummyWobbles, toScreen, pixelsPerWorldUnit);
     // Placeholder bolts until projectile art exists.
     scene.dungeon.projectiles.forEach((bolt) => {
       const center = worldToScreen(bolt.position, camera);
@@ -873,6 +878,7 @@ export function createCanvasRenderer(getScene: () => Scene) {
     drawLightmap(scene, camera);
     drawSigns(scene, camera);
     drawSwings(scene.swings, camera);
+    drawDummyPlates(ctx, scene.dungeon.dummies, toScreen);
     drawPopups(scene.popups, camera);
     drawEmoteBubbles(ctx, scene.emotes, (position) => worldToScreen(position, camera));
   }

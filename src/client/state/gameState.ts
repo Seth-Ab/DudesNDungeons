@@ -101,6 +101,7 @@ export function createPlaceholderDungeon(): DungeonState {
     puzzles: [],
     doors: [],
     exits: [],
+    dummies: [],
   };
 }
 

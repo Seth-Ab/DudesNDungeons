@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 30;
+export const PROTOCOL_VERSION = 31;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -115,6 +115,17 @@ export const PLAYER_ATTACK_RANGE = 1.2;
 export const PLAYER_ATTACK_COOLDOWN_MS = 500;
 /** A swing hits targets within 60 degrees either side of its direction: cos(60°). */
 export const PLAYER_ATTACK_ARC_COS = 0.5;
+
+/**
+ * How far back a training dummy's damage readout looks. Hits older than this drop out, so the
+ * readout empties this long after the last one.
+ */
+export const TRAINING_DUMMY_WINDOW_MS = 5000;
+/**
+ * The shortest span a dummy's damage-per-second is averaged over, so a lone first hit reads as its
+ * damage per second rather than as damage divided by the few milliseconds since it landed.
+ */
+export const TRAINING_DUMMY_MIN_SPAN_MS = 1000;
 
 /** Reach for picking up loot, opening doors, and using exits. */
 export const INTERACT_RANGE = 1.2;

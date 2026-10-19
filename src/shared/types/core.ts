@@ -423,6 +423,31 @@ export const puzzleStateSchema = z.object({
 });
 export type PuzzleState = z.infer<typeof puzzleStateSchema>;
 
+/** One attacker's share of a training dummy's readout. */
+export const dummyAttackerSchema = z.object({
+  // A player id; `playerIdSchema` is declared further down this file, and both are UUIDs.
+  playerId: entityIdSchema,
+  /** Damage this attacker's hits would have done over the rolling window. */
+  recentDamage: z.number().int().nonnegative(),
+  dps: z.number().nonnegative(),
+});
+export type DummyAttacker = z.infer<typeof dummyAttackerSchema>;
+
+/**
+ * A training dummy in the hub. It is struck like a monster but never takes damage, never dies,
+ * never moves, and never attacks, so a hit on one reports `targetHealth: 0` and is never a defeat.
+ * The readout covers the last `TRAINING_DUMMY_WINDOW_MS` of hits, per attacker, and empties once
+ * that long passes without one. `recentDamage` and `dps` are the sums over `attackers`.
+ */
+export const dummyStateSchema = z.object({
+  id: entityIdSchema,
+  position: vector2Schema,
+  recentDamage: z.number().int().nonnegative(),
+  dps: z.number().nonnegative(),
+  attackers: z.array(dummyAttackerSchema),
+});
+export type DummyState = z.infer<typeof dummyStateSchema>;
+
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
   /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
@@ -440,6 +465,8 @@ export const dungeonStateSchema = z.object({
   /** Only puzzles with a plate on a tile the viewer can currently see. */
   puzzles: z.array(puzzleStateSchema),
   lightSources: z.array(lightSourceStateSchema),
+  /** Only dummies on tiles the viewer can currently see, like loot. */
+  dummies: z.array(dummyStateSchema),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;
 

@@ -96,6 +96,7 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
       })),
       exits: dungeon.exits.map((exit) => ({ ...exit, position: point(exit.position) })),
       lightSources: dungeon.lightSources.map((light) => ({ ...light, position: point(light.position) })),
+      dummies: dungeon.dummies.map((dummy) => ({ ...dummy, position: point(dummy.position) })),
     },
     spawnPoints: built.spawnPoints.map(point),
     seed: built.seed,

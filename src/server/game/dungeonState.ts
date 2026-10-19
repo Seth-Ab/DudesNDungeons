@@ -99,6 +99,11 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
       ...light,
       position: copyVector(light.position),
     })),
+    dummies: dungeon.dummies.map((dummy) => ({
+      ...dummy,
+      position: copyVector(dummy.position),
+      attackers: dummy.attackers.map((attacker) => ({ ...attacker })),
+    })),
   };
 }
 

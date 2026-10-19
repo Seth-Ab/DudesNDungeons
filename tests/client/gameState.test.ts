@@ -31,6 +31,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     doors: [],
     exits: [],
     lightSources: [],
+    dummies: [],
     ...overrides,
   };
 }

@@ -57,6 +57,9 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   should not walk through. `label` (32 characters at most) is carried but not drawn yet. A light
   may add `tint` (`warm`, the default, or `red`); the client does not draw a red light differently
   yet.
+  An authored dungeon may also list training `dummies`, `{ entityId, x, y }`, each on a floor tile
+  with an id unique in the dungeon. A dummy is struck like a monster but never takes damage, dies,
+  moves, or attacks, and shows a rolling five-second damage readout; the hub has two.
 - `skills/`: permanent skill definitions used by profiles and skill scrolls.
 - `upgrades/`: ordered improvements associated with a skill.
 

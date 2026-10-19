@@ -522,6 +522,16 @@ const placedDoorSchema = placedEntitySchema.extend({ locked: z.boolean().default
 
 const placedExitSchema = placedEntitySchema.extend({ destination: z.string().min(1) });
 
+/**
+ * A training dummy. Its id is required rather than derived, so a dummy keeps the same id however the
+ * placements around it are edited. `loadContent` checks it stands on floor and its id is unique.
+ */
+const placedDummySchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  entityId: z.string().uuid(),
+});
+
 const placedLightSchema = placedEntitySchema.extend({
   name: z.string().min(1),
   /** World units, not authored tiles. */
@@ -575,6 +585,7 @@ export const authoredDungeonSchema = z.object({
   chests: z.array(placedChestSchema).default([]),
   doors: z.array(placedDoorSchema).default([]),
   exits: z.array(placedExitSchema).default([]),
+  dummies: z.array(placedDummySchema).default([]),
   lights: z.array(placedLightSchema).default([]),
 });
 export type AuthoredDungeon = z.infer<typeof authoredDungeonSchema>;

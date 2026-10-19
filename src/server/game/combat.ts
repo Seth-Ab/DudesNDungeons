@@ -7,12 +7,19 @@ import {
 } from "../../shared/constants/game.js";
 import { distance, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
-import type { EntityId, MonsterState, PlayerId, Vector2 } from "../../shared/types/core.js";
+import type {
+  DummyState,
+  EntityId,
+  MonsterState,
+  PlayerId,
+  Vector2,
+} from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { MeleeWeaponStats } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
+import { recordDummyHit, refreshDummies } from "./dummies.js";
 import { expireFlares } from "./flares.js";
 import { MonsterPlanner } from "./monsterAi.js";
 import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "./monsterAttacks.js";
@@ -36,6 +43,9 @@ const MAX_SIMULATION_STEP_MS = 250;
 const POINT_BLANK_DISTANCE = 1e-6;
 
 type SwingStats = Omit<MeleeWeaponStats, "kind">;
+
+/** What a swing can land on: a monster, or a training dummy that takes the hit and nothing more. */
+type SwingTarget = { kind: "monster"; entity: MonsterState } | { kind: "dummy"; entity: DummyState };
 
 /** A swing with nothing in hand. */
 const UNARMED_SWING: Readonly<SwingStats> = {
@@ -62,12 +72,13 @@ function swingFor(player: SessionPlayer, content: GameContent): Readonly<SwingSt
 
 /**
  * Resolves a melee swing with the stats of the held weapon (see `swingFor`). With `targetId`, that
- * monster must be alive and in reach; without one, the swing hits the nearest living monster in
+ * living monster or training dummy must be in reach; without one, the swing hits the nearest one in
  * front of the player. A swing that hits nothing still resolves and still costs the cooldown and
  * the stamina, so swinging in every direction at once gains nothing.
  *
- * Swinging is allowed in the hub as well as the dungeon. The hub has no monsters, so every swing
- * there is an empty one, paid for like any other.
+ * Swinging is allowed in the hub as well as the dungeon. The hub has no monsters, only training
+ * dummies: a hit on one reports the damage it would have done and feeds its readout (`dummies.ts`),
+ * and the dummy itself is untouched.
  *
  * Stamina is checked after reach and cooldown but charged only once the swing is going to happen,
  * so a refused swing never costs anything.
@@ -91,23 +102,31 @@ export function resolvePlayerAttack(
 
   const content = contentForSession(session);
   const swing = swingFor(player, content);
-  const inReach = (monster: MonsterState): boolean => {
-    const dx = monster.position.x - player.position.x;
-    const dy = monster.position.y - player.position.y;
+  const inReach = ({ entity }: SwingTarget): boolean => {
+    const dx = entity.position.x - player.position.x;
+    const dy = entity.position.y - player.position.y;
     const gap = Math.hypot(dx, dy);
     if (gap > swing.range) return false;
     return gap < POINT_BLANK_DISTANCE || (dx * heading.x + dy * heading.y) / gap >= swing.arcCos;
   };
 
-  let target: MonsterState | undefined;
+  const candidates: SwingTarget[] = [
+    ...session.dungeon.monsters
+      .filter((monster) => monster.alive)
+      .map((monster) => ({ kind: "monster" as const, entity: monster })),
+    ...session.dungeon.dummies.map((dummy) => ({ kind: "dummy" as const, entity: dummy })),
+  ];
+
+  let target: SwingTarget | undefined;
   if (targetId === null) {
-    target = session.dungeon.monsters
-      .filter((monster) => monster.alive && inReach(monster))
+    target = candidates
+      .filter(inReach)
       .sort(
-        (a, b) => distance(a.position, player.position) - distance(b.position, player.position),
+        (a, b) =>
+          distance(a.entity.position, player.position) - distance(b.entity.position, player.position),
       )[0];
   } else {
-    target = session.dungeon.monsters.find((monster) => monster.id === targetId && monster.alive);
+    target = candidates.find((candidate) => candidate.entity.id === targetId);
     if (!target) return { ok: false, reason: "targetMissing" };
     if (!inReach(target)) return { ok: false, reason: "outOfRange" };
   }
@@ -141,22 +160,41 @@ export function resolvePlayerAttack(
   }
 
   const damage = swing.damage + progressionEffectTotal(player, "attackDamageBonus", content);
-  const dealt = Math.min(damage, target.health);
-  target.health -= dealt;
-  target.alive = target.health > 0;
+
+  if (target.kind === "dummy") {
+    // The full damage the hit would have done, since there is no health for it to be capped by.
+    recordDummyHit(session, target.entity, player.id, damage, now);
+    return {
+      ok: true,
+      event: {
+        type: "attackResolved",
+        attackerId: player.id,
+        targetId: target.entity.id,
+        damage,
+        targetHealth: 0,
+        targetDefeated: false,
+        swing: geometry,
+      },
+    };
+  }
+
+  const monster = target.entity;
+  const dealt = Math.min(damage, monster.health);
+  monster.health -= dealt;
+  monster.alive = monster.health > 0;
   // The last boss falling is what unseals the way out.
-  if (target.boss && !target.alive) refreshExitSeals(session.dungeon);
-  if (!target.alive) dropMonsterLoot(session, target);
+  if (monster.boss && !monster.alive) refreshExitSeals(session.dungeon);
+  if (!monster.alive) dropMonsterLoot(session, monster);
 
   return {
     ok: true,
     event: {
       type: "attackResolved",
       attackerId: player.id,
-      targetId: target.id,
+      targetId: monster.id,
       damage: dealt,
-      targetHealth: target.health,
-      targetDefeated: !target.alive,
+      targetHealth: monster.health,
+      targetDefeated: !monster.alive,
       swing: geometry,
     },
   };
@@ -173,8 +211,10 @@ export function simulate(session: Session, now: number): AttackEvent[] {
       ? 0
       : Math.min(Math.max(now - session.simulatedAt, 0), MAX_SIMULATION_STEP_MS);
   session.simulatedAt = now;
-  // Before the hub returns early: a flare lit in the hub burns out there too.
+  // Before the hub returns early: a flare lit in the hub burns out there too, and the hub is where
+  // the training dummies stand.
   expireFlares(session, now);
+  refreshDummies(session, now);
 
   if (session.location !== "dungeon") {
     regenerateStamina(session, elapsedMs);
