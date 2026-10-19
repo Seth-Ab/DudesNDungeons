@@ -16,6 +16,8 @@ import {
   CHARACTER_KEY_COLOURS,
   COMPOSITE_HEIGHT,
   COMPOSITE_WIDTH,
+  PORTRAIT_SIZE,
+  SILHOUETTE_COLOUR,
   WALK_HOLD_MS,
   WALK_POSES,
   bodyLayer,
@@ -27,7 +29,9 @@ import {
   createCompositeCache,
   createMotionTracker,
   pickCharacterPose,
+  portraitRect,
   recolourPixels,
+  silhouettePixels,
   walkPose,
   type CharacterLook,
 } from "../../src/client/rendering/characters.js";
@@ -130,6 +134,23 @@ describe("closeEyes", () => {
       if (!layer.endsWith("-up")) expect(characters).toContain("e");
     },
   );
+});
+
+describe("portraits", () => {
+  it("crops the head and shoulders of the open-eyed front stand", () => {
+    const rect = portraitRect();
+    expect(rect).toEqual({ x: compositeCell("down", "stand", false).x, y: 4 });
+    expect(rect.y + PORTRAIT_SIZE).toBeLessThanOrEqual(CHARACTER_FRAME_HEIGHT);
+  });
+
+  it("flattens every opaque pixel to the silhouette grey and leaves transparency alone", () => {
+    const data = pixelsOf([CHARACTER_KEY_COLOURS.skin[0], null, CHARACTER_FIXED_COLOURS.outline]);
+    silhouettePixels(data, SILHOUETTE_COLOUR);
+
+    expect(colourAt(data, 0)).toBe(SILHOUETTE_COLOUR);
+    expect(colourAt(data, 2)).toBe(SILHOUETTE_COLOUR);
+    expect([...data.subarray(4, 8)]).toEqual([0, 0, 0, 0]);
+  });
 });
 
 describe("composite cache", () => {

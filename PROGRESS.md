@@ -8,8 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v31.
-- Last completed work: players drawn as layered pixel-art characters in their own look and party
-  colour (issue #132, protocol unchanged at v31); earlier, hub training dummies with a server-kept
+- Last completed work: party frames with character portraits and a "Designing…" state, and a hub
+  banner that names who is still designing (issue #134, protocol unchanged at v31); earlier, players
+  drawn as layered pixel-art characters in their own look and party colour (issue #132); earlier, hub training dummies with a server-kept
   damage-per-second readout (issue #150, protocol v31); earlier, an emote wheel with server-validated, rate-limited emotes (issue #149,
   protocol v30); earlier, animated weapon swings drawn from server-resolved reach and arc (issue #129,
   protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
@@ -416,7 +417,9 @@ Complete on `feature/hub-run-flow`.
   ramps; layout and lighting are Phases 3-4.
 - [x] Add run start, escape, and death flows. The gate refuses locally with the names of whoever is
   not ready, the run start is announced, and the return to the hub reports what this player got out
-  with or lost.
+  with or lost. Party frames show each teammate's head and shoulders cropped from their #132
+  composite, edged in their party colour; one still designing shows a grey silhouette and
+  "Designing…", and the hub banner names them as what the run waits on (#134).
 - [x] Show what a player carries and what they banked. Three slots and the torch line, which is
   separate because a torch is not an inventory item, plus the session bank.
 
@@ -438,6 +441,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Party-frame portraits, a "Designing…" state, and a hub banner naming designers (#134).
 - 2026-10-19: Hub ground layer, canopy overhang, contact shadows, stall tints and hue-shifted
   palette (#144, Hub Revamp Phase 2, protocol unchanged at v31).
 - 2026-10-19: Players drawn as recoloured, animated pixel-art characters with party rings (#132).

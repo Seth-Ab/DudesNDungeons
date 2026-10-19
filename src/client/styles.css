@@ -182,7 +182,7 @@ button:disabled {
 /* Visible-only party frames, top-left under the status panel. */
 .hud__frames {
   position: absolute;
-  top: 5.5rem;
+  top: 6.5rem;
   left: 0.5rem;
   display: flex;
   flex-direction: column;
@@ -198,13 +198,43 @@ button:disabled {
 
 .hud__frame {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  width: 10rem;
+  align-items: center;
+  gap: 0.45rem;
+  width: 12.5rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid #332f2b;
+  border-left: 3px solid var(--party-accent, #332f2b);
   border-radius: 8px;
   background: rgba(27, 28, 31, 0.82);
+}
+
+/* Head and shoulders, 16 art pixels scaled up crisp. */
+.hud__frame-portrait {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 4px;
+  background: #1b1c1f;
+  image-rendering: pixelated;
+}
+
+.hud__frame-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hud__frame-caption {
+  color: #c9b184;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.hud__frame-caption[hidden],
+.hud__frame .hud__bar[hidden] {
+  display: none;
 }
 
 .hud__frame-header {

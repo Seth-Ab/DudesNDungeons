@@ -32,6 +32,7 @@ import {
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
 import type { DungeonState, InventoryItem, LootState, PlayerState, RunState } from "../../src/shared/types/core.js";
+import { PARTY_PALETTES } from "../../src/client/rendering/characterPalettes.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const OTHER_ID = "9a2e7c1f-7b5b-4a3f-8e2d-3c4b5d6e7f80";
@@ -296,6 +297,7 @@ describe("party frames", () => {
           player("Down", { id: "4", health: 0 }),
           player("Lifted", { id: "5", health: 0, carriedByPlayerId: SELF_ID }),
           player("Gone", { id: "6", connected: false }),
+          player("Drawing", { id: "7", appearance: null }),
         ],
       }),
     );
@@ -307,8 +309,37 @@ describe("party frames", () => {
       "downed",
       "beingCarried",
       "disconnected",
+      "designing",
     ]);
-    expect(new Set(frames.map((frame) => frame.icon)).size).toBe(6);
+    expect(new Set(frames.map((frame) => frame.icon)).size).toBe(7);
+  });
+
+  it("shows a player with no appearance yet as designing, with no portrait", () => {
+    const [frame] = partyFrames(
+      view({ selfId: SELF_ID, players: [player("Sam", { id: SAM_ID, appearance: null, partyColor: "moss" })] }),
+    );
+
+    expect(frame).toMatchObject({ state: "designing", stateLabel: "Designing…", portrait: null });
+    // Their slot already has a party colour, so the frame is edged in it while they design.
+    expect(frame?.accent).toBe(PARTY_PALETTES.moss.ring);
+  });
+
+  it("gives a designed player a portrait of their look in their party colour", () => {
+    const appearance = { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" } as const;
+    const [frame] = partyFrames(
+      view({ selfId: SELF_ID, players: [player("Sam", { id: SAM_ID, appearance, partyColor: "plum", ready: true })] }),
+    );
+
+    expect(frame?.state).toBe("ready");
+    expect(frame?.portrait).toEqual({ ...appearance, partyColor: "plum" });
+    expect(frame?.accent).toBe(PARTY_PALETTES.plum.ring);
+  });
+
+  it("still calls a designer who dropped disconnected", () => {
+    const [frame] = partyFrames(
+      view({ selfId: SELF_ID, players: [player("Sam", { id: SAM_ID, appearance: null, connected: false })] }),
+    );
+    expect(frame?.state).toBe("disconnected");
   });
 
   it("treats a disconnected player as disconnected even when downed", () => {
@@ -672,5 +703,42 @@ describe("hub status", () => {
     );
     expect(status?.ready).toBe(true);
     expect(status?.text).toBe("Party ready");
+  });
+
+  it("names whoever is still designing as what the run is waiting on", () => {
+    const status = hubStatusView(
+      view({
+        phase: "inSession",
+        location: "hub",
+        players: [player("Maya", { id: SELF_ID, ready: true }), player("Sam", { appearance: null })],
+      }),
+    );
+    expect(status).toEqual({
+      ready: false,
+      text: "Waiting on the party",
+      detail: "Waiting on Sam to finish designing a character.",
+    });
+  });
+
+  it("lists several designers together", () => {
+    const status = hubStatusView(
+      view({
+        phase: "inSession",
+        location: "hub",
+        players: [
+          player("Maya", { id: "1", appearance: null }),
+          player("Sam", { id: "2", appearance: null }),
+          player("Iris", { id: "3" }),
+        ],
+      }),
+    );
+    expect(status?.detail).toBe("Waiting on Maya and Sam to finish designing their characters.");
+  });
+
+  it("asks the unready to ready up once everyone has a character", () => {
+    const status = hubStatusView(
+      view({ phase: "inSession", location: "hub", players: [player("Maya", { id: "1", ready: true }), player("Sam")] }),
+    );
+    expect(status?.detail).toBe("Waiting on Sam to ready up.");
   });
 });

@@ -17,6 +17,8 @@ import {
 } from "./runFlow.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
 import { itemSprite, type SpriteName } from "../rendering/tiles.js";
+import { PARTY_PALETTES } from "../rendering/characterPalettes.js";
+import type { CharacterLook } from "../rendering/characters.js";
 import {
   carriedAlly,
   nearestDownedAlly,
@@ -221,9 +223,24 @@ export function hubStatusView(view: SessionView): HubStatusView | null {
   if (view.phase !== "inSession" || view.location !== "hub") return null;
 
   const status = entranceStatus(view.players);
-  const detail = entranceMessage(status);
-  if (status.kind === "ready") return { ready: true, text: "Party ready", detail };
+  if (status.kind === "ready") return { ready: true, text: "Party ready", detail: entranceMessage(status) };
+
+  // Someone still designing cannot ready up at all, so "ready up" would ask the wrong thing of
+  // them. Name them instead: until they have a character, nobody else readying opens the gate.
+  const designing = view.players
+    .filter((player) => player.connected && player.appearance === null)
+    .map((player) => player.name);
+  const detail =
+    designing.length === 0
+      ? entranceMessage(status)
+      : `Waiting on ${nameList(designing)} to finish designing ${designing.length === 1 ? "a character" : "their characters"}.`;
   return { ready: false, text: "Waiting on the party", detail };
+}
+
+/** "Maya", "Maya and Sam", "Maya, Sam and Iris". */
+function nameList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 export interface NoticesView {
@@ -321,10 +338,18 @@ export function bankEntries(items: readonly InventoryItem[]): BankEntryView[] {
   return lines.map((text) => ({ text, empty: false }));
 }
 
-export type PartyMemberState = "ready" | "waiting" | "carrying" | "downed" | "beingCarried" | "disconnected";
+export type PartyMemberState =
+  | "designing"
+  | "ready"
+  | "waiting"
+  | "carrying"
+  | "downed"
+  | "beingCarried"
+  | "disconnected";
 
 /** One glyph per state, so the states differ by shape and not only by hue. */
 export const PARTY_STATE_ICONS: Record<PartyMemberState, string> = {
+  designing: "✎",
   ready: "✓",
   waiting: "○",
   carrying: "↑",
@@ -334,6 +359,7 @@ export const PARTY_STATE_ICONS: Record<PartyMemberState, string> = {
 };
 
 export const PARTY_STATE_LABELS: Record<PartyMemberState, string> = {
+  designing: "Designing…",
   ready: "ready",
   waiting: "waiting",
   carrying: "carrying an ally",
@@ -350,10 +376,15 @@ export interface PartyFrameView {
   stateLabel: string;
   health: HealthBarView;
   resistance: BarView;
+  /** What the portrait shows: their character, or null for the grey silhouette while designing. */
+  portrait: CharacterLook | null;
+  /** The party colour's ring, edging the frame the way it rings their feet in the world. */
+  accent: string;
 }
 
 export function partyMemberState(player: PlayerState): PartyMemberState {
   if (!player.connected) return "disconnected";
+  if (player.appearance === null) return "designing";
   if (player.health <= 0) return player.carriedByPlayerId ? "beingCarried" : "downed";
   if (player.carryingPlayerId) return "carrying";
   return player.ready ? "ready" : "waiting";
@@ -378,6 +409,8 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
         stateLabel: PARTY_STATE_LABELS[state],
         health: healthBarView(player.health, PLAYER_MAX_HEALTH),
         resistance: barView(player.resistance, PLAYER_MAX_RESISTANCE),
+        portrait: player.appearance && { ...player.appearance, partyColor: player.partyColor },
+        accent: PARTY_PALETTES[player.partyColor].ring,
       };
     });
 }
