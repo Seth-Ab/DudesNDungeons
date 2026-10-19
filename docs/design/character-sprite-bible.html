@@ -1,0 +1,1808 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--
+  Character Sprite Bible: the owner-approved reference for player character sprites, the character
+  design screen, and cosmetics (decisions recorded on #63 and #128). Open this file in a browser.
+  Every sprite is drawn from the SPRITES object in the script below, which is the pixel data to port
+  into assets/sprites/source/characters.tiles.json. "." is transparent here; the repo format uses "0".
+  Body rows start at frame row 8; every other layer's y is relative to body row 0.
+  Published copy: https://claude.ai/artifact/PUY2fYNEGJs1UDJBbU9kwp
+-->
+<title>Character Sprite Bible</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a torch-lit dungeon ledger. One dark world on purpose (pixel art is judged against the game's own floor),
+   narrow reading column for spec text, wide stage for the live creator and wardrobe. */
+:root {
+  color-scheme: dark;
+  --stone-0: #07080a;   /* palette 1 */
+  --stone-1: #0e1013;   /* palette 2: page */
+  --stone-2: #16191d;   /* palette 3: panels */
+  --stone-3: #1f2329;   /* palette 4: raised */
+  --stone-4: #2b3037;   /* palette 5: rules */
+  --parch: #f7f0da;     /* renderer label colour */
+  --parch-dim: #c9b184; /* renderer area label */
+  --parch-mute: #8f8571;
+  --torch: #f0a83c;     /* palette g */
+  --ember: #c2551d;     /* palette f */
+  --moss: #63bb86;      /* palette l */
+  --sky: #8fa8d6;       /* palette n */
+  --blood: #d0806a;
+  --f-display: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--stone-1);
+  color: var(--parch);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+  display: grid;
+  gap: 72px;
+}
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(34px, 6vw, 56px); color: var(--torch); letter-spacing: 0.5px; }
+h2 { font-size: 30px; color: var(--parch); }
+h3 { font-size: 19px; color: var(--parch-dim); }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--torch); }
+code, pre { font-family: var(--f-mono); font-size: 13px; }
+code { background: var(--stone-3); padding: 1px 5px; border-radius: 3px; color: #ffe6a3; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--parch-mute); }
+.lede { font-size: 18px; color: var(--parch-dim); max-width: 62ch; }
+section { display: grid; gap: 24px; }
+.sec-head { display: grid; gap: 10px; border-top: 2px solid var(--stone-4); padding-top: 22px; }
+.sec-head .tag { font-family: var(--f-mono); font-size: 12px; color: var(--torch); letter-spacing: 1px; }
+.stack { display: grid; gap: 14px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 72ch; }
+ul.plain li::marker { color: var(--torch); }
+.note { border-left: 3px solid var(--ember); background: var(--stone-2); padding: 12px 16px; color: var(--parch-dim); max-width: 78ch; }
+.note b { color: var(--parch); }
+.pill { display: inline-block; font-family: var(--f-mono); font-size: 11px; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--stone-4); color: var(--parch-dim); white-space: nowrap; }
+.pill.decided { border-color: #2f6b48; color: var(--moss); }
+.pill.proposed { border-color: #8c6a2a; color: var(--torch); }
+.pill.open { border-color: #7b1f14; color: var(--blood); }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: end; }
+.hero-stage { background: var(--stone-0); border: 1px solid var(--stone-4); border-radius: 4px; overflow: hidden; }
+.hero-stage canvas { width: 100%; height: auto; }
+.hero-meta { display: grid; gap: 14px; }
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--stone-4); border: 1px solid var(--stone-4); }
+.glance div { background: var(--stone-2); padding: 14px 16px; display: grid; gap: 4px; }
+.glance b { font-family: var(--f-display); font-weight: 600; color: var(--torch); font-size: 17px; }
+.glance span { color: var(--parch-dim); font-size: 13.5px; }
+
+/* creator */
+.creator { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 0; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; overflow: hidden; }
+.creator-stage { background: radial-gradient(ellipse at 50% 62%, #3a2a17 0%, #16120c 45%, var(--stone-0) 80%); padding: 20px; display: grid; gap: 14px; justify-items: center; border-right: 1px solid var(--stone-4); }
+.creator-stage .big { width: 200px; height: 300px; }
+.stage-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.creator-panel { padding: 22px 24px; display: grid; gap: 20px; align-content: start; min-width: 0; }
+.creator-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.creator-top h3 { color: var(--torch); font-size: 22px; }
+.field { display: grid; gap: 8px; }
+.field > label, .field > .lbl { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--parch-mute); }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font-family: var(--f-display); font-size: 15px; background: var(--stone-3); color: var(--parch); border: 2px solid var(--stone-4); border-radius: 3px; padding: 7px 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.btn:hover { border-color: var(--parch-mute); }
+.btn:focus-visible, .swatch:focus-visible, .tile:focus-visible, .card:focus-visible { outline: 2px solid var(--torch); outline-offset: 2px; }
+.btn.primary { background: var(--torch); color: var(--stone-0); border-color: var(--torch); font-weight: 600; }
+.btn.primary:hover { background: #ffc061; }
+.btn.ghost { background: transparent; }
+.btn.small { font-size: 13px; padding: 4px 10px; }
+.btn[aria-pressed="true"] { border-color: var(--torch); color: var(--torch); }
+.tile { background: var(--stone-1); border: 2px solid var(--stone-4); border-radius: 3px; padding: 6px 6px 4px; cursor: pointer; display: grid; justify-items: center; gap: 2px; color: var(--parch-dim); font-family: var(--f-display); font-size: 12.5px; min-width: 70px; }
+.tile[aria-pressed="true"] { border-color: var(--torch); color: var(--torch); background: #1d1710; }
+.tile canvas { width: 48px; height: 48px; }
+.tile.wide canvas { width: 48px; height: 72px; }
+.swatch { width: 34px; height: 34px; border-radius: 3px; border: 2px solid var(--stone-4); cursor: pointer; padding: 0; position: relative; }
+.swatch[aria-pressed="true"] { border-color: var(--parch); box-shadow: 0 0 0 2px var(--stone-2), 0 0 0 4px var(--torch); }
+.swatch-name { font-size: 13px; color: var(--parch-dim); }
+.party-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--parch-dim); }
+.party-chip i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 2px solid var(--stone-0); }
+.creator-foot { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; border-top: 1px solid var(--stone-4); padding-top: 18px; }
+.scene { width: 100%; max-width: 320px; height: auto; border: 1px solid var(--stone-4); }
+pre.json { margin: 0; background: var(--stone-0); border: 1px solid var(--stone-4); padding: 12px 14px; color: #ffe6a3; overflow-x: auto; border-radius: 3px; }
+.copy-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.copied { font-size: 12.5px; color: var(--moss); }
+
+/* flow */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; overflow-x: auto; }
+.flow-step { background: var(--stone-2); border: 1px solid var(--stone-4); padding: 14px; display: grid; gap: 6px; align-content: start; min-width: 150px; }
+.flow-step b { font-family: var(--f-display); font-weight: 600; font-size: 16px; color: var(--parch); }
+.flow-step span { font-size: 13px; color: var(--parch-dim); }
+.flow-step.new { border-color: var(--torch); }
+.flow-step .num { font-family: var(--f-mono); font-size: 11px; color: var(--torch); }
+.flow-arrow { display: none; }
+.branch { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.branch div { background: var(--stone-2); border: 1px dashed var(--stone-4); padding: 14px 16px; display: grid; gap: 6px; }
+.branch b { font-family: var(--f-display); font-weight: 600; color: var(--torch); }
+.screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.screen { background: var(--stone-0); border: 1px solid var(--stone-4); border-radius: 6px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }
+.screen-bar { font-family: var(--f-mono); font-size: 11px; color: var(--parch-mute); padding: 8px 12px; border-bottom: 1px solid var(--stone-4); display: flex; justify-content: space-between; gap: 8px; }
+.screen-body { padding: 18px; display: grid; gap: 12px; align-content: start; background: radial-gradient(ellipse at 50% 0%, #1b1813 0%, var(--stone-0) 70%); }
+.screen-cap { padding: 10px 14px; font-size: 13px; color: var(--parch-dim); border-top: 1px solid var(--stone-4); background: var(--stone-2); }
+.mock-h { font-family: var(--f-display); font-size: 22px; color: var(--torch); }
+.mock-input { background: var(--stone-2); border: 2px solid var(--stone-4); padding: 8px 10px; font-size: 14px; color: var(--parch); border-radius: 3px; }
+.mock-input.ph { color: var(--parch-mute); }
+.mock-row { display: flex; gap: 8px; }
+.mock-row > * { flex: 1; }
+.mock-btn { background: var(--torch); color: var(--stone-0); font-family: var(--f-display); font-weight: 600; text-align: center; padding: 8px; border-radius: 3px; font-size: 14px; }
+.mock-btn.sec { background: var(--stone-3); color: var(--parch); border: 2px solid var(--stone-4); }
+.mock-sub { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--parch-mute); margin-top: 6px; }
+.save-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--stone-2); border: 2px solid var(--stone-4); border-radius: 3px; padding: 8px 10px; }
+.save-card.sel { border-color: var(--torch); }
+.save-card canvas { width: 48px; height: 48px; background: #1a1612; border-radius: 2px; }
+.save-card b { font-family: var(--f-display); font-weight: 600; font-size: 15px; display: block; }
+.save-card small { color: var(--parch-dim); font-size: 12px; line-height: 1.4; display: block; }
+.heads { display: flex; gap: 2px; margin-top: 3px; }
+.heads canvas { width: 24px; height: 24px; background: none; }
+.roster { display: grid; gap: 8px; }
+.roster-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--stone-2); border-left: 3px solid; padding: 6px 10px; }
+.roster-row canvas { width: 32px; height: 48px; }
+.roster-row b { font-family: var(--f-display); font-weight: 600; }
+.status { font-family: var(--f-mono); font-size: 11px; }
+
+/* spec */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+.frame-diagram { background: var(--stone-0); border: 1px solid var(--stone-4); padding: 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.frame-diagram canvas { width: 192px; height: 288px; }
+.legend { display: grid; gap: 8px; font-size: 13.5px; color: var(--parch-dim); }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 1px solid var(--stone-4); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--stone-4); border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--stone-4); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--parch-mute); background: var(--stone-2); font-weight: 400; }
+td { color: var(--parch-dim); }
+td b { color: var(--parch); font-weight: 600; }
+td .chip { display: inline-block; width: 14px; height: 14px; border-radius: 2px; vertical-align: -2px; margin-right: 2px; border: 1px solid #000; }
+.turn { display: flex; gap: 14px; flex-wrap: wrap; background: var(--stone-0); border: 1px solid var(--stone-4); padding: 16px; justify-content: center; }
+.turn figure { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.turn canvas { width: 64px; height: 96px; }
+.turn figcaption { font-family: var(--f-mono); font-size: 11px; color: var(--parch-mute); }
+.ramps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ramp { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--stone-2); border: 1px solid var(--stone-4); }
+.ramp i { height: 22px; }
+.ramp span { grid-column: 1 / -1; font-size: 12px; padding: 4px 8px; color: var(--parch-dim); font-family: var(--f-mono); }
+pre.code { margin: 0; background: var(--stone-0); border: 1px solid var(--stone-4); padding: 14px 16px; color: #e6dcc0; overflow-x: auto; border-radius: 3px; line-height: 1.55; }
+pre.code .c { color: var(--parch-mute); }
+pre.code .k { color: var(--torch); }
+
+/* wardrobe */
+.wardrobe { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; overflow: hidden; }
+.ward-stage { background: radial-gradient(ellipse at 50% 55%, #2c2416 0%, #12100c 50%, var(--stone-0) 85%); padding: 20px; display: grid; gap: 14px; justify-items: center; align-content: start; border-right: 1px solid var(--stone-4); }
+.ward-stage .big { width: 176px; height: 264px; }
+.ward-mini { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.ward-mini figure { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.ward-mini canvas { width: 140px; height: 120px; border: 1px solid var(--stone-4); background: #0b0c0e; }
+.ward-mini canvas.flame { width: 80px; height: 120px; }
+.ward-mini figcaption { font-family: var(--f-mono); font-size: 10.5px; color: var(--parch-mute); }
+.ward-panel { padding: 18px 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 2px solid var(--stone-4); }
+.tab { font-family: var(--f-display); font-size: 15px; background: none; border: none; color: var(--parch-mute); padding: 8px 12px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.tab[aria-selected="true"] { color: var(--torch); border-bottom-color: var(--torch); }
+.tab:focus-visible { outline: 2px solid var(--torch); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.card { background: var(--stone-1); border: 2px solid var(--stone-4); border-radius: 3px; padding: 10px; display: grid; gap: 6px; cursor: pointer; text-align: left; color: var(--parch); font-family: var(--f-body); position: relative; }
+.card[aria-pressed="true"] { background: #1d1710; box-shadow: inset 0 0 0 1px var(--torch); }
+.card canvas { width: 64px; height: 64px; justify-self: center; }
+.card b { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.2; }
+.card .rar { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
+.card .how { font-size: 12px; color: var(--parch-mute); line-height: 1.4; }
+.card .eq { position: absolute; top: 6px; right: 8px; font-family: var(--f-mono); font-size: 10px; color: var(--torch); }
+.ward-detail { background: var(--stone-1); border: 1px solid var(--stone-4); padding: 12px 14px; display: grid; gap: 4px; font-size: 13.5px; color: var(--parch-dim); }
+.ward-detail b { font-family: var(--f-display); color: var(--parch); font-size: 17px; font-weight: 600; }
+.rarities { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--parch-dim); }
+.rarities span { display: inline-flex; gap: 6px; align-items: center; }
+.rarities i { width: 12px; height: 12px; border: 2px solid; border-radius: 2px; }
+
+/* tickets */
+.tickets { display: grid; gap: 1px; background: var(--stone-4); border: 1px solid var(--stone-4); }
+.ticket { background: var(--stone-2); padding: 14px 18px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; }
+.ticket .n { font-family: var(--f-display); font-size: 22px; color: var(--torch); }
+.ticket b { font-family: var(--f-display); font-weight: 600; font-size: 16px; display: block; margin-bottom: 4px; }
+.ticket p { font-size: 13.5px; color: var(--parch-dim); }
+.qs { display: grid; gap: 10px; counter-reset: q; }
+.q { background: var(--stone-2); border: 1px solid var(--stone-4); padding: 12px 16px; display: grid; gap: 4px; }
+.q b { color: var(--parch); font-weight: 600; }
+.q span { color: var(--parch-dim); font-size: 13.5px; }
+
+@media (max-width: 860px) {
+  .hero, .two { grid-template-columns: minmax(0, 1fr); }
+  .creator, .wardrobe { grid-template-columns: minmax(0, 1fr); }
+  .creator-stage, .ward-stage { border-right: none; border-bottom: 1px solid var(--stone-4); }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .flow-step { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="stack">
+    <div class="eyebrow">DudesNDungeons · Frontend step 6 · issues #63, #128, #122</div>
+    <h1>Character Sprite Bible</h1>
+    <p class="lede">The reference for replacing the flat player rectangles with real 16&nbsp;px characters. It covers the character design screen players see before every new dungeon save, where that screen sits in the flow, the sprite and data spec, and a first catalogue of cosmetics. Every sprite on this page is drawn live from the pixel data in this file, so this page is the source of truth an implementing agent can copy from.</p>
+  </div>
+  <div class="hero-meta">
+    <div class="hero-stage"><canvas id="heroScene" width="384" height="160" aria-label="Four adventurers standing on dungeon flagstones by torchlight"></canvas></div>
+  </div>
+</header>
+
+<section aria-labelledby="glance-h">
+  <div class="sec-head"><span class="tag">AT A GLANCE</span><h2 id="glance-h">What this page decides</h2></div>
+  <div class="glance">
+    <div><b>16 × 24 frame</b><span>16 px wide like every tile, plus 8 px of headroom above for tall hair and hats. Drawn at 2× (32 × 48 screen px).</span></div>
+    <div><b>4 choices</b><span>Body (guy or girl), skin tone (6), hair style (6), hair colour (8). That gives 576 base looks. No cosmetics on this screen.</span></div>
+    <div><b>Per save</b><span>Players design a character for each new dungeon save. It is locked for that save. Continuing a save skips the screen.</span></div>
+    <div><b>Party colour</b><span>Assigned by the server by join order. It tints the base tunic and draws a ring under the feet, so teammates stay readable whatever they wear.</span></div>
+    <div><b>Palette swap</b><span>Art is authored once with key colours, then recoloured at runtime into a cached canvas per player. No sprite is drawn per combination.</span></div>
+    <div><b>5 cosmetic slots</b><span>Hat, cloak, outfit dye, weapon trail, torch flame. They never change stats and are never lost on death.</span></div>
+  </div>
+</section>
+
+<!-- ============ CREATOR ============ -->
+<section aria-labelledby="creator-h">
+  <div class="sec-head">
+    <span class="tag">SCREEN · CHARACTER DESIGN</span>
+    <h2 id="creator-h">The character design screen</h2>
+    <p>This is a working prototype of the screen. It uses the real sprites, rendered the way the game will render them. Pick options to see the sprite turn, walk and blink, and check the in-game panel to see how it reads at real scale among teammates. The JSON underneath is exactly what the client sends to the server.</p>
+  </div>
+
+  <div class="creator" id="creator">
+    <div class="creator-stage">
+      <canvas class="big" id="bigPreview" width="160" height="240" aria-label="Large preview of your character"></canvas>
+      <div class="stage-row">
+        <button class="btn small" id="rotL" aria-label="Turn left">◀ Turn</button>
+        <button class="btn small" id="animToggle" aria-pressed="false">Walk</button>
+        <button class="btn small" id="rotR" aria-label="Turn right">Turn ▶</button>
+      </div>
+      <div class="eyebrow" style="text-align:center">In-game size, with your party</div>
+      <canvas class="scene" id="scenePreview" width="256" height="128" aria-label="Your character at in-game scale on a dungeon floor with teammates"></canvas>
+    </div>
+
+    <div class="creator-panel">
+      <div class="creator-top">
+        <h3>Create your adventurer</h3>
+        <span class="party-chip" id="partyChip"><i></i><span></span></span>
+      </div>
+      <div class="field">
+        <label for="nameField">Name</label>
+        <input id="nameField" class="mock-input" value="Seth" maxlength="24" autocomplete="off" style="font-family:var(--f-display);font-size:16px;max-width:280px">
+      </div>
+      <div class="field">
+        <span class="lbl" id="bodyLbl">Body</span>
+        <div class="choices" id="bodyChoices" role="group" aria-labelledby="bodyLbl"></div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="skinLbl">Skin tone · <span id="skinName" class="swatch-name"></span></span>
+        <div class="choices" id="skinChoices" role="group" aria-labelledby="skinLbl"></div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="hairLbl">Hair style</span>
+        <div class="choices" id="hairChoices" role="group" aria-labelledby="hairLbl"></div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="hcLbl">Hair colour · <span id="hcName" class="swatch-name"></span></span>
+        <div class="choices" id="hcChoices" role="group" aria-labelledby="hcLbl"></div>
+      </div>
+      <div class="creator-foot">
+        <button class="btn ghost" id="randomize">🎲 Randomize</button>
+        <div class="choices">
+          <button class="btn ghost">Back</button>
+          <button class="btn primary" id="enterHub">Enter the hub</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Payload sent as <code>setAppearance</code></span>
+        <pre class="json" id="jsonOut"></pre>
+        <div class="copy-row">
+          <button class="btn small" id="copyJson">Copy appearance JSON</button>
+          <button class="btn small" id="copySprites">Copy all sprite data</button>
+          <span class="copied" id="copyMsg" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="stack">
+      <h3>Screen rules</h3>
+      <ul class="plain">
+        <li>Opens with a <b>random</b> look, or with the player's last-used look from local storage if there is one. The screen is never blank.</li>
+        <li>Hair styles are <b>not gated by body</b>. Every style works on both bodies.</li>
+        <li>The name is prefilled from the lobby and can be edited here. The same 24-character limit applies.</li>
+        <li><b>Party colour is shown but not chosen.</b> The server assigns it by join order (Ember, Moss, Azure, Plum), so it appears as a chip, not a control.</li>
+        <li>Keyboard: Tab between groups, arrows inside a group, Enter to confirm. <kbd>R</kbd> randomizes.</li>
+        <li>"Enter the hub" sends <code>setAppearance</code>. The button shows "Entering…" until the server spawns the player, or shows the server's error inline.</li>
+        <li>"Back" returns to the lobby and gives up the reserved party slot.</li>
+        <li>At phone width the stage stacks above the options, and the large preview shrinks to 6×.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h3>Why only four choices</h3>
+      <p style="color:var(--parch-dim)">Each choice maps to one palette ramp or one layer. That keeps the art load small: 2 bodies and 6 hair layers, each in 3 directions, cover all 576 looks. Everything else is a cosmetic, earned in the hub and layered on top. Eye colour, face shapes and body sizes were left out on purpose. At 16&nbsp;px an eye is a single dark pixel, so those options would not read in play.</p>
+      <div class="note"><b>Tunic colour is not a choice.</b> If players picked tunic colours, two teammates could match and stop being readable in a dark corridor. The party colour handles identity, and outfit dyes from the shop override the tunic later. The ring under the feet always keeps the party colour.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FLOW ============ -->
+<section aria-labelledby="flow-h">
+  <div class="sec-head">
+    <span class="tag">FLOW · WHERE THE SCREEN LIVES</span>
+    <h2 id="flow-h">Name, room, then character</h2>
+    <p><b>Recommendation:</b> make character design its own screen, shown right after the server accepts the room. Don't fold it into the lobby. Three reasons:</p>
+    <ul class="plain">
+      <li><b>Continuing a save skips it.</b> The server knows whether this player already has a character in this room's save, and the lobby does not. Designing first would waste the player's effort whenever they turn out to be continuing.</li>
+      <li><b>The room can refuse you.</b> A bad code, a full party, or a run in progress should fail before the player spends a minute on hair.</li>
+      <li><b>The lobby stays short.</b> It is two fields and two buttons today, and that works well on a phone.</li>
+    </ul>
+  </div>
+
+  <div class="flow" role="list">
+    <div class="flow-step" role="listitem"><span class="num">STEP 1</span><b>Lobby</b><span>Name. Then Join with a code, Create a new dungeon, or pick a saved run under "Continue".</span></div>
+    <div class="flow-step" role="listitem"><span class="num">STEP 2</span><b>Server answers</b><span><code>sessionJoined</code> now carries <code>needsAppearance</code>: true for a new save or a new member, false when your character already exists.</span></div>
+    <div class="flow-step new" role="listitem"><span class="num">STEP 3 · NEW</span><b>Character design</b><span>Only when <code>needsAppearance</code> is true. The slot is reserved, but you are not spawned yet.</span></div>
+    <div class="flow-step" role="listitem"><span class="num">STEP 4</span><b>setAppearance</b><span>The server validates every id against the shared lists, stores the look on the save, and spawns you.</span></div>
+    <div class="flow-step" role="listitem"><span class="num">STEP 5</span><b>Hub</b><span>Teammates see you appear. Players still designing show as "Designing…" in the party roster.</span></div>
+  </div>
+
+  <div class="branch">
+    <div><b>New dungeon</b><span style="color:var(--parch-dim);font-size:14px">Create, then design, then the hub. The creator's look becomes the first character in the new save.</span></div>
+    <div><b>Join a friend's new dungeon</b><span style="color:var(--parch-dim);font-size:14px">Code, then design, then the hub. Same as above, with the next free party colour.</span></div>
+    <div><b>Continue a save</b><span style="color:var(--parch-dim);font-size:14px">Pick a save card, then the hub. No design screen. You get your saved character back, along with the party colour you had.</span></div>
+  </div>
+
+  <div class="screens">
+    <div class="screen">
+      <div class="screen-bar"><span>LOBBY · with Continue</span><span>step 1</span></div>
+      <div class="screen-body">
+        <div class="mock-h">Enter the dungeon</div>
+        <div class="mock-input">Seth</div>
+        <div class="mock-row"><div class="mock-input ph">Room code (5 characters)</div><div class="mock-btn" style="flex:0 0 auto;padding:8px 14px">Join</div></div>
+        <div class="mock-btn sec">Create a new dungeon</div>
+        <div class="mock-sub">Continue a saved run</div>
+        <div class="save-card sel"><canvas id="save1" width="16" height="16"></canvas><div><b>Seth · Ember Vault</b><small>Room KX7QF · depth 2 · 34 min in · 2h ago</small><div class="heads" id="save1heads"></div></div><div class="mock-btn" style="padding:6px 10px;font-size:13px">Continue</div></div>
+        <div class="save-card"><canvas id="save2" width="16" height="16"></canvas><div><b>Sethina · Vault Run</b><small>Room M3PZD · depth 1 · 9 min in · yesterday</small><div class="heads" id="save2heads"></div></div><div class="mock-btn sec" style="padding:6px 10px;font-size:13px">Continue</div></div>
+      </div>
+      <div class="screen-cap">The <b>character select</b> lives here as the Continue list. Each card shows the character you made for that save, plus your teammates' heads. Per-room vs per-profile saves are still open in #122.</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><span>CHARACTER DESIGN</span><span>step 3</span></div>
+      <div class="screen-body" style="justify-items:center">
+        <canvas id="miniCreator" width="16" height="24" style="width:96px;height:144px"></canvas>
+        <div class="mock-h" style="font-size:18px">Create your adventurer</div>
+        <div style="color:var(--parch-dim);font-size:13px;text-align:center;max-width:30ch">The live prototype above is this screen. A small header shows which room you are joining, for example "Joining KX7QF · 2 of 4 here".</div>
+      </div>
+      <div class="screen-cap">You hold a party slot and colour, but the server does not spawn you until <code>setAppearance</code> succeeds. If you disconnect here, the normal 60 s grace applies and then the slot is released.</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><span>HUB · party roster</span><span>step 5</span></div>
+      <div class="screen-body">
+        <div class="mock-sub" style="margin-top:0">Party · room KX7QF</div>
+        <div class="roster" id="roster"></div>
+      </div>
+      <div class="screen-cap">The roster panel in the hub HUD. A player still on the design screen shows a silhouette and "Designing…", and the stairs to start a run stay shut until everyone has a body.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SPRITE SPEC ============ -->
+<section aria-labelledby="spec-h">
+  <div class="sec-head">
+    <span class="tag">SPEC · SPRITES</span>
+    <h2 id="spec-h">Frame, layers and palette</h2>
+    <p>These rules let the characters sit on the existing flagstones without looking pasted in. They follow the conventions already in <code>assets/sprites/source/dungeon.tiles.json</code>: 16 px per world tile, drawn at 2×, one character per pixel, light from the top.</p>
+  </div>
+
+  <div class="two">
+    <div class="frame-diagram">
+      <canvas id="frameDiagram" width="192" height="288" aria-label="16 by 24 frame grid with the character, headroom band and anchor point marked"></canvas>
+      <div class="legend">
+        <span><i style="background:#3b2f20"></i>Rows 0–7: headroom (tall hair, hats)</span>
+        <span><i style="background:#26292d"></i>Rows 8–23: body</span>
+        <span><i style="background:#f0a83c"></i>Anchor (8, 23): bottom centre of the feet</span>
+        <span><i style="background:#63bb86"></i>Collision circle, r = 0.35 tile (5.6 px)</span>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>Frame</h3>
+      <ul class="plain">
+        <li>Every character frame is <b>16 × 24</b> art pixels. The body uses the bottom 16 rows, and the top 8 rows are headroom that only hair and hats may use.</li>
+        <li><b>Anchor</b>: the bottom-centre of pixel row 23 sits at <code>position.y + PLAYER_RADIUS</code>, centred on <code>position.x</code>. The silhouette is at most 12 px wide, which is about the 0.7-tile figure the renderer uses today.</li>
+        <li>Draw at the renderer's <code>pixelsPerWorldUnit / 16</code> scale. At today's 32 px per tile that is 2×, so a frame is 32 × 48 on screen. Keep the scale an integer.</li>
+        <li>Characters are drawn sorted by <code>position.y</code> so overlapping teammates layer correctly. Names stay as fixed-size text, as they are now.</li>
+      </ul>
+      <h3>Art rules</h3>
+      <ul class="plain">
+        <li>A 1 px outline in <code>#17120c</code> (the renderer's current eye colour) around every layer's outer edge. Never use pure black.</li>
+        <li>Light comes from the top-left, matching the flagstones' lit top row. Use 3 tones per ramp (light, base, shadow) and no anti-aliasing.</li>
+        <li>Eyes are 1 × 2 px. The girl body adds one lash pixel at the outer top corner of each eye. That, the flared tunic and the narrower shoulders are the only body differences.</li>
+        <li>Left-facing frames are a horizontal mirror of right-facing ones. Asymmetric cosmetics such as the feathered cap flip with the sprite, which is fine.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Turnaround</h3>
+  <div class="turn" id="turnaround"></div>
+
+  <div class="two">
+    <div class="stack">
+      <h3>Layer order (back to front)</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>#</th><th>Layer</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td><b>Party ring</b></td><td>An ellipse at the feet in the party colour, 13 × 5 px. It replaces today's local and remote figure colours.</td></tr>
+          <tr><td>1</td><td><b>Cloak (behind)</b></td><td>Front and side views only. It peeks out past the arms and legs.</td></tr>
+          <tr><td>2</td><td><b>Body</b></td><td>Skin, eyes, tunic (party colour or dye), belt, trousers and boots. Walk and attack frames change only this layer.</td></tr>
+          <tr><td>3</td><td><b>Cloak (back)</b></td><td>Back view only. It covers the body, and long hair still lies over it.</td></tr>
+          <tr><td>4</td><td><b>Hair</b></td><td>Clipped by the hat: rows above <code>hat.hairClipRow</code> are skipped.</td></tr>
+          <tr><td>5</td><td><b>Cloak clasp</b></td><td>Front view only. A 2 px clasp at the neck.</td></tr>
+          <tr><td>6</td><td><b>Hat</b></td><td>May use the headroom rows.</td></tr>
+          <tr><td>7</td><td><b>Held item</b></td><td>Sword or bow, drawn at the hand point of the current frame (#129 adds the swing poses). The weapon trail is drawn here during a swing.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="stack">
+      <h3>Animations</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Set</th><th>Frames</th><th>Timing</th></tr></thead>
+        <tbody>
+          <tr><td><b>Idle</b></td><td>2: open, blink</td><td>Blink for 120 ms every 3–5 s (random per player)</td></tr>
+          <tr><td><b>Walk</b></td><td>4: stand, lift right, stand, lift left</td><td>8 fps at walking speed. A lifted foot rises 1 row.</td></tr>
+          <tr><td><b>Attack</b></td><td>3: wind-up, strike, recover</td><td>Driven by the server's attack timing (#129)</td></tr>
+          <tr><td><b>Downed</b></td><td>1, lying, 24 × 16</td><td>Shown at 45% alpha while disconnected, as today</td></tr>
+          <tr><td><b>Carried</b></td><td>Downed frame</td><td>Drawn 6 px above the carrier, over the carrier's head</td></tr>
+        </tbody>
+      </table></div>
+      <p style="color:var(--parch-dim);font-size:14px">There are 3 directions per set: down, up and side. Left is the mirrored side. The hair and hat layers are authored once per direction and follow the body's head offset, so a walk frame that bobs the head 1 px carries the hair with it.</p>
+    </div>
+  </div>
+
+  <h3>Palette ramps</h3>
+  <p style="color:var(--parch-dim)">The body and hair layers are authored once with <b>key colours</b>. At runtime each player's sprite is recoloured into an offscreen canvas and cached under the key <code>body|skin|hairStyle|hairColor|party|dye|hat|cloak</code>, so there are at most four at a time. Nothing else in the sheet may use a key colour, and a test fails the bake if one is found.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Ramp</th><th>Source char</th><th>Key colour in the baked sheet</th><th>Replaced by</th></tr></thead>
+    <tbody>
+      <tr><td><b>Skin</b></td><td><code>s S T</code></td><td><span class="chip" style="background:#ffb0ff"></span><span class="chip" style="background:#ff60ff"></span><span class="chip" style="background:#c000c0"></span> #ffb0ff #ff60ff #c000c0</td><td>The chosen skin tone (light, base, shadow)</td></tr>
+      <tr><td><b>Hair</b></td><td><code>h H G</code></td><td><span class="chip" style="background:#b0ffff"></span><span class="chip" style="background:#00ffff"></span><span class="chip" style="background:#00a0a0"></span> #b0ffff #00ffff #00a0a0</td><td>The chosen hair colour</td></tr>
+      <tr><td><b>Tunic</b></td><td><code>C c d</code></td><td><span class="chip" style="background:#ffffa0"></span><span class="chip" style="background:#ffff00"></span><span class="chip" style="background:#a0a000"></span> #ffffa0 #ffff00 #a0a000</td><td>The party colour, or the equipped dye</td></tr>
+      <tr><td><b>Fixed</b></td><td><code>k e l L p P b</code></td><td colspan="2">Outline and eyes <code>#17120c</code>, belt <code>#5c4930</code>, buckle <code>#d6a84c</code>, trousers <code>#2b3037</code>/<code>#1f2329</code>, boots <code>#3b2f20</code>. These come straight from the tile palette.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="stack">
+    <span class="eyebrow">Skin tones</span>
+    <div class="ramps" id="skinRamps"></div>
+    <span class="eyebrow">Hair colours</span>
+    <div class="ramps" id="hairRamps"></div>
+    <span class="eyebrow">Party colours (tunic default + ring)</span>
+    <div class="ramps" id="partyRamps"></div>
+  </div>
+
+  <h3>Authoring and bake</h3>
+  <pre class="code"><span class="c">// assets/sprites/source/characters.tiles.json, same text format as dungeon.tiles.json,
+// but with 16×24 frames and key-colour palette entries.</span>
+{
+  <span class="k">"frameWidth"</span>: 16, <span class="k">"frameHeight"</span>: 24,
+  <span class="k">"palette"</span>: { "0": "transparent", "k": "#17120c", "S": "#ff60ff", "H": "#00ffff", "c": "#ffff00", ... },
+  <span class="k">"layers"</span>: {
+    "body-guy-down":  { "y": 8, "rows": [ ...16 rows... ] },
+    "hair-crop-down": { "y": 8, "rows": [ ... ] },          <span class="c">// y = first frame row the rows cover</span>
+    "hat-wizard-down": { "y": 1, "hairClipRow": 13, "rows": [ ... ] }
+  }
+}
+<span class="c">// npm run build:sprites bakes both sheets. src/client/rendering/characters.ts lists every layer and where it sits
+// (like tiles.ts does for the tilesheet), and builds per-player composites with getImageData key swaps.</span></pre>
+  <div class="note">The pixel rows for every body, hair style, hat and cloak on this page live in the <code>SPRITES</code> object in this page's script. Click "Copy all sprite data" in the creator to copy them as JSON. Use <code>.</code> for transparent here, and <code>0</code> in the repo's format. Body rows are relative to frame row 8 and other layers' <code>y</code> is relative to the body, so add 8 when porting.</div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section aria-labelledby="data-h">
+  <div class="sec-head">
+    <span class="tag">SPEC · DATA &amp; PROTOCOL</span>
+    <h2 id="data-h">Appearance on the wire</h2>
+    <p>The server owns this state. The client sends ids from a fixed list, and the server rejects anything it does not recognise. The look is public: everyone in the party receives every player's appearance in snapshots.</p>
+  </div>
+  <div class="two">
+    <pre class="code"><span class="c">// src/shared/constants/appearance.ts (shared by client and server)</span>
+<span class="k">export const</span> BODY_TYPES = ["guy", "girl"] as const;
+<span class="k">export const</span> SKIN_TONES = ["porcelain", "fair", "olive",
+  "tan", "brown", "deep"] as const;
+<span class="k">export const</span> HAIR_STYLES = ["crop", "spiky", "long",
+  "ponytail", "bun", "shaved"] as const;
+<span class="k">export const</span> HAIR_COLORS = ["black", "brown", "chestnut",
+  "blonde", "ginger", "silver", "azure", "moss"] as const;
+<span class="k">export const</span> PARTY_COLORS = ["ember", "moss", "azure", "plum"] as const;
+
+<span class="c">// src/shared/types/core.ts</span>
+<span class="k">export interface</span> PlayerAppearance {
+  body: BodyType;
+  skinTone: SkinTone;
+  hairStyle: HairStyle;
+  hairColor: HairColor;
+}
+<span class="k">export interface</span> PlayerState {
+  <span class="c">// ...existing fields</span>
+  appearance: PlayerAppearance | null;  <span class="c">// null = still designing</span>
+  partyColor: PartyColor;               <span class="c">// by join order, kept in the save</span>
+  cosmetics: EquippedCosmetics;         <span class="c">// later, #128</span>
+}</pre>
+    <div class="stack">
+      <h3>Messages</h3>
+      <ul class="plain">
+        <li><code>sessionJoined</code> gains <code>needsAppearance: boolean</code>.</li>
+        <li>New client message <code>setAppearance {"{"} appearance {"}"}</code>. It is accepted only while the player's appearance is null. Once set, the look is locked for the life of the save.</li>
+        <li>Rejections: <code>invalidAppearance</code> (unknown id or wrong shape) and <code>appearanceLocked</code> (already set). Each comes with a readable message for the creator's error line.</li>
+        <li>Bump <code>PROTOCOL_VERSION</code> by one.</li>
+      </ul>
+      <h3>Persistence</h3>
+      <ul class="plain">
+        <li>The appearance is stored with the player's entry in the <b>run save</b> (#122), not on the profile, because a new save means a new character.</li>
+        <li>The client keeps the last look in <code>localStorage</code> only to prefill the creator next time. It is a convenience, never authority.</li>
+        <li>Content changes: if a saved id is later removed from a list, load the save with that field replaced by the list's first entry. Never refuse the save.</li>
+      </ul>
+      <h3>Tests</h3>
+      <ul class="plain">
+        <li>The server refuses an unknown id for each field, a missing field, extra fields, a second <code>setAppearance</code>, and a <code>setAppearance</code> before <code>sessionJoined</code>.</li>
+        <li>A player with a null appearance is not spawned and does not count as ready for the stairs.</li>
+        <li>The renderer composite cache returns the same canvas for the same key and a new one when a dye or hat changes.</li>
+        <li>Check with two real clients that each sees the other's look in the hub.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COSMETICS ============ -->
+<section aria-labelledby="cos-h">
+  <div class="sec-head">
+    <span class="tag">COSMETICS · HUB WARDROBE (#128)</span>
+    <h2 id="cos-h">The wardrobe</h2>
+    <p>Cosmetics are earned and equipped in the hub, never on the character design screen. The wardrobe below doubles as the mockup for the shop stall UI. Items are shown on the character you built above, so change your hair and come back. Click a card to equip it, and click again to take it off.</p>
+    <div class="rarities"><span><i style="border-color:#9aa3ad"></i>Common</span><span><i style="border-color:#63bb86"></i>Fine</span><span><i style="border-color:#8fa8d6"></i>Rare</span><span><i style="border-color:#f0a83c"></i>Legendary (animated)</span></div>
+  </div>
+
+  <div class="wardrobe">
+    <div class="ward-stage">
+      <canvas class="big" id="wardPreview" width="160" height="240" aria-label="Your character wearing the selected cosmetics"></canvas>
+      <div class="stage-row">
+        <button class="btn small" id="wardTurn">Show back</button>
+      </div>
+      <div class="ward-mini">
+        <figure><canvas id="trailPreview" width="160" height="136" aria-label="Weapon swing with the selected trail"></canvas><figcaption>WEAPON TRAIL</figcaption></figure>
+        <figure><canvas id="flamePreview" class="flame" width="80" height="120" aria-label="Torch with the selected flame"></canvas><figcaption>TORCH FLAME</figcaption></figure>
+      </div>
+    </div>
+    <div class="ward-panel">
+      <div class="tabs" role="tablist" id="wardTabs"></div>
+      <div class="cards" id="wardCards" role="group"></div>
+      <div class="ward-detail" id="wardDetail"></div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="stack">
+      <h3>Slots</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Slot</th><th>What it changes</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><b>Hat</b></td><td>A layer over the hair. Each hat sets <code>hairClipRow</code> (hair above it is hidden), or hides all hair (hood), or keeps all of it (crown).</td><td><span class="pill decided">in #128</span></td></tr>
+          <tr><td><b>Cloak</b></td><td>A behind layer and a back layer, with an optional pattern and animated hem pixels. Mostly seen from behind, which is how teammates see you walking ahead.</td><td><span class="pill proposed">new proposal</span></td></tr>
+          <tr><td><b>Outfit dye</b></td><td>Replaces the tunic ramp. The party ring keeps the party colour.</td><td><span class="pill decided">in #128</span></td></tr>
+          <tr><td><b>Weapon trail</b></td><td>The arc drawn during a swing (#129), plus particles. It is the same size as the real hit arc, so it never misreports reach.</td><td><span class="pill decided">in #128</span></td></tr>
+          <tr><td><b>Torch flame</b></td><td>Recolours your torch's flame sprite and a faint halo. The lightmap radius and colour stay the same, so light remains a fair, shared resource.</td><td><span class="pill proposed">new proposal</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="stack">
+      <h3>Rules</h3>
+      <ul class="plain">
+        <li>Cosmetics never change stats, hitboxes, light radius or attack reach. A trail is drawn inside the real hit arc.</li>
+        <li>They unlock permanently on the <b>profile</b>, across all saves. They never drop in the dungeon and are never lost on death.</li>
+        <li>They can only be equipped in the hub, through <code>equipCosmetic {"{"} slot, id | null {"}"}</code>. The server checks ownership. In a dungeon the loadout is fixed.</li>
+        <li>They are public: they go in <code>PlayerState.cosmetics</code>, so everyone sees them.</li>
+        <li>Prices and the currency wait on #23. The "how to get" lines on the cards are proposals that mix shop items with milestone unlocks, so skilled play is shown off too.</li>
+        <li>Legendary items each have one small animation, such as crown embers or hem embers. Cap this at 2–3 animated pixels so a party of four never shimmers.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TICKETS ============ -->
+<section aria-labelledby="tix-h">
+  <div class="sec-head">
+    <span class="tag">BUILD ORDER</span>
+    <h2 id="tix-h">Suggested tickets</h2>
+    <p>The tickets are in dependency order, and each can merge on its own. The cosmetics tickets wait on #23 (currency) and #128 (owner decisions). The others can start now.</p>
+  </div>
+  <div class="tickets">
+    <div class="ticket"><span class="n">1</span><div><b>Character sprite source and bake</b><p>Add <code>characters.tiles.json</code> with the 2 bodies × 3 directions × idle and walk frames, and the 6 hair styles × 3 directions, using the data on this page. Extend <code>build:sprites</code> and add a spec test that fails on any stray key colour or a frame of the wrong size.</p></div></div>
+    <div class="ticket"><span class="n">2</span><div><b>Runtime composite renderer</b><p>Add <code>characters.ts</code>: palette swap into cached offscreen canvases, layer order, mirrored left, walk cycle driven by movement, blink timer, party ring and y-sorting. It replaces <code>drawFigure</code> for players. Until ticket 3 lands, it uses a default appearance.</p></div></div>
+    <div class="ticket"><span class="n">3</span><div><b>Appearance protocol and server validation</b><p>Add the shared appearance lists, <code>PlayerState.appearance</code> and <code>partyColor</code>, <code>sessionJoined.needsAppearance</code>, and <code>setAppearance</code> with the two rejections. Don't spawn a player until their look is set. Bump the protocol version. Add the tests listed above.</p></div></div>
+    <div class="ticket"><span class="n">4</span><div><b>Character design screen</b><p>Build the screen as prototyped here: a random or last-used start, turn and walk preview, an in-game scale panel, randomize, and keyboard support. It runs between the lobby and the hub.</p></div></div>
+    <div class="ticket"><span class="n">5</span><div><b>Party roster with "Designing…" state</b><p>Add the hub HUD roster with portraits. The stairs stay shut while anyone's appearance is null.</p></div></div>
+    <div class="ticket"><span class="n">6</span><div><b>Save integration (after #122)</b><p>Persist the appearance and party colour with the run save, skip the creator on continue, and add the lobby Continue list with portraits.</p></div></div>
+    <div class="ticket"><span class="n">7</span><div><b>Cosmetics content, ownership and equip (after #23, #128)</b><p>Add a cosmetic content kind, profile unlocks, <code>equipCosmetic</code>, the public <code>cosmetics</code> field, hat, cloak and dye layers in the composite, and the wardrobe stall UI.</p></div></div>
+    <div class="ticket"><span class="n">8</span><div><b>Trails and flames (after #129)</b><p>Draw swing trails within the hit arc, add the torch flame palette swap, and add per-legendary animations.</p></div></div>
+  </div>
+</section>
+
+<section aria-labelledby="q-h">
+  <div class="sec-head"><span class="tag">STILL OPEN</span><h2 id="q-h">Questions for the owner</h2></div>
+  <div class="qs">
+    <div class="q"><b>Can a look be changed mid-save?</b><span>Proposal: no. As an optional extra, a hub "mirror" could allow one free restyle per save, between runs only.</span></div>
+    <div class="q"><b>Is the party colour on the tunic right, or should it be a scarf or band so the tunic is free from the start?</b><span>Proposal: use the tunic. It is the biggest area of colour and reads best in the dark, and dyes take over later.</span></div>
+    <div class="q"><b>Should cloaks and torch flames join the #128 slot list?</b><span>They are new here. Both are cheap palette and layer work, and the cloak gives teammates walking behind you something to look at.</span></div>
+    <div class="q"><b>Are saves per room or per profile (#122)?</b><span>This decides how the Continue list groups cards and whether one profile can hold several characters at once.</span></div>
+    <div class="q"><b>Should the body choice keep the labels "Guy" and "Girl"?</b><span>They are used here as written in the brief. The data ids are <code>guy</code> and <code>girl</code>, so the labels can change later without touching saves.</span></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------------------------------------------------------- palettes */
+const K = "#17120c";
+const FIXED = { k: K, e: K, l: "#5c4930", L: "#d6a84c", p: "#2b3037", P: "#1f2329", b: "#3b2f20", B: "#2a2016", r: "#c23b2e" };
+
+const SKIN = [
+  { id: "porcelain", name: "Porcelain", s: "#f8e0cc", S: "#ecc4a8", T: "#c9967a" },
+  { id: "fair",      name: "Fair",      s: "#f2cba2", S: "#dca87e", T: "#b3805b" },
+  { id: "olive",     name: "Olive",     s: "#dcb07e", S: "#c0905f", T: "#946b43" },
+  { id: "tan",       name: "Tan",       s: "#c99060", S: "#a77046", T: "#7c5030" },
+  { id: "brown",     name: "Brown",     s: "#a26a44", S: "#80502f", T: "#5c3720" },
+  { id: "deep",      name: "Deep",      s: "#7a4c2e", S: "#5c3720", T: "#3f2516" },
+];
+const HAIRC = [
+  { id: "black",    name: "Black",    h: "#4b4552", H: "#2d2933", G: "#1c1a20" },
+  { id: "brown",    name: "Brown",    h: "#94603a", H: "#6b4226", G: "#4a2c18" },
+  { id: "chestnut", name: "Chestnut", h: "#c06c40", H: "#94502c", G: "#66331a" },
+  { id: "blonde",   name: "Blonde",   h: "#f6dc94", H: "#dab35e", G: "#a8843c" },
+  { id: "ginger",   name: "Ginger",   h: "#f0954a", H: "#c95d22", G: "#8a3a14" },
+  { id: "silver",   name: "Silver",   h: "#eeeae2", H: "#bfb8ac", G: "#878074" },
+  { id: "azure",    name: "Azure",    h: "#8fb4ec", H: "#5279be", G: "#334e85" },
+  { id: "moss",     name: "Moss",     h: "#9ad088", H: "#5f9c52", G: "#3c6a34" },
+];
+const PARTY = [
+  { id: "ember", name: "Ember", ring: "#f08a48", C: "#e07a3a", c: "#b5502a", d: "#7b2f18" },
+  { id: "moss",  name: "Moss",  ring: "#7fd08f", C: "#6aa860", c: "#47803f", d: "#2c5428" },
+  { id: "azure", name: "Azure", ring: "#8fb0f0", C: "#6f8fd0", c: "#4a66a8", d: "#2f4275" },
+  { id: "plum",  name: "Plum",  ring: "#d29ae0", C: "#a06aaa", c: "#7a4785", d: "#4f2b58" },
+];
+
+/* ---------------------------------------------------------------- pixel data
+   Body rows: 16 rows placed at frame row 8. Other layers: y is relative to body row 0
+   (so y = -2 starts at frame row 6). "." is transparent. */
+const SPRITES = {
+  body: {
+    guy: {
+      down: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSsSSSSSSk...",
+        "...kSsSSSSSSk...",
+        "...kSeSSSSeSk...",
+        "...kSeSSSSeSk...",
+        "...kTSSTTSSTk...",
+        "....kTTTTTTk....",
+        "...kdcCCCCcdk...",
+        "..kSdcCCCCcdSk..",
+        "..kSdccccccdSk..",
+        "..kTkllLLllkTk..",
+        "...kdccccccdk...",
+        "....kppkkppk....",
+        "....kbbkkbbk....",
+      ],
+      up: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kTSSSSSSTk...",
+        "....kTTTTTTk....",
+        "...kdccccccdk...",
+        "..kSdcCccCcdSk..",
+        "..kSdccccccdSk..",
+        "..kTkllllllkTk..",
+        "...kdccccccdk...",
+        "....kppkkppk....",
+        "....kbbkkbbk....",
+      ],
+      side: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSSSSSsSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSeSk...",
+        "...kSSSSSSeSSk..",
+        "...kTSSSSSSSk...",
+        "....kTTTTTTk....",
+        ".....kdcCCk.....",
+        ".....kcdCck.....",
+        ".....kcdcck.....",
+        ".....kldSlk.....",
+        ".....kdccck.....",
+        ".....kpkkpk.....",
+        ".....kbbkbbk....",
+      ],
+    },
+    girl: {
+      down: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSsSSSSSSk...",
+        "...kSsSSSSSSk...",
+        "...keeSSSSeek...",
+        "...kSeSSSSeSk...",
+        "...kTSSTTSSTk...",
+        "....kTTTTTTk....",
+        "....kcCCCCck....",
+        "...kScCCCCcSk...",
+        "...kSdccccdSk...",
+        "...kTlllLllTk...",
+        "..kdccccccccdk..",
+        "...kkddddddkk...",
+        "....kbk..kbk....",
+      ],
+      up: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSSSk...",
+        "...kTSSSSSSTk...",
+        "....kTTTTTTk....",
+        "....kcCccCck....",
+        "...kSccccccSk...",
+        "...kSdccccdSk...",
+        "...kTllllllTk...",
+        "..kdccccccccdk..",
+        "...kkddddddkk...",
+        "....kbk..kbk....",
+      ],
+      side: [
+        "................",
+        ".....kkkkkk.....",
+        "....kSSSSSSk....",
+        "...kSSSSSsSSk...",
+        "...kSSSSSSSSk...",
+        "...kSSSSSSeek...",
+        "...kSSSSSSeSSk..",
+        "...kTSSSSSSSk...",
+        "....kTTTTTTk....",
+        ".....kdcCCk.....",
+        ".....kcdCck.....",
+        ".....kcdcck.....",
+        ".....kldSlk.....",
+        "....kdcccck.....",
+        "....kkddddkk....",
+        ".....kbk.kbk....",
+      ],
+    },
+  },
+  hair: {
+    crop: { name: "Crop",
+      down: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHGHHGHHk...",
+        "...kG......Gk...",
+      ]},
+      up: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHHHk...",
+        "...kGHHHHHHGk...",
+        "...kTGGGGGGTk...",
+      ]},
+      side: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHGGk...",
+        "...kHHHG....k...",
+        "...kHHHG........",
+        "...kGGG.........",
+      ]},
+    },
+    spiky: { name: "Spiky",
+      down: { y: -2, rows: [
+        ".....k..k..k....",
+        "....kHkkHkkHk...",
+        "...kHHHhHHhHHk..",
+        "...kHHHHHHHHHk..",
+        "..kHHhHHHHhHHHk.",
+        "..kHHHHHHHHHHHk.",
+        "...kHHGHHGHHk...",
+        "...kG......Gk...",
+      ]},
+      up: { y: -2, rows: [
+        ".....k..k..k....",
+        "....kHkkHkkHk...",
+        "...kHHHhHHhHHk..",
+        "...kHHHHHHHHHk..",
+        "..kHHhHHHHhHHHk.",
+        "..kHHHHHHHHHHHk.",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHHHk...",
+        "...kGHGHHGHGk...",
+      ]},
+      side: { y: -2, rows: [
+        "....k..k..k.....",
+        "...kHkkHkkHk....",
+        "...kHHHhHHhHk...",
+        "..kHHHHHHHHHk...",
+        "..kHHhHHHHhHHk..",
+        "..kHHHHHHHHHk...",
+        "...kHHHHHHGGk...",
+        "...kHHHG....k...",
+        "...kGHG.........",
+      ]},
+    },
+    long: { name: "Long",
+      down: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "..kHHHHHHHHHHk..",
+        "..kHHG....GHHk..",
+        "..kHG......GHk..",
+        "..kHG......GHk..",
+        "..kHG......GHk..",
+        "..kHH......HHk..",
+        "..kHH......HHk..",
+        "..kGHk....kHGk..",
+        "...kk......kk...",
+      ]},
+      up: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "..kHHHHHHHHHHk..",
+        "..kHHHHHhHHHHk..",
+        "..kHHHHHHHHHHk..",
+        "..kHhHHHHHHHHk..",
+        "..kHHHHHHHhHHk..",
+        "..kHHHHHHHHHHk..",
+        "..kGHHHHHHHHGk..",
+        "..kGGHHHHHHGGk..",
+        "...kkGGGGGGkk...",
+      ]},
+      side: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "..kHHHHHHHHHk...",
+        "..kHHHHHHHGGk...",
+        "..kHHHHG....k...",
+        "..kHHHHG........",
+        "..kHHHH.........",
+        "..kHHHH.........",
+        "..kHHHk.........",
+        "..kGGk..........",
+        "...kk...........",
+      ]},
+    },
+    ponytail: { name: "Ponytail",
+      down: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHGHHGHHk...",
+        "...kG......Gkk..",
+        "............kHk.",
+        "............kHk.",
+        ".............k..",
+      ]},
+      up: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHrrHHHk...",
+        "...kHHkHhkHHk...",
+        "...kGHkHHkHGk...",
+        "...kTGkHHkGTk...",
+        "......kHHk......",
+        "......kHHk......",
+        ".......kk.......",
+      ]},
+      side: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "..rkHHHHHHHHk...",
+        ".kHkHHHHHHGGk...",
+        ".kHkHHHG....k...",
+        ".kHkHHG.........",
+        ".kHHk...........",
+        "..kHk...........",
+        "...k............",
+      ]},
+    },
+    bun: { name: "Bun",
+      down: { y: -2, rows: [
+        "......kkkk......",
+        ".....kHhHHk.....",
+        "....kkGHHGkk....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHG....GHk...",
+        "...kG......Gk...",
+        "...kG......Gk...",
+      ]},
+      up: { y: -2, rows: [
+        "......kkkk......",
+        ".....kHhHHk.....",
+        "....kkGHHGkk....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHHHk...",
+        "...kGHHHHHHGk...",
+        "...kTGGGGGGTk...",
+      ]},
+      side: { y: -2, rows: [
+        ".....kkkk.......",
+        "....kHhHHk......",
+        "....kGHHGkk.....",
+        "....kHHhhHHk....",
+        "...kHHHHHhHHk...",
+        "...kHHHHHHHHk...",
+        "...kHHHHHHGGk...",
+        "...kHHHG....k...",
+        "...kHHG.........",
+        "...kGG..........",
+      ]},
+    },
+    shaved: { name: "Shaved",
+      down: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kGHGGHGk....",
+        "...kGGGHGGGGk...",
+        "...kTGTGGTGTk...",
+      ]},
+      up: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kGHGGHGk....",
+        "...kGGGHGGGGk...",
+        "...kGGGGHGGGk...",
+        "...kGHGGGGHGk...",
+        "...kGGGGGGGGk...",
+        "...kTGTGGTGTk...",
+      ]},
+      side: { y: 0, rows: [
+        ".....kkkkkk.....",
+        "....kGHGGHGk....",
+        "...kGGGHGGGGk...",
+        "...kGGGGGGTTk...",
+        "...kGGGGG...k...",
+        "...kGGG.........",
+        "...kTG..........",
+      ]},
+    },
+  },
+  hats: {
+    "leather-cap": { name: "Leather Cap", rarity: "common", clip: 5,
+      how: "Starter. Owned by every profile.", lore: "Stitched from an old pack strap.",
+      pal: { 1: "#a07a4a", 2: "#7a5a34", 3: "#4e3a22" },
+      down: { y: -1, rows: [
+        ".....kkkkkk.....",
+        "....k112212k....",
+        "...k22222222k...",
+        "...k22322232k...",
+        "..kk33333333kk..",
+        "...kkkkkkkkkk...",
+      ]},
+    },
+    "ranger-hood": { name: "Ranger's Hood", rarity: "fine", clip: 99,
+      how: "Shop · or escape 5 runs.", lore: "Hides every hair and most of the worry.",
+      pal: { 1: "#5d7d58", 2: "#3f5a3c", 3: "#243424" },
+      down: { y: -1, rows: [
+        ".....kkkkkk.....",
+        "....k111111k....",
+        "...k11222211k...",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1233333321k..",
+        "..k12......21k..",
+        "..k12......21k..",
+        "..k122....221k..",
+        "..k1222222221k..",
+        "...k22222222k...",
+      ]},
+      up: { y: -1, rows: [
+        ".....kkkkkk.....",
+        "....k111111k....",
+        "...k11222211k...",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "..k1222222221k..",
+        "...k22222222k...",
+      ]},
+    },
+    "feathered-cap": { name: "Feathered Cap", rarity: "fine", clip: 5,
+      how: "Shop.", lore: "The feather is from something that did not want to give it.",
+      pal: { 1: "#6a86c4", 2: "#3f5486", 3: "#2a3860", r: "#d0453a" },
+      down: { y: -4, rows: [
+        "..........k.....",
+        ".........krk....",
+        "........krrk....",
+        ".....kkkkrk.....",
+        "....k1111r1k....",
+        "...k12222222k...",
+        "..kk33333333kk..",
+        "...kkkkkkkkkk...",
+      ]},
+    },
+    "iron-helm": { name: "Iron Helm", rarity: "rare", clip: 7,
+      how: "Defeat the Ember Warden once.", lore: "Dented in exactly the right places.",
+      pal: { 1: "#d2d7de", 2: "#8a929e", 3: "#545b66" },
+      down: { y: -1, rows: [
+        ".....kkkkkk.....",
+        "....k111112k....",
+        "...k11111122k...",
+        "...k11122222k...",
+        "...k22222222k...",
+        "...k33333333k...",
+        "...k3..33..3k...",
+        "...k3......3k...",
+      ]},
+      up: { y: -1, rows: [
+        ".....kkkkkk.....",
+        "....k111112k....",
+        "...k11111122k...",
+        "...k11122222k...",
+        "...k22222222k...",
+        "...k33333333k...",
+        "...k33333333k...",
+        "...k33333333k...",
+      ]},
+    },
+    "mushroom-cap": { name: "Mushroom Cap", rarity: "rare", clip: 4,
+      how: "Shop · rotating stock.", lore: "Do not let the Cinder Slime see it.",
+      pal: { 1: "#d04434", 2: "#8c2a20", 3: "#ead9b8", w: "#f6eedd" },
+      down: { y: -3, rows: [
+        ".....kkkkkk.....",
+        "...kk1w1111kk...",
+        "..k11111w1111k..",
+        ".k1w11111111w1k.",
+        ".k111111w11111k.",
+        ".kk2222222222kk.",
+        "...k33333333k...",
+      ]},
+    },
+    "horned-helm": { name: "Horned Helm", rarity: "rare", clip: 5,
+      how: "Carry a downed teammate out 3 times.", lore: "The horns are mostly for morale.",
+      pal: { 1: "#aeb6c1", 2: "#6f7782", 3: "#444b55", w: "#ece0c4" },
+      down: { y: -3, rows: [
+        ".k............k.",
+        ".kw..........wk.",
+        "..kw.kkkkkk.wk..",
+        "..kwk111112kwk..",
+        "...k11111122k...",
+        "...k11122222k...",
+        "...k22222222k...",
+        "...k33333333k...",
+      ]},
+    },
+    "wizard-hat": { name: "Wizard Hat", rarity: "rare", clip: 5,
+      how: "Shop.", lore: "No spells included.",
+      pal: { 1: "#7466cc", 2: "#4a3f99", 3: "#2e2766", y: "#f6d860" },
+      down: { y: -7, rows: [
+        "..........kk....",
+        ".........k1k....",
+        "........k12k....",
+        ".......k122k....",
+        "......k1222k....",
+        "......k1y22k....",
+        ".....k122222k...",
+        ".....k122322k...",
+        "....k12222222k..",
+        ".kk1111111111kk.",
+        "kk333333333333kk",
+        ".kkkkkkkkkkkkkk.",
+      ]},
+    },
+    "ember-crown": { name: "Ember Crown", rarity: "legendary", clip: null, anim: "crown",
+      how: "Escape with the whole party alive, 10 times.", lore: "Still warm.",
+      pal: { 1: "#f6cf62", 2: "#d6a84c", 3: "#8c6a2a", r: "#c2551d", f: "#f0a83c" },
+      down: { y: -2, rows: [
+        ".....f.ff.f.....",
+        "....k1k11k1k....",
+        "....k111111k....",
+        "....k2r22r2k....",
+        "....k333333k....",
+      ]},
+    },
+  },
+  cloaks: {
+    shape: {
+      behind: { y: 9, rows: [
+        "..k1111111111k..",
+        ".k111111111111k.",
+        ".k215111111512k.",
+        ".k221111111122k.",
+        ".k522222222225k.",
+        ".k352222222253k.",
+        "..k6363636363k..",
+      ]},
+      back: { y: 9, rows: [
+        "...k11111111k...",
+        "..k1111111111k..",
+        "..k2151111512k..",
+        "..k2211111122k..",
+        "..k2522222252k..",
+        "..k3222222223k..",
+        "...k63636363k...",
+      ]},
+      clasp: { y: 9, rows: [
+        "......k44k......",
+      ]},
+    },
+    items: {
+      "traveler-cape": { name: "Traveler's Cape", rarity: "common", how: "Starter. Owned by every profile.", lore: "Smells faintly of every road.",
+        pal: { 1: "#8a6a44", 2: "#6a4f30", 3: "#45331e", 4: "#d6a84c", 5: "#8a6a44", 6: "#45331e" } },
+      "night-cloak": { name: "Night Cloak", rarity: "fine", how: "Shop.", lore: "Stars stitched where the moths ate through.",
+        pal: { 1: "#3a4466", 2: "#262d48", 3: "#161a2c", 4: "#cfd6dc", 5: "#eef0f6", 6: "#161a2c" } },
+      "moth-cloak": { name: "Moth Cloak", rarity: "rare", how: "Find the hidden moth room.", lore: "The eyes on the back keep watch so you don't have to.",
+        pal: { 1: "#d4cab2", 2: "#a89c80", 3: "#6e6450", 4: "#6e6450", 5: "#3b2f20", 6: "#6e6450" } },
+      "ember-cloak": { name: "Ember Cloak", rarity: "legendary", anim: "hem", how: "Win 25 runs.", lore: "The hem never quite goes out.",
+        pal: { 1: "#a8361e", 2: "#7b1f14", 3: "#4a120c", 4: "#f0a83c", 5: "#c2551d", 6: "#f0a83c" } },
+    },
+  },
+  dyes: {
+    party: { name: "Party colour", rarity: "common", how: "Default. Uses your party colour.", lore: "What everyone starts in." },
+    bone: { name: "Bone Dye", rarity: "common", how: "Shop.", lore: "Bleached, beaten, honest.", ramp: { C: "#ece0c4", c: "#c8b996", d: "#8e8064" } },
+    ashen: { name: "Ashen Dye", rarity: "common", how: "Shop.", lore: "The colour of a spent ember vent.", ramp: { C: "#adafb3", c: "#76797f", d: "#4a4c51" } },
+    midnight: { name: "Midnight Dye", rarity: "fine", how: "Shop.", lore: "For people who like the dark side of the torch.", ramp: { C: "#4a5470", c: "#2c3348", d: "#171b28" } },
+    crimson: { name: "Crimson Dye", rarity: "fine", how: "Shop.", lore: "Hides stains. Mostly.", ramp: { C: "#d8503f", c: "#9e2a24", d: "#641812" } },
+    gilded: { name: "Gilded Dye", rarity: "rare", how: "Bank 100 items across all saves.", lore: "Gold thread, hand-sewn by someone patient.", ramp: { C: "#f6cf62", c: "#c9962e", d: "#7d5a18" } },
+  },
+  trails: {
+    none:   { name: "No trail", rarity: "common", how: "Default.", lore: "Just the swing." },
+    ember:  { name: "Ember Sparks", rarity: "fine", style: "sparks", colors: ["#7b1f14", "#c2551d", "#f0a83c", "#ffe6a3"], how: "Shop.", lore: "Sparks fall and die before they reach the floor." },
+    frost:  { name: "Frost Shards", rarity: "rare", style: "shards", colors: ["#2f4275", "#6f8fd0", "#bcd6f6", "#ffffff"], how: "Shop · rotating stock.", lore: "Cold enough to see, never cold enough to slow." },
+    shadow: { name: "Shadow Wisps", rarity: "rare", style: "wisps", colors: ["#1b1424", "#3c2a52", "#6a4f8e", "#a68ccc"], how: "Finish a run without lighting a torch.", lore: "It rises like smoke from a snuffed wick." },
+    petal:  { name: "Petal Drift", rarity: "fine", style: "petals", colors: ["#8a3a52", "#d06a8a", "#f2a6bc", "#fde2ea"], how: "Shop.", lore: "Nobody knows where the petals come from." },
+    gilded: { name: "Gilded Glint", rarity: "legendary", style: "glint", colors: ["#7d5a18", "#c9962e", "#f6cf62", "#fff6d0"], how: "Defeat the Ember Warden without taking damage.", lore: "One bright point at the tip, like a coin catching light." },
+  },
+  flames: {
+    hearth:   { name: "Hearth Flame", rarity: "common", how: "Default.", lore: "The torch you know.", ramp: { e: "#7b1f14", f: "#c2551d", g: "#f0a83c", h: "#ffe6a3" } },
+    spirit:   { name: "Spirit Flame", rarity: "fine", how: "Shop.", lore: "Burns blue. Lights the same.", ramp: { e: "#1d2f7b", f: "#3d63c9", g: "#7fb0f0", h: "#e0f0ff" } },
+    witch:    { name: "Witchfire", rarity: "rare", how: "Solve 20 lever puzzles.", lore: "Green, and a little smug about it.", ramp: { e: "#14502a", f: "#2f9a48", g: "#8ce07a", h: "#eaffd0" } },
+    amethyst: { name: "Amethyst Flame", rarity: "rare", how: "Shop · rotating stock.", lore: "Smells like rain on stone.", ramp: { e: "#4a1d6e", f: "#8a3dc2", g: "#c48cf0", h: "#f4e0ff" } },
+    bone:     { name: "Bonefire", rarity: "legendary", how: "Escape 50 runs.", lore: "A pale flame for old hands.", ramp: { e: "#6e665a", f: "#b0a89a", g: "#e8e0d0", h: "#ffffff" } },
+  },
+  /* From assets/sprites/source/dungeon.tiles.json, kept identical so the page matches the game. */
+  tiles: {
+    palette: { 6: "#1a1c1f", 7: "#26292d", 8: "#303438", e: "#7b1f14", f: "#c2551d", g: "#f0a83c", h: "#ffe6a3", d: "#4e535a", 9: "#3a3f44", j: "#8c6a2a", a: "#3b2f20" },
+    "floor-0": ["6666666666666666", "6888888888888888", "14*6777777777777777"],
+    "floor-1": ["6666666666666666", "6888888888888888", "3*6777777777777777", "6777777777767777", "2*6777777777677777", "6777777776777777", "6777777767777777", "6777777767777777", "5*6777777777777777"],
+    "torch-flame": ["2*0000000000000000", "00000000g0000000", "2*0000000ghg000000", "000000fghhg00000", "000000fghhgf0000", "00000efghhgf0000", "00000effhhffe000", "00000eeffffe0000", "000000eeffe00000", "0000000eee000000", "00000000e0000000", "3*0000000000000000"],
+  },
+};
+
+const RARITY = { common: "#9aa3ad", fine: "#63bb86", rare: "#8fa8d6", legendary: "#f0a83c" };
+
+/* ---------------------------------------------------------------- helpers */
+const norm = (row) => (row.length >= 16 ? row.slice(0, 16) : row.padEnd(16, "."));
+const expand = (rows) => rows.flatMap((r) => { const m = /^(\d+)\*(.*)$/.exec(r); return m ? Array(+m[1]).fill(m[2]) : [r]; });
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const byId = (arr, id) => arr.find((x) => x.id === id) || arr[0];
+
+function lift(rows, a, b) {
+  const r = rows.slice();
+  const r14 = r[14].split(""), r15 = r[15].split("");
+  for (let x = a; x <= b; x++) {
+    if (r15[x] !== ".") r14[x] = r15[x];
+    r15[x] = ".";
+  }
+  r[14] = r14.join(""); r[15] = r15.join("");
+  return r;
+}
+
+function basePalette(app, dyeId) {
+  const skin = byId(SKIN, app.skinTone), hair = byId(HAIRC, app.hairColor), party = byId(PARTY, app.party);
+  const dye = dyeId && SPRITES.dyes[dyeId] && SPRITES.dyes[dyeId].ramp;
+  const out = dye || party;
+  return { ...FIXED, s: skin.s, S: skin.S, T: skin.T, h: hair.h, H: hair.H, G: hair.G, C: out.C, c: out.c, d: out.d };
+}
+
+/** Builds the ordered layer list for one frame. Returns { layers: [{y, rows, pal}], mirror }. */
+function compose(app, o = {}) {
+  const dir = o.dir || "down";
+  const key = dir === "left" || dir === "right" ? "side" : dir;
+  const mirror = dir === "left";
+  const pal = basePalette(app, o.dye);
+  if (o.blink) pal.e = pal.S;
+  const layers = [];
+  const t = o.time || 0;
+
+  let body = SPRITES.body[app.body][key].map(norm);
+  if (o.walk && o.frame === 1) body = lift(body, 8, 15);
+  if (o.walk && o.frame === 3) body = lift(body, 0, 7);
+
+  const cloak = o.cloak && SPRITES.cloaks.items[o.cloak];
+  let cloakPal = null;
+  if (cloak) {
+    cloakPal = { ...pal, ...cloak.pal };
+    if (cloak.anim === "hem") {
+      const flick = Math.floor(t / 160) % 2;
+      cloakPal[6] = flick ? "#f0a83c" : "#ffe6a3";
+      cloakPal[3] = flick ? "#4a120c" : "#c2551d";
+    }
+    if (key === "down") layers.push({ ...SPRITES.cloaks.shape.behind, pal: cloakPal });
+  }
+
+  layers.push({ y: 0, rows: body, pal });
+
+  if (cloak && key === "up") layers.push({ ...SPRITES.cloaks.shape.back, pal: cloakPal });
+
+  const hat = o.hat && SPRITES.hats[o.hat];
+  const hair = SPRITES.hair[app.hairStyle][key];
+  const clip = hat ? hat.clip : null;
+  if (clip !== 99) {
+    const rows = hair.rows.map((r, i) => (clip !== null && hair.y + i < clip ? "" : r));
+    layers.push({ y: hair.y, rows, pal });
+  }
+
+  if (cloak && key === "down") layers.push({ ...SPRITES.cloaks.shape.clasp, pal: cloakPal });
+
+  if (hat && key !== "side") {
+    const view = (key === "up" && hat.up) || hat.down;
+    const hp = { ...pal, ...hat.pal };
+    if (hat.anim === "crown") hp.f = Math.floor(t / 200) % 2 ? "#ffe6a3" : "#f0a83c";
+    layers.push({ y: view.y, rows: view.rows, pal: hp });
+  }
+  return { layers, mirror };
+}
+
+/** Paints a composed frame. Origin is frame pixel (0,0); body row 0 is frame row 8. */
+function paint(ctx, comp, ox, oy, px) {
+  for (const L of comp.layers) {
+    L.rows.forEach((row, i) => {
+      if (!row) return;
+      const r = norm(row);
+      const fy = 8 + L.y + i;
+      if (fy < 0 || fy > 23) return;
+      for (let x = 0; x < 16; x++) {
+        const ch = r[x];
+        if (ch === "." || ch === " ") continue;
+        const col = L.pal[ch];
+        if (!col) continue;
+        const xx = comp.mirror ? 15 - x : x;
+        ctx.fillStyle = col;
+        ctx.fillRect(ox + xx * px, oy + fy * px, px, px);
+      }
+    });
+  }
+}
+
+function paintRows(ctx, rows, pal, ox, oy, px, transparent = "0") {
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === transparent || ch === ".") continue;
+      const col = pal[ch];
+      if (!col) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(ox + x * px, oy + y * px, px, px);
+    }
+  });
+}
+
+function ring(ctx, cx, cy, px, color) {
+  ctx.fillStyle = color;
+  for (let x = -6; x <= 6; x++) {
+    const h = Math.round(2.4 * Math.sqrt(Math.max(0, 1 - (x / 6.6) ** 2)));
+    ctx.fillRect(cx + x * px, cy - h * px, px, px);
+    ctx.fillRect(cx + x * px, cy + h * px, px, px);
+  }
+}
+
+function floor(ctx, cols, rows, px) {
+  const t = SPRITES.tiles, pal = t.palette;
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    const which = (tx * 7 + ty * 13) % 5 === 0 ? "floor-1" : "floor-0";
+    paintRows(ctx, expand(t[which]), pal, tx * 16 * px, ty * 16 * px, px);
+  }
+}
+
+function darkness(ctx, w, h, lights) {
+  const g = ctx.createRadialGradient(lights.x, lights.y, 10, lights.x, lights.y, Math.max(w, h) * 0.75);
+  g.addColorStop(0, "rgba(240,168,60,0.10)");
+  g.addColorStop(0.45, "rgba(7,8,10,0.15)");
+  g.addColorStop(1, "rgba(7,8,10,0.85)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+const setup = (id) => { const c = document.getElementById(id); const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = false; return [c, ctx]; };
+
+function randomApp(party) {
+  return { body: pick(["guy", "girl"]), skinTone: pick(SKIN).id, hairStyle: pick(Object.keys(SPRITES.hair)), hairColor: pick(HAIRC).id, party: party || "ember" };
+}
+
+/* ---------------------------------------------------------------- state */
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem("csb-appearance") || "null"); } catch (_) { saved = null; }
+const valid = (a) => a && SPRITES.body[a.body] && SKIN.some((s) => s.id === a.skinTone) && SPRITES.hair[a.hairStyle] && HAIRC.some((h) => h.id === a.hairColor);
+const state = {
+  app: valid(saved) ? { ...saved, party: "ember" } : randomApp("ember"),
+  dirIndex: 0,
+  walk: false,
+};
+const DIRS = ["down", "right", "up", "left"];
+const teammates = [randomApp("moss"), randomApp("azure"), randomApp("plum")];
+const mateNames = ["Bram", "Ivy", "Odo"];
+const wear = { hat: null, cloak: null, dye: "party", trail: "ember", flame: "hearth" };
+let wardDir = "down";
+
+function persist() { try { localStorage.setItem("csb-appearance", JSON.stringify(state.app)); } catch (_) { /* storage unavailable */ } }
+
+/* ---------------------------------------------------------------- creator controls */
+function makeTile(label, draw, pressed, onClick, wide) {
+  const b = document.createElement("button");
+  b.className = "tile" + (wide ? " wide" : "");
+  b.type = "button";
+  b.setAttribute("aria-pressed", String(pressed));
+  const c = document.createElement("canvas");
+  c.width = 16; c.height = wide ? 24 : 16;
+  const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = false;
+  draw(ctx);
+  const s = document.createElement("span"); s.textContent = label;
+  b.append(c, s);
+  b.addEventListener("click", onClick);
+  return b;
+}
+function makeSwatch(color, name, pressed, onClick) {
+  const b = document.createElement("button");
+  b.className = "swatch"; b.type = "button";
+  b.style.background = color;
+  b.title = name; b.setAttribute("aria-label", name);
+  b.setAttribute("aria-pressed", String(pressed));
+  b.addEventListener("click", onClick);
+  return b;
+}
+function arrowNav(group) {
+  group.addEventListener("keydown", (e) => {
+    if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+    const items = [...group.querySelectorAll("button")];
+    const i = items.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const n = items[(i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length];
+    n.focus(); n.click();
+  });
+}
+
+function headCrop(ctx, app, opts = {}) {
+  // Draws frame rows 4..19 (16 rows), the head and shoulders, into a 16x16 canvas.
+  ctx.clearRect(0, 0, 16, 16);
+  paint(ctx, compose(app, opts), 0, -5, 1);
+}
+
+function renderControls() {
+  const a = state.app;
+  const bodyC = document.getElementById("bodyChoices"); bodyC.replaceChildren();
+  [["guy", "Guy"], ["girl", "Girl"]].forEach(([id, label]) => {
+    bodyC.append(makeTile(label, (ctx) => paint(ctx, compose({ ...a, body: id }), 0, 0, 1), a.body === id, () => { a.body = id; update(); }, true));
+  });
+  const skinC = document.getElementById("skinChoices"); skinC.replaceChildren();
+  SKIN.forEach((s) => skinC.append(makeSwatch(s.S, s.name, a.skinTone === s.id, () => { a.skinTone = s.id; update(); })));
+  document.getElementById("skinName").textContent = byId(SKIN, a.skinTone).name;
+  const hairC = document.getElementById("hairChoices"); hairC.replaceChildren();
+  Object.entries(SPRITES.hair).forEach(([id, h]) => {
+    hairC.append(makeTile(h.name, (ctx) => headCrop(ctx, { ...a, hairStyle: id }), a.hairStyle === id, () => { a.hairStyle = id; update(); }));
+  });
+  const hcC = document.getElementById("hcChoices"); hcC.replaceChildren();
+  HAIRC.forEach((h) => hcC.append(makeSwatch(h.H, h.name, a.hairColor === h.id, () => { a.hairColor = h.id; update(); })));
+  document.getElementById("hcName").textContent = byId(HAIRC, a.hairColor).name;
+
+  const party = byId(PARTY, a.party);
+  const chip = document.getElementById("partyChip");
+  chip.querySelector("i").style.background = party.ring;
+  chip.querySelector("span").textContent = `Party colour: ${party.name} (assigned)`;
+
+  const payload = { type: "setAppearance", appearance: { body: a.body, skinTone: a.skinTone, hairStyle: a.hairStyle, hairColor: a.hairColor } };
+  document.getElementById("jsonOut").textContent = JSON.stringify(payload, null, 2);
+}
+
+function refocus(groupId, wasIndex) {
+  if (wasIndex < 0) return;
+  const items = document.getElementById(groupId).querySelectorAll("button");
+  if (items[wasIndex]) items[wasIndex].focus();
+}
+
+function update() {
+  const active = document.activeElement;
+  let gid = null, idx = -1;
+  for (const g of ["bodyChoices", "skinChoices", "hairChoices", "hcChoices"]) {
+    const el = document.getElementById(g);
+    if (el.contains(active)) { gid = g; idx = [...el.querySelectorAll("button")].indexOf(active); }
+  }
+  renderControls();
+  if (gid) refocus(gid, idx);
+  persist();
+  renderStatic();
+  renderWardCards();
+}
+
+["bodyChoices", "skinChoices", "hairChoices", "hcChoices"].forEach((g) => arrowNav(document.getElementById(g)));
+document.getElementById("rotL").addEventListener("click", () => { state.dirIndex = (state.dirIndex + 3) % 4; });
+document.getElementById("rotR").addEventListener("click", () => { state.dirIndex = (state.dirIndex + 1) % 4; });
+const animBtn = document.getElementById("animToggle");
+animBtn.addEventListener("click", () => { state.walk = !state.walk; animBtn.setAttribute("aria-pressed", String(state.walk)); });
+const randomize = () => { state.app = { ...randomApp("ember") }; update(); };
+document.getElementById("randomize").addEventListener("click", randomize);
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "r" || e.key === "R") && !(e.target instanceof HTMLInputElement) && !e.metaKey && !e.ctrlKey) {
+    const r = document.getElementById("creator").getBoundingClientRect();
+    if (r.top < innerHeight && r.bottom > 0) randomize();
+  }
+});
+const enterBtn = document.getElementById("enterHub");
+enterBtn.addEventListener("click", () => {
+  enterBtn.textContent = "Entering…"; enterBtn.disabled = true;
+  setTimeout(() => { enterBtn.textContent = "Enter the hub"; enterBtn.disabled = false; }, 1200);
+});
+document.getElementById("nameField").addEventListener("input", () => renderStatic());
+
+const copyMsg = document.getElementById("copyMsg");
+function copy(text, label) {
+  const done = () => { copyMsg.textContent = `${label} copied.`; setTimeout(() => (copyMsg.textContent = ""), 2200); };
+  const fallback = () => {
+    const pre = document.getElementById("jsonOut");
+    pre.textContent = text;
+    const range = document.createRange(); range.selectNodeContents(pre);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    copyMsg.textContent = "Copying is blocked here. The text is selected, so press Ctrl+C or ⌘C.";
+  };
+  try { navigator.clipboard.writeText(text).then(done, fallback); } catch (_) { fallback(); }
+}
+document.getElementById("copyJson").addEventListener("click", () => copy(document.getElementById("jsonOut").textContent, "Appearance JSON"));
+document.getElementById("copySprites").addEventListener("click", () => {
+  copy(JSON.stringify({ note: "Rows: '.' transparent. Body rows start at frame row 8; other layers' y is relative to body row 0.", frame: { width: 16, height: 24, bodyRow: 8, anchor: [8, 23] }, fixed: FIXED, skinTones: SKIN, hairColors: HAIRC, partyColors: PARTY, ...SPRITES }, null, 2), "All sprite data");
+});
+
+/* ---------------------------------------------------------------- static canvases */
+function renderStatic() {
+  const a = state.app;
+  // mini creator in flow mockups
+  const [, mc] = setup("miniCreator");
+  mc.clearRect(0, 0, 16, 24); paint(mc, compose(a), 0, 0, 1);
+
+  // save cards
+  const s1 = setup("save1")[1]; headCrop(s1, a);
+  const s2 = setup("save2")[1]; headCrop(s2, { ...teammates[1], party: "ember", body: a.body === "guy" ? "girl" : "guy" });
+  [["save1heads", [teammates[0], teammates[2]]], ["save2heads", [teammates[1]]]].forEach(([id, list]) => {
+    const el = document.getElementById(id); el.replaceChildren();
+    list.forEach((m) => { const c = document.createElement("canvas"); c.width = 16; c.height = 16; const x = c.getContext("2d"); headCrop(x, m); el.append(c); });
+  });
+
+  // roster
+  const roster = document.getElementById("roster"); roster.replaceChildren();
+  const name = document.getElementById("nameField").value.trim() || "You";
+  const rows = [[name, a, "Ready", "#63bb86"], [mateNames[0], teammates[0], "Ready", "#63bb86"], [mateNames[1], teammates[1], "Ready", "#63bb86"], [mateNames[2], null, "Designing…", "#c9b184"]];
+  rows.forEach(([n, app, st, col], i) => {
+    const r = document.createElement("div"); r.className = "roster-row";
+    r.style.borderLeftColor = PARTY[i].ring;
+    const c = document.createElement("canvas"); c.width = 16; c.height = 24;
+    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    if (app) paint(x, compose(app), 0, 0, 1);
+    else { const sil = compose({ body: "guy", skinTone: "porcelain", hairStyle: "shaved", hairColor: "black", party: "ember" }); sil.layers.forEach((L) => (L.pal = Object.fromEntries(Object.keys(L.pal).map((k) => [k, "#2b3037"])))); paint(x, sil, 0, 0, 1); }
+    const label = document.createElement("div"); const b = document.createElement("b"); b.textContent = n; label.append(b);
+    const s = document.createElement("span"); s.className = "status"; s.style.color = col; s.textContent = st;
+    r.append(c, label, s); roster.append(r);
+  });
+
+  // turnaround
+  const turn = document.getElementById("turnaround"); turn.replaceChildren();
+  const views = [["down", "FRONT"], ["right", "SIDE (R)"], ["up", "BACK"], ["left", "SIDE (L) · mirror"]];
+  ["guy", "girl"].forEach((body) => views.forEach(([dir, cap]) => {
+    const f = document.createElement("figure");
+    const c = document.createElement("canvas"); c.width = 16; c.height = 24;
+    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    paint(x, compose({ ...a, body }, { dir }), 0, 0, 1);
+    const fc = document.createElement("figcaption"); fc.textContent = `${body.toUpperCase()} · ${cap}`;
+    f.append(c, fc); turn.append(f);
+  }));
+
+  // frame diagram
+  const [fdC, fd] = setup("frameDiagram");
+  const px = 12;
+  fd.fillStyle = "#0b0c0e"; fd.fillRect(0, 0, fdC.width, fdC.height);
+  fd.fillStyle = "rgba(59,47,32,0.55)"; fd.fillRect(0, 0, 16 * px, 8 * px);
+  fd.fillStyle = "rgba(38,41,45,0.6)"; fd.fillRect(0, 8 * px, 16 * px, 16 * px);
+  paint(fd, compose(a, { hat: "wizard-hat" }), 0, 0, px);
+  fd.strokeStyle = "rgba(247,240,218,0.08)"; fd.lineWidth = 1;
+  for (let i = 0; i <= 16; i++) { fd.beginPath(); fd.moveTo(i * px + 0.5, 0); fd.lineTo(i * px + 0.5, 24 * px); fd.stroke(); }
+  for (let j = 0; j <= 24; j++) { fd.beginPath(); fd.moveTo(0, j * px + 0.5); fd.lineTo(16 * px, j * px + 0.5); fd.stroke(); }
+  fd.strokeStyle = "rgba(240,168,60,0.7)"; fd.setLineDash([4, 3]);
+  fd.beginPath(); fd.moveTo(0, 8 * px + 0.5); fd.lineTo(16 * px, 8 * px + 0.5); fd.stroke(); fd.setLineDash([]);
+  fd.strokeStyle = "#63bb86"; fd.lineWidth = 2;
+  fd.beginPath(); fd.ellipse(8 * px, 23 * px - 5.6 * px * 0.45, 5.6 * px, 5.6 * px * 0.45, 0, 0, Math.PI * 2); fd.stroke();
+  fd.fillStyle = "#f0a83c"; fd.fillRect(8 * px - 4, 24 * px - 8, 8, 8);
+
+  // ramps
+  const rampEl = (id, list, keys) => {
+    const el = document.getElementById(id); el.replaceChildren();
+    list.forEach((r) => {
+      const d = document.createElement("div"); d.className = "ramp";
+      keys.forEach((k) => { const i = document.createElement("i"); i.style.background = r[k]; d.append(i); });
+      const s = document.createElement("span"); s.textContent = r.name; d.append(s); el.append(d);
+    });
+  };
+  rampEl("skinRamps", SKIN, ["s", "S", "T"]);
+  rampEl("hairRamps", HAIRC, ["h", "H", "G"]);
+  rampEl("partyRamps", PARTY, ["C", "c", "d"]);
+}
+
+/* ---------------------------------------------------------------- wardrobe */
+const TABS = [
+  ["hat", "Hats", () => Object.entries(SPRITES.hats)],
+  ["cloak", "Cloaks", () => Object.entries(SPRITES.cloaks.items)],
+  ["dye", "Outfit dyes", () => Object.entries(SPRITES.dyes)],
+  ["trail", "Weapon trails", () => Object.entries(SPRITES.trails)],
+  ["flame", "Torch flames", () => Object.entries(SPRITES.flames)],
+];
+let wardTab = "hat";
+const wardTabs = document.getElementById("wardTabs");
+TABS.forEach(([id, label]) => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab"); b.textContent = label;
+  b.setAttribute("aria-selected", String(id === wardTab));
+  b.addEventListener("click", () => { wardTab = id; [...wardTabs.children].forEach((c) => c.setAttribute("aria-selected", String(c === b))); renderWardCards(); });
+  wardTabs.append(b);
+});
+document.getElementById("wardTurn").addEventListener("click", (e) => {
+  wardDir = wardDir === "down" ? "up" : "down";
+  e.target.textContent = wardDir === "down" ? "Show back" : "Show front";
+});
+
+function drawFlame(ctx, ramp, ox, oy, px, flick) {
+  const r = { ...ramp };
+  if (flick) { const t = r.g; r.g = r.h; r.h = t; }
+  paintRows(ctx, expand(SPRITES.tiles["torch-flame"]), r, ox, oy, px);
+  ctx.fillStyle = "#5c4930"; ctx.fillRect(ox + 7 * px, oy + 12 * px, 2 * px, 6 * px);
+  ctx.fillStyle = "#3b2f20"; ctx.fillRect(ox + 8 * px, oy + 12 * px, px, 6 * px);
+  ctx.fillStyle = K; ctx.fillRect(ox + 6 * px, oy + 11 * px, 4 * px, px);
+}
+
+function drawTrailIcon(ctx, trail) {
+  ctx.clearRect(0, 0, 16, 16);
+  if (!trail.colors) { ctx.fillStyle = "#4e535a"; for (let i = 3; i < 13; i++) ctx.fillRect(i, 15 - i, 1, 1); return; }
+  for (let a = -2.2; a <= 0.3; a += 0.05) {
+    for (let r = 9; r <= 13; r++) {
+      const x = Math.round(2 + Math.cos(a) * r), y = Math.round(14 + Math.sin(a) * r);
+      ctx.fillStyle = trail.colors[Math.min(3, r - 10 < 0 ? 0 : r - 10)];
+      ctx.globalAlpha = 0.35 + 0.65 * ((a + 2.2) / 2.5);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function renderWardCards() {
+  const wrap = document.getElementById("wardCards"); wrap.replaceChildren();
+  const tab = TABS.find((t) => t[0] === wardTab);
+  const a = state.app;
+  tab[2]().forEach(([id, item]) => {
+    const equipped = wear[wardTab] === id;
+    const b = document.createElement("button");
+    b.className = "card"; b.type = "button";
+    b.style.borderColor = RARITY[item.rarity];
+    b.setAttribute("aria-pressed", String(equipped));
+    const c = document.createElement("canvas"); c.width = 16; c.height = 16;
+    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    if (wardTab === "hat") { x.clearRect(0, 0, 16, 16); paint(x, compose(a, { hat: id }), 0, -1, 1); }
+    else if (wardTab === "cloak") { c.height = 24; paint(x, compose(a, { cloak: id, dir: "up" }), 0, 0, 1); c.style.height = "96px"; }
+    else if (wardTab === "dye") { c.height = 24; paint(x, compose(a, { dye: id === "party" ? null : id }), 0, 0, 1); c.style.height = "96px"; }
+    else if (wardTab === "trail") drawTrailIcon(x, item);
+    else drawFlame(x, item.ramp, 0, -2, 1, false);
+    if (c.height === 24) c.style.width = "64px";
+    const name = document.createElement("b"); name.textContent = item.name;
+    const rar = document.createElement("span"); rar.className = "rar"; rar.style.color = RARITY[item.rarity]; rar.textContent = item.rarity;
+    const how = document.createElement("span"); how.className = "how"; how.textContent = item.how;
+    b.append(c, name, rar, how);
+    if (equipped) { const eq = document.createElement("span"); eq.className = "eq"; eq.textContent = "EQUIPPED"; b.append(eq); }
+    b.addEventListener("click", () => {
+      const defaults = { dye: "party", trail: "none", flame: "hearth" };
+      wear[wardTab] = equipped ? (defaults[wardTab] ?? null) : id;
+      renderWardCards();
+      showDetail(item);
+    });
+    wrap.append(b);
+  });
+  const cur = wear[wardTab];
+  const curItem = cur && tab[2]().find(([id]) => id === cur);
+  showDetail(curItem ? curItem[1] : null);
+}
+function showDetail(item) {
+  const d = document.getElementById("wardDetail");
+  if (!item) { d.innerHTML = "<span>Nothing in this slot. Pick a card to try it on.</span>"; return; }
+  d.replaceChildren();
+  const b = document.createElement("b"); b.textContent = item.name;
+  const l = document.createElement("span"); l.textContent = `“${item.lore}”`;
+  const h = document.createElement("span"); h.style.color = RARITY[item.rarity]; h.textContent = `${item.rarity.toUpperCase()} · ${item.how} Price waits on #23.`;
+  d.append(b, l, h);
+}
+
+/* trail swing simulation */
+const particles = [];
+function trailFrame(ctx, t, w, h) {
+  const px = 4;
+  ctx.fillStyle = "#0b0c0e"; ctx.fillRect(0, 0, w, h);
+  floor(ctx, 3, 2, px);
+  ctx.fillStyle = "rgba(7,8,10,0.45)"; ctx.fillRect(0, 0, w, h);
+  const a = state.app;
+  const ox = 6 * px, oy = 4 * px;
+  const trail = SPRITES.trails[wear.trail];
+  const cycle = 1300, p = (t % cycle) / cycle;
+  const start = -2.0, end = 0.9;
+  const swingP = Math.min(1, Math.max(0, (p - 0.1) / 0.28));
+  const ease = 1 - (1 - swingP) ** 3;
+  const ang = p < 0.1 ? start : start + (end - start) * ease;
+  const pivot = { x: ox + 9 * px, y: oy + 18 * px };
+
+  ring(ctx, ox + 8 * px, oy + 23 * px, px, byId(PARTY, a.party).ring);
+  paint(ctx, compose(a, { dir: "right", dye: wear.dye === "party" ? null : wear.dye, hat: null }), ox, oy, px);
+
+  const pix = new Map();
+  const put = (x, y, col, al) => { const k = x + "," + y; const cur = pix.get(k); if (!cur || cur.al < al) pix.set(k, { x, y, col, al }); };
+  if (trail.colors && p >= 0.1 && p < 0.62) {
+    const fade = p < 0.38 ? 1 : 1 - (p - 0.38) / 0.24;
+    for (let th = Math.max(start, ang - 1.8); th <= ang; th += 0.035) {
+      const al = (1 - (ang - th) / 1.8) * fade;
+      for (let r = 6; r <= 11; r++) {
+        const ci = r >= 11 ? 3 : r >= 9 ? 2 : r >= 7 ? 1 : 0;
+        put(Math.round(Math.cos(th) * r), Math.round(Math.sin(th) * r), trail.colors[ci], al * (r < 7 ? 0.5 : 1));
+      }
+    }
+    if (swingP < 1 && Math.random() < 0.8) {
+      const tip = { x: Math.cos(ang) * 11, y: Math.sin(ang) * 11 };
+      const s = trail.style;
+      particles.push({ x: tip.x, y: tip.y, vx: (Math.random() - 0.5) * 0.4 + (s === "petals" ? 0.3 : 0), vy: s === "wisps" ? -0.35 : s === "sparks" ? -0.2 : s === "petals" ? 0.15 : 0, g: s === "sparks" ? 0.06 : 0, life: s === "shards" ? 26 : 34, max: 34, col: trail.colors[2 + Math.round(Math.random())], style: s });
+    }
+  }
+  pix.forEach(({ x, y, col, al }) => { ctx.globalAlpha = Math.max(0, al); ctx.fillStyle = col; ctx.fillRect(pivot.x + x * px, pivot.y + y * px, px, px); });
+  ctx.globalAlpha = 1;
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const q = particles[i];
+    q.x += q.vx; q.y += q.vy; q.vy += q.g; q.life--;
+    if (q.life <= 0 || !trail.colors) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = q.life / q.max; ctx.fillStyle = q.col;
+    ctx.fillRect(pivot.x + Math.round(q.x) * px, pivot.y + Math.round(q.y) * px, px, px);
+  }
+  ctx.globalAlpha = 1;
+  // blade
+  for (let r = 1; r <= 11; r += 0.5) {
+    const x = Math.round(Math.cos(ang) * r), y = Math.round(Math.sin(ang) * r);
+    ctx.fillStyle = r < 3 ? "#8c6a2a" : r < 4 ? "#4e535a" : r > 10 ? "#e6eaf0" : "#9aa1ab";
+    ctx.fillRect(pivot.x + x * px, pivot.y + y * px, px, px);
+  }
+  if (trail.style === "glint" && swingP > 0.85 && p < 0.55) {
+    const tx = pivot.x + Math.round(Math.cos(ang) * 11) * px, ty = pivot.y + Math.round(Math.sin(ang) * 11) * px;
+    ctx.fillStyle = "#fff6d0";
+    [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => ctx.fillRect(tx + dx * px, ty + dy * px, px, px));
+  }
+}
+
+/* ---------------------------------------------------------------- animation loop */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const blinkAt = { me: 2000, ward: 3200 };
+function blinking(key, t) {
+  if (t > blinkAt[key] + 120) blinkAt[key] = t + 2600 + Math.random() * 2200;
+  return t > blinkAt[key] && t < blinkAt[key] + 120;
+}
+
+function frame(t) {
+  const a = state.app;
+  const walkFrame = Math.floor(t / 125) % 4;
+
+  // big creator preview
+  const [bc, bx] = setup("bigPreview");
+  bx.clearRect(0, 0, bc.width, bc.height);
+  bx.fillStyle = "rgba(7,8,10,0.55)"; bx.beginPath(); bx.ellipse(80, 233, 46, 9, 0, 0, Math.PI * 2); bx.fill();
+  paint(bx, compose(a, { dir: DIRS[state.dirIndex], walk: state.walk, frame: walkFrame, blink: blinking("me", t) }), 0, 0, 10);
+
+  // in-game scene: 8x4 tiles at 2x
+  const [sc, sx] = setup("scenePreview");
+  floor(sx, 8, 4, 2);
+  const cast = [[a, 104, 62, "right", true], [teammates[0], 40, 42, "down", false], [teammates[1], 176, 44, "left", false], [teammates[2], 214, 82, "up", false]];
+  const nm = [document.getElementById("nameField").value.trim() || "You", ...mateNames];
+  cast.map((c, i) => [...c, i]).sort((p, q) => p[2] - q[2]).forEach(([app, x, y, dir, me, i]) => {
+    ring(sx, x + 16, y + 46, 2, byId(PARTY, app.party).ring);
+    paint(sx, compose(app, { dir, walk: me ? state.walk : true, frame: me ? walkFrame : (walkFrame + i) % 4 }), x, y, 2);
+  });
+  darkness(sx, sc.width, sc.height, { x: 120, y: 80 });
+  sx.font = "600 10px 'Pixelify Sans', monospace"; sx.textAlign = "center";
+  cast.forEach(([app, x, y], i) => { sx.fillStyle = byId(PARTY, app.party).ring; sx.fillText(nm[i], x + 16, y + 58); });
+
+  // wardrobe
+  const [wc, wx] = setup("wardPreview");
+  wx.clearRect(0, 0, wc.width, wc.height);
+  wx.fillStyle = "rgba(7,8,10,0.55)"; wx.beginPath(); wx.ellipse(80, 233, 44, 8, 0, 0, Math.PI * 2); wx.fill();
+  paint(wx, compose(a, { dir: wardDir, hat: wear.hat, cloak: wear.cloak, dye: wear.dye === "party" ? null : wear.dye, blink: blinking("ward", t), time: t }), 0, 0, 10);
+
+  const [tc, tx] = setup("trailPreview");
+  trailFrame(tx, t, tc.width, tc.height);
+
+  const [fc, fx] = setup("flamePreview");
+  fx.fillStyle = "#0b0c0e"; fx.fillRect(0, 0, fc.width, fc.height);
+  const fl = SPRITES.flames[wear.flame].ramp;
+  const glow = fx.createRadialGradient(40, 40, 2, 40, 40, 46);
+  glow.addColorStop(0, fl.g + "44"); glow.addColorStop(1, "#0b0c0e00");
+  fx.fillStyle = glow; fx.fillRect(0, 0, fc.width, fc.height);
+  drawFlame(fx, fl, 8, 14, 4, Math.floor(t / 140) % 3 === 0);
+
+  // hero
+  const [hc, hx] = setup("heroScene");
+  floor(hx, 12, 5, 2);
+  const flick = Math.floor(t / 150) % 3 === 0;
+  drawFlame(hx, SPRITES.flames.hearth.ramp, 178, 2, 2, flick);
+  const hero = [[a, 120, 50, "right"], [teammates[0], 70, 70, "down"], [teammates[1], 230, 60, "left"], [teammates[2], 290, 84, "down"]];
+  hero.sort((p, q) => p[2] - q[2]).forEach(([app, x, y, dir], i) => {
+    ring(hx, x + 16, y + 46, 2, byId(PARTY, app.party).ring);
+    paint(hx, compose(app, { dir, walk: dir !== "down", frame: (walkFrame + i) % 4, blink: i === 1 && blinking("me", t) }), x, y, 2);
+  });
+  const g = hx.createRadialGradient(194, 30, 8, 194, 60, 260);
+  g.addColorStop(0, "rgba(240,168,60,0.16)"); g.addColorStop(0.4, "rgba(7,8,10,0.2)"); g.addColorStop(1, "rgba(7,8,10,0.88)");
+  hx.fillStyle = g; hx.fillRect(0, 0, hc.width, hc.height);
+
+  if (!reduce) requestAnimationFrame(frame);
+}
+
+renderControls();
+renderStatic();
+renderWardCards();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</html>
