@@ -1,4 +1,5 @@
 import { expect, test, type Browser } from "@playwright/test";
+import { enterHub } from "./designScreen.js";
 
 /**
  * A teammate who joins but has not finished designing their character. There is no design screen
@@ -54,12 +55,15 @@ test.describe("Party portraits", () => {
     const room = host.page.locator(".hud__stat", { hasText: "Room:" }).locator("span");
     await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
     const roomCode = (await room.textContent()) ?? "";
+    await enterHub(host.page);
 
     const guest = await openPlayer(browser, errors);
     guest.holdAppearance();
     await guest.page.getByPlaceholder("Your name").fill("Sam");
     await guest.page.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.page.getByRole("button", { name: "Join dungeon" }).click();
+    // Confirming the design screen sends the look, which `holdAppearance` keeps back.
+    await enterHub(guest.page);
 
     const frame = host.page.locator(".hud__frame", { hasText: "Sam" });
     await expect(frame).toHaveAttribute("data-state", "designing", { timeout: 15_000 });
