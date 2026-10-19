@@ -22,7 +22,7 @@ import { createActions } from "./hud/actions.js";
 import { createDamageVignette } from "./hud/damageVignette.js";
 import { createHubStatus } from "./hud/hubStatus.js";
 import { createRunClock } from "./hud/runClock.js";
-import { createPanel, createStat } from "./hud/dom.js";
+import { createButton, createPanel, createStat } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
 import { createMinimap } from "./hud/minimap.js";
@@ -42,6 +42,7 @@ interface HudOptions {
   onAction: (action: GameplayAction) => void;
   onUseSlot: (slot: number) => void;
   onOpenControls: () => void;
+  onOpenEmotes: () => void;
 }
 
 /**
@@ -107,7 +108,10 @@ export function createHud(options: HudOptions) {
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
   actionButtons.className = "hud__buttons";
-  actionButtons.append(...actions.elements);
+  // The wheel's pointer and touch way in. Not one of `actions`: a downed player can still call for help.
+  const emoteButton = createButton("Emote", options.onOpenEmotes);
+  emoteButton.setAttribute("aria-haspopup", "dialog");
+  actionButtons.append(...actions.elements, emoteButton);
   actionPanel.append(runClock.element, actionButtons);
 
   element.append(
@@ -187,6 +191,7 @@ export function createHud(options: HudOptions) {
       toasts.update(toastMessages(view, self));
 
       actions.update(controls);
+      emoteButton.disabled = controls.sessionControlsDisabled;
 
       const serverAction = newServerAction(view, lastServerAction);
       if (serverAction) {

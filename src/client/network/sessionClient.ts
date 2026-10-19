@@ -1,3 +1,4 @@
+import type { EmoteKind } from "../../shared/constants/emotes.js";
 import { PROTOCOL_VERSION } from "../../shared/constants/game.js";
 import {
   parseServerMessage,
@@ -317,6 +318,10 @@ export function createSessionClient(options: SessionClientOptions) {
 
     dropCarry(): boolean {
       return send({ type: "dropCarry" });
+    },
+
+    emote(kind: EmoteKind): boolean {
+      return send({ type: "emote", kind });
     },
 
     sendVoiceSignal(targetPlayerId: PlayerId, signal: VoiceSignal): boolean {

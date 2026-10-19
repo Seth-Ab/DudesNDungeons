@@ -18,6 +18,7 @@ import { learnSkill } from "../../src/server/game/progression.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
 import type { ServerMessage } from "../../src/shared/protocol/index.js";
+import { at } from "../server/fixtures.js";
 
 /** Short enough that the reconnect timeout is testable in real time. */
 const GRACE_MS = 150;
@@ -1084,6 +1085,146 @@ describe("voice signaling", () => {
     const answered = alpha.client.next("voiceSignalRelay");
     signal(beta.client, alpha.joined.playerId, { kind: "answer", sdp: "v=0 answer" });
     await expect(answered).resolves.toBeDefined();
+  });
+});
+
+describe("emotes", () => {
+  /** Takes a whole party through the hub gate into the Ember Vault. */
+  async function enterDungeonTogether(roomCode: string, clients: TestClient[]) {
+    const session = server.store.getSession(roomCode)!;
+    const entrance = session.dungeon.exits[0]!;
+    for (const client of clients) {
+      client.send({ type: "setReady", ready: true });
+      await client.next("playerReadyChanged");
+    }
+    [...session.players.values()][0]!.position = { ...entrance.position };
+    clients[0]!.send({ type: "playerInteract", targetId: entrance.id });
+    await Promise.all(
+      clients.map((client) => client.nextWhere("stateSnapshot", (message) => message.location === "dungeon")),
+    );
+    return session;
+  }
+
+  it("shows an emote to the sender and a party member in sight, in the hub", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const seenByAlpha = alpha.client.next("playerEmoted");
+    const seenByBeta = beta.client.next("playerEmoted");
+    alpha.client.send({ type: "emote", kind: "wave" });
+
+    for (const emoted of [await seenByAlpha, await seenByBeta]) {
+      expect(emoted).toMatchObject({ type: "playerEmoted", playerId: alpha.joined.playerId, kind: "wave" });
+      expect(Object.keys(emoted).sort()).toEqual(["at", "kind", "playerId", "type"]);
+    }
+  });
+
+  it("reaches only the party members who can see the emoter, in a dungeon", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const gamma = await joinRoom(roomCode, "Gamma");
+    const session = await enterDungeonTogether(roomCode, [alpha.client, beta.client, gamma.client]);
+
+    // The same layout as `tests/server/emotes.test.ts`: Alpha unlit in the far corner of the top
+    // corridor, Beta beside them with a torch, Gamma back at the spawn.
+    const place = (playerId: string, position: { x: number; y: number }, carryingTorch: boolean) => {
+      const player = session.players.get(playerId)!;
+      player.position = position;
+      player.carryingTorch = carryingTorch;
+    };
+    place(alpha.joined.playerId, at(14, 1), false);
+    place(beta.joined.playerId, at(13, 1), true);
+    place(gamma.joined.playerId, at(2, 2), true);
+    await gamma.client.nextWhere(
+      "stateSnapshot",
+      (message) => !message.players.some((player) => player.id === alpha.joined.playerId),
+    );
+
+    const seenByAlpha = alpha.client.next("playerEmoted");
+    const seenByBeta = beta.client.next("playerEmoted");
+    alpha.client.send({ type: "emote", kind: "followMe" });
+
+    expect((await seenByAlpha).kind).toBe("followMe");
+    expect((await seenByBeta).playerId).toBe(alpha.joined.playerId);
+    // A later message from Alpha's side proves Gamma's socket had its chance to receive one.
+    beta.client.send({ type: "setReady", ready: false });
+    await gamma.client.next("playerReadyChanged");
+    expect(gamma.client.received("playerEmoted")).toEqual([]);
+  });
+
+  it("refuses an unknown kind without dropping the connection", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha");
+
+    client.send({ type: "emote", kind: "flex" });
+    expect((await client.next("sessionError")).code).toBe("invalidMessage");
+
+    client.send({ type: "emote", kind: "wave" });
+    expect((await client.next("playerEmoted")).kind).toBe("wave");
+  });
+
+  it("refuses an emote before joining", async () => {
+    const client = await TestClient.connect();
+    client.send({ type: "emote", kind: "wave" });
+
+    expect((await client.next("sessionError")).code).toBe("notInSession");
+  });
+
+  it("refuses an emote from a player still designing a character", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+    const beta = await joinRoom(roomCode, "Beta");
+
+    alpha.client.send({ type: "emote", kind: "wave" });
+    expect(await alpha.client.next("actionRejected")).toMatchObject({ sequence: null, reason: "notPermitted" });
+    expect(alpha.client.received("playerEmoted")).toEqual([]);
+    expect(beta.client.received("playerEmoted")).toEqual([]);
+  });
+
+  it("lets a downed player call for help and nothing else", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = await enterDungeonTogether(roomCode, [alpha.client, beta.client]);
+    session.players.get(alpha.joined.playerId)!.health = 0;
+    // Beta stays up beside Alpha with a torch, so the party is not wiped home mid-test and Beta can
+    // see who is calling.
+    const rescuer = session.players.get(beta.joined.playerId)!;
+    rescuer.position = { ...session.players.get(alpha.joined.playerId)!.position };
+    rescuer.carryingTorch = true;
+
+    alpha.client.send({ type: "emote", kind: "wave" });
+    expect(await alpha.client.next("actionRejected")).toMatchObject({ reason: "notPermitted" });
+
+    const help = beta.client.next("playerEmoted");
+    alpha.client.send({ type: "emote", kind: "help" });
+    expect(await help).toMatchObject({ playerId: alpha.joined.playerId, kind: "help" });
+  });
+
+  it("rate-limits to one a second, broadcasting nothing over the limit", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    const wave = beta.client.next("playerEmoted");
+    const limited = alpha.client.next("sessionError");
+    alpha.client.send({ type: "emote", kind: "wave" });
+    alpha.client.send({ type: "emote", kind: "cheer" });
+
+    expect(await limited).toEqual({
+      type: "sessionError",
+      code: "rateLimited",
+      message: "Too many emotes; slow down",
+    });
+    expect((await wave).kind).toBe("wave");
+    // Beta's own budget is untouched by Alpha's flood.
+    const own = beta.client.next("playerEmoted");
+    beta.client.send({ type: "emote", kind: "bow" });
+    expect((await own).playerId).toBe(beta.joined.playerId);
+    expect(beta.client.received("playerEmoted").map((emoted) => emoted.kind)).toEqual(["wave", "bow"]);
+    expect(alpha.client.received("playerEmoted").map((emoted) => emoted.kind)).not.toContain("cheer");
   });
 });
 

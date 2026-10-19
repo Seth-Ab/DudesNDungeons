@@ -989,3 +989,74 @@ button:disabled {
 .controls-menu__reset {
   margin-top: 0.75rem;
 }
+
+/* Emote wheel: eight options in a ring over a dimmed screen. Each option sits at its --x/--y unit
+   offset, set in emoteWheel.ts, times the ring's radius. */
+.emote-wheel {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 9, 12, 0.5);
+  z-index: 19;
+}
+
+.emote-wheel[hidden] {
+  display: none;
+}
+
+.emote-wheel__ring {
+  --radius: min(9.5rem, 34vw);
+  position: relative;
+  width: calc(var(--radius) * 2 + 7rem);
+  height: calc(var(--radius) * 2 + 3rem);
+}
+
+.emote-wheel__hint {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  color: #d8cfb5;
+  background: rgba(25, 27, 31, 0.9);
+  font-size: 0.9rem;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.emote-wheel__option {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 6.5rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  transform: translate(
+    calc(-50% + var(--x) * var(--radius)),
+    calc(-50% + var(--y) * var(--radius))
+  );
+  background: #191b1f;
+  white-space: nowrap;
+}
+
+/* Wider than the global border change, so keyboard focus is easy to follow around the ring. */
+.emote-wheel__option:focus-visible {
+  border-color: #caa85a;
+  box-shadow: 0 0 0 3px #caa85a;
+}
+
+.emote-wheel__number {
+  min-width: 1.2rem;
+  padding: 0 0.25rem;
+  border-radius: 4px;
+  color: #191b1f;
+  background: #caa85a;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
