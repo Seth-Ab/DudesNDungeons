@@ -17,6 +17,11 @@
   --hud-well: #0b0908;
   --hud-warning: #e0b64f;
   --hud-warning-frame: #6b5524;
+  /* The frame art is 16 px with a 4 px border; --hud-zoom is the whole-number scale it is drawn at,
+     set from the UI scale in ui/hudSettings.ts. The stud is 8 px. */
+  --hud-zoom: 2;
+  --hud-frame-width: calc(4px * var(--hud-zoom));
+  --hud-stud-size: calc(8px * var(--hud-zoom));
   /* Each vital is a light top and a dark base; the light tone also colours its label. */
   --hud-health: #e46a5f;
   --hud-health-dark: #b8392f;
@@ -122,9 +127,32 @@ button:focus-visible {
   gap: 0.35rem;
   max-width: calc(100vw - 1rem);
   padding: 0.5rem 0.65rem;
-  border: 1px solid var(--hud-frame);
-  border-radius: 8px;
-  background: var(--hud-panel);
+}
+
+/* Every HUD panel wears the baked frame (assets/sprites/hud-frame.png, a 9-slice) with a brass stud
+   on each corner. The frame's transparent middle is not drawn; the panel colour fills the padding
+   box, and a panel that wants another colour or a tint sets background-color or a box-shadow. */
+.hud__panel,
+.hud__minimap,
+.hud__frame,
+.hud__prompt,
+.hud__toast,
+.hud__slot,
+.controls-menu__panel,
+.camp-menu__panel {
+  border: var(--hud-frame-width) solid transparent;
+  border-image: url("../../assets/sprites/hud-frame.png") 4 / var(--hud-frame-width) / 0 stretch;
+  border-radius: 0;
+  background-color: var(--hud-panel);
+  background-image:
+    url("../../assets/sprites/hud-stud.png"), url("../../assets/sprites/hud-stud.png"),
+    url("../../assets/sprites/hud-stud.png"), url("../../assets/sprites/hud-stud.png");
+  background-position: top left, top right, bottom left, bottom right;
+  background-repeat: no-repeat;
+  background-size: var(--hud-stud-size) var(--hud-stud-size);
+  background-origin: border-box;
+  background-clip: border-box, border-box, border-box, border-box, padding-box;
+  image-rendering: pixelated;
 }
 
 /* One line of key hints, top-left above the party frames. Esc doubles as the camp menu's button. */
@@ -181,10 +209,7 @@ button:focus-visible {
 .hud__minimap {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--hud-frame);
-  border-radius: 8px;
   overflow: hidden;
-  background: var(--hud-panel);
 }
 
 .hud__minimap[hidden] {
@@ -356,10 +381,8 @@ button:disabled {
   gap: 0.45rem;
   width: 12.5rem;
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--hud-frame);
-  border-left: 3px solid var(--party-accent, var(--hud-frame));
-  border-radius: 8px;
-  background: var(--hud-panel);
+  /* The party colour is a stripe inside the frame, since a border-image cannot be tinted per side. */
+  box-shadow: inset 3px 0 0 var(--party-accent, var(--hud-frame));
 }
 
 /* Head and shoulders, 16 art pixels scaled up crisp. */
@@ -536,9 +559,6 @@ button:disabled {
 
 .hud__prompt {
   padding: 0.3rem 0.7rem;
-  border: 1px solid var(--hud-frame);
-  border-radius: 6px;
-  background: var(--hud-panel);
   color: #f1dfa6;
   font-size: 0.9rem;
 }
@@ -560,18 +580,15 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--hud-frame);
-  border-radius: 6px;
-  background: var(--hud-well);
+  background-color: var(--hud-well);
 }
 
 .hud__slot--held {
   margin-right: 0.5rem;
-  border-color: var(--hud-brass);
+  box-shadow: 0 0 0 2px var(--hud-brass);
 }
 
 .hud__slot--empty {
-  border-style: dashed;
   opacity: 0.6;
 }
 
@@ -1148,7 +1165,7 @@ button:disabled {
   flex-direction: column;
   gap: 0.35rem;
   align-items: center;
-  width: min(30rem, calc(100vw - 33rem));
+  width: min(30rem, calc(100vw - 35rem));
   min-width: 14rem;
   transform: translateX(-50%);
 }
@@ -1164,23 +1181,21 @@ button:disabled {
 .hud__toast {
   margin: 0;
   padding: 0.35rem 0.7rem;
-  border: 1px solid #4a5a46;
-  border-radius: 6px;
-  background: rgba(26, 32, 27, 0.92);
+  background-color: rgba(26, 32, 27, 0.92);
   color: #d8e6cf;
   font-size: 0.85rem;
   text-align: center;
 }
 
 .hud__toast--warning {
-  border-color: var(--hud-warning-frame);
-  background: rgba(40, 33, 18, 0.94);
+  box-shadow: 0 0 0 1px var(--hud-warning-frame);
+  background-color: rgba(40, 33, 18, 0.94);
   color: var(--hud-warning);
 }
 
 .hud__toast--error {
-  border-color: #6b3434;
-  background: rgba(42, 22, 22, 0.94);
+  box-shadow: 0 0 0 1px #6b3434;
+  background-color: rgba(42, 22, 22, 0.94);
   color: #e2a0a0;
 }
 
@@ -1223,14 +1238,14 @@ button:disabled {
   gap: 0.2rem;
   box-sizing: border-box;
   width: 100%;
-  border-color: var(--hud-warning-frame);
-  background: rgba(40, 33, 18, 0.94);
+  box-shadow: 0 0 0 1px var(--hud-warning-frame);
+  background-color: rgba(40, 33, 18, 0.94);
   color: var(--hud-warning);
 }
 
 .hud__hub-status--ready {
-  border-color: #4a7a52;
-  background: rgba(22, 40, 27, 0.94);
+  box-shadow: 0 0 0 1px #4a7a52;
+  background-color: rgba(22, 40, 27, 0.94);
   color: #9fd8a8;
 }
 
@@ -1368,7 +1383,7 @@ button:disabled {
 .hud__bank-entry {
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--hud-frame);
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--hud-well);
   color: var(--hud-text-muted);
   font-size: 0.78rem;
@@ -1399,9 +1414,7 @@ button:disabled {
   max-height: min(42rem, calc(100vh - 2rem));
   overflow: auto;
   padding: 1rem;
-  border: 1px solid #4a4132;
-  border-radius: 8px;
-  background: #191b1f;
+  background-color: var(--hud-well);
   box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.42);
 }
 
@@ -1610,9 +1623,7 @@ button:disabled {
   max-height: calc(100vh - 2rem);
   overflow: auto;
   padding: 1rem;
-  border: 1px solid #4a4132;
-  border-radius: 8px;
-  background: #191b1f;
+  background-color: var(--hud-well);
   box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.42);
 }
 

@@ -149,6 +149,28 @@ The bake fails on a palette colour that is neither. A test also checks that no k
 `dungeon.png`, since recolouring a character would otherwise recolour the floor under it. The key
 colours are deliberately garish, so one the renderer forgot to swap is obvious on screen.
 
+## The HUD frame
+
+`hud-frame.png` (16 x 16) and `hud-stud.png` (8 x 8) dress every HUD panel. They are authored in
+`source/hud.tiles.json` and baked by `npm run build:sprites`, one PNG per sprite, because CSS
+`border-image` and `background-image` each load a whole file. `tests/client/hudSprites.test.ts`
+fails if a PNG disagrees with its source.
+
+```json
+{
+  "palette": { "0": "transparent", "o": "#120d09" },
+  "sprites": { "hud-frame": { "width": 16, "height": 16, "rows": ["0oooooooooooooo0", "..."] } }
+}
+```
+
+- The frame is a 9-slice with a 4 px border: `styles.css` slices it at 4 and draws it at
+  `--hud-zoom` times that width. The middle is transparent and never drawn; the panel colour fills
+  behind it. Corners may be transparent to chamfer the panel.
+- The stud sits on each corner of the border box at `--hud-zoom` times its size.
+- `--hud-zoom` is always a whole number (`hudFrameZoom` in `state/hudSettings.ts`: 2, or 3 at the
+  largest UI scale), so the art stays on device pixels and `image-rendering: pixelated` keeps it crisp.
+- Sizes are declared in `scripts/hudSprites.ts`; change them there and in the CSS together.
+
 ## Scale
 
 Art is authored at 16 pixels per world tile and drawn at 2x, so a world tile is 32 screen pixels and

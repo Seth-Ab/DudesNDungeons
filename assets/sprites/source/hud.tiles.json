@@ -1,0 +1,43 @@
+{
+  "palette": {
+    "0": "transparent",
+    "o": "#120d09",
+    "f": "#5a4630",
+    "h": "#8a6a3c",
+    "d": "#2a1f15",
+    "b": "#d6a84c",
+    "l": "#f3d58a",
+    "s": "#8a6a2a"
+  },
+  "sprites": {
+    "hud-frame": {
+      "width": 16,
+      "height": 16,
+      "rows": [
+        "0oooooooooooooo0",
+        "offffffffffffffo",
+        "ofhhhhhhhhhhhhfo",
+        "ofhddddddddddhfo",
+        "8*ofhd00000000dhfo",
+        "ofhddddddddddhfo",
+        "ofhhhhhhhhhhhhfo",
+        "offffffffffffffo",
+        "0oooooooooooooo0"
+      ]
+    },
+    "hud-stud": {
+      "width": 8,
+      "height": 8,
+      "rows": [
+        "00oooo00",
+        "0ollbbo0",
+        "olbbbbso",
+        "obbbbbso",
+        "obbbbsso",
+        "obbbssso",
+        "0osssso0",
+        "00oooo00"
+      ]
+    }
+  }
+}

@@ -15,6 +15,15 @@ export const UI_SCALE_LABELS: Record<number, string> = {
   1.3: "Extra large",
 };
 
+/**
+ * How many screen pixels each pixel of the HUD frame art covers at a UI scale: always a whole
+ * number, so the 9-slice frame and its studs never land between device pixels. It is 2 up to
+ * "Large" and 3 at "Extra large", where the panels have grown enough to carry a chunkier frame.
+ */
+export function hudFrameZoom(uiScale: number): number {
+  return Math.max(2, Math.round(uiScale * 2));
+}
+
 const SETTINGS_KEY = "dnd.hudSettings";
 
 export function defaultHudSettings(prefersReducedMotion: boolean): HudSettings {
