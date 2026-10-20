@@ -157,39 +157,71 @@ button:focus-visible {
   font-size: inherit;
 }
 
-/* The session cluster: mic chip, room, connection, the hub's Ready button, and the minimap. The rest
-   of the session controls live in the camp menu. */
-.hud__panel--session {
+/* The top-right column: the minimap on top, anchored to the corner whatever else changes, then the
+   session cluster. The width stays within the 16.5rem the toast stack leaves each side. */
+.hud__corner {
+  position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
   width: 15rem;
 }
 
-/* Lives in the session panel so it stacks under the buttons whatever height they wrap to. */
+/* Mic chip, room, connection, and the hub's Ready button. The rest of the session controls live in
+   the camp menu. */
+.hud__corner .hud__panel--session {
+  position: static;
+  align-items: flex-end;
+  max-width: none;
+}
+
 .hud__minimap {
-  width: 100%;
-  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--hud-frame);
-  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--hud-panel);
 }
 
 .hud__minimap[hidden] {
   display: none;
 }
 
+.hud__minimap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--hud-frame);
+}
+
+.hud__minimap-room {
+  overflow: hidden;
+  color: var(--hud-text);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hud__minimap-north {
+  flex: none;
+  color: var(--hud-brass);
+  font-family: var(--hud-font-label);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .hud__minimap-canvas {
   display: block;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1;
+  background: #000;
   image-rendering: pixelated;
-}
-
-/* A short window cannot spare the height without reaching the bottom clusters. */
-@media (max-height: 44rem) {
-  .hud__minimap {
-    width: 60%;
-  }
 }
 
 .hud__panel--party {
@@ -1278,7 +1310,7 @@ button:disabled {
     font-size: 0.78rem;
   }
 
-  .hud__panel--session {
+  .hud__corner {
     width: 12.5rem;
   }
 
