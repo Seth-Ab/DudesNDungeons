@@ -7,6 +7,7 @@ import {
   type HeldSlotView,
   type HotbarSlotView,
 } from "../../state/hudView.js";
+import type { FeedbackSlot } from "../../state/itemFeedback.js";
 import type { PlayerState } from "../../../shared/types/core.js";
 
 /** Whole-number zoom, so the 16px art stays on a crisp pixel grid. */
@@ -16,7 +17,7 @@ interface HotbarOptions {
   onUseSlot: (slot: number) => void;
 }
 
-function paintIcon(icon: HTMLElement, sprite: string | null): void {
+export function paintIcon(icon: HTMLElement, sprite: string | null): void {
   if (!sprite) {
     icon.style.backgroundImage = "none";
     return;
@@ -113,6 +114,13 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
 
   return {
     element,
+
+    /** The element item feedback plays on: an inventory slot, the hand, or the torch pip. */
+    slotElement(slot: FeedbackSlot): HTMLElement | null {
+      if (slot === "held") return held;
+      if (slot === "torch") return torch;
+      return slots[slot]?.button ?? null;
+    },
 
     updateSlots(views: readonly HotbarSlotView[]) {
       views.forEach((view, index) => {

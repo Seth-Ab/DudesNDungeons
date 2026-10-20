@@ -62,7 +62,7 @@ import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js"
  * It is also exactly twice `SPRITE_TILE_SIZE`, so a 16px sprite lands on a 2x pixel grid and the art
  * stays crisp. Moving this off a multiple of 16 puts the tiles back on fractional pixels.
  */
-const pixelsPerWorldUnit = 32;
+export const pixelsPerWorldUnit = 32;
 
 /** The body the server collides a player with, in world units. Monsters are sized from it. */
 const figureWidth = PLAYER_RADIUS * 2;

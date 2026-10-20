@@ -3,6 +3,7 @@ import { isTypingTarget } from "../input/inputController.js";
 import { DEBUG_KEY, type GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import { followTouchControls } from "../state/touchControls.js";
+import { itemFeedbackEvents } from "../state/itemFeedback.js";
 import {
   connectionLabel,
   actionPrompt,
@@ -27,6 +28,7 @@ import { createRunClock } from "./hud/runClock.js";
 import { createButton, createPanel } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
+import { createItemFeedback } from "./hud/itemFeedback.js";
 import { createKeyHints } from "./hud/keyHints.js";
 import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
@@ -91,6 +93,7 @@ export function createHud(options: HudOptions) {
   const hubStatus = createHubStatus();
   const vignette = createDamageVignette();
   const hotbar = createHotbar(options);
+  const itemFeedback = createItemFeedback(element, hotbar.slotElement);
   // Everything that used to be its own message line: the hub gate, the run outcome, the torch and
   // decay warnings, and the error box.
   const toasts = createToasts();
@@ -256,10 +259,12 @@ export function createHud(options: HudOptions) {
         toasts.say("action", serverAction);
       }
 
+      const itemEvents = currentView ? itemFeedbackEvents(currentView, view) : [];
       currentView = view;
       hotbar.updateSlots(hotbarView(view, self));
       hotbar.updateHeld(heldView(view, self));
       hotbar.updateTorch(self);
+      itemFeedback.play(itemEvents, currentPosition);
       refreshPrompt();
 
       inventory.update(self);
