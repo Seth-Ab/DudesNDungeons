@@ -46,6 +46,17 @@ export function createToasts(now: () => number = () => performance.now()) {
   };
 }
 
+/**
+ * The top-centre column every notice shares: the hub banner first, then the toasts, so the two
+ * stack in one flow and can never be positioned over each other.
+ */
+export function createNoticeStack(...cards: HTMLElement[]): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "hud__notices";
+  element.append(...cards);
+  return element;
+}
+
 function toastElement(toast: Toast): HTMLElement {
   const element = document.createElement("p");
   element.className = `hud__toast hud__toast--${toast.severity}`;

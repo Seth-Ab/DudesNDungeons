@@ -31,7 +31,7 @@ import { createKeyHints } from "./hud/keyHints.js";
 import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
-import { createToasts } from "./hud/toasts.js";
+import { createNoticeStack, createToasts } from "./hud/toasts.js";
 import { createVitals } from "./hud/vitals.js";
 import { createVoice } from "./hud/voice.js";
 
@@ -171,8 +171,7 @@ export function createHud(options: HudOptions) {
     vignette.element,
     keyHints.element,
     partyFrames.element,
-    toasts.element,
-    hubStatus.element,
+    createNoticeStack(hubStatus.element, toasts.element),
     corner,
     partyPanel,
     actionPanel,
