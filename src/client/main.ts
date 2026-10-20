@@ -242,7 +242,7 @@ const design = createCharacterDesign({
 app.append(hud.element, lobby.element, design.element, controlsMenu.element, emoteWheel.element, renderer.canvas);
 renderer.resize();
 
-const input = createInputController({ onAction: performAction });
+const input = createInputController({ onAction: performAction, onRelease: releaseAction });
 
 // Paced to the server's move interval, so the client sends intents at the rate the server accepts
 // them and predicts exactly the steps the server will take.
@@ -385,6 +385,15 @@ function renderLoop(): void {
 }
 requestAnimationFrame(renderLoop);
 
+/** The key of a hold action went up: for the bow, let the arrow go. */
+function releaseAction(action: GameplayAction): void {
+  if (action !== "drawBow") return;
+
+  const self = selfOf(view);
+  if (view.phase !== "inSession" || !self) return;
+  client.sendReleaseDraw(input.heading() ?? self.facing);
+}
+
 function performAction(action: GameplayAction): void {
   // An overlay, not an act in the world: a downed player can still read the map.
   if (action === "toggleMinimap") {
@@ -406,6 +415,13 @@ function performAction(action: GameplayAction): void {
     case "attack": {
       const direction = input.heading() ?? self.facing;
       if (!client.sendAttack(direction)) hud.setActionStatus("No connection");
+      return;
+    }
+    case "drawBow": {
+      // The server decides whether there is a bow, an arrow, and the stamina; its refusal comes
+      // back as an action status. All that is worth checking here is that a key is down at all.
+      const direction = input.heading() ?? self.facing;
+      if (!client.sendBeginDraw(direction)) hud.setActionStatus("No connection");
       return;
     }
     case "pickup": {

@@ -21,6 +21,7 @@ import {
 } from "../state/hudView.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
+import { createDrawReadout } from "./hud/drawReadout.js";
 import { createCampMenu } from "./hud/campMenu.js";
 import { createDamageVignette } from "./hud/damageVignette.js";
 import { createHubStatus } from "./hud/hubStatus.js";
@@ -91,6 +92,7 @@ export function createHud(options: HudOptions) {
   const actions = createActions(options);
   const runClock = createRunClock();
   const hubStatus = createHubStatus();
+  const drawReadout = createDrawReadout();
   const vignette = createDamageVignette();
   const hotbar = createHotbar(options);
   const itemFeedback = createItemFeedback(element, hotbar.slotElement);
@@ -173,6 +175,7 @@ export function createHud(options: HudOptions) {
   element.append(
     vignette.element,
     keyHints.element,
+    drawReadout.element,
     partyFrames.element,
     createNoticeStack(hubStatus.element, toasts.element),
     corner,
@@ -255,6 +258,7 @@ export function createHud(options: HudOptions) {
       toasts.update(toastMessages(view, self));
 
       actions.update(controls);
+      drawReadout.update(self ? self.drawFraction : null);
       emoteButton.disabled = controls.sessionControlsDisabled;
 
       const serverAction = newServerAction(view, lastServerAction);

@@ -82,6 +82,7 @@ export function createSessionClient(options: SessionClientOptions) {
   let signalListeners: ((fromPlayerId: PlayerId, signal: VoiceSignal) => void)[] = [];
   let moveSequence = 0;
   let attackSequence = 0;
+  let drawSequence = 0;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -284,6 +285,17 @@ export function createSessionClient(options: SessionClientOptions) {
         direction,
         targetId: null,
       });
+    },
+
+    /** Starts drawing the held bow. The server times the draw; no strength is ever sent. */
+    sendBeginDraw(direction: Vector2): boolean {
+      drawSequence += 1;
+      return send({ type: "beginDraw", sequence: drawSequence, direction });
+    },
+
+    sendReleaseDraw(direction: Vector2): boolean {
+      drawSequence += 1;
+      return send({ type: "releaseDraw", sequence: drawSequence, direction });
     },
 
     pickupItem(itemId: string): boolean {

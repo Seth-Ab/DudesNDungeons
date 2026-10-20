@@ -69,6 +69,28 @@ export const playerAttackSchema = z.object({
   targetId: entityIdSchema.nullable(),
 });
 
+/**
+ * Starts drawing the held bow toward `direction`. The server times the draw itself; there is no
+ * strength to send, and none would be believed. Refused unless a bow is in hand with an arrow and
+ * the stamina to start. Drawing again while already drawing restarts the draw.
+ */
+export const beginDrawSchema = z.object({
+  type: z.literal("beginDraw"),
+  sequence: z.number().int().nonnegative(),
+  direction: vector2Schema,
+});
+
+/**
+ * Looses the draw `beginDraw` started, toward `direction`. Range comes from how long the server saw
+ * the draw held. A release with no draw in progress is refused, and one before the bow's minimum
+ * draw time fires nothing and costs nothing.
+ */
+export const releaseDrawSchema = z.object({
+  type: z.literal("releaseDraw"),
+  sequence: z.number().int().nonnegative(),
+  direction: vector2Schema,
+});
+
 export const playerInteractSchema = z.object({
   type: z.literal("playerInteract"),
   targetId: entityIdSchema,
@@ -147,6 +169,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   setAppearanceSchema,
   playerMoveIntentSchema,
   playerAttackSchema,
+  beginDrawSchema,
+  releaseDrawSchema,
   playerInteractSchema,
   pickupItemSchema,
   useItemSchema,

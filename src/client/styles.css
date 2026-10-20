@@ -482,6 +482,33 @@ button:disabled {
   gap: 0.4rem;
 }
 
+/* The bow's draw, a plain bar above the hotbar until the indicator art lands. */
+.hud__draw {
+  position: absolute;
+  bottom: 6rem;
+  left: 50%;
+  width: 9rem;
+  height: 0.6rem;
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 1px solid var(--hud-frame);
+  border-radius: 4px;
+  background: rgba(20, 24, 20, 0.85);
+}
+
+.hud__draw[hidden] {
+  display: none;
+}
+
+.hud__draw-fill {
+  height: 100%;
+  background: #d9a441;
+}
+
+.hud__draw--full .hud__draw-fill {
+  background: #9fd8a8;
+}
+
 .hud__prompt {
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--hud-frame);

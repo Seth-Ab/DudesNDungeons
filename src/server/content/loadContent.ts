@@ -197,6 +197,12 @@ function readyPlateTiles(plate: { x: number; y: number }): { x: number; y: numbe
 
 function validateReferences(content: GameContent): void {
   for (const item of content.items.values()) {
+    if (item.kind !== "weapon" || item.weapon.kind !== "ranged") continue;
+    if (content.items.get(item.weapon.ammoItemId)?.kind !== "ammo") {
+      throw new Error(`Weapon "${item.id}" fires "${item.weapon.ammoItemId}", which is not an ammo item`);
+    }
+  }
+  for (const item of content.items.values()) {
     if (item.kind === "skillScroll" && !content.skills.has(item.skillId)) {
       throw new Error(`Skill scroll "${item.id}" teaches unknown skill "${item.skillId}"`);
     }

@@ -1,0 +1,17 @@
+{
+  "id": "hunting-bow",
+  "name": "Hunting Bow",
+  "kind": "weapon",
+  "weapon": {
+    "kind": "ranged",
+    "drawMs": 2000,
+    "minDrawMs": 250,
+    "minRange": 4,
+    "maxRange": 14,
+    "damage": 8,
+    "projectileSpeed": 20,
+    "projectileRadius": 0.15,
+    "staminaCost": 20,
+    "ammoItemId": "arrow"
+  }
+}

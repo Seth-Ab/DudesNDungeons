@@ -17,15 +17,15 @@ import type {
 import type { GameContent } from "../content/loadContent.js";
 import type { MeleeWeaponStats } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
-import { refreshExitSeals } from "./bosses.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
 import { recordDummyHit, refreshDummies } from "./dummies.js";
 import { expireFlares } from "./flares.js";
 import { MonsterPlanner } from "./monsterAi.js";
+import { settleDraws } from "./bow.js";
 import { standUp } from "./seats.js";
 import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "./monsterAttacks.js";
 import { hasLineOfSight } from "./visibility.js";
-import { dropMonsterLoot } from "./monsterLoot.js";
+import { damageMonster } from "./monsterDamage.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
@@ -183,12 +183,7 @@ export function resolvePlayerAttack(
   }
 
   const monster = target.entity;
-  const dealt = Math.min(damage, monster.health);
-  monster.health -= dealt;
-  monster.alive = monster.health > 0;
-  // The last boss falling is what unseals the way out.
-  if (monster.boss && !monster.alive) refreshExitSeals(session.dungeon);
-  if (!monster.alive) dropMonsterLoot(session, monster);
+  const dealt = damageMonster(session, monster, damage);
 
   return {
     ok: true,
@@ -219,10 +214,12 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   // the training dummies stand.
   expireFlares(session, now);
   refreshDummies(session, now);
+  settleDraws(session, now);
 
   if (session.location !== "dungeon") {
     regenerateStamina(session, elapsedMs);
-    return [];
+    // Arrows fly in the hub too, and hit the training dummies on the way.
+    return advanceProjectiles(session, elapsedMs, now);
   }
 
   advanceVitals(session, now, elapsedMs);
@@ -236,7 +233,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
 
     events.push(...actMonster(session, planner, monster, now, elapsedMs));
   }
-  events.push(...advanceProjectiles(session, elapsedMs));
+  events.push(...advanceProjectiles(session, elapsedMs, now));
 
   return events;
 }

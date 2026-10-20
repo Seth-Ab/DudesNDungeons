@@ -7,6 +7,7 @@
 
 export type GameplayAction =
   | "attack"
+  | "drawBow"
   | "pickup"
   | "interact"
   | "carry"
@@ -41,6 +42,7 @@ const MODIFIER_KEYS = new Set(["shift", "control", "alt", "meta", "altgraph", "c
 
 const DEFAULT_KEYS: Record<BindableAction, string> = {
   attack: " ",
+  drawBow: "r",
   interact: "e",
   pickup: "f",
   carry: "c",
@@ -73,6 +75,7 @@ export const MOVEMENT_DIRECTIONS: Record<MovementAction, "north" | "south" | "we
 /** What each action is called in messages and in the controls menu. */
 export const ACTION_NAMES: Record<BindableAction, string> = {
   attack: "Attack",
+  drawBow: "Draw bow",
   pickup: "Pick up",
   interact: "Interact",
   carry: "Carry",

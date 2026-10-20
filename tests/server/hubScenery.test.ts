@@ -205,7 +205,7 @@ describe("the hub's layout", () => {
     const props = map.props ?? [];
 
     expect(session.spawnPoints).toHaveLength(4);
-    expect(dungeon.loot.length).toBe(6);
+    expect(dungeon.loot.length).toBe(7);
     expect(dungeon.exits).toHaveLength(1);
     const stalls = props.filter((prop) => prop.kind === "stall");
     expect(stalls.map((stall) => stall.label)).toEqual(["Torch Supply", "Weapons", "Bank", "Wardrobe"]);

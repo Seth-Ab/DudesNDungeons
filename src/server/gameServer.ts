@@ -21,6 +21,7 @@ import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { isSpawned, movePlayer } from "./game/dungeonState.js";
 import { emoteAudience, emoteRefusal, playerEmotedFor } from "./game/emotes.js";
+import { beginDraw, releaseDraw } from "./game/bow.js";
 import { dropItem, giveItem, interact, pickupItem, swapHeld, useItem } from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
@@ -43,6 +44,8 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "setReady",
   "playerMoveIntent",
   "playerAttack",
+  "beginDraw",
+  "releaseDraw",
   "playerInteract",
   "pickupItem",
   "useItem",
@@ -470,6 +473,23 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         }
 
         broadcast(member.session, attack.event);
+        return;
+      }
+
+      if (message.type === "beginDraw" || message.type === "releaseDraw") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const draw =
+          message.type === "beginDraw"
+            ? beginDraw(member.session, playerId, message.direction, now())
+            : releaseDraw(member.session, playerId, message.direction, now());
+        if (!draw.ok) {
+          send(socket, { type: "actionRejected", sequence: message.sequence, reason: draw.reason });
+        }
         return;
       }
 

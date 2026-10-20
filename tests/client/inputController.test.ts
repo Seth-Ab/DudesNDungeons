@@ -51,4 +51,42 @@ describe("key input", () => {
     input.keyDown("ArrowUp", false);
     expect(input.heading()).toEqual({ x: 0, y: -1 });
   });
+
+  it("starts a draw on the first press only and ends it when the key goes up", () => {
+    const onAction = vi.fn();
+    const onRelease = vi.fn();
+    const input = createKeyInput(onAction, onRelease);
+    input.keyDown("r", false);
+    input.keyDown("r", true);
+    input.keyDown("r", false);
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onAction).toHaveBeenCalledWith("drawBow");
+    expect(onRelease).not.toHaveBeenCalled();
+
+    input.keyUp("r");
+    expect(onRelease).toHaveBeenCalledExactlyOnceWith("drawBow");
+    input.keyUp("r");
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends a draw on the key that started it even after a rebinding, and on losing focus", () => {
+    const onRelease = vi.fn();
+    const input = createKeyInput(vi.fn(), onRelease);
+    input.keyDown("r", false);
+    setBinding("drawBow", "x");
+    input.keyUp("r");
+    expect(onRelease).toHaveBeenCalledExactlyOnceWith("drawBow");
+
+    input.keyDown("x", false);
+    input.clear();
+    expect(onRelease).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not release for a key that is not a hold action", () => {
+    const onRelease = vi.fn();
+    const input = createKeyInput(vi.fn(), onRelease);
+    input.keyDown("e", false);
+    input.keyUp("e");
+    expect(onRelease).not.toHaveBeenCalled();
+  });
 });

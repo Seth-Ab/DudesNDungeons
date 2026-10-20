@@ -40,6 +40,11 @@ const CONTROL_GROUPS: ControlGroup[] = [
     title: "Dungeon",
     controls: [
       { input: bound("attack"), action: "Attack (costs stamina)", rebind: "attack" },
+      {
+        input: bound("drawBow"),
+        action: "Hold to draw the bow, release to shoot (longer draws fly further)",
+        rebind: "drawBow",
+      },
       { input: bound("pickup"), action: "Pick up nearby loot", rebind: "pickup" },
       { input: bound("interact"), action: "Interact with doors and exits", rebind: "interact" },
       {
