@@ -1,6 +1,13 @@
 import { tileOf } from "../../shared/game/movement.js";
-import type { DungeonMapState, ExitState, PlayerState, Vector2 } from "../../shared/types/core.js";
+import type {
+  ChestState,
+  DungeonMapState,
+  ExitState,
+  PlayerState,
+  Vector2,
+} from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
+import { PARTY_PALETTES } from "../rendering/characterPalettes.js";
 import { partyMemberState } from "./hudView.js";
 import { roomAt } from "./runFlow.js";
 
@@ -78,6 +85,10 @@ export interface MinimapAlly {
   tile: Vector2;
   /** Shape, not colour, carries the state: a ring stands, a cross is downed. */
   shape: MinimapAllyShape;
+  /** Their party colour, the same ring they wear in the world and on their party frame. */
+  color: string;
+  /** One capital letter from their name, so allies are told apart without colour too. */
+  initial: string;
 }
 
 /**
@@ -95,7 +106,15 @@ export function minimapAllies(view: SessionView): MinimapAlly[] {
       id: player.id,
       tile: tileOf(player.position),
       shape: allyShape(player),
+      color: PARTY_PALETTES[player.partyColor].ring,
+      initial: minimapInitial(player.name),
     }));
+}
+
+/** The first letter or digit of a name, upper-cased; a name with neither gets "?". */
+export function minimapInitial(name: string): string {
+  const first = /[\p{L}\p{N}]/u.exec(name)?.[0];
+  return first ? first.toLocaleUpperCase() : "?";
 }
 
 function allyShape(player: PlayerState): MinimapAllyShape {
@@ -127,33 +146,76 @@ export function minimapRoomName(view: SessionView, position: Vector2 | null): st
   return room?.name ?? (dungeon.map.name || "-");
 }
 
-export interface RememberedExits {
-  worldKey: string | null;
-  exits: ReadonlyMap<string, Vector2>;
+export interface RememberedChest {
+  position: Vector2;
+  opened: boolean;
 }
 
-export const NO_EXITS: RememberedExits = { worldKey: null, exits: new Map() };
+export interface RememberedMarkers {
+  worldKey: string | null;
+  exits: ReadonlyMap<string, Vector2>;
+  chests: ReadonlyMap<string, RememberedChest>;
+}
+
+export const NO_MARKERS: RememberedMarkers = { worldKey: null, exits: new Map(), chests: new Map() };
 
 /**
- * Exits arrive only while the player can see them, so the minimap keeps the ones it has been sent
- * for the life of the world and forgets them when the world changes.
+ * Exits and chests arrive only while the player can see them, so the minimap keeps the ones it has
+ * been sent for the life of the world and forgets them when the world changes. A chest keeps the
+ * state it was last seen in: one opened out of sight reads as closed until it is seen again.
  */
-export function rememberExits(
-  remembered: RememberedExits,
+export function rememberMarkers(
+  remembered: RememberedMarkers,
   worldKey: string | null,
-  current: readonly ExitState[],
-): RememberedExits {
-  const base = remembered.worldKey === worldKey ? remembered : { worldKey, exits: new Map() };
-  if (worldKey === null) return base === remembered ? remembered : NO_EXITS;
+  current: { exits: readonly ExitState[]; chests: readonly ChestState[] },
+): RememberedMarkers {
+  const base: RememberedMarkers =
+    remembered.worldKey === worldKey ? remembered : { worldKey, exits: new Map(), chests: new Map() };
+  if (worldKey === null) return base === remembered ? remembered : NO_MARKERS;
 
   let exits: Map<string, Vector2> | null = null;
-  for (const exit of current) {
+  for (const exit of current.exits) {
     const known = base.exits.get(exit.id);
-    if (known && known.x === exit.position.x && known.y === exit.position.y) continue;
+    if (known && samePoint(known, exit.position)) continue;
     exits ??= new Map(base.exits);
     exits.set(exit.id, exit.position);
   }
-  return exits ? { worldKey, exits } : base;
+  let chests: Map<string, RememberedChest> | null = null;
+  for (const chest of current.chests) {
+    const known = base.chests.get(chest.id);
+    if (known && known.opened === chest.opened && samePoint(known.position, chest.position)) continue;
+    chests ??= new Map(base.chests);
+    chests.set(chest.id, { position: chest.position, opened: chest.opened });
+  }
+  if (!exits && !chests) return base;
+  return { worldKey, exits: exits ?? base.exits, chests: chests ?? base.chests };
+}
+
+function samePoint(a: Vector2, b: Vector2): boolean {
+  return a.x === b.x && a.y === b.y;
+}
+
+export type MinimapIconKind = "exit" | "chest" | "openedChest";
+
+export interface MinimapIcon {
+  id: string;
+  kind: MinimapIconKind;
+  tile: Vector2;
+}
+
+/**
+ * The icons to draw: remembered exits and chests whose own tile is on the discovered map, so a
+ * stale or odd entry never marks dark space and nothing undiscovered is ever shown.
+ */
+export function minimapIcons(map: DungeonMapState, remembered: RememberedMarkers): MinimapIcon[] {
+  const icons: MinimapIcon[] = [];
+  const add = (id: string, kind: MinimapIconKind, at: Vector2): void => {
+    const tile = tileOf(at);
+    if (minimapTile(map, tile.x, tile.y) !== "unknown") icons.push({ id, kind, tile });
+  };
+  for (const [id, at] of remembered.exits) add(id, "exit", at);
+  for (const [id, chest] of remembered.chests) add(id, chest.opened ? "openedChest" : "chest", chest.position);
+  return icons;
 }
 
 export interface MinimapVisibility {

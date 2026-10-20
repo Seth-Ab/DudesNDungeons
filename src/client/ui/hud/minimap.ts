@@ -4,25 +4,34 @@ import type { SessionView } from "../../network/sessionState.js";
 import {
   MINIMAP_SIZE,
   minimapAllies,
+  minimapIcons,
   minimapPoint,
   minimapRoomName,
   minimapTile,
   minimapViewport,
   minimapWorldKey,
-  NO_EXITS,
-  rememberExits,
+  NO_MARKERS,
+  rememberMarkers,
   syncMinimapVisibility,
+  type MinimapAlly,
+  type MinimapIconKind,
   type MinimapViewport,
-  type RememberedExits,
+  type RememberedMarkers,
 } from "../../state/minimap.js";
 import { selfOf } from "../../network/sessionState.js";
 
 const WALL_COLOR = "#6b6259";
 const FLOOR_COLOR = "#2a2723";
 const SELF_COLOR = "#ffe08a";
-const ALLY_COLOR = "#7fd0e8";
 const EXIT_COLOR = "#8fe3a0";
+const CHEST_COLOR = "#d8a64a";
+const CHEST_OPENED_COLOR = "#8a7550";
 const OUTLINE_COLOR = "#0b0b0c";
+const INITIAL_FONT = "bold 8px ui-sans-serif, system-ui, sans-serif";
+
+/** Hover text for the panel, standing in for a legend. */
+const MINIMAP_LEGEND =
+  "Minimap. Arrow: you. Ring with a letter: an ally, a cross when downed. Arch: exit. Box: chest, hollow once opened.";
 
 type Context = CanvasRenderingContext2D;
 
@@ -67,36 +76,99 @@ function inPanel(point: { x: number; y: number }): boolean {
   return point.x >= 0 && point.y >= 0 && point.x <= MINIMAP_SIZE && point.y <= MINIMAP_SIZE;
 }
 
-/** A ring for a standing ally, a cross for a downed one: shape carries the state, not colour. */
-function drawAlly(context: Context, at: { x: number; y: number }, downed: boolean): void {
-  const radius = 4;
+function drawInitial(context: Context, at: { x: number; y: number }, initial: string, color: string): void {
+  context.font = INITIAL_FONT;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
   context.lineWidth = 2;
-  context.strokeStyle = ALLY_COLOR;
-  context.beginPath();
-  if (downed) {
-    context.moveTo(at.x - radius, at.y - radius);
-    context.lineTo(at.x + radius, at.y + radius);
-    context.moveTo(at.x + radius, at.y - radius);
-    context.lineTo(at.x - radius, at.y + radius);
-  } else {
-    context.arc(at.x, at.y, radius, 0, Math.PI * 2);
-  }
-  context.stroke();
+  context.strokeStyle = OUTLINE_COLOR;
+  context.strokeText(initial, at.x, at.y + 0.5);
+  context.fillStyle = color;
+  context.fillText(initial, at.x, at.y + 0.5);
 }
 
+/**
+ * A ring holding the ally's initial while they stand, a cross with the initial beside it once they
+ * are down, both in their party colour: shape carries the state and the letter the identity, so
+ * neither rests on colour alone.
+ */
+function drawAlly(context: Context, at: { x: number; y: number }, ally: MinimapAlly): void {
+  if (ally.shape === "downed") {
+    const arm = 4;
+    context.beginPath();
+    context.moveTo(at.x - arm, at.y - arm);
+    context.lineTo(at.x + arm, at.y + arm);
+    context.moveTo(at.x + arm, at.y - arm);
+    context.lineTo(at.x - arm, at.y + arm);
+    context.lineWidth = 4;
+    context.strokeStyle = OUTLINE_COLOR;
+    context.stroke();
+    context.lineWidth = 2;
+    context.strokeStyle = ally.color;
+    context.stroke();
+    drawInitial(context, { x: at.x + arm + 4, y: at.y - arm - 2 }, ally.initial, ally.color);
+    return;
+  }
+
+  context.beginPath();
+  context.arc(at.x, at.y, 6, 0, Math.PI * 2);
+  context.fillStyle = OUTLINE_COLOR;
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = ally.color;
+  context.stroke();
+  drawInitial(context, at, ally.initial, ally.color);
+}
+
+/** A doorway: an arch with a dark opening. */
 function drawExit(context: Context, at: { x: number; y: number }): void {
-  const radius = 5;
+  const half = 4;
+  const outline = (inset: number): void => {
+    context.beginPath();
+    context.moveTo(at.x - half + inset, at.y + half);
+    context.lineTo(at.x - half + inset, at.y - 1);
+    context.arc(at.x, at.y - 1, half - inset, Math.PI, 0);
+    context.lineTo(at.x + half - inset, at.y + half);
+    context.closePath();
+  };
+  outline(0);
   context.fillStyle = EXIT_COLOR;
   context.strokeStyle = OUTLINE_COLOR;
   context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(at.x, at.y - radius);
-  context.lineTo(at.x + radius, at.y);
-  context.lineTo(at.x, at.y + radius);
-  context.lineTo(at.x - radius, at.y);
-  context.closePath();
   context.fill();
   context.stroke();
+  outline(2);
+  context.fillStyle = OUTLINE_COLOR;
+  context.fill();
+}
+
+/** A box with a lid line; an opened chest is drawn as an empty outline. */
+function drawChest(context: Context, at: { x: number; y: number }, opened: boolean): void {
+  const left = Math.round(at.x) - 4.5;
+  const top = Math.round(at.y) - 3.5;
+  if (opened) {
+    context.strokeStyle = OUTLINE_COLOR;
+    context.lineWidth = 3;
+    context.strokeRect(left, top, 9, 7);
+    context.strokeStyle = CHEST_OPENED_COLOR;
+    context.lineWidth = 1;
+    context.strokeRect(left, top, 9, 7);
+    return;
+  }
+  context.fillStyle = CHEST_COLOR;
+  context.fillRect(left, top, 9, 7);
+  context.strokeStyle = OUTLINE_COLOR;
+  context.lineWidth = 1;
+  context.strokeRect(left, top, 9, 7);
+  context.beginPath();
+  context.moveTo(left, top + 3);
+  context.lineTo(left + 9, top + 3);
+  context.stroke();
+}
+
+function drawIcon(context: Context, at: { x: number; y: number }, kind: MinimapIconKind): void {
+  if (kind === "exit") drawExit(context, at);
+  else drawChest(context, at, kind === "openedChest");
 }
 
 /** A filled arrowhead pointing along the player's facing. */
@@ -124,7 +196,7 @@ function drawSelf(context: Context, at: { x: number; y: number }, facing: Vector
 /**
  * A corner overview drawn from the client's accumulated discovered map: black except where the
  * server has sent geometry. A header strip names the room the player is in and marks north. It repaints only when the map object, the player's tile or facing, the
- * visible allies, or the remembered exits change, since none of those move every frame.
+ * visible allies, or the remembered exits and chests change, since none of those move every frame.
  */
 export function createMinimap() {
   const element = document.createElement("div");
@@ -148,12 +220,13 @@ export function createMinimap() {
   canvas.height = MINIMAP_SIZE;
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", "Minimap of the explored dungeon");
+  canvas.title = MINIMAP_LEGEND;
   element.append(header, canvas);
 
   const context = canvas.getContext("2d");
 
   let visibility = { worldKey: null as string | null, visible: true };
-  let exits: RememberedExits = NO_EXITS;
+  let markers: RememberedMarkers = NO_MARKERS;
   let drawn = "";
   let lastMap: unknown = null;
   let lastView: SessionView | null = null;
@@ -172,13 +245,16 @@ export function createMinimap() {
 
     const tile = tileOf(position);
     const allies = minimapAllies(view);
+    const icons = minimapIcons(map, markers);
     const signature = [
       tile.x,
       tile.y,
       self.facing.x,
       self.facing.y,
-      allies.map((ally) => `${ally.id}@${ally.tile.x},${ally.tile.y}${ally.shape}`).join(";"),
-      [...exits.exits].map(([id, at]) => `${id}@${at.x},${at.y}`).join(";"),
+      allies
+        .map((ally) => `${ally.id}@${ally.tile.x},${ally.tile.y}${ally.shape}${ally.color}${ally.initial}`)
+        .join(";"),
+      icons.map((icon) => `${icon.id}@${icon.tile.x},${icon.tile.y}${icon.kind}`).join(";"),
     ].join("|");
     if (map === lastMap && signature === drawn) return;
     lastMap = map;
@@ -190,16 +266,13 @@ export function createMinimap() {
     context.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
     fillTiles(context, view, viewport);
 
-    // An exit's tile must itself be discovered, so a stale or odd entry never marks dark space.
-    for (const at of exits.exits.values()) {
-      const exitTile = tileOf(at);
-      if (minimapTile(map, exitTile.x, exitTile.y) === "unknown") continue;
-      const point = centreOf(viewport, exitTile);
-      if (inPanel(point)) drawExit(context, point);
+    for (const icon of icons) {
+      const point = centreOf(viewport, icon.tile);
+      if (inPanel(point)) drawIcon(context, point, icon.kind);
     }
     for (const ally of allies) {
       const point = centreOf(viewport, ally.tile);
-      if (inPanel(point)) drawAlly(context, point, ally.shape === "downed");
+      if (inPanel(point)) drawAlly(context, point, ally);
     }
     drawSelf(context, centreOf(viewport, tile), self.facing);
   };
@@ -218,7 +291,10 @@ export function createMinimap() {
     update(view: SessionView): void {
       const worldKey = minimapWorldKey(view);
       visibility = syncMinimapVisibility(visibility, worldKey);
-      exits = rememberExits(exits, worldKey, view.dungeon?.exits ?? []);
+      markers = rememberMarkers(markers, worldKey, {
+        exits: view.dungeon?.exits ?? [],
+        chests: view.dungeon?.chests ?? [],
+      });
       lastView = view;
       if (worldKey === null) position = null;
       else position ??= selfOf(view)?.position ?? null;
