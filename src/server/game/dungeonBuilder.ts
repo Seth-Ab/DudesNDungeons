@@ -257,6 +257,16 @@ export function buildAuthoredDungeon(
         theme: definition.theme,
         props: definition.props.map((prop) => ({ ...prop })),
         ...(definition.ground ? { ground: [...definition.ground] } : {}),
+        ...(definition.seats.length > 0
+          ? {
+              seats: definition.seats.map((seat) => ({
+                id: seat.entityId,
+                x: seat.x,
+                y: seat.y,
+                facing: seat.facing,
+              })),
+            }
+          : {}),
       },
       rooms,
       monsters,

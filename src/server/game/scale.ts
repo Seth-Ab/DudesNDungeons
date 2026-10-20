@@ -67,6 +67,10 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
         ...(dungeon.map.props
           ? { props: dungeon.map.props.map((prop) => ({ ...prop, x: prop.x * scale, y: prop.y * scale })) }
           : {}),
+        // A seat is where a sitter's body goes, a point like loot, so it scales like one.
+        ...(dungeon.map.seats
+          ? { seats: dungeon.map.seats.map((seat) => ({ ...seat, ...point(seat) })) }
+          : {}),
       },
       // Room bounds are a block of whole tiles rather than a point, so they scale at both corners:
       // the top-left moves out and the size grows with it, leaving the room flush with its walls.

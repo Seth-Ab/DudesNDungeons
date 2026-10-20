@@ -79,13 +79,16 @@ export function nearestLoot(
 /**
  * A door is measured to the nearest point of its span, the way the server judges reach; measured
  * to the centre, no locked door could be opened from the UI. An opened chest is spent and is no
- * longer a target.
+ * longer a target. A seat is one only while nobody is on it and the viewer is standing: the server
+ * refuses a taken seat, and a sitter has to stand up before taking another.
  */
 export function nearestInteraction(
   view: SessionView,
   position: Vector2,
-): (ReachTarget & { gap: number; kind: "door" | "exit" | "chest"; locked: boolean }) | null {
+): (ReachTarget & { gap: number; kind: "door" | "exit" | "chest" | "seat"; locked: boolean }) | null {
   if (!view.dungeon) return null;
+  const taken = new Set(view.players.map((p) => p.seatId));
+  const sitting = view.players.some((p) => p.id === view.selfId && p.seatId !== null);
   return closest([
     ...view.dungeon.chests
       .filter((chest) => !chest.opened)
@@ -112,6 +115,15 @@ export function nearestInteraction(
       locked: false,
       gap: distance(position, exit.position),
     })),
+    ...(sitting ? [] : (view.dungeon.map.seats ?? []))
+      .filter((seat) => !taken.has(seat.id))
+      .map((seat) => ({
+        id: seat.id,
+        name: "seat",
+        kind: "seat" as const,
+        locked: false,
+        gap: distance(position, seat),
+      })),
   ]);
 }
 

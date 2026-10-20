@@ -38,6 +38,7 @@ function self(appearance: PlayerState["appearance"]): PlayerState {
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    seatId: null,
     appearance,
     partyColor: "azure",
     bankedItems: [],

@@ -538,7 +538,7 @@ export interface ActionPromptView {
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
- * else lifting them, loot, then chests, doors, and exits.
+ * else lifting them, loot, then chests, doors, exits, and seats.
  */
 export function actionPrompt(
   view: SessionView,
@@ -579,6 +579,7 @@ export function actionPrompt(
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
+  if (target?.kind === "seat") return prompt("interact", "Sit");
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

@@ -67,6 +67,9 @@ const pixelsPerWorldUnit = 32;
 /** The body the server collides a player with, in world units. Monsters are sized from it. */
 const figureWidth = PLAYER_RADIUS * 2;
 
+/** How far a seated figure is drawn below where it sits, in world units, so it reads as sitting. */
+const SEATED_DROP = 0.2;
+
 const colors = {
   floor: "#2d3033",
   wall: "#0e0f12",
@@ -341,7 +344,8 @@ export function createCanvasRenderer(
   /**
    * A player as drawn this frame, or null for one still designing their character, who is not in
    * the world. Downed and disconnected players are drawn faded; a carried player is drawn where the
-   * snapshot puts them, like anyone else.
+   * snapshot puts them, like anyone else. A seated player is the standing figure dropped a little
+   * onto the seat, until the character sheet has a seated frame.
    */
   const drawnPlayer = (player: PlayerState, position: Vector2): DrawnPlayer | null =>
     player.appearance === null
@@ -350,7 +354,7 @@ export function createCanvasRenderer(
           id: player.id,
           look: { ...player.appearance, partyColor: player.partyColor },
           facing: player.facing,
-          position,
+          position: player.seatId === null ? position : { x: position.x, y: position.y + SEATED_DROP },
           label: carryLabel(player),
           faded: player.health <= 0 || !player.connected,
         };

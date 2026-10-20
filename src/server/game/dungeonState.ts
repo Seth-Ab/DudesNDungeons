@@ -14,6 +14,7 @@ import { buildAuthoredDungeon, type BuiltDungeon } from "./dungeonBuilder.js";
 import { generateDungeon } from "./dungeonGenerator.js";
 import { randomSeed } from "./random.js";
 import { scaleDungeon } from "./scale.js";
+import { standUp } from "./seats.js";
 
 /**
  * Tuning that stays on the server. Clients see a monster's position and health, never its stats.
@@ -140,7 +141,7 @@ export function findSpawnPoint(session: Session): Vector2 {
   throw new Error("Dungeon has no free floor to spawn on");
 }
 
-function blockingPlayerPositions(session: Session, mover?: SessionPlayer): Vector2[] {
+export function blockingPlayerPositions(session: Session, mover?: SessionPlayer): Vector2[] {
   return [...session.players.values()]
     .filter((player) => player.id !== mover?.id && !isDown(player) && isSpawned(player))
     .map((player) => player.position);
@@ -178,6 +179,14 @@ export function movePlayer(
   const due = player.nextMoveAt ?? now;
   if (now < due - MOVE_BURST_TOLERANCE_MS) {
     return { ok: false, reason: "onCooldown" };
+  }
+
+  // Any step stands a sitter up, and standing is the whole move: they land on the floor their seat
+  // faces, so no direction, not even one into the bench, carries them on through it.
+  if (player.seatId !== null) {
+    standUp(session, player);
+    player.nextMoveAt = Math.max(due, now) + MOVE_INTERVAL_MS;
+    return { ok: true, player };
   }
 
   player.facing = step.heading;

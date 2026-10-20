@@ -1444,3 +1444,50 @@ describe("progression state", () => {
     ]);
   });
 });
+
+describe("seats", () => {
+  it("sits one player on a bench where the other sees it, and a move stands them up for both", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+    const sitter = session.players.get(alpha.joined.playerId)!;
+
+    // Seats travel with map discovery, so a client can find one to sit on. They arrive once, on the
+    // baseline that may already be in the inbox.
+    await vi.waitFor(() =>
+      expect(alpha.client.received("stateSnapshot").some((snapshot) => snapshot.dungeon.map.seats)).toBe(true),
+    );
+    const seats = alpha.client.received("stateSnapshot").flatMap((snapshot) => snapshot.dungeon.map.seats ?? []);
+    const seat = seats.find((candidate) => candidate.facing === "south")!;
+    sitter.position = { x: seat.x, y: Math.round(seat.y) + 1 };
+
+    alpha.client.send({ type: "playerInteract", targetId: seat.id });
+    const seated = await beta.client.nextWhere(
+      "stateSnapshot",
+      (snapshot) => snapshot.players.find((player) => player.id === sitter.id)?.seatId === seat.id,
+    );
+    expect(seated.players.find((player) => player.id === sitter.id)?.position).toEqual({ x: seat.x, y: seat.y });
+    await alpha.client.nextWhere(
+      "stateSnapshot",
+      (snapshot) => snapshot.players.find((player) => player.id === sitter.id)?.seatId === seat.id,
+    );
+
+    // A second player cannot take a seat that is in use.
+    const other = session.players.get(beta.joined.playerId)!;
+    other.position = { x: seat.x + 0.5, y: Math.round(seat.y) + 1 };
+    beta.client.send({ type: "playerInteract", targetId: seat.id });
+    expect((await beta.client.next("actionRejected")).reason).toBe("blocked");
+
+    alpha.client.send({ type: "playerMoveIntent", sequence: 1, direction: { x: 0, y: -1 } });
+    for (const client of [alpha.client, beta.client]) {
+      const stood = await client.nextWhere(
+        "stateSnapshot",
+        (snapshot) => snapshot.players.find((player) => player.id === sitter.id)?.seatId === null,
+      );
+      const seen = stood.players.find((player) => player.id === sitter.id)!;
+      // Up onto the floor in front of the bench, even though the step pointed into it.
+      expect(seen.position.y).toBeGreaterThan(seat.y);
+    }
+  });
+});

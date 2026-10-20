@@ -19,6 +19,7 @@ import type {
   LitRun,
   MapDiscovery,
   MapProp,
+  MapSeat,
   PlayerId,
   PlayerState,
   RoomState,
@@ -603,6 +604,7 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
   viewer.mapSyncedTo = map;
 
   const props = map.props && map.props.length > 0 ? propsDiscovered(map, discovered, reset ? null : indexes) : [];
+  const seats = map.seats && map.seats.length > 0 ? seatsDiscovered(map, discovered, reset ? null : indexes) : [];
 
   return {
     id: map.id,
@@ -614,7 +616,30 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
     lit: litRunsFor(viewer, map),
     ...(map.theme && map.theme !== DEFAULT_MAP_THEME ? { theme: map.theme } : {}),
     ...(props.length > 0 ? { props } : {}),
+    ...(seats.length > 0 ? { seats } : {}),
   };
+}
+
+/**
+ * The seats a snapshot should carry: on a baseline (`fresh` null), every seat whose tile is
+ * discovered; otherwise only those whose tile is among `fresh`. A seat is one tile, so it arrives
+ * exactly once, with that tile.
+ */
+function seatsDiscovered(
+  map: DungeonMapState,
+  discovered: Uint8Array,
+  fresh: ArrayLike<number> | null,
+): MapSeat[] {
+  if (fresh !== null && fresh.length === 0) return [];
+  const isFresh = fresh === null ? null : new Set(Array.from(fresh));
+
+  return (map.seats ?? [])
+    .filter((seat) => {
+      const { x, y } = tileOf(seat);
+      const index = y * map.width + x;
+      return discovered[index] === 1 && (isFresh === null || isFresh.has(index));
+    })
+    .map((seat) => ({ ...seat }));
 }
 
 /**

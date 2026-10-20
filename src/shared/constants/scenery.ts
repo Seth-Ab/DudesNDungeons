@@ -64,6 +64,22 @@ export const DEFAULT_PROP_FACING = "south";
 /** The kinds with art for facing north. Content refuses `facing` on any other. */
 export const FACEABLE_PROP_KINDS: readonly (typeof MAP_PROP_KINDS)[number][] = ["stall", "bench"];
 
+/**
+ * Which way a seat faces: the side a sitter looks out over, and the side they stand up onto. A bench
+ * seats people facing the way the bench does, and the fountain rim faces out on all four sides.
+ */
+export const SEAT_FACINGS = ["north", "south", "east", "west"] as const;
+
+export type SeatFacing = (typeof SEAT_FACINGS)[number];
+
+/** A seat's facing as a unit world vector, which is also the facing a sitter is given. */
+export const SEAT_FACING_VECTORS: Readonly<Record<SeatFacing, { x: number; y: number }>> = {
+  north: { x: 0, y: -1 },
+  south: { x: 0, y: 1 },
+  east: { x: 1, y: 0 },
+  west: { x: -1, y: 0 },
+};
+
 /** Longest caption a prop may carry, such as a stall's name. */
 export const MAX_PROP_LABEL_LENGTH = 32;
 

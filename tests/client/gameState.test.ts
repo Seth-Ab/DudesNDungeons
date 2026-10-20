@@ -53,6 +53,7 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    seatId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],

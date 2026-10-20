@@ -68,7 +68,13 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   An authored dungeon may also list training `dummies`, `{ entityId, x, y }`, each on a floor tile
   with an id unique in the dungeon. A dummy is struck like a monster but never takes damage, dies,
   moves, or attacks, and shows a rolling five-second damage readout; the hub has two, in its
-  training yard.
+  training yard. It may also list `seats`, `{ entityId, x, y, facing }`, where a player can sit:
+  `x`/`y` is where the sitter goes and the tile it rounds to is the one sat on, normally the `#`
+  under a bench or the fountain. `facing` (`north`, `south`, `east` or `west`) is the side they
+  look out over and stand up onto, and loading fails unless that neighbouring tile is floor. Put a
+  seat about a sixteenth of a tile in from that edge, so a sitter's body reaches the floor and is
+  seen from it. Ids are unique in the dungeon. The hub has two per bench and four on the fountain
+  rim.
 - An authored dungeon may also set `ground`: a grid of strings the same size as `tiles`, saying what
   each floor tile is drawn as. `g` is grass, `c` cobble, `d` dirt, and `.` the theme's own floor,
   so a map without `ground` looks exactly as it did. It is render-only: collision always comes from

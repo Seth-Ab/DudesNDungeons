@@ -75,6 +75,19 @@ describe("applyMapDiscovery", () => {
     expect(applyMapDiscovery(second, discovery({ theme: "forest" }))).toBe(second);
   });
 
+  it("accumulates seats as they are discovered and drops them on a reset", () => {
+    const bench = { id: "14f4b265-75ae-41f0-81ba-f62410dcc5b3", x: 1, y: 0.75, facing: "south" } as const;
+    const rim = { id: "32924e4e-473a-4c26-b13a-4f8ba4376dfb", x: 3, y: 1.25, facing: "north" } as const;
+    const first = applyMapDiscovery(null, discovery({ reset: true, seats: [bench] }));
+    const second = applyMapDiscovery(first, discovery({ seats: [rim] }));
+
+    expect(first.seats).toEqual([bench]);
+    expect(second).not.toBe(first);
+    expect(second.seats).toEqual([bench, rim]);
+    expect(applyMapDiscovery(second, discovery({}))).toBe(second);
+    expect(applyMapDiscovery(second, discovery({ reset: true })).seats).toEqual([]);
+  });
+
   it("drops held props on a reset, keeping only what the baseline carries", () => {
     const first = applyMapDiscovery(null, discovery({ reset: true, props: [{ kind: "bush", x: 1, y: 1 }] }));
     const rebased = applyMapDiscovery(first, discovery({ reset: true }));

@@ -35,6 +35,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { lootRngFor } from "../game/monsterLoot.js";
+import { standUp } from "../game/seats.js";
 import type { DummyHit } from "../game/dummies.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
@@ -69,6 +70,8 @@ export interface SessionPlayer {
   carryingPlayerId: PlayerId | null;
   /** The player carrying this one, or null. Set only while this player is downed. */
   carriedByPlayerId: PlayerId | null;
+  /** The seat this player sits on, or null. Set only by `src/server/game/seats.ts`. */
+  seatId: EntityId | null;
   /**
    * The designed look, or null while the player is still designing it. Null means the slot is held
    * but the player is not in the world: they block nobody, and the server refuses their actions and
@@ -390,6 +393,7 @@ export class SessionStore {
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
+      seatId: null,
       appearance: null,
       partyColor,
       profile: request.profile ?? request.createProfile(),
@@ -466,6 +470,8 @@ export class SessionStore {
     // stand. The reverse is left alone: a carried player is an inert body regardless of their own
     // connection, so their carrier keeps carrying them.
     this.#dropCarryFor(member.session, member.player);
+    // Nor is anyone left sitting: a reconnect within the grace window comes back standing.
+    standUp(member.session, member.player);
     return member;
   }
 
@@ -573,6 +579,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,
+    seatId: player.seatId,
     appearance: player.appearance ? { ...player.appearance } : null,
     partyColor: player.partyColor,
   };

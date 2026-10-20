@@ -630,3 +630,76 @@ describe("map ground content", () => {
     );
   });
 });
+
+describe("seat content", () => {
+  const FIRST = "e1111111-1111-4111-8111-111111111111";
+  const SECOND = "e2222222-2222-4222-8222-222222222222";
+
+  /** A bench at authored (2, 1) between two floor tiles, wall everywhere else. */
+  function plaza(fields: Record<string, unknown>) {
+    return contentRoot({
+      "dungeons/plaza.json": {
+        id: "plaza",
+        name: "Plaza",
+        layout: "authored",
+        tiles: ["#####", "#.#.#", "#####"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        ...fields,
+      },
+    });
+  }
+
+  it("accepts seats facing floor with distinct ids, and defaults to none", () => {
+    const placed = loadContent(
+      plaza({
+        seats: [
+          { entityId: FIRST, x: 2.4375, y: 1, facing: "east" },
+          { entityId: SECOND, x: 1.5625, y: 1, facing: "west" },
+        ],
+      }),
+    ).dungeons.get("plaza");
+
+    expect(placed?.layout === "authored" && placed.seats).toHaveLength(2);
+    expect(loadContent(plaza({})).dungeons.get("plaza")).toMatchObject({ seats: [] });
+  });
+
+  it("refuses a seat that faces no walkable floor", () => {
+    expect(() =>
+      loadContent(plaza({ seats: [{ entityId: FIRST, x: 2, y: 1, facing: "north" }] })),
+    ).toThrow(/places a seat at \(2, 1\) facing north onto no walkable floor/);
+  });
+
+  it("refuses a seat off the map", () => {
+    expect(() =>
+      loadContent(plaza({ seats: [{ entityId: FIRST, x: 7, y: 1, facing: "west" }] })),
+    ).toThrow(/places a seat at \(7, 1\) off the map/);
+  });
+
+  it("refuses a duplicate id, between seats or against another placement", () => {
+    expect(() =>
+      loadContent(
+        plaza({
+          seats: [
+            { entityId: FIRST, x: 2, y: 1, facing: "east" },
+            { entityId: FIRST, x: 2, y: 1, facing: "west" },
+          ],
+        }),
+      ),
+    ).toThrow(/reuses entity id "e1111111-1111-4111-8111-111111111111" for a seat/);
+    expect(() =>
+      loadContent(
+        plaza({
+          dummies: [{ entityId: FIRST, x: 1, y: 1 }],
+          seats: [{ entityId: FIRST, x: 2, y: 1, facing: "east" }],
+        }),
+      ),
+    ).toThrow(/reuses entity id/);
+  });
+
+  it("refuses a seat without an id or with an unknown facing", () => {
+    expect(() => loadContent(plaza({ seats: [{ x: 2, y: 1, facing: "east" }] }))).toThrow(/seats/);
+    expect(() =>
+      loadContent(plaza({ seats: [{ entityId: FIRST, x: 2, y: 1, facing: "up" }] })),
+    ).toThrow(/seats/);
+  });
+});
