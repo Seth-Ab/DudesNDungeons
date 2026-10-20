@@ -8,10 +8,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Most specs drive two browsers against one server and spend their time waiting, so two workers
-  // fit a two-core CI runner. More than a few workers on one machine starves the game server and
-  // makes the timing-sensitive specs flaky.
-  workers: process.env.CI ? 2 : 3,
+  // Most specs drive two browsers against one server and spend their time waiting. One worker per
+  // two-core CI runner is all it holds: with two, the game server is starved and the timing-
+  // sensitive specs time out, so CI gets its parallelism from shards. Locally, more than a few
+  // workers does the same.
+  workers: process.env.CI ? 1 : 3,
   reporter: "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
