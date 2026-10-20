@@ -10,6 +10,11 @@ import type {
 /** The captured microphone, plus the stream peer links send. */
 export interface BrowserLocalAudio extends LocalAudio {
   readonly stream: MediaStream;
+  /**
+   * The context the meter runs in, shared with the peer links' speaking meters. It was started by
+   * the player's click, so it is running; one a link made later on its own could start suspended.
+   */
+  readonly context: AudioContext | null;
 }
 
 /**
@@ -42,6 +47,7 @@ export async function captureMicrophone(): Promise<CaptureResult<BrowserLocalAud
     ok: true,
     audio: {
       stream,
+      context,
       setMuted(muted) {
         // A disabled track sends silence and keeps the connection, so muting costs no renegotiation.
         for (const track of stream.getAudioTracks()) track.enabled = !muted;
@@ -69,7 +75,9 @@ function createAudioContext(): AudioContext | null {
 function createMeter(context: AudioContext, stream: MediaStream) {
   const analyser = context.createAnalyser();
   analyser.fftSize = 512;
-  context.createMediaStreamSource(stream).connect(analyser);
+  const source = context.createMediaStreamSource(stream);
+  // Only the analyser listens: nothing reaches the speakers, so a remote stream is not played twice.
+  source.connect(analyser);
   const samples = new Float32Array(analyser.fftSize);
 
   return {
@@ -78,6 +86,9 @@ function createMeter(context: AudioContext, stream: MediaStream) {
       let sum = 0;
       for (const sample of samples) sum += sample * sample;
       return Math.min(1, Math.sqrt(sum / samples.length) * 4);
+    },
+    disconnect() {
+      source.disconnect();
     },
   };
 }
@@ -108,11 +119,23 @@ export function createBrowserPeerLink(
   const audio = new Audio();
   audio.autoplay = true;
   let volume = 0;
+  // Reads the remote stream for the speaking ring; replaced with each new track, gone on close.
+  let meter: ReturnType<typeof createMeter> | null = null;
 
   connection.ontrack = (event) => {
-    audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+    const stream = event.streams[0] ?? new MediaStream([event.track]);
+    audio.srcObject = stream;
     audio.volume = volume;
     void audio.play().catch(() => undefined);
+    meter?.disconnect();
+    meter = null;
+    if (local.context && local.context.state !== "closed") {
+      try {
+        meter = createMeter(local.context, stream);
+      } catch {
+        // No ring for this peer, but their audio still plays.
+      }
+    }
   };
 
   connection.onicecandidate = (event) => {
@@ -159,7 +182,11 @@ export function createBrowserPeerLink(
       audio.volume = volume;
     },
 
+    level: () => meter?.level() ?? 0,
+
     close() {
+      meter?.disconnect();
+      meter = null;
       connection.ontrack = null;
       connection.onicecandidate = null;
       connection.onconnectionstatechange = null;

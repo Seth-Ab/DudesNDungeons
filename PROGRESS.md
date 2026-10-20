@@ -8,7 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v35.
-- Last completed work: readying up by standing on four plates in front of the hub gate, lit in the
+- Last completed work: speaking rings on party portraits from per-peer remote voice levels, with a
+  hold and a proximity cutoff (issue #173, HUD Torch & Tally Phase 5, protocol unchanged); earlier,
+  readying up by standing on four plates in front of the hub gate, lit in the
   holder's party colour, with a cue when the last one fills (issue #147, protocol v35); earlier, a
   hotbar slot pulse on a confirmed item use and an icon fly-in on pickup (issue #175, HUD Torch &
   Tally, protocol unchanged); earlier, toasts and the hub gate status merged into one top-centre
@@ -396,6 +398,12 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add mute, deafened, input level, and permission-denied states. Camp menu buttons (#161), a
   level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`),
   plus an on-screen mic chip.
+  - [x] Show speaking rings on party portraits (issue #173, HUD Torch & Tally Phase 5). Each peer
+    link reads its remote stream through an analyser in the microphone's AudioContext, made on the
+    track and disconnected on close. `voiceMesh.speakingPeers()` marks a connected peer speaking at
+    or over `DEFAULT_SPEAKING_THRESHOLD` and holds it for `DEFAULT_SPEAKING_HOLD_MS` (400 ms); a peer
+    at volume 0 (out of earshot, or this player deafened) never shows. The party frame gets a gold
+    portrait ring and a ♪ "Speaking" badge; reduced motion keeps the ring steady. Client-only.
 
 ### 6. Polish and Playtesting
 
@@ -479,6 +487,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-20: Speaking rings on party portraits from per-peer voice levels (#173, HUD Torch & Tally Phase 5).
 - 2026-10-20: Ready plates in front of the hub gate, with a public `readyPlateId` and a party-ready cue (#147, v35).
 - 2026-10-20: Hotbar slots pulse on a confirmed item use and a picked-up item flies into its slot, with a reduced-motion highlight (#175, HUD Torch & Tally).
 - 2026-10-19: Sitting on hub benches and the fountain rim, with a public `seatId` (#148, v34).

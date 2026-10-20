@@ -56,6 +56,9 @@ export interface PeerLink {
   addIceCandidate(candidate: IceCandidate): Promise<void>;
   /** Playback volume for the remote stream, 0 to 1. */
   setVolume(volume: number): void;
+  /** The remote stream's loudness from 0 to 1, before volume; 0 until its audio arrives. */
+  level(): number;
+  /** Closes the connection and releases whatever reads its audio. */
   close(): void;
 }
 
@@ -86,9 +89,16 @@ export interface VoiceMeshOptions<L extends LocalAudio> {
    * failing would otherwise be re-offered on every snapshot and drain the signaling budget.
    */
   reofferDelayMs?: number;
+  /** Remote loudness at or above which a peer counts as talking. */
+  speakingThreshold?: number;
+  /** How long a peer stays speaking after going quiet, so pauses between words do not flicker. */
+  speakingHoldMs?: number;
 }
 
 export const DEFAULT_REOFFER_DELAY_MS = 5000;
+/** On the input meter's scale, where ordinary speech fills most of the bar. */
+export const DEFAULT_SPEAKING_THRESHOLD = 0.08;
+export const DEFAULT_SPEAKING_HOLD_MS = 400;
 
 interface Peer {
   id: PlayerId;
@@ -104,11 +114,35 @@ interface Peer {
   /** The last remote offer applied, so a repeat of it is recognized and dropped. */
   remoteOfferSdp: string | null;
   connected: boolean;
+  /** When this peer was last loud enough to count as talking. */
+  lastLoudAt: number;
+}
+
+export interface SpeakingInput {
+  level: number;
+  /** The playback volume this player hears the peer at. */
+  volume: number;
+  lastLoudAt: number;
+  now: number;
+  threshold: number;
+  holdMs: number;
+}
+
+/**
+ * Whether a peer shows as speaking: loud now, or loud within the hold. A peer this player cannot
+ * hear, through distance or deafening, never shows as speaking however loud they are.
+ */
+export function isSpeaking(input: SpeakingInput): boolean {
+  if (input.volume <= 0) return false;
+  if (input.level >= input.threshold) return true;
+  return input.now - input.lastLoudAt < input.holdMs;
 }
 
 export function createVoiceMesh<L extends LocalAudio>(options: VoiceMeshOptions<L>) {
   const now = options.now ?? (() => Date.now());
   const reofferDelayMs = options.reofferDelayMs ?? DEFAULT_REOFFER_DELAY_MS;
+  const speakingThreshold = options.speakingThreshold ?? DEFAULT_SPEAKING_THRESHOLD;
+  const speakingHoldMs = options.speakingHoldMs ?? DEFAULT_SPEAKING_HOLD_MS;
 
   let status: VoiceStatus = "off";
   let muted = false;
@@ -201,6 +235,7 @@ export function createVoiceMesh<L extends LocalAudio>(options: VoiceMeshOptions<
       localOfferSdp: null,
       remoteOfferSdp: null,
       connected: false,
+      lastLoudAt: Number.NEGATIVE_INFINITY,
     };
     peers.set(id, peer);
     link.setVolume(volumeFor(id));
@@ -412,6 +447,31 @@ export function createVoiceMesh<L extends LocalAudio>(options: VoiceMeshOptions<
     inputLevel(): number {
       if (!local || muted || deafened) return 0;
       return local.level();
+    },
+
+    /**
+     * Peers heard talking right now, for the party frames' speaking rings. Called every frame, so
+     * each call reads each connected link's level once.
+     */
+    speakingPeers(): Set<PlayerId> {
+      const speaking = new Set<PlayerId>();
+      if (status !== "live") return speaking;
+      const at = now();
+      for (const peer of peers.values()) {
+        if (!peer.connected) continue;
+        const level = peer.link.level();
+        if (level >= speakingThreshold) peer.lastLoudAt = at;
+        const heard = isSpeaking({
+          level,
+          volume: volumeFor(peer.id),
+          lastLoudAt: peer.lastLoudAt,
+          now: at,
+          threshold: speakingThreshold,
+          holdMs: speakingHoldMs,
+        });
+        if (heard) speaking.add(peer.id);
+      }
+      return speaking;
     },
 
     peerIds(): PlayerId[] {

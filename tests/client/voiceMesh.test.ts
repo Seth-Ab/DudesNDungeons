@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createVoiceMesh,
+  DEFAULT_SPEAKING_HOLD_MS,
+  DEFAULT_SPEAKING_THRESHOLD,
+  isSpeaking,
   voiceStatusLabel,
   type CaptureResult,
   type IceCandidate,
@@ -41,6 +44,8 @@ class FakeLink implements PeerLink {
   closed = false;
   rolledBack = false;
   volume: number | null = null;
+  /** What the fake analyser on the remote stream reads. */
+  loudness = 0;
   candidates: IceCandidate[] = [];
   failNext = false;
 
@@ -69,6 +74,9 @@ class FakeLink implements PeerLink {
   }
   async addIceCandidate(candidate: IceCandidate): Promise<void> {
     this.candidates.push(candidate);
+  }
+  level(): number {
+    return this.loudness;
   }
   setVolume(volume: number): void {
     this.volume = volume;
@@ -641,6 +649,133 @@ describe("cleanup", () => {
 
     // The re-offer delay is per attempt within one enable; a fresh enable offers straight away.
     expect(h.links.filter((link) => !link.closed)).toHaveLength(2);
+  });
+});
+
+describe("speaking", () => {
+  const LOUD = DEFAULT_SPEAKING_THRESHOLD + 0.2;
+  const QUIET = DEFAULT_SPEAKING_THRESHOLD / 2;
+
+  /** Both peers connected and well inside earshot. */
+  async function talking() {
+    const h = harness();
+    h.mesh.syncParty(SELF, party(SELF, LOW, HIGH));
+    await h.mesh.enable();
+    await h.settle();
+    h.linkFor(LOW).events.onConnectionStateChange("connected");
+    h.linkFor(HIGH).events.onConnectionStateChange("connected");
+    h.mesh.applyRange([
+      { playerId: LOW, volume: 0.8 },
+      { playerId: HIGH, volume: 0.8 },
+    ]);
+    return h;
+  }
+
+  it("rings a peer whose stream is over the threshold, and not one under it", async () => {
+    const h = await talking();
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+
+    h.linkFor(LOW).loudness = LOUD;
+    h.linkFor(HIGH).loudness = QUIET;
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+  });
+
+  it("holds the ring through a short pause, then clears it", async () => {
+    const h = await talking();
+    h.linkFor(LOW).loudness = LOUD;
+    h.mesh.speakingPeers();
+
+    h.linkFor(LOW).loudness = 0;
+    h.advance(DEFAULT_SPEAKING_HOLD_MS - 50);
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+
+    // Talking again inside the hold starts it over.
+    h.linkFor(LOW).loudness = LOUD;
+    h.mesh.speakingPeers();
+    h.linkFor(LOW).loudness = 0;
+    h.advance(DEFAULT_SPEAKING_HOLD_MS - 50);
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+
+    h.advance(100);
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+  });
+
+  it("never rings a peer too far away to hear, and drops the ring the moment they leave earshot", async () => {
+    const h = await talking();
+    h.linkFor(LOW).loudness = LOUD;
+    h.linkFor(HIGH).loudness = LOUD;
+    h.mesh.applyRange([{ playerId: LOW, volume: 0.8 }]);
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+
+    // Out of range inside the hold: the hold does not keep an inaudible peer ringing.
+    h.mesh.applyRange([{ playerId: LOW, volume: 0 }]);
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+
+    h.mesh.applyRange([{ playerId: LOW, volume: 0.3 }]);
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+  });
+
+  it("rings nobody while deafened, since nobody can be heard", async () => {
+    const h = await talking();
+    h.linkFor(LOW).loudness = LOUD;
+    h.mesh.setDeafened(true);
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+    h.mesh.setDeafened(false);
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+  });
+
+  it("rings only peers whose connection is up", async () => {
+    const h = harness();
+    h.mesh.syncParty(SELF, party(SELF, LOW));
+    await h.mesh.enable();
+    await h.settle();
+    h.mesh.applyRange([{ playerId: LOW, volume: 0.8 }]);
+    h.linkFor(LOW).loudness = LOUD;
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+
+    h.linkFor(LOW).events.onConnectionStateChange("connected");
+    expect(h.mesh.speakingPeers()).toEqual(new Set([LOW]));
+  });
+
+  it("closes a leaving peer's link and forgets them, so a rejoin starts quiet", async () => {
+    const h = await talking();
+    const lowLink = h.linkFor(LOW);
+    lowLink.loudness = LOUD;
+    h.mesh.speakingPeers();
+
+    h.mesh.syncParty(SELF, party(SELF, HIGH));
+    expect(lowLink.closed).toBe(true);
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+
+    // Back inside what would have been the hold: the new link carries none of the old one's state.
+    h.advance(5_000);
+    h.mesh.syncParty(SELF, party(SELF, LOW, HIGH));
+    await h.settle();
+    const rejoined = h.linkFor(LOW);
+    expect(rejoined).not.toBe(lowLink);
+    rejoined.events.onConnectionStateChange("connected");
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+  });
+
+  it("rings nobody once voice is disabled", async () => {
+    const h = await talking();
+    h.linkFor(LOW).loudness = LOUD;
+    h.mesh.disable();
+    expect(h.links.every((link) => link.closed)).toBe(true);
+    expect(h.mesh.speakingPeers()).toEqual(new Set());
+  });
+});
+
+describe("isSpeaking", () => {
+  const base = { level: 0, volume: 1, lastLoudAt: 0, now: 1_000, threshold: 0.1, holdMs: 400 };
+
+  it("is loud now, or was loud within the hold, and audible", () => {
+    expect(isSpeaking({ ...base, level: 0.1 })).toBe(true);
+    expect(isSpeaking({ ...base, level: 0.09 })).toBe(false);
+    expect(isSpeaking({ ...base, lastLoudAt: 601 })).toBe(true);
+    expect(isSpeaking({ ...base, lastLoudAt: 600 })).toBe(false);
+    expect(isSpeaking({ ...base, level: 1, volume: 0 })).toBe(false);
+    expect(isSpeaking({ ...base, lastLoudAt: 900, volume: 0 })).toBe(false);
   });
 });
 
