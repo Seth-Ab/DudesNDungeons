@@ -9,12 +9,15 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   inventory. Torches equip separately and must be deliberately picked up in the hub or dungeon.
   A weapon has `kind: "weapon"` and a required, strict `weapon` block. A `melee` weapon needs every
   swing stat: `damage`, `range` (world units), `arcCos` (cosine of the half-angle covered),
-  `cooldownMs`, and `staminaCost`; a `ranged` block is `{ "kind": "ranged" }` until the bow issue
-  adds its stats. The server reads the stats of the weapon in hand at each swing, so an edit applies
-  after a restart with no code change; an empty hand (or anything that is not a melee weapon) swings
-  with the unarmed constants. `attackDamageBonus` skills add to either. A weapon is carried in the
-  hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` lies in the hub's
-  spawn area.
+  `cooldownMs`, and `staminaCost`. A `ranged` weapon (a bow) needs `drawMs` (a full draw),
+  `minDrawMs` (a release sooner fires nothing and costs nothing), `minRange` and `maxRange` (world
+  units; range grows linearly with the draw fraction and stops growing at `drawMs`), `damage`,
+  `projectileSpeed`, `projectileRadius`, `staminaCost` and `ammoItemId`, which must name an `ammo`
+  item. `hunting-bow` is the one that ships. The server reads the stats of the weapon in hand at each
+  swing or draw, so an edit applies after a restart with no code change; an empty hand (or anything
+  that is not a melee weapon) swings with the unarmed constants. `attackDamageBonus` skills add to either. A weapon is carried in the
+  hand slot when that is empty, otherwise in an inventory slot. `rusted-sword` and `hunting-bow` lie on
+  the hub's Weapons counter.
   Ammo has `kind: "ammo"` and a positive integer `maxStack` (at most 99). A stack of any count up
   to `maxStack` takes one inventory slot; a pickup tops up carried stacks of the same item, then
   takes a free slot, and leaves whatever does not fit on the floor. An authored dungeon's loot

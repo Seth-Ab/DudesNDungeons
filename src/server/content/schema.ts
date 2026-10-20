@@ -321,15 +321,43 @@ const meleeWeaponStatsSchema = z
   .strict();
 
 /**
+ * A bow. Drawing is held, not instant: the server times the draw itself, and the fraction of
+ * `drawMs` it reaches (capped at 1) picks how far the arrow flies between `minRange` and
+ * `maxRange`. Distances are world units, like every other distance in content.
+ */
+const rangedWeaponStatsSchema = z
+  .object({
+    kind: z.literal("ranged"),
+    /** How long a full draw takes. Holding longer adds nothing. */
+    drawMs: z.number().int().positive(),
+    /** A release sooner than this fires nothing and costs nothing, so a tap is not a shot. */
+    minDrawMs: z.number().int().nonnegative(),
+    /** Range of the weakest shot, at the shortest draw that fires. */
+    minRange: z.number().positive(),
+    /** Range of a full draw, before any progression bonus. */
+    maxRange: z.number().positive(),
+    damage: z.number().int().positive(),
+    /** World units per second. */
+    projectileSpeed: z.number().positive(),
+    /** Collision radius around the arrow, added to a body's own radius. */
+    projectileRadius: z.number().positive(),
+    /** Spent when the arrow is loosed, not when the draw starts, but needed in full to start. */
+    staminaCost: z.number().nonnegative(),
+    /** The ammo item one shot consumes. `loadContent` checks it names an ammo item. */
+    ammoItemId: contentIdSchema,
+  })
+  .strict();
+
+/**
  * The weapon block. Strict on purpose: an unknown field fails content validation, so each weapon
- * issue extends this shape with the stats it defines instead of authors guessing at them. Ranged
- * stats arrive with the bow.
+ * issue extends this shape with the stats it defines instead of authors guessing at them.
  */
 const weaponStatsSchema = z.discriminatedUnion("kind", [
   meleeWeaponStatsSchema,
-  z.object({ kind: z.literal("ranged") }).strict(),
+  rangedWeaponStatsSchema,
 ]);
 export type MeleeWeaponStats = z.infer<typeof meleeWeaponStatsSchema>;
+export type RangedWeaponStats = z.infer<typeof rangedWeaponStatsSchema>;
 
 const weaponDefinitionSchema = z.object({
   id: contentIdSchema,
@@ -350,13 +378,33 @@ const ammoDefinitionSchema = z.object({
 });
 
 /** Mirrors the shared item kinds while requiring every skill scroll to name what it teaches. */
-export const itemDefinitionSchema = z.discriminatedUnion("kind", [
-  ordinaryItemDefinitionSchema,
-  consumableDefinitionSchema,
-  skillScrollDefinitionSchema,
-  weaponDefinitionSchema,
-  ammoDefinitionSchema,
-]);
+export const itemDefinitionSchema = z
+  .discriminatedUnion("kind", [
+    ordinaryItemDefinitionSchema,
+    consumableDefinitionSchema,
+    skillScrollDefinitionSchema,
+    weaponDefinitionSchema,
+    ammoDefinitionSchema,
+  ])
+  .superRefine((item, context) => {
+    // Kept here rather than on the bow's own schema, which has to stay a plain object to sit in
+    // the weapon union.
+    if (item.kind !== "weapon" || item.weapon.kind !== "ranged") return;
+    if (item.weapon.minRange > item.weapon.maxRange) {
+      context.addIssue({
+        code: "custom",
+        path: ["weapon", "minRange"],
+        message: "minRange cannot exceed maxRange",
+      });
+    }
+    if (item.weapon.minDrawMs > item.weapon.drawMs) {
+      context.addIssue({
+        code: "custom",
+        path: ["weapon", "minDrawMs"],
+        message: "minDrawMs cannot exceed drawMs",
+      });
+    }
+  });
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 
 /**

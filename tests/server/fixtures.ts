@@ -106,6 +106,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     connected: true,
     inventory: [],
     held: null,
+    draw: null,
     runSkillIds: new Set(),
     carryingTorch: true,
     carryingPlayerId: null,

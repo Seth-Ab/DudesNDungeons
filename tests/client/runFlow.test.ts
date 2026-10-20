@@ -30,6 +30,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     connected: true,
     inventory: [],
     held: null,
+    drawFraction: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

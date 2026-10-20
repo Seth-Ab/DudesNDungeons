@@ -31,6 +31,7 @@ function player(position: { x: number; y: number }, overrides: Partial<PlayerSta
     connected: true,
     inventory: [],
     held: null,
+    drawFraction: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

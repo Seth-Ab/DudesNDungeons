@@ -98,6 +98,16 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("accepts beginDraw and releaseDraw with a sequence and direction, and nothing about strength", () => {
+    for (const type of ["beginDraw", "releaseDraw"]) {
+      const message = { type, sequence: 3, direction: { x: 1, y: 0 } };
+      expect(parseClientMessage(JSON.stringify(message)).ok).toBe(true);
+      expect(parseClientMessage(JSON.stringify({ ...message, sequence: -1 })).ok).toBe(false);
+      expect(parseClientMessage(JSON.stringify({ type, sequence: 3 })).ok).toBe(false);
+      expect(parseClientMessage(JSON.stringify({ ...message, direction: { x: "a", y: 0 } })).ok).toBe(false);
+    }
+  });
+
   it("accepts swapHeld with an item id or null, and rejects anything else", () => {
     const itemId = "a1111111-1111-4111-8111-111111111111";
 
@@ -267,6 +277,7 @@ describe("appearance contract", () => {
       connected: true,
       inventory: [],
       held: null,
+      drawFraction: null,
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
@@ -278,8 +289,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v35, the version that added ready plates and a player's readyPlateId", () => {
-    expect(PROTOCOL_VERSION).toBe(35);
+  it("is on protocol v36, the version that added the bow draw messages and a player's drawFraction", () => {
+    expect(PROTOCOL_VERSION).toBe(36);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -438,6 +449,7 @@ describe("seat contract", () => {
       connected: true,
       inventory: [],
       held: null,
+      drawFraction: null,
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
@@ -500,6 +512,7 @@ describe("ready plate contract", () => {
           connected: true,
           inventory: [],
           held: null,
+          drawFraction: null,
           carryingTorch: false,
           carryingPlayerId: null,
           carriedByPlayerId: null,
@@ -885,6 +898,7 @@ describe("parseServerMessage", () => {
           },
         ],
         held: null,
+        drawFraction: null,
         carryingTorch: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,

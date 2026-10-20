@@ -38,6 +38,7 @@ import { lootRngFor } from "../game/monsterLoot.js";
 import { pressReady } from "../game/readyPlates.js";
 import { standUp } from "../game/seats.js";
 import type { DummyHit } from "../game/dummies.js";
+import type { Draw } from "../game/bow.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
@@ -63,6 +64,8 @@ export interface SessionPlayer {
   inventory: InventoryItem[];
   /** In hand, independent of `inventory` and the torch. */
   held: InventoryItem | null;
+  /** A bow draw in progress, or null. Server-side clock; see `src/server/game/bow.ts`. */
+  draw: Draw | null;
   /** Skills learned from consumed scrolls this run, provisional until this player extracts. */
   runSkillIds: Set<string>;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
@@ -396,6 +399,7 @@ export class SessionStore {
       connected: true,
       inventory: [],
       held: null,
+      draw: null,
       runSkillIds: new Set(),
       carryingTorch: false,
       carryingPlayerId: null,
@@ -476,6 +480,7 @@ export class SessionStore {
 
     member.player.connected = false;
     member.player.disconnectedAt = this.#now();
+    member.player.draw = null;
     // Nobody is steering a dropped carrier, so whoever they were hauling is set down where they
     // stand. The reverse is left alone: a carried player is an inert body regardless of their own
     // connection, so their carrier keeps carrying them.
@@ -586,6 +591,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     connected: player.connected,
     inventory: player.inventory.map((item) => ({ ...item })),
     held: player.held ? { ...player.held } : null,
+    drawFraction: player.draw ? player.draw.fraction : null,
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,

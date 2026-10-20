@@ -53,6 +53,7 @@ function resetPlayerForWorld(player: SessionPlayer, map: DungeonMapState): void 
   player.mapSyncedTo = null;
   player.nextMoveAt = null;
   player.nextAttackAt = null;
+  player.draw = null;
   // Carrying does not cross a world transition: positions are about to be rebuilt from scratch, so
   // any carry link left standing would point at a location that no longer means anything.
   player.carryingPlayerId = null;

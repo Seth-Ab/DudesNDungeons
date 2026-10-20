@@ -753,6 +753,12 @@ export const playerStateSchema = z.object({
    * the hand and the inventory.
    */
   held: inventoryItemSchema.nullable(),
+  /**
+   * How far through its draw the held bow is, from 0 to 1, or null while the player is not drawing.
+   * The server times the draw, so this is its figure (refreshed every tick) rather than the
+   * client's: a draw indicator can read it, and every viewer can see who is drawing.
+   */
+  drawFraction: z.number().min(0).max(1).nullable(),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
   /** The downed party member this player is carrying, or null. Spent by Backend step 12. */
