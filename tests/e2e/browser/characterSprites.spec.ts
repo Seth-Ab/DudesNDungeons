@@ -67,6 +67,9 @@ test.describe("Character sprites", () => {
     await host.screenshot({ path: testInfo.outputPath("hub-party-idle.png") });
     // The first guest spawns east of the fountain; east is open ground, so they keep walking.
     const walker = guests[0]!;
+    // Four live canvases share one slow CI core; keys go to the page in front, not one that has
+    // been throttled behind the others.
+    await walker.bringToFront();
     await walker.keyboard.down("d");
     await walker.waitForTimeout(400);
     await host.screenshot({ path: testInfo.outputPath("hub-party-walking.png") });
