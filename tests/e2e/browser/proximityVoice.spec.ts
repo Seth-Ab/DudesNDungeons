@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { campMenu, openCampMenu } from "./campMenu.js";
 import { enterHub } from "./designScreen.js";
 
 /**
@@ -68,7 +69,9 @@ async function openPlayer(browser: Browser, grantMicrophone: boolean): Promise<P
   return page;
 }
 
+// In the camp menu; the assertions read it whether or not the menu is open.
 const voiceStatus = (page: Page) => page.locator(".hud__stat", { hasText: "Voice:" });
+const micChip = (page: Page) => page.locator(".hud__mic");
 
 test.describe("Proximity voice", () => {
   test("connects two party members once both enable voice, with mute and deafen", async ({
@@ -91,13 +94,21 @@ test.describe("Proximity voice", () => {
 
     // Nothing is captured or connected until each player asks.
     await expect(voiceStatus(host)).toContainText("off");
-    await expect(host.getByRole("button", { name: "Mute" })).toBeDisabled();
+    await expect(micChip(host)).toHaveText("Mic off");
+    await expect(micChip(host)).toHaveAttribute("data-tone", "off");
+    const hostCamp = await openCampMenu(host);
+    await expect(hostCamp.getByRole("button", { name: "Mute" })).toBeDisabled();
     expect(await connectedPeers(host)).toBe(0);
 
     // The host's offer reaches a guest without voice and goes unanswered until the guest opts in.
     await host.getByRole("button", { name: "Enable Voice" }).click();
     await expect(voiceStatus(host)).toContainText("on, 0 peers");
+    // The guest opens the menu from the mic chip, the touch-friendly way in.
+    await micChip(guest).click();
     await guest.getByRole("button", { name: "Enable Voice" }).click();
+    await guest.keyboard.press("Escape");
+    await expect(campMenu(guest)).toBeHidden();
+    await expect(micChip(guest)).toHaveAttribute("data-tone", "live");
     await expect(voiceStatus(guest)).toContainText("on, 1 peer", { timeout: 15_000 });
     await expect(voiceStatus(host)).toContainText("on, 1 peer", { timeout: 15_000 });
 
@@ -111,6 +122,7 @@ test.describe("Proximity voice", () => {
 
     await host.getByRole("button", { name: "Mute" }).click();
     await expect(voiceStatus(host)).toContainText("muted");
+    await expect(micChip(host)).toHaveText("Mic muted");
     await expect(host.getByRole("button", { name: "Unmute" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -135,6 +147,7 @@ test.describe("Proximity voice", () => {
 
     // Leaving releases everything.
     await host.getByRole("button", { name: "Leave" }).click();
+    await expect(campMenu(host)).toBeHidden();
     await expect(voiceStatus(host)).toContainText("off");
     expect(await connectedPeers(host)).toBe(0);
 
@@ -150,8 +163,11 @@ test.describe("Proximity voice", () => {
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
     await enterHub(page);
 
+    await openCampMenu(page);
     await page.getByRole("button", { name: "Enable Voice" }).click();
     await expect(voiceStatus(page)).toContainText("microphone blocked");
+    await expect(micChip(page)).toHaveText("Mic blocked");
+    await expect(micChip(page)).toHaveAttribute("data-tone", "warning");
     await expect(voiceStatus(page)).toHaveAttribute("title", /Allow it in the browser/);
     await expect(page.getByRole("button", { name: "Enable Voice" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Mute" })).toBeDisabled();

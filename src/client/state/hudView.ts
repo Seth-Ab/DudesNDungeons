@@ -1,3 +1,4 @@
+import type { VoiceState } from "../audio/voiceMesh.js";
 import type { SessionView } from "../network/sessionState.js";
 import {
   PLAYER_MAX_HEALTH,
@@ -303,6 +304,54 @@ export function controlsView(view: SessionView, self: PlayerState | null): Contr
     sessionControlsDisabled: !inSession,
     actionsDisabled: !canAct,
   };
+}
+
+/**
+ * The on-screen Ready button. Everything else that runs the session lives in the camp menu, but a
+ * new player in the hub should not have to find a menu to ready up for the gate.
+ */
+export function hubReadyVisible(view: SessionView): boolean {
+  return view.phase === "inSession" && view.location === "hub";
+}
+
+/** Grey for off, starting, muted, or deafened; green only while the microphone is sending. */
+export type MicChipTone = "off" | "live" | "warning";
+
+export interface MicChipView {
+  tone: MicChipTone;
+  /** Always says the state in words, so the colour is never the only cue. */
+  text: string;
+}
+
+export function micChipView(state: VoiceState): MicChipView {
+  switch (state.status) {
+    case "off":
+      return { tone: "off", text: "Mic off" };
+    case "requesting":
+      return { tone: "off", text: "Mic starting" };
+    case "denied":
+      return { tone: "warning", text: "Mic blocked" };
+    case "unavailable":
+      return { tone: "warning", text: "No mic" };
+    case "live":
+      if (state.deafened) return { tone: "off", text: "Deafened" };
+      if (state.muted) return { tone: "off", text: "Mic muted" };
+      return { tone: "live", text: "Mic live" };
+  }
+}
+
+export interface KeyHintView {
+  key: string;
+  label: string;
+}
+
+/** The one-line strip of keys a player would otherwise have to open a menu to learn. */
+export function keyHints(): KeyHintView[] {
+  return [
+    { key: "Esc", label: "Camp" },
+    { key: keyLabel("toggleMinimap"), label: "Map" },
+    { key: keyLabel("emoteWheel"), label: "Emotes" },
+  ];
 }
 
 export function readyLabel(ready: boolean): string {

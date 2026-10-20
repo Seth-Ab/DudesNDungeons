@@ -8,8 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v33.
-- Last completed work: the Attack and Emote buttons shown only on touch devices (issue #164, HUD
-  Torch & Tally Phase 1, protocol unchanged); earlier, the hub re-authored as a ring round a 3x3 fountain, with stalls on the
+- Last completed work: the session and voice controls moved into an Esc camp menu (issue #161, HUD
+  Torch & Tally Phase 1, protocol unchanged); earlier, the Attack and Emote buttons shown only on
+  touch devices (issue #164, HUD Torch & Tally Phase 1, protocol unchanged); earlier, the hub re-authored as a ring round a 3x3 fountain, with stalls on the
   diagonals, a gate road, a campfire clearing, a training yard, benches and a ragged forest edge
   (issue #145, Hub Revamp Phase 3, protocol v33); earlier, ambient hub lighting with varied,
   flickering lights and distance-based prop
@@ -355,8 +356,9 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   more than one a second (`rateLimited`). `playerEmoted` goes only to the sender and the party members
   whose visible frame holds the emoter (`src/server/game/emotes.ts`). The client opens the wheel on a
   rebindable key (B) or the HUD's Emote button, picks by mouse, touch, or keys 1-8, draws a ~2 s
-  bubble (`rendering/emoteBubbles.ts`), and writes a line to the Action feed.
+  bubble (`rendering/emoteBubbles.ts`), and writes a line to the action feed (a toast since #161).
 - [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
+  - [x] Move the session and voice controls into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1). `ui/hud/campMenu.ts` holds Ready, Leave, Stash, Controls, and the voice readout, level meter, and Enable/Mute/Deafen buttons, with the disabled rules they had. Escape opens it once the player is in the world, unless the controls menu, the emote wheel, or the Stash takes the key first; Escape, Close, or a click outside shuts it. It does not pause the game; while open it owns the keyboard, traps Tab, and hands focus back on close. On screen stay a mic chip (`micChipView`: grey off/starting/muted/deafened, green live, amber blocked or missing, always with text) that opens the menu, a one-line key-hint strip whose Esc hint is also a button for touch, and a Ready button shown only in the hub (`hubReadyVisible`). The title, Place, and Action lines are gone: the latest server action and client refusals now show as an `action` toast, and the room name moves to the minimap header in #162.
 
 ### 4. Combat and Dungeon Interaction
 
@@ -376,8 +378,9 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   negotiated over `voiceSignal` with polite/impolite glare handling (`src/client/audio/voiceMesh.ts`).
 - [x] Apply volume falloff based on server-provided distance data. Each remote stream plays at its
   `voiceRangeUpdated` volume; an omitted peer plays at 0 and keeps its link.
-- [x] Add mute, deafened, input level, and permission-denied states. Session cluster buttons, a
-  level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`).
+- [x] Add mute, deafened, input level, and permission-denied states. Camp menu buttons (#161), a
+  level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`),
+  plus an on-screen mic chip.
 
 ### 6. Polish and Playtesting
 
@@ -459,6 +462,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Session and voice controls moved into an Esc camp menu, with a mic chip, key hints and a hub-only Ready button on screen (#161, HUD Torch & Tally Phase 1).
 - 2026-10-19: Attack and Emote HUD buttons shown only on a coarse pointer (#164, HUD Torch & Tally Phase 1).
 - 2026-10-19: Hub re-authored as a ring round a 3x3 fountain, with stalls on the diagonals, benches,
   a gate road, campfire clearing and training yard (#145, Hub Revamp Phase 3, v33).

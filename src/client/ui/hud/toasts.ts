@@ -31,6 +31,18 @@ export function createToasts(now: () => number = () => performance.now()) {
       }
       if (changed) render();
     },
+
+    /**
+     * A one-off message, such as the outcome of the player's last action. It shows again even when
+     * the text repeats, so pressing pickup twice with nothing nearby answers twice.
+     */
+    say(key: string, text: string, severity: ToastMessage["severity"] = "info") {
+      const time = now();
+      queue.expire(time);
+      queue.clear(key);
+      queue.show(key, text, severity, time);
+      render();
+    },
   };
 }
 

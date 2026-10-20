@@ -68,12 +68,38 @@ button:focus-visible {
   background: rgba(27, 28, 31, 0.82);
 }
 
-.hud__panel--status {
+/* One line of key hints, top-left above the party frames. Esc doubles as the camp menu's button. */
+.hud__panel--hints {
   top: 0.5rem;
   left: 0.5rem;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.3rem 0.55rem;
+  color: #a69e8c;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
-/* The session cluster: room, connection, voice, and the buttons that leave or configure the session. */
+.hud__hint kbd {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid #4a4540;
+  border-radius: 4px;
+  background: #23262b;
+  color: #f7f0da;
+  font: inherit;
+  font-weight: 700;
+}
+
+.hud .hud__hint--camp {
+  padding: 0.15rem 0.35rem;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* The session cluster: mic chip, room, connection, the hub's Ready button, and the minimap. The rest
+   of the session controls live in the camp menu. */
 .hud__panel--session {
   top: 0.5rem;
   right: 0.5rem;
@@ -133,10 +159,46 @@ button:focus-visible {
   display: none;
 }
 
-.hud__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+/* Grey unless the microphone is sending; the text always says the state too. */
+.hud .hud__mic {
+  padding: 0.15rem 0.55rem;
+  border-color: #4a4540;
+  border-radius: 999px;
+  background: #23262b;
+  color: #a69e8c;
+  font-size: 0.78rem;
+}
+
+.hud .hud__mic::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: #6d675d;
+}
+
+.hud .hud__mic[data-tone="live"] {
+  border-color: #4a7a52;
+  color: #9fd8a8;
+}
+
+.hud .hud__mic[data-tone="live"]::before {
+  background: #7fbf6a;
+}
+
+.hud .hud__mic[data-tone="warning"] {
+  border-color: #6b5524;
+  color: #e8a25c;
+}
+
+.hud .hud__mic[data-tone="warning"]::before {
+  background: #e8a25c;
+}
+
+.hud__hub-ready[hidden] {
+  display: none;
 }
 
 .hud__stat {
@@ -180,10 +242,10 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Visible-only party frames, top-left under the status panel. */
+/* Visible-only party frames, top-left under the key hints. */
 .hud__frames {
   position: absolute;
-  top: 6.5rem;
+  top: 3rem;
   left: 0.5rem;
   display: flex;
   flex-direction: column;
@@ -928,13 +990,20 @@ button:disabled {
   opacity: 0.85;
 }
 
-/* The Stash, toggled from the session buttons. */
+/* The Stash, opened from the camp menu. */
 .hud__stash {
   top: 50%;
   left: 50%;
   min-width: 14rem;
   max-width: min(26rem, calc(100vw - 2rem));
   transform: translate(-50%, -50%);
+}
+
+.hud__stash-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .hud__stash-heading {
@@ -1132,16 +1201,23 @@ button:disabled {
     font-size: 0.8rem;
   }
 
-  .hud__title {
-    font-size: 0.85rem;
-  }
-
   .hud__stat {
     font-size: 0.78rem;
   }
 
   .hud__panel--session {
     width: 12.5rem;
+  }
+
+  /* Short of the 13.5rem the toast stack leaves each side. */
+  .hud__panel--hints {
+    gap: 0.35rem;
+    padding: 0.25rem 0.35rem;
+    font-size: 0.7rem;
+  }
+
+  .hud__hint kbd {
+    padding: 0 0.25rem;
   }
 
   .hud__toasts {
@@ -1199,6 +1275,83 @@ button:disabled {
 
 .controls-menu__reset {
   margin-top: 0.75rem;
+}
+
+/* The camp menu: the session and voice controls, over a dimmed screen. The game keeps running. */
+.camp-menu {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(8, 9, 12, 0.6);
+  pointer-events: auto;
+}
+
+.camp-menu[hidden] {
+  display: none;
+}
+
+.camp-menu__panel {
+  display: grid;
+  gap: 0.75rem;
+  width: min(24rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid #4a4132;
+  border-radius: 8px;
+  background: #191b1f;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.42);
+}
+
+.camp-menu__header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.camp-menu__header h2,
+.camp-menu__group h3,
+.camp-menu__note {
+  margin: 0;
+}
+
+.camp-menu__header h2 {
+  font-size: 1.15rem;
+}
+
+.camp-menu__note {
+  color: #8d8578;
+  font-size: 0.8rem;
+}
+
+.camp-menu__group {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #34302b;
+  border-radius: 6px;
+  background: #121417;
+}
+
+.camp-menu__group h3 {
+  color: #f7f0da;
+  font-size: 0.95rem;
+}
+
+.camp-menu__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+/* The voice readout and level meter take a full row each, above the voice buttons. */
+.camp-menu__controls .hud__stat,
+.camp-menu__controls .hud__meter {
+  flex: 1 0 100%;
 }
 
 /* Emote wheel: eight options in a ring over a dimmed screen. Each option sits at its --x/--y unit

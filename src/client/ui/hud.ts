@@ -11,8 +11,8 @@ import {
   runClockView,
   heldView,
   hotbarView,
+  hubReadyVisible,
   newServerAction,
-  placeStatusLabel,
   positionLabel,
   roomCodeLabel,
   toastMessages,
@@ -20,12 +20,14 @@ import {
 } from "../state/hudView.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
+import { createCampMenu } from "./hud/campMenu.js";
 import { createDamageVignette } from "./hud/damageVignette.js";
 import { createHubStatus } from "./hud/hubStatus.js";
 import { createRunClock } from "./hud/runClock.js";
-import { createButton, createPanel, createStat } from "./hud/dom.js";
+import { createButton, createPanel } from "./hud/dom.js";
 import { createHotbar } from "./hud/hotbar.js";
 import { createInventory } from "./hud/inventory.js";
+import { createKeyHints } from "./hud/keyHints.js";
 import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
@@ -61,14 +63,25 @@ export function createHud(options: HudOptions) {
    */
   let lastServerAction: string | null = null;
 
-  const title = document.createElement("h1");
-  title.className = "hud__title";
-  title.textContent = "DudesNDungeons";
+  // Declared before the modules that open it; assigned once they exist.
+  let openCamp = (): void => {};
+  let closeCamp = (): void => {};
+  // Only once the player is in the world: the lobby and the design screen have their own controls.
+  let campAvailable = false;
 
-  const session = createSession(options);
-  const voice = createVoice(options);
-  const placeStatus = createStat("Place", "-");
-  const actionStatus = createStat("Action", "-");
+  const session = createSession({
+    onToggleReady: options.onToggleReady,
+    onLeave: () => {
+      closeCamp();
+      options.onLeave();
+    },
+    onOpenControls: () => {
+      closeCamp();
+      options.onOpenControls();
+    },
+  });
+  const voice = createVoice({ ...options, onOpenSettings: () => openCamp() });
+  const keyHints = createKeyHints({ onOpenCamp: () => openCamp() });
   const vitals = createVitals();
   const partyFrames = createPartyFrames();
   const inventory = createInventory();
@@ -82,24 +95,45 @@ export function createHud(options: HudOptions) {
   // decay warnings, and the error box.
   const toasts = createToasts();
 
-  const statusPanel = createPanel("hud__panel hud__panel--status");
-  statusPanel.append(title, placeStatus.element, actionStatus.element);
+  const stashButton = createButton("Stash", () => {
+    closeCamp();
+    inventory.open();
+  });
+  stashButton.setAttribute("aria-haspopup", "dialog");
+
+  const camp = createCampMenu([
+    { title: "Party", elements: [session.readyButton, session.leaveButton] },
+    { title: "Camp", elements: [stashButton, session.controlsButton] },
+    { title: "Voice", elements: [voice.statusElement, voice.meterElement, ...voice.buttons] },
+  ]);
+  openCamp = () => {
+    if (campAvailable) camp.open();
+  };
+  closeCamp = camp.close;
+
+  // The camp menu's way in. The controls menu, the emote wheel, and the open camp menu all see Escape
+  // first and claim it (preventDefault, or stopping it outright), so one press never does two things.
+  // The Stash has no handler of its own, so it is closed here before the menu would open.
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented || event.repeat) return;
+    if (isTypingTarget(event.target)) return;
+    if (inventory.isOpen()) {
+      inventory.close();
+    } else if (campAvailable) {
+      camp.open();
+    } else {
+      return;
+    }
+    event.preventDefault();
+  });
 
   const sessionPanel = createPanel("hud__panel hud__panel--session");
-  const sessionButtons = document.createElement("div");
-  sessionButtons.className = "hud__buttons";
-  sessionButtons.append(...session.buttons, inventory.toggle);
-  const voiceButtons = document.createElement("div");
-  voiceButtons.className = "hud__buttons";
-  voiceButtons.append(...voice.buttons);
   sessionPanel.append(
+    voice.chipElement,
     session.roomElement,
     session.connectionElement,
-    voice.statusElement,
-    voice.meterElement,
+    session.hubReadyButton,
     session.positionElement,
-    sessionButtons,
-    voiceButtons,
     minimap.element,
   );
 
@@ -130,7 +164,7 @@ export function createHud(options: HudOptions) {
 
   element.append(
     vignette.element,
-    statusPanel,
+    keyHints.element,
     partyFrames.element,
     toasts.element,
     hubStatus.element,
@@ -139,6 +173,7 @@ export function createHud(options: HudOptions) {
     actionPanel,
     hotbar.element,
     inventory.panel,
+    camp.element,
   );
 
   // The prompt follows the predicted position, which moves between snapshots.
@@ -184,8 +219,9 @@ export function createHud(options: HudOptions) {
       minimap.toggle();
     },
 
+    /** The answer to something the player just tried, such as "No loot nearby". */
     setActionStatus(status: string) {
-      actionStatus.value.textContent = status;
+      toasts.say("action", status);
     },
 
     syncTo(view: SessionView) {
@@ -194,9 +230,10 @@ export function createHud(options: HudOptions) {
 
       session.setConnection(connectionLabel(view));
       session.setRoom(roomCodeLabel(view));
-      session.update(controls, self ? self.ready : null);
+      session.update(controls, self ? self.ready : null, hubReadyVisible(view));
       voice.setInSession(!controls.sessionControlsDisabled);
-      placeStatus.value.textContent = placeStatusLabel(view, self);
+      campAvailable = view.phase === "inSession" && self !== null && self.appearance !== null;
+      if (!campAvailable) camp.close();
       vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 
       vignette.update(self ? self.health : null);
@@ -211,7 +248,7 @@ export function createHud(options: HudOptions) {
       const serverAction = newServerAction(view, lastServerAction);
       if (serverAction) {
         lastServerAction = serverAction;
-        actionStatus.value.textContent = serverAction;
+        toasts.say("action", serverAction);
       }
 
       currentView = view;

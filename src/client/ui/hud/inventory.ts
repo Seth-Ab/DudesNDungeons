@@ -2,8 +2,9 @@ import { bankEntries } from "../../state/hudView.js";
 import type { PlayerState } from "../../../shared/types/core.js";
 
 /**
- * The Stash: what survived past escapes, in a panel a button toggles instead of text that is
- * always on screen. The item slots and torch live in the hotbar.
+ * The Stash: what survived past escapes, in a panel opened from the camp menu instead of text that
+ * is always on screen. Escape or its Close button shuts it. The item slots and torch live in the
+ * hotbar.
  */
 export function createInventory() {
   const heading = document.createElement("p");
@@ -17,25 +18,38 @@ export function createInventory() {
   const bank = document.createElement("ul");
   bank.className = "hud__bank";
 
+  const closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.className = "hud__stash-close";
+  closeButton.textContent = "Close";
+
+  const header = document.createElement("div");
+  header.className = "hud__stash-header";
+  header.append(heading, closeButton);
+
   const panel = document.createElement("section");
   panel.className = "hud__panel hud__stash";
+  panel.setAttribute("aria-label", "Stash");
   panel.hidden = true;
-  panel.append(heading, hint, bank);
+  panel.append(header, hint, bank);
 
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.textContent = "Stash";
-  toggle.setAttribute("aria-expanded", "false");
-
-  const setOpen = (open: boolean): void => {
-    panel.hidden = !open;
-    toggle.setAttribute("aria-expanded", `${open}`);
+  const close = (): void => {
+    panel.hidden = true;
   };
-  toggle.addEventListener("click", () => setOpen(panel.hidden));
+  closeButton.addEventListener("click", close);
 
   return {
     panel,
-    toggle,
+    close,
+
+    open() {
+      panel.hidden = false;
+      closeButton.focus();
+    },
+
+    isOpen(): boolean {
+      return !panel.hidden;
+    },
 
     update(self: PlayerState | null) {
       bank.replaceChildren(
