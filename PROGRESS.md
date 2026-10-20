@@ -8,7 +8,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v33.
-- Last completed work: the hub re-authored as a ring round a 3x3 fountain, with stalls on the
+- Last completed work: the Attack and Emote buttons shown only on touch devices (issue #164, HUD
+  Torch & Tally Phase 1, protocol unchanged); earlier, the hub re-authored as a ring round a 3x3 fountain, with stalls on the
   diagonals, a gate road, a campfire clearing, a training yard, benches and a ragged forest edge
   (issue #145, Hub Revamp Phase 3, protocol v33); earlier, ambient hub lighting with varied,
   flickering lights and distance-based prop
@@ -388,6 +389,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   - [x] Add the character design screen between the lobby and the hub (issue #133). When `sessionJoined.needsAppearance` is true and the player's own entry has no look, `ui/characterDesign.ts` shows a full-screen step: body, skin tone, hair style and hair colour as keyboard-navigable radio groups, a read-only party colour chip, a 10x preview (6x at phone width) with Turn and Walk and an idle blink, and an in-game-scale panel on flagstones with the party. The look opens as the last confirmed one from `localStorage` (`dnd.lastLook`) or a random one, and an id that is no longer offered falls back to random (`state/characterDesign.ts`). **Enter the hub** sends `setAppearance` and shows "Entering…" until the snapshot carries the look, or the server's refusal inline; **Back** leaves the session. The client no longer sends `DEFAULT_APPEARANCE`, and holds back its own move and action intents while designing. The name is shown, not editable: the protocol has no rename message, so editing it on this screen needs a protocol change and is left for a follow-up. The preview builds its own composites in `characterPreview.ts` from the shared helpers; folding it into `characterSprites.ts` waits on #156. The party roster's "Designing…" entry and cosmetics remain out of scope.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
+  - [x] Show the HUD's Attack and Emote buttons only on a coarse pointer (issue #164, HUD Torch & Tally Phase 1). `state/touchControls.ts` follows `(pointer: coarse)`, including a hybrid device switching input at runtime; on a fine pointer the buttons are hidden and out of the tab order, and the bottom-right panel hides when the run clock is hidden too. The hotbar and prompt keep their key hints.
 - [ ] Capture screenshots or short recordings for pull requests.
 
 ### 7. Camera and Darkness
@@ -402,7 +404,8 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 
 - [x] Show health, resistance, and stamina bars and three inventory slots. All three bars render from server `playerState`; three inventory slots were already visible.
 - [x] Add attack, interact, pickup, use, drop, and carry controls. The "C" key and a HUD button
-  lift the nearest downed party member in reach, or drop whoever is currently carried.
+  lift the nearest downed party member in reach, or drop whoever is currently carried. The Attack
+  and Emote buttons show only on touch devices (#164).
 - [x] Render loot, doors, exits, monster health, downed players, and hub/run outcome state. The last
   two landed with Frontend step 9: the HUD names the place from room metadata and reports how the
   run ended.
@@ -456,6 +459,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-19: Attack and Emote HUD buttons shown only on a coarse pointer (#164, HUD Torch & Tally Phase 1).
 - 2026-10-19: Hub re-authored as a ring round a 3x3 fountain, with stalls on the diagonals, benches,
   a gate road, campfire clearing and training yard (#145, Hub Revamp Phase 3, v33).
 - 2026-10-19: Ambient hub lighting, flickering lanterns and campfire, and distance-based prop name

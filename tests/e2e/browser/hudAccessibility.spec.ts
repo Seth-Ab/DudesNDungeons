@@ -17,7 +17,7 @@ test.describe("HUD accessibility and layout", () => {
       ".hud__panel--status",
       ".hud__panel--session",
       ".hud__panel--party",
-      ".hud__panel--actions",
+      // The bottom-right actions panel is touch-only in the hub; touchControls.spec.ts places it.
       ".hud__hotbar",
       ".hud__hub-status",
     ]) {

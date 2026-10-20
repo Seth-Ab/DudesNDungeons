@@ -128,7 +128,8 @@ button:focus-visible {
 }
 
 .hud__panel[hidden],
-.hud__stat[hidden] {
+.hud__stat[hidden],
+.hud__buttons[hidden] {
   display: none;
 }
 
