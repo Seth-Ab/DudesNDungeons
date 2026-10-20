@@ -19,6 +19,7 @@ import type {
   LitRun,
   MapDiscovery,
   MapProp,
+  MapReadyPlate,
   MapSeat,
   PlayerId,
   PlayerState,
@@ -604,7 +605,8 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
   viewer.mapSyncedTo = map;
 
   const props = map.props && map.props.length > 0 ? propsDiscovered(map, discovered, reset ? null : indexes) : [];
-  const seats = map.seats && map.seats.length > 0 ? seatsDiscovered(map, discovered, reset ? null : indexes) : [];
+  const seats = pointsDiscovered(map.seats, map, discovered, reset ? null : indexes);
+  const readyPlates = pointsDiscovered(map.readyPlates, map, discovered, reset ? null : indexes);
 
   return {
     id: map.id,
@@ -617,29 +619,32 @@ export function takeMapDiscovery(session: Session, viewer: SessionPlayer): MapDi
     ...(map.theme && map.theme !== DEFAULT_MAP_THEME ? { theme: map.theme } : {}),
     ...(props.length > 0 ? { props } : {}),
     ...(seats.length > 0 ? { seats } : {}),
+    ...(readyPlates.length > 0 ? { readyPlates } : {}),
   };
 }
 
 /**
- * The seats a snapshot should carry: on a baseline (`fresh` null), every seat whose tile is
- * discovered; otherwise only those whose tile is among `fresh`. A seat is one tile, so it arrives
- * exactly once, with that tile.
+ * The seats or ready plates a snapshot should carry: on a baseline (`fresh` null), every one whose
+ * tile is discovered; otherwise only those whose tile is among `fresh`. Each is placed by one point,
+ * and the tile under it arrives exactly once, so the seat or plate does too.
  */
-function seatsDiscovered(
+function pointsDiscovered<T extends MapSeat | MapReadyPlate>(
+  points: readonly T[] | undefined,
   map: DungeonMapState,
   discovered: Uint8Array,
   fresh: ArrayLike<number> | null,
-): MapSeat[] {
+): T[] {
+  if (!points || points.length === 0) return [];
   if (fresh !== null && fresh.length === 0) return [];
   const isFresh = fresh === null ? null : new Set(Array.from(fresh));
 
-  return (map.seats ?? [])
-    .filter((seat) => {
-      const { x, y } = tileOf(seat);
+  return points
+    .filter((point) => {
+      const { x, y } = tileOf(point);
       const index = y * map.width + x;
       return discovered[index] === 1 && (isFresh === null || isFresh.has(index));
     })
-    .map((seat) => ({ ...seat }));
+    .map((point) => ({ ...point }));
 }
 
 /**

@@ -703,3 +703,76 @@ describe("seat content", () => {
     ).toThrow(/seats/);
   });
 });
+
+describe("ready plate content", () => {
+  const FIRST = "f1111111-1111-4111-8111-111111111111";
+  const SECOND = "f2222222-2222-4222-8222-222222222222";
+
+  /** A floor strip three tiles wide at authored row 1, with a wall at (4, 1). */
+  function strip(fields: Record<string, unknown>) {
+    return contentRoot({
+      "dungeons/strip.json": {
+        id: "strip",
+        name: "Strip",
+        layout: "authored",
+        tiles: ["######", "#...##", "######"],
+        spawnPoints: [{ x: 1, y: 1 }],
+        ...fields,
+      },
+    });
+  }
+
+  it("accepts plates on floor with distinct ids, including between two floor tiles, and defaults to none", () => {
+    const placed = loadContent(
+      strip({
+        readyPlates: [
+          { entityId: FIRST, x: 1, y: 1 },
+          { entityId: SECOND, x: 2.5, y: 1 },
+        ],
+      }),
+    ).dungeons.get("strip");
+
+    expect(placed?.layout === "authored" && placed.readyPlates).toHaveLength(2);
+    expect(loadContent(strip({})).dungeons.get("strip")).toMatchObject({ readyPlates: [] });
+  });
+
+  it("refuses a plate on a wall, or one that straddles a wall", () => {
+    expect(() => loadContent(strip({ readyPlates: [{ entityId: FIRST, x: 4, y: 1 }] }))).toThrow(
+      /places a ready plate at \(4, 1\) on a wall/,
+    );
+    expect(() => loadContent(strip({ readyPlates: [{ entityId: FIRST, x: 3.5, y: 1 }] }))).toThrow(
+      /places a ready plate at \(3\.5, 1\) on a wall/,
+    );
+  });
+
+  it("refuses a plate off the map", () => {
+    expect(() => loadContent(strip({ readyPlates: [{ entityId: FIRST, x: 9, y: 1 }] }))).toThrow(
+      /places a ready plate at \(9, 1\) off the map/,
+    );
+  });
+
+  it("refuses a duplicate id, between plates or against another placement", () => {
+    expect(() =>
+      loadContent(
+        strip({
+          readyPlates: [
+            { entityId: FIRST, x: 1, y: 1 },
+            { entityId: FIRST, x: 2, y: 1 },
+          ],
+        }),
+      ),
+    ).toThrow(/reuses entity id "f1111111-1111-4111-8111-111111111111" for a ready plate/);
+    expect(() =>
+      loadContent(
+        strip({
+          dummies: [{ entityId: FIRST, x: 3, y: 1 }],
+          readyPlates: [{ entityId: FIRST, x: 1, y: 1 }],
+        }),
+      ),
+    ).toThrow(/reuses entity id/);
+  });
+
+  it("refuses a plate without an id", () => {
+    expect(() => loadContent(strip({ readyPlates: [{ x: 1, y: 1 }] }))).toThrow(/readyPlates/);
+  });
+});

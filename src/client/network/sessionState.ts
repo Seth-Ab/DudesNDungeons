@@ -121,6 +121,9 @@ export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" 
 const MAX_RECENT_ATTACKS = 32;
 const MAX_RECENT_EMOTES = 16;
 
+/** Shown when the last hub ready plate fills and the whole party is ready. */
+export const PARTY_READY_CUE = "Everyone is ready. Head through the gate.";
+
 export const initialSessionView: SessionView = {
   phase: "offline",
   selfId: null,
@@ -244,6 +247,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
           ...player,
           ready: message.ready,
         })),
+        // The last ready plate filling is the party's cue to head through the gate.
+        ...(message.partyReady ? { lastAction: PARTY_READY_CUE } : {}),
       };
 
     case "stateSnapshot": {

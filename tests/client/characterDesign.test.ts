@@ -39,6 +39,7 @@ function self(appearance: PlayerState["appearance"]): PlayerState {
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
+    readyPlateId: null,
     appearance,
     partyColor: "azure",
     bankedItems: [],

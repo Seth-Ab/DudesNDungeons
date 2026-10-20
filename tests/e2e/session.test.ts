@@ -1491,3 +1491,66 @@ describe("seats", () => {
     }
   });
 });
+
+describe("ready plates", () => {
+  it("readies a player who stands on a plate, lights it for both clients, and unreadies them off it", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+    const stander = session.players.get(alpha.joined.playerId)!;
+    const clients = [alpha.client, beta.client];
+    const readyChanges = (client: TestClient) =>
+      client.received("playerReadyChanged").filter((message) => message.playerId === stander.id);
+    const lastSeenPlate = (client: TestClient) =>
+      client
+        .received("stateSnapshot")
+        .at(-1)
+        ?.players.find((player) => player.id === stander.id)?.readyPlateId;
+
+    await vi.waitFor(() =>
+      expect(alpha.client.received("stateSnapshot").some((snapshot) => snapshot.dungeon.map.readyPlates)).toBe(true),
+    );
+    const plate = alpha.client
+      .received("stateSnapshot")
+      .flatMap((snapshot) => snapshot.dungeon.map.readyPlates ?? [])[0]!;
+
+    // Placed straight onto the plate; the server decides on its next tick.
+    stander.position = { x: plate.x, y: plate.y };
+    for (const client of clients) {
+      // One of two is not the whole party, so this carries no cue.
+      await vi.waitFor(() =>
+        expect(readyChanges(client)).toEqual([{ type: "playerReadyChanged", playerId: stander.id, ready: true }]),
+      );
+      await vi.waitFor(() => expect(lastSeenPlate(client)).toBe(plate.id));
+    }
+
+    stander.position = { x: plate.x, y: plate.y + 4 };
+    for (const client of clients) {
+      await vi.waitFor(() => expect(readyChanges(client).at(-1)?.ready).toBe(false));
+      await vi.waitFor(() => expect(lastSeenPlate(client)).toBeNull());
+    }
+  });
+
+  it("cues both clients when the last plate fills", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+    const [first, second] = session.dungeon.map.readyPlates!;
+
+    session.players.get(alpha.joined.playerId)!.position = { x: first!.x, y: first!.y };
+    await vi.waitFor(() => expect(session.players.get(alpha.joined.playerId)!.ready).toBe(true));
+    session.players.get(beta.joined.playerId)!.position = { x: second!.x, y: second!.y };
+    for (const client of [alpha.client, beta.client]) {
+      await vi.waitFor(() =>
+        expect(client.received("playerReadyChanged").at(-1)).toEqual({
+          type: "playerReadyChanged",
+          playerId: beta.joined.playerId,
+          ready: true,
+          partyReady: true,
+        }),
+      );
+    }
+  });
+});

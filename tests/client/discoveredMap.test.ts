@@ -88,6 +88,19 @@ describe("applyMapDiscovery", () => {
     expect(applyMapDiscovery(second, discovery({ reset: true })).seats).toEqual([]);
   });
 
+  it("accumulates ready plates as they are discovered and drops them on a reset", () => {
+    const west = { id: "d855ab91-8776-4acc-8e83-cfcc03fb0e5a", x: 1, y: 1 };
+    const east = { id: "48eac2e5-7e3c-4fec-81b1-c86c09a0be79", x: 3, y: 1 };
+    const first = applyMapDiscovery(null, discovery({ reset: true, readyPlates: [west] }));
+    const second = applyMapDiscovery(first, discovery({ readyPlates: [east] }));
+
+    expect(first.readyPlates).toEqual([west]);
+    expect(second).not.toBe(first);
+    expect(second.readyPlates).toEqual([west, east]);
+    expect(applyMapDiscovery(second, discovery({}))).toBe(second);
+    expect(applyMapDiscovery(second, discovery({ reset: true })).readyPlates).toBeUndefined();
+  });
+
   it("drops held props on a reset, keeping only what the baseline carries", () => {
     const first = applyMapDiscovery(null, discovery({ reset: true, props: [{ kind: "bush", x: 1, y: 1 }] }));
     const rebased = applyMapDiscovery(first, discovery({ reset: true }));

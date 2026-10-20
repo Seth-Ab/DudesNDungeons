@@ -89,6 +89,18 @@ export const mapSeatSchema = z.object({
 });
 export type MapSeat = z.infer<typeof mapSeatSchema>;
 
+/**
+ * A ready plate in front of the hub gate. `x`/`y` is its centre in world units, and a player whose
+ * position is within `READY_PLATE_SIZE / 2` of it on both axes stands on it. Who holds which is
+ * each player's `readyPlateId`, so a plate itself never changes.
+ */
+export const mapReadyPlateSchema = z.object({
+  id: entityIdSchema,
+  x: z.number().finite(),
+  y: z.number().finite(),
+});
+export type MapReadyPlate = z.infer<typeof mapReadyPlateSchema>;
+
 export const dungeonMapSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -111,6 +123,8 @@ export const dungeonMapSchema = z.object({
   ground: z.array(z.string()).optional(),
   /** Seats the holder knows of. A client holds only seats on tiles it has discovered. */
   seats: z.array(mapSeatSchema).optional(),
+  /** Ready plates the holder knows of, like `seats`. */
+  readyPlates: z.array(mapReadyPlateSchema).optional(),
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
 
@@ -577,6 +591,8 @@ export const mapDiscoverySchema = z.object({
   props: z.array(mapPropSchema).optional(),
   /** Seats on tiles the viewer has newly discovered, or all they know of on a `reset`; like `props`. */
   seats: z.array(mapSeatSchema).optional(),
+  /** Ready plates whose centre tile the viewer has newly discovered; like `seats`. */
+  readyPlates: z.array(mapReadyPlateSchema).optional(),
 });
 export type MapDiscovery = z.infer<typeof mapDiscoverySchema>;
 
@@ -749,6 +765,11 @@ export const playerStateSchema = z.object({
    * lifted, a disconnect, or a change of world.
    */
   seatId: entityIdSchema.nullable(),
+  /**
+   * The ready plate (`MapReadyPlate.id`) this player holds, or null. Public, so every client lights
+   * it in their party colour. Set only by the server, and only in the hub.
+   */
+  readyPlateId: entityIdSchema.nullable(),
   /**
    * The look this player designed, public to the whole party. Null while they are still designing
    * it: such a player holds a slot but is not in the world yet, so clients do not draw them, and

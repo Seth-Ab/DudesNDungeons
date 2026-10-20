@@ -58,6 +58,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
+    readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],

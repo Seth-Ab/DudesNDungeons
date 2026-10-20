@@ -59,6 +59,10 @@ function resetPlayerForWorld(player: SessionPlayer, map: DungeonMapState): void 
   player.carriedByPlayerId = null;
   // Seats belong to the world being replaced, like everything else about where a player was.
   player.seatId = null;
+  // So are plates, and `ready` was just cleared above whoever set it.
+  player.readyPlateId = null;
+  player.readyFromPlate = false;
+  player.declinedPlateId = null;
 }
 
 /** Places the whole party without letting their positions in the old world block new spawns. */

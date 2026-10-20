@@ -74,7 +74,11 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   look out over and stand up onto, and loading fails unless that neighbouring tile is floor. Put a
   seat about a sixteenth of a tile in from that edge, so a sitter's body reaches the floor and is
   seen from it. Ids are unique in the dungeon. The hub has two per bench and four on the fountain
-  rim.
+  rim. It may also list `readyPlates`, `{ entityId, x, y }`: plates a player readies up by standing
+  on. `x`/`y` is the plate's centre, and a half-tile position centres a row of them on a one-tile
+  gate. A plate is `READY_PLATE_SIZE` world units across, a little under an authored tile, and
+  loading fails unless every tile under it is floor. Ids are unique in the dungeon. The hub has
+  four, in the strip in front of its gate.
 - An authored dungeon may also set `ground`: a grid of strings the same size as `tiles`, saying what
   each floor tile is drawn as. `g` is grass, `c` cobble, `d` dirt, and `.` the theme's own floor,
   so a map without `ground` looks exactly as it did. It is render-only: collision always comes from

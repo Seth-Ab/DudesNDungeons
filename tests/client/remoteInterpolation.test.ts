@@ -35,6 +35,7 @@ function player(position: { x: number; y: number }, overrides: Partial<PlayerSta
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
+    readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],

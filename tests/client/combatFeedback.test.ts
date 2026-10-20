@@ -41,6 +41,7 @@ function player(id: string, x: number): PlayerState {
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
+    readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],

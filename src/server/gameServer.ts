@@ -24,6 +24,7 @@ import { emoteAudience, emoteRefusal, playerEmotedFor } from "./game/emotes.js";
 import { dropItem, giveItem, interact, pickupItem, swapHeld, useItem } from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
+import { resolveReadyPlates } from "./game/readyPlates.js";
 import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
 import { shareDiscoveredMaps } from "./game/mapSharing.js";
@@ -627,6 +628,16 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       const hasAudience = [...session.players.values()].some((player) => player.connected);
       if (hasAudience) {
         for (const attack of monsterAttacks) broadcast(session, attack);
+      }
+      // Plates ready and unready players exactly as the button does, so each change goes out the same
+      // way a `setReady` does.
+      for (const change of resolveReadyPlates(session)) {
+        broadcast(session, {
+          type: "playerReadyChanged",
+          playerId: change.player.id,
+          ready: change.player.ready,
+          ...(change.partyReady ? { partyReady: true as const } : {}),
+        });
       }
 
       if (partyWiped(session)) {

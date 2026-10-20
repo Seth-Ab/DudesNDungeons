@@ -148,6 +148,11 @@ export const playerReadyChangedSchema = z.object({
   type: z.literal("playerReadyChanged"),
   playerId: playerIdSchema,
   ready: z.boolean(),
+  /**
+   * Set on the change that filled the last hub ready plate and so made the whole party ready, as a
+   * cue to head for the gate. Absent otherwise.
+   */
+  partyReady: z.literal(true).optional(),
 });
 
 /**
