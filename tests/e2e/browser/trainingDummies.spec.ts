@@ -56,6 +56,23 @@ function recordReadouts(page: Page): Map<number, Readout> {
   return byTick;
 }
 
+/**
+ * How many landed hits this page has been sent, counted off the socket. The action feed is no
+ * witness for this: it shows a repeated line once, then lets it expire, so a second identical hit
+ * can go unseen.
+ */
+function countHits(page: Page): { count: number } {
+  const hits = { count: 0 };
+  page.on("websocket", (socket) => {
+    socket.on("framereceived", ({ payload }) => {
+      if (typeof payload !== "string" || !payload.includes('"attackResolved"')) return;
+      const message = JSON.parse(payload) as { type?: string; damage?: number };
+      if (message.type === "attackResolved" && (message.damage ?? 0) > 0) hits.count += 1;
+    });
+  });
+  return hits;
+}
+
 async function openPlayer(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
@@ -87,22 +104,27 @@ async function walkTo(page: Page, target: { x: number; y: number }, reach: numbe
 }
 
 /**
- * Lines up west of the dummy, facing it, and swings until the action feed reports a hit. `route`
+ * Lines up west of the dummy, facing it, and swings until the server reports a hit. `route`
  * reaches the dummy's row; the walk then runs east along it, north of the teammate watching from
  * the yard. Within 0.4 of the spot is inside unarmed reach and the arc facing east.
  */
-async function hitDummy(page: Page, route: readonly { x: number; y: number }[]): Promise<void> {
+async function hitDummy(
+  page: Page,
+  hits: { count: number },
+  route: readonly { x: number; y: number }[],
+): Promise<void> {
   for (const waypoint of route) await walkTo(page, waypoint, 0.6);
   await walkTo(page, SWING_SPOT, 0.4);
-  const feed = page.locator(".hud__toasts");
+  const before = hits.count;
   await expect(async () => {
-    // A tap east turns to face the dummy without closing the gap past it.
+    // The swing goes the way the keys are held, falling back to the facing the server last echoed,
+    // which lags the client. Holding east through the swing aims it without waiting on that echo.
     await page.keyboard.down("d");
-    await page.waitForTimeout(20);
-    await page.keyboard.up("d");
+    await page.waitForTimeout(40);
     await page.keyboard.press(" ");
-    await expect(feed).toContainText("Hit target for 6", { timeout: 1000 });
-  }).toPass({ timeout: 10_000 });
+    await page.keyboard.up("d");
+    await expect.poll(() => hits.count, { timeout: 2000 }).toBeGreaterThan(before);
+  }).toPass({ timeout: 20_000 });
 }
 
 /** The latest tick both pages received a readout for, with what each was sent. */
@@ -120,6 +142,7 @@ test.describe("Training dummies", () => {
     test.setTimeout(120_000);
     const host = await openPlayer(browser);
     const hostReadouts = recordReadouts(host);
+    const hostHits = countHits(host);
     await host.getByPlaceholder("Your name").fill("Maya");
     await host.getByRole("button", { name: "Create a new dungeon" }).click();
     await enterHub(host);
@@ -129,6 +152,7 @@ test.describe("Training dummies", () => {
 
     const guest = await openPlayer(browser);
     const guestReadouts = recordReadouts(guest);
+    const guestHits = countHits(guest);
     await guest.getByPlaceholder("Your name").fill("Theo");
     await guest.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.getByRole("button", { name: "Join dungeon" }).click();
@@ -142,9 +166,9 @@ test.describe("Training dummies", () => {
     await walkTo(guest, { x: DUMMY.x, y: DUMMY.y + 4 }, 0.6);
 
     // Unarmed.
-    await hitDummy(host, SPAWN_TO_DUMMY_ROW);
-    // The guest is sent the same attackResolved, so it shows the same hit.
-    await expect(guest.locator(".hud__toasts")).toContainText("Hit target for 6");
+    await hitDummy(host, hostHits, SPAWN_TO_DUMMY_ROW);
+    // The guest is sent the same attackResolved, so it sees the same hit.
+    await expect.poll(() => guestHits.count).toBeGreaterThan(0);
     await host.screenshot({ path: testInfo.outputPath("dummy-unarmed-host.png") });
 
     // With the Rusted Sword in hand.
@@ -161,7 +185,7 @@ test.describe("Training dummies", () => {
         timeout: 1000,
       });
     }).toPass({ timeout: 10_000 });
-    await hitDummy(host, WEAPONS_TO_DUMMY_ROW);
+    await hitDummy(host, hostHits, WEAPONS_TO_DUMMY_ROW);
     // A second blow after the cooldown, so the window holds at least two sword hits whatever the
     // walk back from the sword cost the unarmed one.
     await host.waitForTimeout(600);
