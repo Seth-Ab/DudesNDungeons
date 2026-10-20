@@ -71,6 +71,10 @@ const CONTROL_GROUPS: ControlGroup[] = [
     title: "Interface",
     controls: [
       {
+        input: () => "Esc",
+        action: "Open the camp menu (ready, leave, stash, controls, voice), or close whatever is open",
+      },
+      {
         input: bound("toggleMinimap"),
         action: "Show or hide the minimap (it starts shown in each new world)",
         rebind: "toggleMinimap",
@@ -91,7 +95,7 @@ const CONTROL_GROUPS: ControlGroup[] = [
     ],
   },
   {
-    title: "Party",
+    title: "Party (camp menu)",
     controls: [
       { input: () => "Ready", action: "Toggle ready state" },
       { input: () => "Enable Voice", action: "Talk to nearby party members you can see" },
@@ -229,8 +233,12 @@ export function createControlsMenu(settingsStore: HudSettingsStore) {
     if (event.target === element) close();
   });
   closeButton.addEventListener("click", close);
+  // preventDefault claims the key, so the HUD does not also open the camp menu on the same press.
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !element.hidden) close();
+    if (event.key === "Escape" && !element.hidden) {
+      event.preventDefault();
+      close();
+    }
   });
 
   return { element, open, close };

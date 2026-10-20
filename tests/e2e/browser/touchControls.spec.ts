@@ -69,7 +69,7 @@ test.describe("Touch-only action buttons", () => {
     await expect(wheel).toBeVisible();
     await page.getByRole("button", { name: "Wave", exact: true }).tap();
     await expect(wheel).toBeHidden();
-    await expect(page.locator(".hud__stat", { hasText: "Action:" })).toContainText("You: Wave");
+    await expect(page.locator(".hud__toasts")).toContainText("You: Wave");
 
     await page.context().close();
   });

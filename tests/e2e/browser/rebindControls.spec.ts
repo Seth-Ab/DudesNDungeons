@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openCampMenu } from "./campMenu.js";
 import { enterHub } from "./designScreen.js";
 
 /**
@@ -43,7 +44,7 @@ test.describe("Rebindable controls", () => {
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
     await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
-    await page.getByRole("button", { name: "Controls" }).click();
+    await (await openCampMenu(page)).getByRole("button", { name: "Controls" }).click();
   });
 
   test("rebinding Interact updates the Controls menu rows at once", async ({ page }) => {

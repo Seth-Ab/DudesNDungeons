@@ -1,6 +1,7 @@
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { resetBindings, setBinding } from "../../src/client/input/keyBindings.js";
+import type { VoiceState } from "../../src/client/audio/voiceMesh.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
 import {
   actionableError,
@@ -13,7 +14,10 @@ import {
   controlsView,
   decayMessage,
   formatClock,
+  hubReadyVisible,
   hubStatusView,
+  keyHints,
+  micChipView,
   runClockView,
   healthBarView,
   LOW_HEALTH_RATIO,
@@ -241,6 +245,66 @@ describe("controls", () => {
     const controls = controlsView(view({ phase: "inSession", selfId: SELF_ID, players: [self] }), self);
     expect(controls.sessionControlsDisabled).toBe(false);
     expect(controls.actionsDisabled).toBe(true);
+  });
+});
+
+describe("hub ready control", () => {
+  it("shows only in the hub during a session", () => {
+    expect(hubReadyVisible(view({ phase: "inSession", location: "hub" }))).toBe(true);
+    expect(hubReadyVisible(view({ phase: "inSession", location: "dungeon" }))).toBe(false);
+    expect(hubReadyVisible(view({ phase: "connected", location: null }))).toBe(false);
+    // A reconnect keeps the last location, but the button would do nothing until the session resumes.
+    expect(hubReadyVisible(view({ phase: "reconnecting", location: "hub" }))).toBe(false);
+  });
+});
+
+describe("mic chip", () => {
+  const voice = (overrides: Partial<VoiceState> = {}): VoiceState => ({
+    status: "live",
+    muted: false,
+    deafened: false,
+    peerCount: 1,
+    ...overrides,
+  });
+
+  it("is green only while the microphone is sending", () => {
+    expect(micChipView(voice())).toEqual({ tone: "live", text: "Mic live" });
+  });
+
+  it("is grey when off, starting, muted, or deafened", () => {
+    expect(micChipView(voice({ status: "off" }))).toEqual({ tone: "off", text: "Mic off" });
+    expect(micChipView(voice({ status: "requesting" }))).toEqual({ tone: "off", text: "Mic starting" });
+    expect(micChipView(voice({ muted: true }))).toEqual({ tone: "off", text: "Mic muted" });
+    expect(micChipView(voice({ muted: true, deafened: true }))).toEqual({ tone: "off", text: "Deafened" });
+  });
+
+  it("warns when the microphone is blocked or missing", () => {
+    expect(micChipView(voice({ status: "denied" }))).toEqual({ tone: "warning", text: "Mic blocked" });
+    expect(micChipView(voice({ status: "unavailable" }))).toEqual({ tone: "warning", text: "No mic" });
+  });
+
+  it("names every state in words, so colour is never the only cue", () => {
+    const states: VoiceState[] = [
+      voice({ status: "off" }),
+      voice({ status: "requesting" }),
+      voice({ status: "denied" }),
+      voice({ status: "unavailable" }),
+      voice(),
+      voice({ muted: true }),
+      voice({ deafened: true }),
+    ];
+    const texts = states.map((state) => micChipView(state).text);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+});
+
+describe("key hints", () => {
+  afterEach(() => resetBindings());
+
+  it("lead with the camp menu and follow rebinding", () => {
+    expect(keyHints()[0]).toEqual({ key: "Esc", label: "Camp" });
+    setBinding("toggleMinimap", "n");
+    expect(keyHints()).toContainEqual({ key: "N", label: "Map" });
   });
 });
 

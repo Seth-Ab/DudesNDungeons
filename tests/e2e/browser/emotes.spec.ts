@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { openCampMenu } from "./campMenu.js";
 import { enterHub } from "./designScreen.js";
 
 /**
@@ -12,7 +13,8 @@ async function openPlayer(browser: Browser, hasTouch: boolean): Promise<Page> {
   return page;
 }
 
-const actionFeed = (page: Page) => page.locator(".hud__stat", { hasText: "Action:" });
+// The latest action, said as a toast.
+const actionFeed = (page: Page) => page.locator(".hud__toasts");
 const wheel = (page: Page) => page.getByRole("dialog", { name: "Emotes" });
 
 test.describe("Emote wheel", () => {
@@ -82,7 +84,9 @@ test.describe("Emote wheel", () => {
     await enterHub(page);
     await expect(page.locator(".hud__vitals")).toBeVisible();
 
-    await page.getByRole("button", { name: "Controls" }).click();
+    const camp = await openCampMenu(page);
+    await camp.getByRole("button", { name: "Controls" }).click();
+    await expect(camp).toBeHidden();
     await page.getByRole("button", { name: "Emote wheel: B" }).click();
     await page.keyboard.press("k");
     await expect(page.getByRole("button", { name: "Emote wheel: K" })).toBeVisible();
@@ -95,6 +99,6 @@ test.describe("Emote wheel", () => {
     // A mouse click picks too.
     await page.getByRole("button", { name: "Bow", exact: true }).click();
     await expect(wheel(page)).toBeHidden();
-    await expect(page.locator(".hud__stat", { hasText: "Action:" })).toContainText("You: Bow");
+    await expect(actionFeed(page)).toContainText("You: Bow");
   });
 });

@@ -1,10 +1,13 @@
 import { voiceStatusLabel, type VoiceState } from "../../audio/voiceMesh.js";
+import { micChipView } from "../../state/hudView.js";
 import { createButton, createStat } from "./dom.js";
 
 interface VoiceOptions {
   onToggleVoice: () => void;
   onToggleMute: () => void;
   onToggleDeafen: () => void;
+  /** The mic chip is the way to the voice settings, which live in the camp menu. */
+  onOpenSettings: () => void;
 }
 
 const initialState: VoiceState = { status: "off", muted: false, deafened: false, peerCount: 0 };
@@ -14,8 +17,9 @@ const DENIED_HINT =
 const UNAVAILABLE_HINT = "No usable microphone was found, or another application is using it.";
 
 /**
- * The Voice readout, the input level meter, and the voice/mute/deafen buttons. Every control here
- * reflects the voice mesh's state; none of them keeps a state of its own.
+ * The Voice readout, the input level meter, and the voice/mute/deafen buttons, which live in the camp
+ * menu, plus the mic chip that stays on screen. Every control here reflects the voice mesh's state;
+ * none of them keeps a state of its own.
  */
 export function createVoice(options: VoiceOptions) {
   const status = createStat("Voice", voiceStatusLabel(initialState));
@@ -35,6 +39,10 @@ export function createVoice(options: VoiceOptions) {
   const muteButton = createButton("Mute", options.onToggleMute);
   const deafenButton = createButton("Deafen", options.onToggleDeafen);
 
+  const chip = createButton("", options.onOpenSettings);
+  chip.className = "hud__mic";
+  chip.setAttribute("aria-haspopup", "dialog");
+
   let state: VoiceState = initialState;
   let inSession = false;
   let shownLevel = -1;
@@ -48,8 +56,14 @@ export function createVoice(options: VoiceOptions) {
       "hud__stat--warning",
       state.status === "denied" || state.status === "unavailable",
     );
-    status.element.title =
-      state.status === "denied" ? DENIED_HINT : state.status === "unavailable" ? UNAVAILABLE_HINT : "";
+    const hint = state.status === "denied" ? DENIED_HINT : state.status === "unavailable" ? UNAVAILABLE_HINT : "";
+    status.element.title = hint;
+
+    const mic = micChipView(state);
+    chip.textContent = mic.text;
+    chip.dataset.tone = mic.tone;
+    chip.title = hint;
+    chip.setAttribute("aria-label", `${mic.text}. Open voice settings`);
 
     voiceButton.textContent = live || busy ? "Disable Voice" : "Enable Voice";
     // Enabling only makes sense with a party to talk to; disabling is always allowed.
@@ -71,6 +85,7 @@ export function createVoice(options: VoiceOptions) {
   return {
     statusElement: status.element,
     meterElement: meter,
+    chipElement: chip,
     buttons: [voiceButton, muteButton, deafenButton],
 
     setState(next: VoiceState) {

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { campMenu, openCampMenu } from "./campMenu.js";
 import { enterHub } from "./designScreen.js";
 
 test.describe("Hub overlay", () => {
-  test("shows the gate status and a toggleable stash, with no run clock", async ({ page }, testInfo) => {
+  test("shows the gate status and a stash opened from the camp menu, with no run clock", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await page.getByPlaceholder("Your name").fill("Maya");
@@ -16,14 +17,18 @@ test.describe("Hub overlay", () => {
 
     const stash = page.locator(".hud__stash");
     await expect(stash).toBeHidden();
-    await page.getByRole("button", { name: "Stash" }).click();
+    await (await openCampMenu(page)).getByRole("button", { name: "Stash" }).click();
+    await expect(campMenu(page)).toBeHidden();
     await expect(stash).toBeVisible();
     await expect(stash).toContainText("Nothing banked yet");
     await page.screenshot({ path: testInfo.outputPath("hub-overlay.png") });
 
-    await page.getByRole("button", { name: "Stash" }).click();
+    // Escape shuts the stash rather than opening the camp menu over it.
+    await page.keyboard.press("Escape");
     await expect(stash).toBeHidden();
+    await expect(campMenu(page)).toBeHidden();
 
+    // The hub keeps an on-screen Ready button for new players.
     await page.getByRole("button", { name: "Ready" }).click();
     await expect(status).toContainText("Party ready");
   });

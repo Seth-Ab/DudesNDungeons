@@ -94,7 +94,7 @@ async function walkTo(page: Page, target: { x: number; y: number }, reach: numbe
 async function hitDummy(page: Page, route: readonly { x: number; y: number }[]): Promise<void> {
   for (const waypoint of route) await walkTo(page, waypoint, 0.6);
   await walkTo(page, SWING_SPOT, 0.4);
-  const feed = page.locator(".hud__stat", { hasText: "Action:" });
+  const feed = page.locator(".hud__toasts");
   await expect(async () => {
     // A tap east turns to face the dummy without closing the gap past it.
     await page.keyboard.down("d");
@@ -144,7 +144,7 @@ test.describe("Training dummies", () => {
     // Unarmed.
     await hitDummy(host, SPAWN_TO_DUMMY_ROW);
     // The guest is sent the same attackResolved, so it shows the same hit.
-    await expect(guest.locator(".hud__stat", { hasText: "Action:" })).toContainText("Hit target for 6");
+    await expect(guest.locator(".hud__toasts")).toContainText("Hit target for 6");
     await host.screenshot({ path: testInfo.outputPath("dummy-unarmed-host.png") });
 
     // With the Rusted Sword in hand.
