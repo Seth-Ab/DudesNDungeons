@@ -49,6 +49,7 @@ import {
   newAttacks,
   swingArc,
 } from "./state/combatFeedback.js";
+import { bowAims } from "./state/bowIndicator.js";
 import {
   nearestDownedAlly,
   nearestInteraction,
@@ -148,6 +149,9 @@ const client = createSessionClient({
   profileSecretStore: profileSecretStore(),
 });
 
+/** The held movement keys' heading. Set once the input exists, which is after the first frame is asked for. */
+let heldHeading: () => Vector2 | null = () => null;
+
 const renderer = createCanvasRenderer(() => {
   const now = performance.now();
   const self = selfOf(view);
@@ -165,6 +169,7 @@ const renderer = createCanvasRenderer(() => {
     gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
     popups: popupField.active(now),
     swings: swingField.active(now),
+    bowAims: bowAims(self, localPosition, heldHeading(), others),
     // Pinned to where each emoter is drawn, so a bubble rides the prediction and interpolation.
     emotes: placeEmotes(emoteField.active(now), (playerId) =>
       playerId === self?.id
@@ -243,6 +248,7 @@ app.append(hud.element, lobby.element, design.element, controlsMenu.element, emo
 renderer.resize();
 
 const input = createInputController({ onAction: performAction, onRelease: releaseAction });
+heldHeading = () => input.heading();
 
 // Paced to the server's move interval, so the client sends intents at the rate the server accepts
 // them and predicts exactly the steps the server will take.
