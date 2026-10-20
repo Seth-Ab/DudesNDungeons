@@ -76,8 +76,14 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      # Playwright cuts the alphabetical test list into contiguous chunks, and the slowest specs
+      # (bow, characterSprites, darkness, trainingDummies) sit close together, so equal chunks leave
+      # shard 1 several times slower than shard 2. These weights are the chunks' relative sizes in
+      # tests, chosen from a run's per-test times; recompute them if the shards drift apart.
       - name: Run e2e tests
         run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
+        env:
+          PWTEST_SHARD_WEIGHTS: "3:17:15:13"
 
   # Single required check that gates on every job above, so branch protection keeps one stable name.
   test:

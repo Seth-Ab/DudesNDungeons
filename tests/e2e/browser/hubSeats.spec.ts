@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
+import { position, walkTo } from "./walk.js";
 
 /**
  * The fountain rim's west seat, authored (9.5625, 7) in `content/dungeons/hub.json`, and the floor
@@ -13,29 +14,6 @@ async function openPlayer(browser: Browser): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/?debug");
   return page;
-}
-
-async function position(page: Page): Promise<{ x: number; y: number }> {
-  const text = (await page.getByText("Position:").textContent()) ?? "";
-  const [x, y] = (text.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
-  if (x === undefined || y === undefined) throw new Error(`No position in "${text}"`);
-  return { x, y };
-}
-
-/** Walks until the predicted position is within `reach` of `target`, steering by the readout. */
-async function walkTo(page: Page, target: { x: number; y: number }, reach: number): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const at = await position(page);
-    const dx = target.x - at.x;
-    const dy = target.y - at.y;
-    if (Math.hypot(dx, dy) <= reach) return;
-
-    const key = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "d" : "a") : dy > 0 ? "s" : "w";
-    await page.keyboard.down(key);
-    await page.waitForTimeout(Math.max(Math.abs(dx), Math.abs(dy)) > 2 ? 200 : 40);
-    await page.keyboard.up(key);
-  }
-  throw new Error(`Never reached ${JSON.stringify(target)}`);
 }
 
 const sitPrompt = (page: Page) => page.locator(".hud__prompt", { hasText: "Sit" });
