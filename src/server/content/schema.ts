@@ -586,6 +586,17 @@ const placedSeatSchema = z.object({
   facing: z.enum(SEAT_FACINGS),
 });
 
+/**
+ * A ready plate in front of the hub gate, centred at `x`/`y` in authored tiles. A half-tile position
+ * lets a row of plates centre on a one-tile gate. `loadContent` checks every tile the plate covers is
+ * floor, and that the id is unique.
+ */
+const placedReadyPlateSchema = z.object({
+  x: z.number().nonnegative(),
+  y: z.number().nonnegative(),
+  entityId: z.string().uuid(),
+});
+
 const authoredRoomSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -628,6 +639,7 @@ export const authoredDungeonSchema = z.object({
   dummies: z.array(placedDummySchema).default([]),
   lights: z.array(placedLightSchema).default([]),
   seats: z.array(placedSeatSchema).default([]),
+  readyPlates: z.array(placedReadyPlateSchema).default([]),
 });
 export type AuthoredDungeon = z.infer<typeof authoredDungeonSchema>;
 

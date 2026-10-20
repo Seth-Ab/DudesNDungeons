@@ -2,7 +2,8 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { z } from "zod";
 import { packageRoot } from "../paths.js";
-import { TILE_SCALE } from "../../shared/constants/game.js";
+import { scalePoint } from "../game/scale.js";
+import { READY_PLATE_SIZE, TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SIZES, SEAT_FACING_VECTORS } from "../../shared/constants/scenery.js";
 import {
   dungeonDefinitionSchema,
@@ -180,6 +181,20 @@ function assertRectangular(label: string, tiles: readonly string[]): void {
  * not exist, a doorway outside its own tiles, a ragged map. All of them would otherwise surface much
  * later, as a crash mid-run or a dungeon nobody can finish.
  */
+/**
+ * The authored tiles a ready plate covers. It is centred where its authored position lands in the
+ * world and `READY_PLATE_SIZE` world units across, so each corner is taken to world scale, onto the
+ * world tile it falls in, and back to the authored tile that world tile belongs to.
+ */
+function readyPlateTiles(plate: { x: number; y: number }): { x: number; y: number }[] {
+  const half = READY_PLATE_SIZE / 2;
+  const centre = scalePoint(plate);
+  const authored = (world: number): number => Math.floor(Math.round(world) / TILE_SCALE);
+  const xs = new Set([authored(centre.x - half), authored(centre.x + half)]);
+  const ys = new Set([authored(centre.y - half), authored(centre.y + half)]);
+  return [...ys].flatMap((y) => [...xs].map((x) => ({ x, y })));
+}
+
 function validateReferences(content: GameContent): void {
   for (const item of content.items.values()) {
     if (item.kind === "skillScroll" && !content.skills.has(item.skillId)) {
@@ -379,6 +394,20 @@ function validateReferences(content: GameContent): void {
           throw new Error(`${label} reuses entity id "${seat.entityId}" for a seat`);
         }
         pinnedIds.add(seat.entityId);
+      }
+      for (const plate of dungeon.readyPlates) {
+        // A plate is stood on, so every tile under it has to be floor a player can walk onto.
+        const covered = readyPlateTiles(plate);
+        if (covered.some(({ x, y }) => dungeon.tiles[y]?.[x] === undefined)) {
+          throw new Error(`${label} places a ready plate at (${plate.x}, ${plate.y}) off the map`);
+        }
+        if (covered.some(({ x, y }) => dungeon.tiles[y]?.[x] !== ".")) {
+          throw new Error(`${label} places a ready plate at (${plate.x}, ${plate.y}) on a wall`);
+        }
+        if (pinnedIds.has(plate.entityId)) {
+          throw new Error(`${label} reuses entity id "${plate.entityId}" for a ready plate`);
+        }
+        pinnedIds.add(plate.entityId);
       }
 
       for (const placed of dungeon.monsters) {

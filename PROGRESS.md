@@ -7,11 +7,13 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v34.
-- Last completed work: a hotbar slot pulse on a confirmed item use and an icon fly-in on pickup
-  (issue #175, HUD Torch & Tally, protocol unchanged); earlier, toasts and the hub gate status
-  merged into one top-centre notice stack, with a party-colour ready pip per member (issue #163,
-  HUD Torch & Tally Phase 1, protocol unchanged);
+  everyone to the hub under protocol v35.
+- Last completed work: readying up by standing on four plates in front of the hub gate, lit in the
+  holder's party colour, with a cue when the last one fills (issue #147, protocol v35); earlier, a
+  hotbar slot pulse on a confirmed item use and an icon fly-in on pickup (issue #175, HUD Torch &
+  Tally, protocol unchanged); earlier, toasts and the hub gate status merged into one top-centre
+  notice stack, with a party-colour ready pip per member (issue #163, HUD Torch & Tally Phase 1,
+  protocol unchanged);
   earlier, sitting on hub benches and the fountain rim (issue #148, protocol v34);
   earlier, the minimap given its own top-right frame with a room-name header (issue
   #162, HUD Torch & Tally Phase 1, protocol unchanged); earlier, the session and voice controls
@@ -257,6 +259,9 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
   inventory; downed players lose it.
 - [x] Handle a player who dies mid-run and a party that escapes without them. Timed respawn is gone;
   downed players remain until escape/revival, and an all-downed party wipes to the hub.
+- [x] Ready plates (#147, v35): four authored `readyPlates` before the gate ready whoever stands on
+  one through the same path as the button, and stepping off takes back only plate-set ready. Once
+  the whole party is ready it is kept, so a player can walk to the gate; the button still backs out.
 
 ### 11. Roguelite Progression and Persistence
 
@@ -474,6 +479,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-20: Ready plates in front of the hub gate, with a public `readyPlateId` and a party-ready cue (#147, v35).
 - 2026-10-20: Hotbar slots pulse on a confirmed item use and a picked-up item flies into its slot, with a reduced-motion highlight (#175, HUD Torch & Tally).
 - 2026-10-19: Sitting on hub benches and the fountain rim, with a public `seatId` (#148, v34).
 - 2026-10-19: Minimap given its own top-right frame with a room-name header and an N mark (#162, HUD Torch & Tally Phase 1).

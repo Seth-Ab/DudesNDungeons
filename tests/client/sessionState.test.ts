@@ -5,6 +5,7 @@ import {
   initialSessionView,
   inParty,
   othersOf,
+  PARTY_READY_CUE,
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
@@ -31,6 +32,7 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
+    readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],
@@ -158,6 +160,22 @@ describe("party changes", () => {
 
     expect(view.players.find((p) => p.id === ALLY_ID)?.ready).toBe(true);
     expect(view.players.find((p) => p.id === SELF_ID)?.ready).toBe(false);
+  });
+
+  it("shows the party-ready cue only on the change that carries it", () => {
+    let view = joinedView();
+    view = applyServerMessage(view, { type: "playerJoined", player: player(ALLY_ID) });
+    view = applyServerMessage(view, { type: "playerReadyChanged", playerId: ALLY_ID, ready: true });
+    expect(view.lastAction).toBeNull();
+
+    view = applyServerMessage(view, {
+      type: "playerReadyChanged",
+      playerId: SELF_ID,
+      ready: true,
+      partyReady: true,
+    });
+    expect(view.lastAction).toBe(PARTY_READY_CUE);
+    expect(view.players.every((p) => p.ready)).toBe(true);
   });
 
   it("ignores an update for a player it does not know", () => {

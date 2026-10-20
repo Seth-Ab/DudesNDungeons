@@ -48,6 +48,7 @@ import { isTileLit, type LitTileSet } from "../state/litTiles.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 import type { PlacedEmote } from "../state/emotes.js";
 import { drawEmoteBubbles } from "./emoteBubbles.js";
+import { drawReadyPlates } from "./readyPlates.js";
 import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
 import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js";
 
@@ -956,6 +957,14 @@ export function createCanvasRenderer(
           camera,
         ),
       ),
+    );
+    // The hub's ready plates, lit in the colour of whoever holds each.
+    drawReadyPlates(
+      ctx,
+      scene.dungeon.map.readyPlates ?? [],
+      scene.self ? [...scene.others, scene.self] : scene.others,
+      (position) => worldToScreen(position, camera),
+      pixelsPerWorldUnit,
     );
     // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
     scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));

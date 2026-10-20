@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 34;
+export const PROTOCOL_VERSION = 35;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -126,6 +126,12 @@ export const TRAINING_DUMMY_WINDOW_MS = 5000;
  * damage per second rather than as damage divided by the few milliseconds since it landed.
  */
 export const TRAINING_DUMMY_MIN_SPAN_MS = 1000;
+
+/**
+ * The side of a hub ready plate, in world units. Smaller than an authored tile, so plates in a row
+ * leave a gap between them that the gate road shows through.
+ */
+export const READY_PLATE_SIZE = 3;
 
 /** Reach for picking up loot, opening doors, and using exits. */
 export const INTERACT_RANGE = 1.2;

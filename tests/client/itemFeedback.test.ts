@@ -27,6 +27,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     partyColor: "ember",
     bankedItems: [],
     seatId: null,
+    readyPlateId: null,
     ...overrides,
   };
 }

@@ -267,6 +267,15 @@ export function buildAuthoredDungeon(
               })),
             }
           : {}),
+        ...(definition.readyPlates.length > 0
+          ? {
+              readyPlates: definition.readyPlates.map((plate) => ({
+                id: plate.entityId,
+                x: plate.x,
+                y: plate.y,
+              })),
+            }
+          : {}),
       },
       rooms,
       monsters,

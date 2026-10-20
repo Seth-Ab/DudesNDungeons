@@ -271,14 +271,15 @@ describe("appearance contract", () => {
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: null,
+      readyPlateId: null,
       appearance: LOOK,
       partyColor: "ember",
       ...fields,
     };
   }
 
-  it("is on protocol v34, the version that added seats and a player's seatId", () => {
-    expect(PROTOCOL_VERSION).toBe(34);
+  it("is on protocol v35, the version that added ready plates and a player's readyPlateId", () => {
+    expect(PROTOCOL_VERSION).toBe(35);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -373,6 +374,8 @@ describe("appearance contract", () => {
       { seatId: undefined },
       { seatId: "bench-1" },
       { seatId: 7 },
+      { readyPlateId: undefined },
+      { readyPlateId: "plate-1" },
     ]) {
       const result = parseServerMessage(
         JSON.stringify({ type: "playerJoined", player: playerWith(fields) }),
@@ -439,6 +442,7 @@ describe("seat contract", () => {
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: TARGET_ID,
+      readyPlateId: null,
       appearance: { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" },
       partyColor: "ember",
     };
@@ -463,6 +467,67 @@ describe("seat contract", () => {
     ]) {
       expect(mapDiscoverySchema.safeParse(discovery([seat])).success, JSON.stringify(seat)).toBe(false);
     }
+  });
+});
+
+describe("ready plate contract", () => {
+  const PLATE = { id: TARGET_ID, x: 39.5, y: 9.5 };
+  const discovery = (readyPlates: unknown) => ({
+    id: "hub",
+    name: "The Ember Hearth",
+    width: 92,
+    height: 60,
+    reset: true,
+    discovered: [],
+    lit: [],
+    readyPlates,
+  });
+
+  it("accepts plates sent with map discovery and a player holding one", () => {
+    expect(mapDiscoverySchema.safeParse(discovery([PLATE])).success).toBe(true);
+    const joined = parseServerMessage(
+      JSON.stringify({
+        type: "playerJoined",
+        player: {
+          id: PLAYER_ID,
+          name: "Grix",
+          position: { x: 39.5, y: 9.5 },
+          facing: { x: 0, y: 1 },
+          health: 100,
+          resistance: 40,
+          stamina: 100,
+          ready: true,
+          connected: true,
+          inventory: [],
+          held: null,
+          carryingTorch: false,
+          carryingPlayerId: null,
+          carriedByPlayerId: null,
+          seatId: null,
+          readyPlateId: TARGET_ID,
+          appearance: { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" },
+          partyColor: "ember",
+        },
+      }),
+    );
+    expect(joined.ok).toBe(true);
+    if (joined.ok && joined.message.type === "playerJoined") {
+      expect(joined.message.player.readyPlateId).toBe(TARGET_ID);
+    }
+  });
+
+  it("rejects a malformed plate", () => {
+    for (const plate of [{ ...PLATE, id: "plate-1" }, { ...PLATE, x: Number.NaN }, { id: TARGET_ID, x: 1 }]) {
+      expect(mapDiscoverySchema.safeParse(discovery([plate])).success, JSON.stringify(plate)).toBe(false);
+    }
+  });
+
+  it("carries the party-ready cue on a ready change, and only as true", () => {
+    const cue = { type: "playerReadyChanged", playerId: PLAYER_ID, ready: true, partyReady: true };
+    const parsed = parseServerMessage(JSON.stringify(cue));
+    expect(parsed.ok && parsed.message).toEqual(cue);
+    expect(parseServerMessage(JSON.stringify({ ...cue, partyReady: undefined })).ok).toBe(true);
+    expect(parseServerMessage(JSON.stringify({ ...cue, partyReady: false })).ok).toBe(false);
   });
 });
 
@@ -824,6 +889,7 @@ describe("parseServerMessage", () => {
         carryingPlayerId: null,
         carriedByPlayerId: null,
         seatId: null,
+        readyPlateId: null,
         appearance: { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" },
         partyColor: "plum",
         bankedItems: [],
@@ -857,6 +923,7 @@ describe("parseServerMessage", () => {
           carryingPlayerId: null,
           carriedByPlayerId: null,
           seatId: null,
+          readyPlateId: null,
           bankedItems: [],
         },
       }),

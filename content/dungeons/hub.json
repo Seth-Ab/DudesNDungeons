@@ -121,6 +121,12 @@
     { "entityId": "556c3c11-fb36-4f2f-b4e3-9a2aec59a6e6", "x": 9.5625, "y": 7, "facing": "west" },
     { "entityId": "813390f9-b982-4707-9e0e-b41451924aab", "x": 12.4375, "y": 7, "facing": "east" }
   ],
+  "readyPlates": [
+    { "entityId": "d855ab91-8776-4acc-8e83-cfcc03fb0e5a", "x": 9.5, "y": 2 },
+    { "entityId": "48eac2e5-7e3c-4fec-81b1-c86c09a0be79", "x": 10.5, "y": 2 },
+    { "entityId": "46948730-862d-4127-8e98-963d2a351660", "x": 11.5, "y": 2 },
+    { "entityId": "f1b5bd6e-3fa9-460e-9830-14cd74502314", "x": 12.5, "y": 2 }
+  ],
   "lights": [
     { "entityId": "a6666666-6666-4666-8666-666666666666", "name": "Great Hearth", "x": 11, "y": 8.6, "radius": 18, "fixture": "none", "flicker": 0.12 },
     { "entityId": "17473021-6df5-4ae2-9499-183760d7d1db", "name": "Gate Lantern West", "x": 9, "y": 3, "radius": 14, "flicker": 0.08 },

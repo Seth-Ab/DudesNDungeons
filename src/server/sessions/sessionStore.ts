@@ -35,6 +35,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { lootRngFor } from "../game/monsterLoot.js";
+import { pressReady } from "../game/readyPlates.js";
 import { standUp } from "../game/seats.js";
 import type { DummyHit } from "../game/dummies.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
@@ -72,6 +73,12 @@ export interface SessionPlayer {
   carriedByPlayerId: PlayerId | null;
   /** The seat this player sits on, or null. Set only by `src/server/game/seats.ts`. */
   seatId: EntityId | null;
+  /** The hub ready plate this player holds, or null. Set only by `src/server/game/readyPlates.ts`. */
+  readyPlateId: EntityId | null;
+  /** True while `ready` was set by the held plate rather than the button, so stepping off clears it. */
+  readyFromPlate: boolean;
+  /** A plate this player unreadied on with the button. They cannot claim it again until they leave it. */
+  declinedPlateId: EntityId | null;
   /**
    * The designed look, or null while the player is still designing it. Null means the slot is held
    * but the player is not in the world: they block nobody, and the server refuses their actions and
@@ -394,6 +401,9 @@ export class SessionStore {
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: null,
+      readyPlateId: null,
+      readyFromPlate: false,
+      declinedPlateId: null,
       appearance: null,
       partyColor,
       profile: request.profile ?? request.createProfile(),
@@ -443,7 +453,7 @@ export class SessionStore {
     const member = this.findMember(playerId);
     if (!member) return undefined;
 
-    member.player.ready = ready;
+    pressReady(member.player, ready);
     return member;
   }
 
@@ -580,6 +590,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,
     seatId: player.seatId,
+    readyPlateId: player.readyPlateId,
     appearance: player.appearance ? { ...player.appearance } : null,
     partyColor: player.partyColor,
   };
