@@ -5,6 +5,7 @@ import {
   MINIMAP_SIZE,
   minimapAllies,
   minimapPoint,
+  minimapRoomName,
   minimapTile,
   minimapViewport,
   minimapWorldKey,
@@ -122,7 +123,7 @@ function drawSelf(context: Context, at: { x: number; y: number }, facing: Vector
 
 /**
  * A corner overview drawn from the client's accumulated discovered map: black except where the
- * server has sent geometry. It repaints only when the map object, the player's tile or facing, the
+ * server has sent geometry. A header strip names the room the player is in and marks north. It repaints only when the map object, the player's tile or facing, the
  * visible allies, or the remembered exits change, since none of those move every frame.
  */
 export function createMinimap() {
@@ -130,13 +131,24 @@ export function createMinimap() {
   element.className = "hud__minimap";
   element.hidden = true;
 
+  const header = document.createElement("div");
+  header.className = "hud__minimap-header";
+  const roomName = document.createElement("span");
+  roomName.className = "hud__minimap-room";
+  const north = document.createElement("span");
+  north.className = "hud__minimap-north";
+  north.textContent = "N";
+  north.title = "North is up";
+  north.setAttribute("aria-label", "North is up");
+  header.append(roomName, north);
+
   const canvas = document.createElement("canvas");
   canvas.className = "hud__minimap-canvas";
   canvas.width = MINIMAP_SIZE;
   canvas.height = MINIMAP_SIZE;
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", "Minimap of the explored dungeon");
-  element.append(canvas);
+  element.append(header, canvas);
 
   const context = canvas.getContext("2d");
 
@@ -154,6 +166,9 @@ export function createMinimap() {
     const show = visibility.visible && !!view && !!map && !!self && position !== null;
     element.hidden = !show;
     if (!show || !context || !view || !map || !self || !position) return;
+
+    const name = minimapRoomName(view, position);
+    if (roomName.textContent !== name) roomName.textContent = name;
 
     const tile = tileOf(position);
     const allies = minimapAllies(view);

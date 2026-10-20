@@ -134,8 +134,13 @@ export function createHud(options: HudOptions) {
     session.connectionElement,
     session.hubReadyButton,
     session.positionElement,
-    minimap.element,
   );
+
+  // The top-right corner: the minimap is first, so its anchor never moves, and the session panel
+  // stacks under it. A hidden minimap takes no space, so the panel rises into the corner.
+  const corner = document.createElement("div");
+  corner.className = "hud__corner";
+  corner.append(minimap.element, sessionPanel);
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
   partyPanel.append(vitals.element);
@@ -168,7 +173,7 @@ export function createHud(options: HudOptions) {
     partyFrames.element,
     toasts.element,
     hubStatus.element,
-    sessionPanel,
+    corner,
     partyPanel,
     actionPanel,
     hotbar.element,
