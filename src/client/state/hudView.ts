@@ -12,8 +12,6 @@ import {
   entranceMessage,
   entranceStatus,
   outcomeMessage,
-  placeLabel,
-  roomAt,
   torchNotice,
 } from "./runFlow.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
@@ -69,16 +67,6 @@ export function roomCodeLabel(view: SessionView): string {
  */
 export function actionableError(view: SessionView): string {
   return view.lastError && view.lastError.code !== "notImplemented" ? view.lastError.message : "";
-}
-
-/**
- * Named from the room metadata the snapshot already carries, which is the only thing that tells the
- * Torch Supply apart from the Quest Gallery: props are pictures, not places.
- */
-export function placeStatusLabel(view: SessionView, self: PlayerState | null): string {
-  if (!view.dungeon) return "-";
-  const room = self ? roomAt(view.dungeon.rooms, self.position) : null;
-  return placeLabel(view.dungeon.map.name, room);
 }
 
 export function positionLabel(position: { x: number; y: number }): string {
