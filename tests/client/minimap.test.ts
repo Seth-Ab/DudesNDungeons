@@ -6,17 +6,27 @@ import {
   MINIMAP_MIN_SCALE,
   MINIMAP_SIZE,
   minimapAllies,
+  minimapIcons,
+  minimapInitial,
   minimapPoint,
   minimapRoomName,
   minimapTile,
   minimapViewport,
   minimapWorldKey,
-  NO_EXITS,
-  rememberExits,
+  NO_MARKERS,
+  rememberMarkers,
   syncMinimapVisibility,
 } from "../../src/client/state/minimap.js";
+import { PARTY_PALETTES } from "../../src/client/rendering/characterPalettes.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
-import type { DungeonMapState, ExitState, MapDiscovery, PlayerState, RoomState } from "../../src/shared/types/core.js";
+import type {
+  ChestState,
+  DungeonMapState,
+  ExitState,
+  MapDiscovery,
+  PlayerState,
+  RoomState,
+} from "../../src/shared/types/core.js";
 
 function discovery(overrides: Partial<MapDiscovery> = {}): MapDiscovery {
   return {
@@ -132,6 +142,73 @@ describe("minimap allies", () => {
     const shapes = Object.fromEntries(minimapAllies(view).map((ally) => [ally.id, ally.shape]));
     expect(shapes).toEqual({ up: "standing", down: "downed" });
   });
+
+  it("marks each ally in their party colour with their initial, standing or downed", () => {
+    const view = viewWith(map, {
+      players: [
+        player("me", { partyColor: "ember" }),
+        player("maya", { name: "maya", partyColor: "moss" }),
+        player("noor", { name: "Noor", partyColor: "plum", health: 0 }),
+      ],
+      visiblePlayerIds: ["me", "maya", "noor"],
+    });
+    expect(minimapAllies(view).map(({ id, color, initial, shape }) => ({ id, color, initial, shape }))).toEqual([
+      { id: "maya", color: PARTY_PALETTES.moss.ring, initial: "M", shape: "standing" },
+      { id: "noor", color: PARTY_PALETTES.plum.ring, initial: "N", shape: "downed" },
+    ]);
+  });
+
+  it("takes the first letter or digit of a name for the initial", () => {
+    expect(minimapInitial("  _seth")).toBe("S");
+    expect(minimapInitial("élan")).toBe("É");
+    expect(minimapInitial("7th")).toBe("7");
+    expect(minimapInitial("--")).toBe("?");
+  });
+});
+
+describe("minimap icons", () => {
+  // Discovered: (1,1) wall, (2,1) and (3,1) floor. Everything else is dark.
+  const map = applyMapDiscovery(null, discovery());
+  const exit = (id: string, x: number, y = 1): ExitState => ({
+    id,
+    position: { x, y },
+    destination: "hub",
+    sealed: false,
+  });
+  const chest = (id: string, x: number, y = 1, opened = false): ChestState => ({
+    id,
+    lootTableId: "chest",
+    position: { x, y },
+    opened,
+    locked: false,
+  });
+
+  it("shows exits and chests only on discovered tiles", () => {
+    const markers = rememberMarkers(NO_MARKERS, "a", {
+      exits: [exit("seen-exit", 2), exit("dark-exit", 5, 2)],
+      chests: [chest("seen-chest", 3), chest("dark-chest", 0, 0)],
+    });
+    expect(minimapIcons(map, markers)).toEqual([
+      { id: "seen-exit", kind: "exit", tile: { x: 2, y: 1 } },
+      { id: "seen-chest", kind: "chest", tile: { x: 3, y: 1 } },
+    ]);
+  });
+
+  it("shows a chest that comes into discovered ground once the map grows", () => {
+    const markers = rememberMarkers(NO_MARKERS, "a", { exits: [], chests: [chest("c", 5, 2)] });
+    expect(minimapIcons(map, markers)).toEqual([]);
+    const grown = applyMapDiscovery(map, discovery({ reset: false, discovered: [{ x: 5, y: 2, tiles: "." }] }));
+    expect(minimapIcons(grown, markers).map((icon) => icon.id)).toEqual(["c"]);
+  });
+
+  it("marks an opened chest differently, and keeps the last state seen", () => {
+    const closed = rememberMarkers(NO_MARKERS, "a", { exits: [], chests: [chest("c", 2)] });
+    // Out of sight the chest is no longer sent, but stays remembered as it was.
+    expect(rememberMarkers(closed, "a", { exits: [], chests: [] })).toBe(closed);
+    const opened = rememberMarkers(closed, "a", { exits: [], chests: [chest("c", 2, 1, true)] });
+    expect(minimapIcons(map, opened)).toEqual([{ id: "c", kind: "openedChest", tile: { x: 2, y: 1 } }]);
+    expect(rememberMarkers(opened, "a", { exits: [], chests: [chest("c", 2, 1, true)] })).toBe(opened);
+  });
 });
 
 describe("minimap world lifecycle", () => {
@@ -160,16 +237,20 @@ describe("minimap world lifecycle", () => {
     expect(syncMinimapVisibility(hidden, null)).toEqual({ worldKey: null, visible: true });
   });
 
-  it("remembers exits once seen, and forgets them with the world", () => {
-    const seen = rememberExits(NO_EXITS, "a", [exit("x", 3)]);
+  it("remembers exits and chests once seen, and forgets them with the world", () => {
+    const chest: ChestState = { id: "c", lootTableId: "chest", position: { x: 2, y: 1 }, opened: false, locked: false };
+    const seen = rememberMarkers(NO_MARKERS, "a", { exits: [exit("x", 3)], chests: [chest] });
     expect(seen.exits.get("x")).toEqual({ x: 3, y: 1 });
+    expect(seen.chests.get("c")).toEqual({ position: { x: 2, y: 1 }, opened: false });
 
-    const out = rememberExits(seen, "a", []);
+    const out = rememberMarkers(seen, "a", { exits: [], chests: [] });
     expect(out).toBe(seen);
-    expect(rememberExits(out, "a", [exit("x", 3)])).toBe(seen);
+    expect(rememberMarkers(out, "a", { exits: [exit("x", 3)], chests: [chest] })).toBe(seen);
 
-    expect(rememberExits(seen, "b", []).exits.size).toBe(0);
-    expect(rememberExits(seen, null, [exit("x", 3)]).exits.size).toBe(0);
+    const next = rememberMarkers(seen, "b", { exits: [], chests: [] });
+    expect(next.exits.size + next.chests.size).toBe(0);
+    const none = rememberMarkers(seen, null, { exits: [exit("x", 3)], chests: [chest] });
+    expect(none).toBe(NO_MARKERS);
   });
 });
 

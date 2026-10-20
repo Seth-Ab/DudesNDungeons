@@ -8,7 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v35.
-- Last completed work: speaking rings on party portraits from per-peer remote voice levels, with a
+- Last completed work: minimap allies marked in their party colour with an initial, and arch and
+  chest icons on discovered tiles (issue #171, HUD Torch & Tally Phase 5, protocol unchanged);
+  earlier, speaking rings on party portraits from per-peer remote voice levels, with a
   hold and a proximity cutoff (issue #173, HUD Torch & Tally Phase 5, protocol unchanged); earlier,
   readying up by standing on four plates in front of the hub gate, lit in the
   holder's party colour, with a cue when the last one fills (issue #147, protocol v35); earlier, a
@@ -366,7 +368,8 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
   worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
   world. No protocol change.
-  - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1). `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its anchor never moves, and the session panel stacked under it; a hidden minimap takes no space and the panel rises into the corner. It keeps one size on short windows (no more 60% shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored room under the predicted position, or the dungeon's name between rooms) and an `N` mark. Party-colour markers are #171.
+  - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1). `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its anchor never moves, and the session panel stacked under it; a hidden minimap takes no space and the panel rises into the corner. It keeps one size on short windows (no more 60% shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored room under the predicted position, or the dungeon's name between rooms) and an `N` mark.
+  - [x] Show party colours, initials and icons on the minimap (issue #171, HUD Torch & Tally Phase 5). `minimapAllies` gives each visible ally their `PARTY_PALETTES` ring colour and `minimapInitial` (first letter or digit of the name); a standing ally is a ring holding the letter, a downed one a cross with the letter beside it. `rememberMarkers` keeps exits and chests seen in the current world (a chest keeps its last-seen opened state), and `minimapIcons` draws them only on discovered tiles: an arch for an exit, a box for a chest, hollow once opened. The canvas `title` carries the legend. No protocol change.
 - [x] Add an emote wheel (issue #149, protocol v30). `EMOTES` in `src/shared/constants/emotes.ts`; the
   `emote { kind }` message is refused for a player with no look, anything but `help` while downed, and
   more than one a second (`rateLimited`). `playerEmoted` goes only to the sender and the party members
@@ -487,6 +490,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-20: Minimap allies in party colour with an initial, plus exit and chest icons on discovered tiles (#171, HUD Torch & Tally).
 - 2026-10-20: Speaking rings on party portraits from per-peer voice levels (#173, HUD Torch & Tally Phase 5).
 - 2026-10-20: Ready plates in front of the hub gate, with a public `readyPlateId` and a party-ready cue (#147, v35).
 - 2026-10-20: Hotbar slots pulse on a confirmed item use and a picked-up item flies into its slot, with a reduced-motion highlight (#175, HUD Torch & Tally).
