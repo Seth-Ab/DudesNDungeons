@@ -1,14 +1,19 @@
 import {
+  hudFrameZoom,
   UI_SCALES,
   UI_SCALE_LABELS,
   type HudSettings,
   type HudSettingsStore,
 } from "../state/hudSettings.js";
 
-/** Reflects the settings onto the document: `data-reduced-motion` for CSS, root font size for scale. */
+/**
+ * Reflects the settings onto the document: `data-reduced-motion` for CSS, root font size for scale,
+ * and `--hud-zoom`, the whole-number scale of the HUD frame art.
+ */
 export function applyHudSettings(settings: HudSettings, root: HTMLElement = document.documentElement): void {
   root.dataset.reducedMotion = String(settings.reducedMotion);
   root.style.fontSize = `${settings.uiScale * 100}%`;
+  root.style.setProperty("--hud-zoom", String(hudFrameZoom(settings.uiScale)));
 }
 
 /**

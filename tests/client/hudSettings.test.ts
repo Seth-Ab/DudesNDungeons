@@ -3,6 +3,8 @@ import {
   createLocalStorageHudSettingsStore,
   createMemoryHudSettingsStore,
   defaultHudSettings,
+  hudFrameZoom,
+  UI_SCALES,
   parseHudSettings,
 } from "../../src/client/state/hudSettings.js";
 
@@ -71,5 +73,19 @@ describe("hud settings stores", () => {
     const store = createMemoryHudSettingsStore(() => false);
     store.write({ reducedMotion: true, uiScale: 0.85 });
     expect(store.read()).toEqual({ reducedMotion: true, uiScale: 0.85 });
+  });
+});
+
+describe("hudFrameZoom", () => {
+  it("is a whole number at every UI scale, so the frame art stays crisp", () => {
+    for (const scale of UI_SCALES) {
+      const zoom = hudFrameZoom(scale);
+      expect(Number.isInteger(zoom), `scale ${scale}`).toBe(true);
+      expect(zoom).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("steps from 2x to 3x at the largest scale", () => {
+    expect(UI_SCALES.map(hudFrameZoom)).toEqual([2, 2, 2, 3]);
   });
 });

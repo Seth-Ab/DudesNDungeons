@@ -1,10 +1,11 @@
 /**
  * Bakes `assets/sprites/source/dungeon.tiles.json` into `assets/sprites/dungeon.png`, and
- * `assets/sprites/source/characters.tiles.json` into `assets/sprites/characters.png`.
+ * `assets/sprites/source/characters.tiles.json` into `assets/sprites/characters.png`, and
+ * `assets/sprites/source/hud.tiles.json` into the HUD frame and stud PNGs.
  *
  * Run with `npm run build:sprites` after editing the source art, and commit the PNGs alongside it.
- * `tests/client/spriteSheet.test.ts` and `tests/client/characterSheet.test.ts` fail if they ever
- * disagree.
+ * `tests/client/spriteSheet.test.ts`, `characterSheet.test.ts` and `hudSprites.test.ts` fail if
+ * they ever disagree.
  *
  * The bakes themselves live in `spriteSheet.ts` and `characterSheet.ts`; this is only the command
  * around them.
@@ -23,12 +24,19 @@ import {
   CHARACTER_SHEET_PATH,
   readCharacterSourceArt,
 } from "./characterSheet.js";
+import {
+  bakeHudSprites,
+  HUD_SPRITE_NAMES,
+  hudSpritePath,
+  readHudSourceArt,
+} from "./hudSprites.js";
 import { bakeSheet, readSourceArt, SHEET_PATH, SpriteSourceError } from "./spriteSheet.js";
 
 try {
-  // Both are baked before either is written, so a broken source leaves neither sheet half-updated.
+  // Everything is baked before anything is written, so a broken source leaves no sheet half-updated.
   const tiles = bakeSheet(readSourceArt());
   const characters = bakeCharacterSheet(readCharacterSourceArt());
+  const hud = bakeHudSprites(readHudSourceArt());
 
   writeFileSync(SHEET_PATH, tiles);
   console.log(
@@ -42,6 +50,11 @@ try {
       `${CHARACTER_FRAMES.length} character frames (${characters.length} bytes) to ` +
       "assets/sprites/characters.png",
   );
+
+  for (const name of HUD_SPRITE_NAMES) {
+    writeFileSync(hudSpritePath(name), hud[name]);
+    console.log(`buildSprites: wrote ${hud[name].length} bytes to assets/sprites/${name}.png`);
+  }
 } catch (error) {
   if (!(error instanceof SpriteSourceError)) throw error;
   console.error(`buildSprites: ${error.message}`);

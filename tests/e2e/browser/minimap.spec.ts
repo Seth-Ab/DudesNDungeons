@@ -51,7 +51,8 @@ test.describe("Minimap", () => {
       expect(size.width - (mini.x + mini.width)).toBeCloseTo(8, 0);
       const canvas = await box(minimap.locator("canvas"));
       expect(canvas.height).toBeCloseTo(canvas.width, 0);
-      expect(canvas.width).toBeGreaterThan(mini.width - 4);
+      // The canvas fills the panel inside its 4 px frame border, drawn at the default 2x zoom.
+      expect(canvas.width).toBeGreaterThan(mini.width - 2 * 8 - 4);
       for (const other of [
         ".hud__panel--session",
         ".hud__panel--hints",
