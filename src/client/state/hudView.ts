@@ -196,12 +196,57 @@ export function runClockView(view: SessionView): RunClockView | null {
   };
 }
 
+/** Why a party member is or is not holding the gate shut. Only "ready" counts towards opening it. */
+export type HubPipState = "ready" | "waiting" | "designing" | "away";
+
+export interface HubPipView {
+  id: string;
+  name: string;
+  state: HubPipState;
+  /** The party colour's ring, so each pip matches the ring at that player's feet. */
+  accent: string;
+  /** ✓ or ○, so colour is never the only ready cue. */
+  mark: string;
+  /** Spoken and hovered: "Maya: ready". */
+  label: string;
+}
+
 export interface HubStatusView {
   ready: boolean;
   /** The headline: whether walking up to the gate is worth it. */
   text: string;
   /** Who it is waiting on, or how to start. */
   detail: string;
+  /** One per party member, self included, in snapshot order. */
+  pips: HubPipView[];
+  /** The key that uses the gate, and what it does right now. */
+  keyHint: { key: string; text: string };
+}
+
+const HUB_PIP_LABELS: Record<HubPipState, string> = {
+  ready: "ready",
+  waiting: "not ready",
+  designing: "designing a character",
+  away: "disconnected",
+};
+
+/** Mirrors `entranceStatus`: only a connected, ready member counts as ready. */
+function hubPipState(player: PlayerState): HubPipState {
+  if (!player.connected) return "away";
+  if (player.appearance === null) return "designing";
+  return player.ready ? "ready" : "waiting";
+}
+
+function hubPip(player: PlayerState): HubPipView {
+  const state = hubPipState(player);
+  return {
+    id: player.id,
+    name: player.name,
+    state,
+    accent: PARTY_PALETTES[player.partyColor].ring,
+    mark: state === "ready" ? "✓" : "○",
+    label: `${player.name}: ${HUB_PIP_LABELS[state]}`,
+  };
 }
 
 /**
@@ -211,8 +256,17 @@ export interface HubStatusView {
 export function hubStatusView(view: SessionView): HubStatusView | null {
   if (view.phase !== "inSession" || view.location !== "hub") return null;
 
+  const pips = view.players.map(hubPip);
   const status = entranceStatus(view.players);
-  if (status.kind === "ready") return { ready: true, text: "Party ready", detail: entranceMessage(status) };
+  if (status.kind === "ready") {
+    return {
+      ready: true,
+      text: "Party ready",
+      detail: entranceMessage(status),
+      pips,
+      keyHint: { key: keyLabel("interact"), text: "Enter the Dungeon Gate" },
+    };
+  }
 
   // Someone still designing cannot ready up at all, so "ready up" would ask the wrong thing of
   // them. Name them instead: until they have a character, nobody else readying opens the gate.
@@ -223,7 +277,13 @@ export function hubStatusView(view: SessionView): HubStatusView | null {
     designing.length === 0
       ? entranceMessage(status)
       : `Waiting on ${nameList(designing)} to finish designing ${designing.length === 1 ? "a character" : "their characters"}.`;
-  return { ready: false, text: "Waiting on the party", detail };
+  return {
+    ready: false,
+    text: "Waiting on the party",
+    detail,
+    pips,
+    keyHint: { key: keyLabel("interact"), text: "Gate opens once everyone is ready" },
+  };
 }
 
 /** "Maya", "Maya and Sam", "Maya, Sam and Iris". */

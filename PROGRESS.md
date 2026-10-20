@@ -8,7 +8,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v34.
-- Last completed work: sitting on hub benches and the fountain rim (issue #148, protocol v34);
+- Last completed work: toasts and the hub gate status merged into one top-centre notice stack, with
+  a party-colour ready pip per member (issue #163, HUD Torch & Tally Phase 1, protocol unchanged);
+  earlier, sitting on hub benches and the fountain rim (issue #148, protocol v34);
   earlier, the minimap given its own top-right frame with a room-name header (issue
   #162, HUD Torch & Tally Phase 1, protocol unchanged); earlier, the session and voice controls
   moved into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1, protocol unchanged); earlier, HUD colour tokens and the self-hosted
@@ -364,6 +366,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   bubble (`rendering/emoteBubbles.ts`), and writes a line to the action feed (a toast since #161).
 - [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
   - [x] Move the session and voice controls into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1). `ui/hud/campMenu.ts` holds Ready, Leave, Stash, Controls, and the voice readout, level meter, and Enable/Mute/Deafen buttons, with the disabled rules they had. Escape opens it once the player is in the world, unless the controls menu, the emote wheel, or the Stash takes the key first; Escape, Close, or a click outside shuts it. It does not pause the game; while open it owns the keyboard, traps Tab, and hands focus back on close. On screen stay a mic chip (`micChipView`: grey off/starting/muted/deafened, green live, amber blocked or missing, always with text) that opens the menu, a one-line key-hint strip whose Esc hint is also a button for touch, and a Ready button shown only in the hub (`hubReadyVisible`). The title, Place, and Action lines are gone: the latest server action and client refusals now show as an `action` toast, and the room name moves to the minimap header in #162.
+  - [x] Merge the toasts and the hub status into one notice stack (issue #163, HUD Torch & Tally Phase 1). `ui/hud/toasts.ts` `createNoticeStack` puts the hub banner and the toast list in one `hud__notices` column at the top centre, so they flow instead of overlapping; the banner is drawn as a toast card, amber while waiting and green when ready. `hubStatusView` adds one `pips` entry per party member in their party ring colour, filled with ✓ when ready and hollow with ○ otherwise (dashed while designing, dimmed while disconnected, each with a spoken label), plus the gate key hint. Toast timing, order, and live regions are unchanged.
 
 ### 4. Combat and Dungeon Interaction
 
