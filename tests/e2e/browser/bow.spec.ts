@@ -114,6 +114,27 @@ async function drawEast(page: Page, ms: number): Promise<void> {
   await page.keyboard.up("r");
 }
 
+/** The draw meter must not sit on the vitals, party frames, minimap or hotbar at this window size. */
+async function expectMeterClear(page: Page): Promise<void> {
+  const meter = await page.locator(".hud__draw").boundingBox();
+  if (!meter) throw new Error("The draw meter has no box");
+
+  const hits: string[] = [];
+  for (const selector of [".hud__panel", ".hud__frames", ".hud__minimap", ".hud__slot", ".hud__hub-status"]) {
+    for (const element of await page.locator(selector).all()) {
+      const box = await element.boundingBox();
+      if (!box || box.width === 0 || box.height === 0) continue;
+      const apart =
+        box.x + box.width <= meter.x ||
+        box.x >= meter.x + meter.width ||
+        box.y + box.height <= meter.y ||
+        box.y >= meter.y + meter.height;
+      if (!apart) hits.push(selector);
+    }
+  }
+  expect(hits).toEqual([]);
+}
+
 test.describe("Hunting bow", () => {
   test("a held draw flies further than a tap, and a teammate sees both arrows fly and the full draw reach the dummy", async ({
     browser,
@@ -177,7 +198,15 @@ test.describe("Hunting bow", () => {
     await expect(host.locator(".hud__draw")).toBeVisible();
     await host.waitForTimeout(FULL_MS);
     await expect(host.locator(".hud__draw")).toHaveClass(/hud__draw--full/);
+    await expect(host.locator(".hud__draw-label")).toHaveText("FULL DRAW");
+    await expect(host.locator(".hud__draw-tick")).toBeVisible();
+    await expectMeterClear(host);
+    await host.setViewportSize({ width: 420, height: 700 });
+    await expect(host.locator(".hud__draw")).toBeVisible();
+    await expectMeterClear(host);
+    await host.setViewportSize({ width: 1280, height: 720 });
     await host.screenshot({ path: testInfo.outputPath("bow-full-draw.png") });
+    await guest.screenshot({ path: testInfo.outputPath("bow-teammate-sees-draw.png") });
     await host.keyboard.up("r");
     await expect.poll(() => hostFlights.size).toBe(2);
     await expect.poll(() => guestFlights.size).toBe(2);

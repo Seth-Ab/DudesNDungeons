@@ -46,6 +46,7 @@ import {
 } from "../state/combatFeedback.js";
 import { isTileLit, type LitTileSet } from "../state/litTiles.js";
 import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
+import type { BowAim } from "../state/bowIndicator.js";
 import type { PlacedEmote } from "../state/emotes.js";
 import { drawEmoteBubbles } from "./emoteBubbles.js";
 import { drawReadyPlates } from "./readyPlates.js";
@@ -111,6 +112,10 @@ const colors = {
   swingMiss: "rgba(190, 200, 215, 0.22)",
   swingMissEdge: "rgba(190, 200, 215, 0.55)",
   swingImpact: "rgba(255, 244, 200, 0.8)",
+  aimGhost: "rgba(244, 239, 224, 0.28)",
+  aimLine: "#d9a441",
+  aimFull: "#9fd8a8",
+  aimMark: "#f4efe0",
   monsterBar: "#caa85a",
   monsterBarLow: "#d2503f",
 };
@@ -153,6 +158,8 @@ export interface Scene {
   popups: readonly ActivePopup[];
   /** Player swings currently animating, with the geometry the server resolved. */
   swings: readonly ActiveSwing[];
+  /** Bows being drawn that this client can see, the local player's first. */
+  bowAims: readonly BowAim[];
   /** Emote bubbles, each already pinned to where its emoter is drawn. */
   emotes: readonly PlacedEmote[];
   /** How far each recently struck training dummy leans, by id. A dummy at rest is absent. */
@@ -164,7 +171,7 @@ export interface Scene {
  * follows the layout at any window size. Re-measured at most every `HUD_MEASURE_INTERVAL_MS`: the
  * panels move only when they change size or the window does, and a layout read each frame is waste.
  */
-const HUD_OBSTACLE_SELECTOR = ".hud__panel, .hud__hotbar, .hud__hub-status, .hud__frames";
+const HUD_OBSTACLE_SELECTOR = ".hud__panel, .hud__hotbar, .hud__hub-status, .hud__frames, .hud__draw";
 const HUD_MEASURE_INTERVAL_MS = 250;
 
 function measureHudObstacles(): Rect[] {
@@ -465,6 +472,62 @@ export function createCanvasRenderer(
       }
     }
     ctx.globalAlpha = 1;
+  };
+
+  /**
+   * A drawn bow's aim line. A faint line marks the full-draw reach with a tick across it; the solid
+   * line grows to the range an arrow would fly now. At full draw it turns green, thickens and ends
+   * in a ring, so the state shows in shape as well as colour. Walls are ignored on purpose: the
+   * line is the intended range, and the server decides what the arrow hits.
+   */
+  const drawBowAims = (aims: readonly BowAim[], camera: Vector2): void => {
+    for (const aim of aims) {
+      const from = worldToScreen(aim.origin, camera);
+      const dx = Math.cos(aim.heading);
+      const dy = Math.sin(aim.heading);
+      const at = (distance: number) => ({
+        x: from.x + dx * distance * pixelsPerWorldUnit,
+        y: from.y + dy * distance * pixelsPerWorldUnit,
+      });
+      const tip = at(aim.length);
+      const end = at(aim.fullLength);
+      ctx.globalAlpha = aim.own ? 1 : 0.6;
+      ctx.lineCap = "round";
+
+      ctx.strokeStyle = colors.aimGhost;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.strokeStyle = colors.aimMark;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(end.x - dy * 6, end.y + dx * 6);
+      ctx.lineTo(end.x + dy * 6, end.y - dx * 6);
+      ctx.stroke();
+
+      ctx.strokeStyle = aim.full ? colors.aimFull : colors.aimLine;
+      ctx.lineWidth = aim.full ? 4 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(tip.x, tip.y);
+      ctx.stroke();
+
+      ctx.fillStyle = aim.full ? colors.aimFull : colors.aimLine;
+      ctx.beginPath();
+      ctx.arc(tip.x, tip.y, aim.full ? 5 : 3, 0, Math.PI * 2);
+      ctx.fill();
+      if (aim.full) {
+        ctx.strokeStyle = colors.aimMark;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(tip.x, tip.y, 9, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineCap = "butt";
   };
 
   /** Numbers rise and fade; red when the local player is hit, gold for their own hits. */
@@ -994,6 +1057,7 @@ export function createCanvasRenderer(
     drawPropLabels(scene, camera, now);
     drawSigns(scene, camera);
     drawSwings(scene.swings, camera);
+    drawBowAims(scene.bowAims, camera);
     drawDummyPlates(ctx, scene.dungeon.dummies, toScreen);
     drawPopups(scene.popups, camera);
     drawEmoteBubbles(ctx, scene.emotes, (position) => worldToScreen(position, camera));

@@ -1,7 +1,9 @@
+import { drawMeterView } from "../../state/bowIndicator.js";
+
 /**
- * A bare bar that fills as the held bow is drawn. A stand-in until the draw indicator has its own
- * art and layout: it shows the server's fraction (`PlayerState.drawFraction`) and nothing else,
- * and is hidden whenever the player is not drawing.
+ * The bow's draw meter above the hotbar. It shows the server's fraction (`PlayerState.drawFraction`)
+ * as fill length, a tick at the end marking full draw, and a text label that reads "FULL DRAW" at
+ * the cap, so the strength never rests on colour alone. Hidden whenever the player is not drawing.
  */
 export function createDrawReadout() {
   const element = document.createElement("div");
@@ -12,21 +14,31 @@ export function createDrawReadout() {
   element.setAttribute("aria-valuemin", "0");
   element.setAttribute("aria-valuemax", "100");
 
+  const track = document.createElement("div");
+  track.className = "hud__draw-track";
   const fill = document.createElement("div");
   fill.className = "hud__draw-fill";
-  element.append(fill);
+  const tick = document.createElement("div");
+  tick.className = "hud__draw-tick";
+  track.append(fill, tick);
+
+  const label = document.createElement("div");
+  label.className = "hud__draw-label";
+  element.append(track, label);
 
   return {
     element,
 
     update(fraction: number | null) {
-      element.hidden = fraction === null;
-      if (fraction === null) return;
+      const view = drawMeterView(fraction);
+      element.hidden = view === null;
+      if (view === null) return;
 
-      const percent = Math.round(fraction * 100);
-      fill.style.width = `${percent}%`;
-      element.setAttribute("aria-valuenow", String(percent));
-      element.classList.toggle("hud__draw--full", fraction >= 1);
+      fill.style.width = `${view.percent}%`;
+      label.textContent = view.label;
+      element.setAttribute("aria-valuenow", String(view.percent));
+      element.setAttribute("aria-valuetext", view.full ? "Full draw" : `${view.percent}%`);
+      element.classList.toggle("hud__draw--full", view.full);
     },
   };
 }
