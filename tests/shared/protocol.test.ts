@@ -270,14 +270,15 @@ describe("appearance contract", () => {
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
+      seatId: null,
       appearance: LOOK,
       partyColor: "ember",
       ...fields,
     };
   }
 
-  it("is on protocol v33, the version that added benches, logs, the campfire pit and prop facings", () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+  it("is on protocol v34, the version that added seats and a player's seatId", () => {
+    expect(PROTOCOL_VERSION).toBe(34);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -369,6 +370,9 @@ describe("appearance contract", () => {
       { appearance: undefined },
       { partyColor: "teal" },
       { partyColor: undefined },
+      { seatId: undefined },
+      { seatId: "bench-1" },
+      { seatId: 7 },
     ]) {
       const result = parseServerMessage(
         JSON.stringify({ type: "playerJoined", player: playerWith(fields) }),
@@ -402,6 +406,63 @@ describe("appearance contract", () => {
     );
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("seat contract", () => {
+  const SEAT = { id: TARGET_ID, x: 37.25, y: 23.25, facing: "south" };
+  const discovery = (seats: unknown) => ({
+    id: "hub",
+    name: "The Ember Hearth",
+    width: 92,
+    height: 60,
+    reset: true,
+    discovered: [],
+    lit: [],
+    seats,
+  });
+
+  it("accepts a seated player and seats sent with map discovery", () => {
+    const player = {
+      id: PLAYER_ID,
+      name: "Grix",
+      position: { x: 37.25, y: 23.25 },
+      facing: { x: 0, y: 1 },
+      health: 100,
+      resistance: 40,
+      stamina: 100,
+      ready: false,
+      connected: true,
+      inventory: [],
+      held: null,
+      carryingTorch: false,
+      carryingPlayerId: null,
+      carriedByPlayerId: null,
+      seatId: TARGET_ID,
+      appearance: { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" },
+      partyColor: "ember",
+    };
+
+    const joined = parseServerMessage(JSON.stringify({ type: "playerJoined", player }));
+    expect(joined.ok).toBe(true);
+    if (joined.ok && joined.message.type === "playerJoined") {
+      expect(joined.message.player.seatId).toBe(TARGET_ID);
+    }
+    expect(mapDiscoverySchema.safeParse(discovery([SEAT])).success).toBe(true);
+    for (const facing of ["north", "south", "east", "west"]) {
+      expect(mapDiscoverySchema.safeParse(discovery([{ ...SEAT, facing }])).success, facing).toBe(true);
+    }
+  });
+
+  it("rejects a malformed seat", () => {
+    for (const seat of [
+      { ...SEAT, id: "bench-1" },
+      { ...SEAT, facing: "up" },
+      { ...SEAT, x: Number.NaN },
+      { id: TARGET_ID, x: 1, facing: "south" },
+    ]) {
+      expect(mapDiscoverySchema.safeParse(discovery([seat])).success, JSON.stringify(seat)).toBe(false);
+    }
   });
 });
 
@@ -762,6 +823,7 @@ describe("parseServerMessage", () => {
         carryingTorch: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,
+        seatId: null,
         appearance: { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" },
         partyColor: "plum",
         bankedItems: [],
@@ -794,6 +856,7 @@ describe("parseServerMessage", () => {
           carryingTorch: false,
           carryingPlayerId: null,
           carriedByPlayerId: null,
+          seatId: null,
           bankedItems: [],
         },
       }),

@@ -4,6 +4,7 @@ import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { PlayerId } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { standUp } from "./seats.js";
 import { spendStamina } from "./vitals.js";
 
 export type CarryResult = { ok: true } | { ok: false; reason: RejectionReason };
@@ -48,6 +49,9 @@ export function liftPlayer(
   if (distance(player.position, target.position) > INTERACT_RANGE) return reject("outOfRange");
   if (!spendStamina(player, LIFT_STAMINA_COST)) return reject("exhausted");
 
+  // Lifting is done standing, and a body lifted off a seat goes where its carrier is.
+  standUp(session, player);
+  target.seatId = null;
   player.carryingPlayerId = target.id;
   target.carriedByPlayerId = player.id;
   target.position = { ...player.position };

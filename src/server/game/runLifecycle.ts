@@ -57,6 +57,8 @@ function resetPlayerForWorld(player: SessionPlayer, map: DungeonMapState): void 
   // any carry link left standing would point at a location that no longer means anything.
   player.carryingPlayerId = null;
   player.carriedByPlayerId = null;
+  // Seats belong to the world being replaced, like everything else about where a player was.
+  player.seatId = null;
 }
 
 /** Places the whole party without letting their positions in the old world block new spawns. */

@@ -17,6 +17,7 @@ import {
   MAP_PROP_KINDS,
   MAP_THEMES,
   MAX_PROP_LABEL_LENGTH,
+  SEAT_FACINGS,
   STALL_TINTS,
 } from "../../shared/constants/scenery.js";
 
@@ -572,6 +573,19 @@ const placedPropSchema = z
   });
 export type PlacedProp = z.infer<typeof placedPropSchema>;
 
+/**
+ * Somewhere to sit, such as a place on a bench. `x`/`y` is where the sitter goes, in authored tiles,
+ * and the tile it rounds to is the one sat on. The id is required, like a dummy's, so a seat keeps
+ * it however the map is edited. `loadContent` checks the tile `facing` points at is floor, which
+ * is where the sitter stands up, and that the id is unique.
+ */
+const placedSeatSchema = z.object({
+  x: z.number().nonnegative(),
+  y: z.number().nonnegative(),
+  entityId: z.string().uuid(),
+  facing: z.enum(SEAT_FACINGS),
+});
+
 const authoredRoomSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -613,6 +627,7 @@ export const authoredDungeonSchema = z.object({
   exits: z.array(placedExitSchema).default([]),
   dummies: z.array(placedDummySchema).default([]),
   lights: z.array(placedLightSchema).default([]),
+  seats: z.array(placedSeatSchema).default([]),
 });
 export type AuthoredDungeon = z.infer<typeof authoredDungeonSchema>;
 

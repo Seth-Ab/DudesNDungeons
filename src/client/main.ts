@@ -257,6 +257,13 @@ setInterval(() => {
   // Intent only. The server owns placement; snapshots correct the prediction.
   if (!client.sendMoveIntent(heading)) return;
 
+  // A step off a seat stands the player up wherever the server finds room in front of it, which
+  // the client cannot predict from inside the bench, so it follows the server's placement.
+  if (self.seatId !== null) {
+    lastPredictionAt = Number.NEGATIVE_INFINITY;
+    return;
+  }
+
   // Into the dark there is no map to predict against, so follow the server's placement instead.
   if (stepsIntoUndiscovered(view.dungeon, localPosition, heading)) {
     lastPredictionAt = Number.NEGATIVE_INFINITY;

@@ -57,6 +57,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    seatId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],
@@ -804,5 +805,34 @@ describe("hub status", () => {
       view({ phase: "inSession", location: "hub", players: [player("Maya", { id: "1", ready: true }), player("Sam")] }),
     );
     expect(status?.detail).toBe("Waiting on Sam to ready up.");
+  });
+});
+
+describe("seat prompt", () => {
+  const SEAT_ID = "32924e4e-473a-4c26-b13a-4f8ba4376dfb";
+  const seat = { id: SEAT_ID, x: 0.75, y: 0, facing: "north" as const };
+  const origin = { x: 0, y: 0 };
+  const withSeat = (players: PlayerState[]) =>
+    view({
+      ...inSession,
+      location: "hub",
+      players,
+      dungeon: dungeon({ map: { name: "Test", width: 4, height: 4, tiles: [], seats: [seat] } } as unknown as Partial<DungeonState>),
+    });
+
+  it("offers a free seat in reach", () => {
+    const self = player("Maya", { id: SELF_ID });
+    expect(actionPrompt(withSeat([self]), self, origin)).toMatchObject({ action: "interact", text: "Sit" });
+  });
+
+  it("offers nothing for a seat out of reach, someone else's seat, or while sitting", () => {
+    const self = player("Maya", { id: SELF_ID });
+    expect(actionPrompt(withSeat([self]), self, { x: 3, y: 3 })).toBeNull();
+
+    const sitter = player("Rook", { position: { x: 0.75, y: 0 }, seatId: SEAT_ID });
+    expect(actionPrompt(withSeat([self, sitter]), self, origin)).toBeNull();
+
+    const seated = player("Maya", { id: SELF_ID, seatId: "14f4b265-75ae-41f0-81ba-f62410dcc5b3" });
+    expect(actionPrompt(withSeat([seated]), seated, origin)).toBeNull();
   });
 });

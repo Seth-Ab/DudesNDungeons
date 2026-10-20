@@ -22,6 +22,7 @@ import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
 import { recordDummyHit, refreshDummies } from "./dummies.js";
 import { expireFlares } from "./flares.js";
 import { MonsterPlanner } from "./monsterAi.js";
+import { standUp } from "./seats.js";
 import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "./monsterAttacks.js";
 import { hasLineOfSight } from "./visibility.js";
 import { dropMonsterLoot } from "./monsterLoot.js";
@@ -95,6 +96,9 @@ export function resolvePlayerAttack(
 
   const heading = normalizeDirection(direction);
   if (!heading) return { ok: false, reason: "outOfRange" };
+
+  // Nobody swings from a bench: trying to stands them up first, and the swing goes from the floor.
+  standUp(session, player);
 
   if (player.nextAttackAt !== null && now < player.nextAttackAt) {
     return { ok: false, reason: "onCooldown" };

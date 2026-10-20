@@ -23,6 +23,7 @@ import { placeFlare } from "./flares.js";
 import { spillLootTable } from "./monsterLoot.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
+import { seatById, sitOn } from "./seats.js";
 import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
@@ -437,7 +438,10 @@ function revive(
   return OK;
 }
 
-/** Opens a door or a chest, or uses the current world's exit to transition the whole party. */
+/**
+ * Opens a door or a chest, sits on a seat, or uses the current world's exit to transition the whole
+ * party.
+ */
 export function interact(
   session: Session,
   playerId: PlayerId,
@@ -452,6 +456,9 @@ export function interact(
 
   const chest = session.dungeon.chests.find((candidate) => candidate.id === targetId);
   if (chest) return openChest(session, player, chest);
+
+  const seat = seatById(session, targetId);
+  if (seat) return sitOn(session, player, seat);
 
   const exit = session.dungeon.exits.find((candidate) => candidate.id === targetId);
   if (exit) {
