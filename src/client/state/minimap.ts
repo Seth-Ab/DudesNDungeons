@@ -2,6 +2,7 @@ import { tileOf } from "../../shared/game/movement.js";
 import type { DungeonMapState, ExitState, PlayerState, Vector2 } from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
 import { partyMemberState } from "./hudView.js";
+import { roomAt } from "./runFlow.js";
 
 /**
  * What the minimap shows, kept free of the DOM so the node test environment can drive it. The panel
@@ -111,6 +112,19 @@ export function minimapWorldKey(view: SessionView): string | null {
   const map = view.dungeon?.map;
   if (view.phase !== "inSession" || !map) return null;
   return `${view.location ?? "?"}:${map.id}:${map.width}x${map.height}`;
+}
+
+/**
+ * The minimap header's place name: "Hub" in the hub, otherwise the authored room the player stands
+ * in, or the dungeon's own name between rooms. `position` is the predicted one, so the name changes
+ * as the player crosses a doorway rather than on the next snapshot.
+ */
+export function minimapRoomName(view: SessionView, position: Vector2 | null): string {
+  if (view.location === "hub") return "Hub";
+  const dungeon = view.dungeon;
+  if (!dungeon) return "-";
+  const room = position ? roomAt(dungeon.rooms, position) : null;
+  return room?.name ?? (dungeon.map.name || "-");
 }
 
 export interface RememberedExits {

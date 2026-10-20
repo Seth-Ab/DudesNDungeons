@@ -9,8 +9,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v34.
 - Last completed work: sitting on hub benches and the fountain rim (issue #148, protocol v34);
-  earlier, the session and voice controls moved into an Esc camp menu (issue #161, HUD
-  Torch & Tally Phase 1, protocol unchanged); earlier, HUD colour tokens and the self-hosted
+  earlier, the minimap given its own top-right frame with a room-name header (issue
+  #162, HUD Torch & Tally Phase 1, protocol unchanged); earlier, the session and voice controls
+  moved into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1, protocol unchanged); earlier, HUD colour tokens and the self-hosted
   Silkscreen and Pixelify Sans fonts (issue #165, HUD Torch & Tally Phase 2, protocol unchanged); earlier, the Attack and Emote buttons
   shown only on touch devices (issue #164, HUD Torch & Tally Phase 1); earlier, the hub re-authored as a ring round a 3x3 fountain, with stalls on the
   diagonals, a gate road, a campfire clearing, a training yard, benches and a ragged forest edge
@@ -354,6 +355,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
   worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
   world. No protocol change.
+  - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1). `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its anchor never moves, and the session panel stacked under it; a hidden minimap takes no space and the panel rises into the corner. It keeps one size on short windows (no more 60% shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored room under the predicted position, or the dungeon's name between rooms) and an `N` mark. Party-colour markers are #171.
 - [x] Add an emote wheel (issue #149, protocol v30). `EMOTES` in `src/shared/constants/emotes.ts`; the
   `emote { kind }` message is refused for a player with no look, anything but `help` while downed, and
   more than one a second (`rateLimited`). `playerEmoted` goes only to the sender and the party members
@@ -467,6 +469,7 @@ Complete on `feature/hub-run-flow`.
 One line per change; read the linked pull request for detail.
 
 - 2026-10-19: Sitting on hub benches and the fountain rim, with a public `seatId` (#148, v34).
+- 2026-10-19: Minimap given its own top-right frame with a room-name header and an N mark (#162, HUD Torch & Tally Phase 1).
 - 2026-10-19: Session and voice controls moved into an Esc camp menu, with a mic chip, key hints and a hub-only Ready button on screen (#161, HUD Torch & Tally Phase 1).
 - 2026-10-19: HUD colour tokens and self-hosted Silkscreen and Pixelify Sans fonts (#165, HUD Torch & Tally Phase 2).
 - 2026-10-19: Attack and Emote HUD buttons shown only on a coarse pointer (#164, HUD Torch & Tally Phase 1).

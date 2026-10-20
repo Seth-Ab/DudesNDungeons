@@ -7,6 +7,7 @@ import {
   MINIMAP_SIZE,
   minimapAllies,
   minimapPoint,
+  minimapRoomName,
   minimapTile,
   minimapViewport,
   minimapWorldKey,
@@ -15,7 +16,7 @@ import {
   syncMinimapVisibility,
 } from "../../src/client/state/minimap.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
-import type { DungeonMapState, ExitState, MapDiscovery, PlayerState } from "../../src/shared/types/core.js";
+import type { DungeonMapState, ExitState, MapDiscovery, PlayerState, RoomState } from "../../src/shared/types/core.js";
 
 function discovery(overrides: Partial<MapDiscovery> = {}): MapDiscovery {
   return {
@@ -168,5 +169,31 @@ describe("minimap world lifecycle", () => {
 
     expect(rememberExits(seen, "b", []).exits.size).toBe(0);
     expect(rememberExits(seen, null, [exit("x", 3)]).exits.size).toBe(0);
+  });
+});
+
+describe("minimap header", () => {
+  const map = applyMapDiscovery(null, discovery({ name: "Ember Vault" }));
+  const hall: RoomState = { id: "hall", name: "Ember Hall", kind: "hall", x: 0, y: 0, width: 3, height: 3 };
+  const inDungeon = (overrides: Partial<SessionView> = {}): SessionView =>
+    viewWith(map, {
+      location: "dungeon",
+      dungeon: { map, rooms: [hall] } as unknown as SessionView["dungeon"],
+      ...overrides,
+    });
+
+  it("reads Hub in the hub, whatever area of it the player stands in", () => {
+    expect(minimapRoomName(inDungeon({ location: "hub" }), { x: 1.5, y: 1.5 })).toBe("Hub");
+  });
+
+  it("names the room the player stands in, and follows them out of it", () => {
+    const view = inDungeon();
+    expect(minimapRoomName(view, { x: 1.5, y: 1.5 })).toBe("Ember Hall");
+    // Between authored rooms the dungeon's own name stands in.
+    expect(minimapRoomName(view, { x: 4.5, y: 1.5 })).toBe("Ember Vault");
+  });
+
+  it("has nothing to name outside a world", () => {
+    expect(minimapRoomName(initialSessionView, null)).toBe("-");
   });
 });

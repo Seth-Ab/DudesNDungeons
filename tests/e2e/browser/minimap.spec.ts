@@ -12,7 +12,7 @@ function overlaps(a: { x: number; y: number; width: number; height: number }, b:
 }
 
 test.describe("Minimap", () => {
-  test("shows in the corner without covering other HUD modules, and toggles with M", async ({ browser }, testInfo) => {
+  test("keeps its own top-right frame without covering other HUD modules, and toggles with M", async ({ browser }, testInfo) => {
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
     const host = await hostContext.newPage();
@@ -37,6 +37,8 @@ test.describe("Minimap", () => {
 
     const minimap = host.locator(".hud__minimap");
     await expect(minimap).toBeVisible();
+    await expect(minimap.locator(".hud__minimap-room")).toHaveText("Hub");
+    await expect(minimap.locator(".hud__minimap-north")).toHaveText("N");
 
     for (const size of [
       { width: 1280, height: 720 },
@@ -44,8 +46,22 @@ test.describe("Minimap", () => {
     ]) {
       await host.setViewportSize(size);
       const mini = await box(minimap);
-      expect(mini.x + mini.width).toBeLessThanOrEqual(size.width);
-      for (const other of [".hud__panel--party", ".hud__panel--actions", ".hud__frames", ".hud__toasts", ".hud__hotbar"]) {
+      // Pinned to the top-right corner (0.5rem in), at the same size on a short window as a tall one.
+      expect(mini.y).toBeCloseTo(8, 0);
+      expect(size.width - (mini.x + mini.width)).toBeCloseTo(8, 0);
+      const canvas = await box(minimap.locator("canvas"));
+      expect(canvas.height).toBeCloseTo(canvas.width, 0);
+      expect(canvas.width).toBeGreaterThan(mini.width - 4);
+      for (const other of [
+        ".hud__panel--session",
+        ".hud__panel--hints",
+        ".hud__panel--party",
+        ".hud__panel--actions",
+        ".hud__frames",
+        ".hud__toasts",
+        ".hud__hub-status",
+        ".hud__hotbar",
+      ]) {
         const target = host.locator(other).first();
         if (!(await target.isVisible())) continue;
         expect(overlaps(mini, await box(target)), `${other} at ${size.width}px`).toBe(false);
@@ -53,10 +69,14 @@ test.describe("Minimap", () => {
       await host.screenshot({ path: testInfo.outputPath(`minimap-${size.width}.png`) });
     }
 
+    // Hidden, it leaves no gap: the session panel rises into the corner it held.
+    const session = host.locator(".hud__panel--session");
     await host.keyboard.press("m");
     await expect(minimap).toBeHidden();
+    expect((await box(session)).y).toBeCloseTo(8, 0);
     await host.keyboard.press("m");
     await expect(minimap).toBeVisible();
+    expect((await box(session)).y).toBeGreaterThan((await box(minimap)).height);
 
     await hostContext.close();
     await guestContext.close();
