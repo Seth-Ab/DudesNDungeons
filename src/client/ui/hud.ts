@@ -215,6 +215,11 @@ export function createHud(options: HudOptions) {
       voice.setLevel(level);
     },
 
+    /** Who rings as speaking on the party frames; called every display frame. */
+    setSpeaking(playerIds: ReadonlySet<string>) {
+      partyFrames.setSpeaking(playerIds);
+    },
+
     setPosition(position: Vector2) {
       session.setPosition(positionLabel(position));
       currentPosition = position;

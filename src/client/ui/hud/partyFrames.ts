@@ -6,13 +6,27 @@ import { createBar } from "./vitals.js";
 
 type Portraits = ReturnType<typeof createCharacterPortraits>;
 
+/** Printed on the portrait beside the ring, so speaking never reads from colour alone. */
+export const SPEAKING_GLYPH = "♪";
+
 function createFrame(portraits: Portraits) {
   const element = document.createElement("li");
   element.className = "hud__frame";
 
+  const avatar = document.createElement("div");
+  avatar.className = "hud__frame-avatar";
   const portrait = portraits.createCanvas();
   portrait.className = "hud__frame-portrait";
   portrait.setAttribute("aria-hidden", "true");
+  const speakingBadge = document.createElement("span");
+  speakingBadge.className = "hud__frame-speaking";
+  speakingBadge.textContent = SPEAKING_GLYPH;
+  speakingBadge.title = "Speaking";
+  speakingBadge.setAttribute("role", "img");
+  speakingBadge.setAttribute("aria-label", "Speaking");
+  speakingBadge.hidden = true;
+  avatar.append(portrait, speakingBadge);
+  let speaking = false;
   // Which look the canvas holds, so a snapshot that changes nothing does not repaint it.
   let paintedKey: string | null = null;
 
@@ -36,10 +50,17 @@ function createFrame(portraits: Portraits) {
   const health = createBar(VITAL_GLYPHS.health, "Health", "health");
   const resistance = createBar(VITAL_GLYPHS.resistance, "Resistance", "resistance");
   body.append(header, caption, health.element, resistance.element);
-  element.append(portrait, body);
+  element.append(avatar, body);
 
   return {
     element,
+    /** Called every display frame, so it writes to the DOM only when the state flips. */
+    setSpeaking(next: boolean) {
+      if (speaking === next) return;
+      speaking = next;
+      element.dataset.speaking = String(next);
+      speakingBadge.hidden = !next;
+    },
     set(frame: PartyFrameView, sheetLoaded: boolean) {
       name.textContent = frame.name;
       icon.textContent = frame.icon;
@@ -77,6 +98,8 @@ export function createPartyFrames() {
   const frames = new Map<string, ReturnType<typeof createFrame>>();
   let sheetLoaded = false;
   let lastView: SessionView | null = null;
+  /** Who the voice mesh last heard talking, so a frame made by a later snapshot starts right. */
+  let speaking: ReadonlySet<string> = new Set();
 
   // Portraits asked for before the sheet decodes are blank; repaint them from the last snapshot.
   const portraits = createCharacterPortraits(() => {
@@ -100,11 +123,17 @@ export function createPartyFrames() {
           frames.set(frame.id, entry);
         }
         entry.set(frame, sheetLoaded);
+        entry.setSpeaking(speaking.has(frame.id));
         return entry.element;
       }),
     );
     element.hidden = current.length === 0;
   }
 
-  return { element, update };
+  function setSpeaking(next: ReadonlySet<string>) {
+    speaking = next;
+    for (const [id, entry] of frames) entry.setSpeaking(next.has(id));
+  }
+
+  return { element, update, setSpeaking };
 }

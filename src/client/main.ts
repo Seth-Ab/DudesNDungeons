@@ -380,6 +380,7 @@ lobby.focus();
 function renderLoop(): void {
   renderer.render();
   hud.setVoiceLevel(voice.inputLevel());
+  hud.setSpeaking(voice.speakingPeers());
   requestAnimationFrame(renderLoop);
 }
 requestAnimationFrame(renderLoop);

@@ -372,6 +372,48 @@ button:disabled {
   image-rendering: pixelated;
 }
 
+.hud__frame-avatar {
+  position: relative;
+  flex: none;
+  display: flex;
+}
+
+/* A talking ally: a gold ring round the portrait, plus the ♪ badge so it is not colour alone. */
+.hud__frame[data-speaking="true"] .hud__frame-portrait {
+  box-shadow: 0 0 0 2px #f3d27a;
+  animation: hud-speaking 900ms ease-in-out infinite alternate;
+}
+
+.hud__frame-speaking {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  min-width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #f3d27a;
+  color: #2a1d0c;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 0.9rem;
+  text-align: center;
+}
+
+.hud__frame-speaking[hidden] {
+  display: none;
+}
+
+@keyframes hud-speaking {
+  to {
+    box-shadow: 0 0 0 3px rgba(243, 210, 122, 0.55);
+  }
+}
+
+/* Reduced motion keeps the ring and the badge, steady. */
+:root[data-reduced-motion="true"] .hud__frame[data-speaking="true"] .hud__frame-portrait {
+  animation: none;
+}
+
 .hud__frame-body {
   display: flex;
   flex-direction: column;

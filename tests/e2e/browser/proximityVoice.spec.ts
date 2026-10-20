@@ -120,6 +120,22 @@ test.describe("Proximity voice", () => {
     // Both stand in the lit hub, so the server puts each well inside the other's earshot.
     await expect.poll(() => loudestRemote(host), { timeout: 10_000 }).toBeGreaterThan(0);
 
+    // The fake microphone beeps, so the guest's frame rings on the host's screen while it sounds.
+    const guestFrame = host.locator(".hud__frame", { hasText: "Theo" });
+    await expect(guestFrame).toHaveAttribute("data-speaking", "true", { timeout: 10_000 });
+    await expect(guestFrame.getByRole("img", { name: "Speaking" })).toBeVisible();
+    // A beep is short, so the capture is retried until the ring was still on once it finished.
+    await expect
+      .poll(
+        async () => {
+          if ((await guestFrame.getAttribute("data-speaking")) !== "true") return false;
+          await host.locator(".hud__frames").screenshot({ path: testInfo.outputPath("voice-speaking.png") });
+          return (await guestFrame.getAttribute("data-speaking")) === "true";
+        },
+        { timeout: 10_000, intervals: [50] },
+      )
+      .toBe(true);
+
     await host.getByRole("button", { name: "Mute" }).click();
     await expect(voiceStatus(host)).toContainText("muted");
     await expect(micChip(host)).toHaveText("Mic muted");
@@ -131,6 +147,9 @@ test.describe("Proximity voice", () => {
     await host.getByRole("button", { name: "Deafen" }).click();
     await expect(voiceStatus(host)).toContainText("deafened");
     expect(await loudestRemote(host)).toBe(0);
+    // Nobody can be heard, so nobody rings, beep or not.
+    await expect(guestFrame).toHaveAttribute("data-speaking", "false");
+    await expect(guestFrame.getByRole("img", { name: "Speaking" })).toBeHidden();
     await host.getByRole("button", { name: "Undeafen" }).click();
     await host.getByRole("button", { name: "Unmute" }).click();
     await expect(voiceStatus(host)).toContainText("on, 1 peer");
