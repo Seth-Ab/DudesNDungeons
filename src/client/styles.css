@@ -6,6 +6,53 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  /* HUD palette: stone, brass, and ember pulled from colours already in the game. Text is never pure white. */
+  --hud-panel: rgba(16, 13, 11, 0.86);
+  --hud-frame: #5a4630;
+  --hud-brass: #d6a84c;
+  --hud-ember: #f08a48;
+  --hud-text: #ede2c8;
+  --hud-text-muted: #d8ceb1;
+  --hud-well: #0b0908;
+  --hud-warning: #e0b64f;
+  --hud-warning-frame: #6b5524;
+  /* Each vital is a light top and a dark base; the light tone also colours its label. */
+  --hud-health: #e46a5f;
+  --hud-health-dark: #b8392f;
+  --hud-resistance: #8aa6e0;
+  --hud-resistance-dark: #4a66a8;
+  --hud-stamina: #dfe57a;
+  --hud-stamina-dark: #9aa33a;
+
+  /* Silkscreen for numbers, key hints, and short labels; Pixelify Sans for names, headings, and sentences. */
+  --hud-font-label: "Silkscreen", "Pixelify Sans", ui-monospace, monospace;
+  --hud-font-name: "Pixelify Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Self-hosted from assets/ui/fonts (SIL OFL 1.1); see assets/ui/README.md. */
+@font-face {
+  font-family: "Silkscreen";
+  src: url("../../assets/ui/fonts/silkscreen-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Silkscreen";
+  src: url("../../assets/ui/fonts/silkscreen-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("../../assets/ui/fonts/pixelify-sans.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 * {
@@ -49,11 +96,23 @@ button:focus-visible {
   inset: 0;
   z-index: 15;
   pointer-events: none;
+  color: var(--hud-text);
+  font-family: var(--hud-font-name);
+  /* Neither pixel face has an italic, and the disconnected frame keeps its slant as a cue. */
+  font-synthesis: style;
 }
 
 /* Only the interactive controls take the pointer; the rest of the HUD lets clicks reach the canvas. */
 .hud button {
   pointer-events: auto;
+  border-color: var(--hud-frame);
+  color: var(--hud-text);
+  background: var(--hud-well);
+}
+
+.hud button:hover,
+.hud button:focus-visible {
+  border-color: var(--hud-brass);
 }
 
 .hud__panel {
@@ -63,9 +122,9 @@ button:focus-visible {
   gap: 0.35rem;
   max-width: calc(100vw - 1rem);
   padding: 0.5rem 0.65rem;
-  border: 1px solid #332f2b;
+  border: 1px solid var(--hud-frame);
   border-radius: 8px;
-  background: rgba(27, 28, 31, 0.82);
+  background: var(--hud-panel);
 }
 
 /* One line of key hints, top-left above the party frames. Esc doubles as the camp menu's button. */
@@ -111,7 +170,7 @@ button:focus-visible {
 .hud__minimap {
   width: 100%;
   aspect-ratio: 1;
-  border: 1px solid #4a4540;
+  border: 1px solid var(--hud-frame);
   background: #000;
 }
 
@@ -202,12 +261,12 @@ button:focus-visible {
 }
 
 .hud__stat {
-  color: #d8ceb1;
+  color: var(--hud-text-muted);
   font-size: 0.88rem;
 }
 
 .hud__stat--warning {
-  color: #e8a25c;
+  color: var(--hud-warning);
 }
 
 /* Microphone input level, shown only while voice is live. */
@@ -216,7 +275,7 @@ button:focus-visible {
   height: 0.35rem;
   overflow: hidden;
   border-radius: 2px;
-  background: #332f2b;
+  background: var(--hud-well);
 }
 
 .hud__meter[hidden] {
@@ -265,10 +324,10 @@ button:disabled {
   gap: 0.45rem;
   width: 12.5rem;
   padding: 0.35rem 0.5rem;
-  border: 1px solid #332f2b;
-  border-left: 3px solid var(--party-accent, #332f2b);
+  border: 1px solid var(--hud-frame);
+  border-left: 3px solid var(--party-accent, var(--hud-frame));
   border-radius: 8px;
-  background: rgba(27, 28, 31, 0.82);
+  background: var(--hud-panel);
 }
 
 /* Head and shoulders, 16 art pixels scaled up crisp. */
@@ -277,7 +336,7 @@ button:disabled {
   width: 2rem;
   height: 2rem;
   border-radius: 4px;
-  background: #1b1c1f;
+  background: var(--hud-well);
   image-rendering: pixelated;
 }
 
@@ -305,7 +364,6 @@ button:disabled {
   justify-content: space-between;
   align-items: baseline;
   gap: 0.4rem;
-  color: #f7f0da;
   font-size: 0.8rem;
 }
 
@@ -316,13 +374,13 @@ button:disabled {
 }
 
 .hud__frame-state {
-  color: #d8ceb1;
+  color: var(--hud-text-muted);
   font-weight: 700;
 }
 
 .hud__frame[data-state="downed"] .hud__frame-state,
 .hud__frame[data-state="beingCarried"] .hud__frame-state {
-  color: #d9625c;
+  color: var(--hud-health);
 }
 
 .hud__frame[data-state="disconnected"] {
@@ -352,9 +410,9 @@ button:disabled {
 
 .hud__prompt {
   padding: 0.3rem 0.7rem;
-  border: 1px solid #6a5a36;
+  border: 1px solid var(--hud-frame);
   border-radius: 6px;
-  background: rgba(27, 28, 31, 0.9);
+  background: var(--hud-panel);
   color: #f1dfa6;
   font-size: 0.9rem;
 }
@@ -376,14 +434,14 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid #3c3630;
+  border: 1px solid var(--hud-frame);
   border-radius: 6px;
-  background: #121417;
+  background: var(--hud-well);
 }
 
 .hud__slot--held {
   margin-right: 0.5rem;
-  border-color: #856a42;
+  border-color: var(--hud-brass);
 }
 
 .hud__slot--empty {
@@ -395,7 +453,8 @@ button:disabled {
   position: absolute;
   top: 0.1rem;
   left: 0.25rem;
-  color: #d8ceb1;
+  color: var(--hud-text-muted);
+  font-family: var(--hud-font-label);
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -405,6 +464,7 @@ button:disabled {
   right: 0.25rem;
   bottom: 0.1rem;
   color: #ffe6a3;
+  font-family: var(--hud-font-label);
   font-size: 0.75rem;
   font-weight: 700;
   text-shadow: 0 0 2px #07080a, 0 0 2px #07080a;
@@ -422,14 +482,14 @@ button:disabled {
   place-items: center;
   width: 2.2rem;
   height: 2.2rem;
-  border: 1px solid #3c3630;
+  border: 1px solid var(--hud-frame);
   border-radius: 50%;
-  background: #121417;
+  background: var(--hud-well);
   opacity: 0.4;
 }
 
 .hud__torch--lit {
-  border-color: #c98a2b;
+  border-color: var(--hud-ember);
   opacity: 1;
 }
 
@@ -691,11 +751,13 @@ button:disabled {
   gap: 0.4rem;
   align-items: center;
   font-size: 0.78rem;
-  color: #d8ceb1;
+  color: var(--hud-text-muted);
 }
 
+/* The glyphs are icons, and the pixel faces draw ◆ and » too small to tell apart at a glance. */
 .hud__bar-label {
   min-width: 1.6rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
   text-align: center;
   line-height: 1;
 }
@@ -704,8 +766,8 @@ button:disabled {
   position: relative;
   width: 11rem;
   height: 0.5rem;
-  border: 1px solid #332f2b;
-  background: #101114;
+  border: 1px solid var(--hud-frame);
+  background: var(--hud-well);
 }
 
 .hud__bar--health .hud__bar-track {
@@ -722,15 +784,15 @@ button:disabled {
 
 .hud__bar--health .hud__bar-label {
   font-size: 1.05rem;
-  color: #d9625c;
+  color: var(--hud-health);
 }
 
 .hud__bar--resistance .hud__bar-label {
-  color: #6f9fd3;
+  color: var(--hud-resistance);
 }
 
 .hud__bar--stamina .hud__bar-label {
-  color: #bcc86a;
+  color: var(--hud-stamina);
 }
 
 .hud__bar-fill,
@@ -753,15 +815,15 @@ button:disabled {
 }
 
 .hud__bar-fill--health {
-  background: #b5514c;
+  background: linear-gradient(var(--hud-health) 0 40%, var(--hud-health-dark) 40%);
 }
 
 .hud__bar-fill--resistance {
-  background: #4c7fb5;
+  background: linear-gradient(var(--hud-resistance) 0 40%, var(--hud-resistance-dark) 40%);
 }
 
 .hud__bar-fill--stamina {
-  background: #a9b54c;
+  background: linear-gradient(var(--hud-stamina) 0 40%, var(--hud-stamina-dark) 40%);
 }
 
 .hud__bar--resistance .hud__bar-ghost,
@@ -771,6 +833,7 @@ button:disabled {
 
 .hud__bar-value {
   min-width: 3.6rem;
+  font-family: var(--hud-font-label);
   text-align: left;
 }
 
@@ -783,7 +846,7 @@ button:disabled {
 }
 
 .hud__bar--decaying .hud__bar-label {
-  color: #d9a35c;
+  color: var(--hud-warning);
 }
 
 .hud__bar-track--damage {
@@ -843,7 +906,7 @@ button:disabled {
   }
   to {
     box-shadow: 0 0 0 0 rgba(230, 240, 120, 0);
-    background: #101114;
+    background: var(--hud-well);
   }
 }
 
@@ -852,11 +915,11 @@ button:disabled {
  * a stripe pattern. The pulse is extra, and the reduced-motion setting removes it.
  */
 .hud__bar--low .hud__bar-fill--health {
-  background: repeating-linear-gradient(135deg, #b5514c 0 4px, #5a2522 4px 8px);
+  background: repeating-linear-gradient(135deg, var(--hud-health) 0 4px, #5a2522 4px 8px);
 }
 
 .hud__bar--decaying .hud__bar-fill--resistance {
-  background: repeating-linear-gradient(135deg, #4c7fb5 0 4px, #264159 4px 8px);
+  background: repeating-linear-gradient(135deg, var(--hud-resistance) 0 4px, #264159 4px 8px);
 }
 
 /* Set from the in-game Accessibility setting, which defaults to the OS preference. */
@@ -914,9 +977,9 @@ button:disabled {
 }
 
 .hud__toast--warning {
-  border-color: #6b5524;
+  border-color: var(--hud-warning-frame);
   background: rgba(40, 33, 18, 0.94);
-  color: #e0b64f;
+  color: var(--hud-warning);
 }
 
 .hud__toast--error {
@@ -931,11 +994,12 @@ button:disabled {
   flex-direction: column;
   align-items: flex-end;
   line-height: 1.15;
+  font-family: var(--hud-font-label);
   font-variant-numeric: tabular-nums;
 }
 
 .hud__clock-elapsed {
-  color: #e6dfcc;
+  color: var(--hud-text);
   font-size: 1.15rem;
   font-weight: 600;
 }
@@ -947,12 +1011,12 @@ button:disabled {
 
 .hud__clock[data-stage="warning"] .hud__clock-elapsed,
 .hud__clock[data-stage="warning"] .hud__clock-countdown {
-  color: #e0b64f;
+  color: var(--hud-warning);
 }
 
 .hud__clock[data-stage="decaying"] .hud__clock-elapsed,
 .hud__clock[data-stage="decaying"] .hud__clock-countdown {
-  color: #e2625a;
+  color: var(--hud-health);
 }
 
 /* Persistent hub gate status, under the toast stack so the two never overlap. */
@@ -967,10 +1031,10 @@ button:disabled {
   width: min(24rem, calc(100vw - 33rem));
   min-width: 14rem;
   padding: 0.4rem 0.8rem;
-  border: 1px solid #6b5524;
+  border: 1px solid var(--hud-warning-frame);
   border-radius: 8px;
   background: rgba(40, 33, 18, 0.92);
-  color: #e0b64f;
+  color: var(--hud-warning);
   text-align: center;
   transform: translateX(-50%);
 }
@@ -1008,7 +1072,7 @@ button:disabled {
 
 .hud__stash-heading {
   margin: 0;
-  color: #e6dfcc;
+  color: var(--hud-text);
   font-size: 1rem;
   font-weight: 600;
 }
@@ -1016,6 +1080,7 @@ button:disabled {
 .hud__stash-hint {
   margin: 0;
   color: #8d8578;
+  font-family: var(--hud-font-label);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1060,10 +1125,10 @@ button:disabled {
 
 .hud__bank-entry {
   padding: 0.2rem 0.45rem;
-  border: 1px solid #3c3630;
+  border: 1px solid var(--hud-frame);
   border-radius: 6px;
-  background: #1b1d21;
-  color: #d8ceb1;
+  background: var(--hud-well);
+  color: var(--hud-text-muted);
   font-size: 0.78rem;
   white-space: nowrap;
 }
