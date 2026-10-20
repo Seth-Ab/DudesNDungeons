@@ -31,6 +31,7 @@ import {
   MAP_PROP_KINDS,
   MAP_THEMES,
   MAX_PROP_LABEL_LENGTH,
+  SEAT_FACINGS,
   STALL_TINTS,
 } from "../constants/scenery.js";
 
@@ -74,6 +75,20 @@ export const mapPropSchema = z.object({
 });
 export type MapProp = z.infer<typeof mapPropSchema>;
 
+/**
+ * Somewhere a player can sit: a place on a bench or the fountain rim. `x`/`y` is where a sitter is
+ * put, in world units, on the solid tile they sit on and close enough to its edge that they are seen
+ * from the floor beside it. They stand up onto the floor `facing` points at. Who sits where is each
+ * player's `seatId`, so a seat itself never changes.
+ */
+export const mapSeatSchema = z.object({
+  id: entityIdSchema,
+  x: z.number().finite(),
+  y: z.number().finite(),
+  facing: z.enum(SEAT_FACINGS),
+});
+export type MapSeat = z.infer<typeof mapSeatSchema>;
+
 export const dungeonMapSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -94,6 +109,8 @@ export const dungeonMapSchema = z.object({
    * every tile is `.`. Render-only: collision is `tiles`.
    */
   ground: z.array(z.string()).optional(),
+  /** Seats the holder knows of. A client holds only seats on tiles it has discovered. */
+  seats: z.array(mapSeatSchema).optional(),
 });
 export type DungeonMapState = z.infer<typeof dungeonMapSchema>;
 
@@ -558,6 +575,8 @@ export const mapDiscoverySchema = z.object({
    * once, with the first of its tiles, so scenery deep in an unexplored wing stays off their map.
    */
   props: z.array(mapPropSchema).optional(),
+  /** Seats on tiles the viewer has newly discovered, or all they know of on a `reset`; like `props`. */
+  seats: z.array(mapSeatSchema).optional(),
 });
 export type MapDiscovery = z.infer<typeof mapDiscoverySchema>;
 
@@ -724,6 +743,12 @@ export const playerStateSchema = z.object({
   carryingPlayerId: playerIdSchema.nullable(),
   /** The player carrying this one, or null. Set only while this player is downed. */
   carriedByPlayerId: playerIdSchema.nullable(),
+  /**
+   * The seat (`MapSeat.id`) this player is sitting on, or null while they stand. Public, so every
+   * client draws them seated. Set only by the server, and cleared by any move, an attack, being
+   * lifted, a disconnect, or a change of world.
+   */
+  seatId: entityIdSchema.nullable(),
   /**
    * The look this player designed, public to the whole party. Null while they are still designing
    * it: such a player holds a slot but is not in the world yet, so clients do not draw them, and

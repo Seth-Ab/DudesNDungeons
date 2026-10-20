@@ -13,8 +13,8 @@ const UNKNOWN = " ";
  *
  * Rows a delta does not touch keep their string, and an empty delta returns `previous` itself, so
  * renderers can tell by reference that nothing changed. A map of another world or size than
- * `previous` also starts afresh, which covers a baseline that was somehow missed. Props accumulate
- * the same way as tiles, and the theme rides along with every delta.
+ * `previous` also starts afresh, which covers a baseline that was somehow missed. Props and seats
+ * accumulate the same way as tiles, and the theme rides along with every delta.
  *
  * Ground is held only once a run has carried some, so a map without a ground grid never grows one.
  * A run without ground on a map that has it is all theme floor (`.`).
@@ -31,7 +31,15 @@ export function applyMapDiscovery(
     previous.height === discovery.height;
 
   const newProps = discovery.props ?? [];
-  if (continues && discovery.discovered.length === 0 && newProps.length === 0) return previous;
+  const newSeats = discovery.seats ?? [];
+  if (
+    continues &&
+    discovery.discovered.length === 0 &&
+    newProps.length === 0 &&
+    newSeats.length === 0
+  ) {
+    return previous;
+  }
 
   const blank = (): string[] => Array.from({ length: discovery.height }, () => UNKNOWN.repeat(discovery.width));
   const tiles = continues ? [...previous.tiles] : blank();
@@ -64,6 +72,8 @@ export function applyMapDiscovery(
     ...(discovery.theme ? { theme: discovery.theme } : {}),
     // A prop arrives once, so a continuing map keeps what it had and adds what is new.
     props: continues ? [...(previous.props ?? []), ...newProps] : newProps,
+    // Seats arrive once each too, with their tile.
+    seats: continues ? [...(previous.seats ?? []), ...newSeats] : newSeats,
     ...(ground ? { ground } : {}),
   };
 }

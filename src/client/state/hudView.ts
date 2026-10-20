@@ -12,8 +12,6 @@ import {
   entranceMessage,
   entranceStatus,
   outcomeMessage,
-  placeLabel,
-  roomAt,
   torchNotice,
 } from "./runFlow.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
@@ -69,16 +67,6 @@ export function roomCodeLabel(view: SessionView): string {
  */
 export function actionableError(view: SessionView): string {
   return view.lastError && view.lastError.code !== "notImplemented" ? view.lastError.message : "";
-}
-
-/**
- * Named from the room metadata the snapshot already carries, which is the only thing that tells the
- * Torch Supply apart from the Quest Gallery: props are pictures, not places.
- */
-export function placeStatusLabel(view: SessionView, self: PlayerState | null): string {
-  if (!view.dungeon) return "-";
-  const room = self ? roomAt(view.dungeon.rooms, self.position) : null;
-  return placeLabel(view.dungeon.map.name, room);
 }
 
 export function positionLabel(position: { x: number; y: number }): string {
@@ -208,12 +196,57 @@ export function runClockView(view: SessionView): RunClockView | null {
   };
 }
 
+/** Why a party member is or is not holding the gate shut. Only "ready" counts towards opening it. */
+export type HubPipState = "ready" | "waiting" | "designing" | "away";
+
+export interface HubPipView {
+  id: string;
+  name: string;
+  state: HubPipState;
+  /** The party colour's ring, so each pip matches the ring at that player's feet. */
+  accent: string;
+  /** ✓ or ○, so colour is never the only ready cue. */
+  mark: string;
+  /** Spoken and hovered: "Maya: ready". */
+  label: string;
+}
+
 export interface HubStatusView {
   ready: boolean;
   /** The headline: whether walking up to the gate is worth it. */
   text: string;
   /** Who it is waiting on, or how to start. */
   detail: string;
+  /** One per party member, self included, in snapshot order. */
+  pips: HubPipView[];
+  /** The key that uses the gate, and what it does right now. */
+  keyHint: { key: string; text: string };
+}
+
+const HUB_PIP_LABELS: Record<HubPipState, string> = {
+  ready: "ready",
+  waiting: "not ready",
+  designing: "designing a character",
+  away: "disconnected",
+};
+
+/** Mirrors `entranceStatus`: only a connected, ready member counts as ready. */
+function hubPipState(player: PlayerState): HubPipState {
+  if (!player.connected) return "away";
+  if (player.appearance === null) return "designing";
+  return player.ready ? "ready" : "waiting";
+}
+
+function hubPip(player: PlayerState): HubPipView {
+  const state = hubPipState(player);
+  return {
+    id: player.id,
+    name: player.name,
+    state,
+    accent: PARTY_PALETTES[player.partyColor].ring,
+    mark: state === "ready" ? "✓" : "○",
+    label: `${player.name}: ${HUB_PIP_LABELS[state]}`,
+  };
 }
 
 /**
@@ -223,8 +256,17 @@ export interface HubStatusView {
 export function hubStatusView(view: SessionView): HubStatusView | null {
   if (view.phase !== "inSession" || view.location !== "hub") return null;
 
+  const pips = view.players.map(hubPip);
   const status = entranceStatus(view.players);
-  if (status.kind === "ready") return { ready: true, text: "Party ready", detail: entranceMessage(status) };
+  if (status.kind === "ready") {
+    return {
+      ready: true,
+      text: "Party ready",
+      detail: entranceMessage(status),
+      pips,
+      keyHint: { key: keyLabel("interact"), text: "Enter the Dungeon Gate" },
+    };
+  }
 
   // Someone still designing cannot ready up at all, so "ready up" would ask the wrong thing of
   // them. Name them instead: until they have a character, nobody else readying opens the gate.
@@ -235,7 +277,13 @@ export function hubStatusView(view: SessionView): HubStatusView | null {
     designing.length === 0
       ? entranceMessage(status)
       : `Waiting on ${nameList(designing)} to finish designing ${designing.length === 1 ? "a character" : "their characters"}.`;
-  return { ready: false, text: "Waiting on the party", detail };
+  return {
+    ready: false,
+    text: "Waiting on the party",
+    detail,
+    pips,
+    keyHint: { key: keyLabel("interact"), text: "Gate opens once everyone is ready" },
+  };
 }
 
 /** "Maya", "Maya and Sam", "Maya, Sam and Iris". */
@@ -538,7 +586,7 @@ export interface ActionPromptView {
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
- * else lifting them, loot, then chests, doors, and exits.
+ * else lifting them, loot, then chests, doors, exits, and seats.
  */
 export function actionPrompt(
   view: SessionView,
@@ -579,6 +627,7 @@ export function actionPrompt(
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
+  if (target?.kind === "seat") return prompt("interact", "Sit");
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

@@ -110,6 +110,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     carryingTorch: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    seatId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     profile: testProfile(id),

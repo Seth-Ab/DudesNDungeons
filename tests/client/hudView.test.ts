@@ -57,6 +57,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,
+    seatId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],
@@ -777,7 +778,7 @@ describe("hub status", () => {
         players: [player("Maya", { id: SELF_ID, ready: true }), player("Sam", { appearance: null })],
       }),
     );
-    expect(status).toEqual({
+    expect(status).toMatchObject({
       ready: false,
       text: "Waiting on the party",
       detail: "Waiting on Sam to finish designing a character.",
@@ -804,5 +805,74 @@ describe("hub status", () => {
       view({ phase: "inSession", location: "hub", players: [player("Maya", { id: "1", ready: true }), player("Sam")] }),
     );
     expect(status?.detail).toBe("Waiting on Sam to ready up.");
+  });
+
+  const hubWith = (players: PlayerState[]) => hubStatusView(view({ phase: "inSession", location: "hub", players }));
+  const colors = ["ember", "moss", "azure", "plum"] as const;
+  const party = (count: number, overrides: (index: number) => Partial<PlayerState> = () => ({})) =>
+    Array.from({ length: count }, (_, index) =>
+      player(`P${index + 1}`, { id: `${index + 1}`, partyColor: colors[index], ...overrides(index) }),
+    );
+
+  for (const count of [1, 2, 3, 4]) {
+    it(`shows one pip per member in party colour with ${count} player${count === 1 ? "" : "s"}`, () => {
+      const pips = hubWith(party(count))?.pips ?? [];
+      expect(pips).toHaveLength(count);
+      expect(pips.map((pip) => pip.accent)).toEqual(colors.slice(0, count).map((color) => PARTY_PALETTES[color].ring));
+      expect(pips.every((pip) => pip.state === "waiting" && pip.mark === "○")).toBe(true);
+    });
+
+    it(`marks every pip ready with a check, not only colour, when ${count} ready`, () => {
+      const status = hubWith(party(count, () => ({ ready: true })));
+      expect(status?.ready).toBe(true);
+      expect(status?.pips.map((pip) => [pip.state, pip.mark])).toEqual(Array(count).fill(["ready", "✓"]));
+    });
+  }
+
+  it("gives a disconnected and a still-designing member hollow pips of their own", () => {
+    const status = hubWith(
+      party(4, (index) => [{ ready: true }, { ready: true, connected: false }, { appearance: null }, {}][index] ?? {}),
+    );
+    expect(status?.ready).toBe(false);
+    expect(status?.pips.map((pip) => [pip.state, pip.mark, pip.label])).toEqual([
+      ["ready", "✓", "P1: ready"],
+      ["away", "○", "P2: disconnected"],
+      ["designing", "○", "P3: designing a character"],
+      ["waiting", "○", "P4: not ready"],
+    ]);
+  });
+
+  it("hints the gate key in both states", () => {
+    expect(hubWith(party(2))?.keyHint).toEqual({ key: "E", text: "Gate opens once everyone is ready" });
+    expect(hubWith(party(2, () => ({ ready: true })))?.keyHint).toEqual({ key: "E", text: "Enter the Dungeon Gate" });
+  });
+});
+
+describe("seat prompt", () => {
+  const SEAT_ID = "32924e4e-473a-4c26-b13a-4f8ba4376dfb";
+  const seat = { id: SEAT_ID, x: 0.75, y: 0, facing: "north" as const };
+  const origin = { x: 0, y: 0 };
+  const withSeat = (players: PlayerState[]) =>
+    view({
+      ...inSession,
+      location: "hub",
+      players,
+      dungeon: dungeon({ map: { name: "Test", width: 4, height: 4, tiles: [], seats: [seat] } } as unknown as Partial<DungeonState>),
+    });
+
+  it("offers a free seat in reach", () => {
+    const self = player("Maya", { id: SELF_ID });
+    expect(actionPrompt(withSeat([self]), self, origin)).toMatchObject({ action: "interact", text: "Sit" });
+  });
+
+  it("offers nothing for a seat out of reach, someone else's seat, or while sitting", () => {
+    const self = player("Maya", { id: SELF_ID });
+    expect(actionPrompt(withSeat([self]), self, { x: 3, y: 3 })).toBeNull();
+
+    const sitter = player("Rook", { position: { x: 0.75, y: 0 }, seatId: SEAT_ID });
+    expect(actionPrompt(withSeat([self, sitter]), self, origin)).toBeNull();
+
+    const seated = player("Maya", { id: SELF_ID, seatId: "14f4b265-75ae-41f0-81ba-f62410dcc5b3" });
+    expect(actionPrompt(withSeat([seated]), seated, origin)).toBeNull();
   });
 });

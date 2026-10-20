@@ -107,6 +107,20 @@
     { "entityId": "b1111111-1111-4111-8111-111111111111", "x": 19, "y": 3 },
     { "entityId": "b2222222-2222-4222-8222-222222222222", "x": 21, "y": 5 }
   ],
+  "seats": [
+    { "entityId": "14f4b265-75ae-41f0-81ba-f62410dcc5b3", "x": 8.75, "y": 5.4375, "facing": "south" },
+    { "entityId": "c5152b1a-6f59-4aa3-b99e-836a35c9f056", "x": 9.25, "y": 5.4375, "facing": "south" },
+    { "entityId": "abcd1dbf-2408-463e-9b63-3161cfc9dc0f", "x": 12.75, "y": 5.4375, "facing": "south" },
+    { "entityId": "b6b68e61-7f53-475f-9f7b-ecc3218f752a", "x": 13.25, "y": 5.4375, "facing": "south" },
+    { "entityId": "49c26e0f-e6b2-4039-918c-ecc6652611d1", "x": 8.75, "y": 8.5625, "facing": "north" },
+    { "entityId": "63bf43db-cd94-4697-b781-7e3678cc9b8f", "x": 9.25, "y": 8.5625, "facing": "north" },
+    { "entityId": "8bf002d7-2aba-4ef5-9808-17a34c48eacf", "x": 12.75, "y": 8.5625, "facing": "north" },
+    { "entityId": "d81e8736-dade-4c1e-bc54-02f0ff5e86f0", "x": 13.25, "y": 8.5625, "facing": "north" },
+    { "entityId": "32924e4e-473a-4c26-b13a-4f8ba4376dfb", "x": 11, "y": 5.5625, "facing": "north" },
+    { "entityId": "5093563d-b55d-4f8d-a567-90dc32bc32e6", "x": 11, "y": 8.4375, "facing": "south" },
+    { "entityId": "556c3c11-fb36-4f2f-b4e3-9a2aec59a6e6", "x": 9.5625, "y": 7, "facing": "west" },
+    { "entityId": "813390f9-b982-4707-9e0e-b41451924aab", "x": 12.4375, "y": 7, "facing": "east" }
+  ],
   "lights": [
     { "entityId": "a6666666-6666-4666-8666-666666666666", "name": "Great Hearth", "x": 11, "y": 8.6, "radius": 18, "fixture": "none", "flicker": 0.12 },
     { "entityId": "17473021-6df5-4ae2-9499-183760d7d1db", "name": "Gate Lantern West", "x": 9, "y": 3, "radius": 14, "flicker": 0.08 },

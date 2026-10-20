@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import type { z } from "zod";
 import { packageRoot } from "../paths.js";
 import { TILE_SCALE } from "../../shared/constants/game.js";
-import { MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
+import { MAP_PROP_SIZES, SEAT_FACING_VECTORS } from "../../shared/constants/scenery.js";
 import {
   dungeonDefinitionSchema,
   itemDefinitionSchema,
@@ -361,6 +361,24 @@ function validateReferences(content: GameContent): void {
           throw new Error(`${label} reuses entity id "${placed.entityId}" for a training dummy`);
         }
         pinnedIds.add(placed.entityId);
+      }
+      for (const seat of dungeon.seats) {
+        // A sitter stands up onto the tile the seat faces, so that tile has to be floor.
+        const tileX = Math.round(seat.x);
+        const tileY = Math.round(seat.y);
+        if (dungeon.tiles[tileY]?.[tileX] === undefined) {
+          throw new Error(`${label} places a seat at (${seat.x}, ${seat.y}) off the map`);
+        }
+        const toward = SEAT_FACING_VECTORS[seat.facing];
+        if (dungeon.tiles[tileY + toward.y]?.[tileX + toward.x] !== ".") {
+          throw new Error(
+            `${label} places a seat at (${seat.x}, ${seat.y}) facing ${seat.facing} onto no walkable floor`,
+          );
+        }
+        if (pinnedIds.has(seat.entityId)) {
+          throw new Error(`${label} reuses entity id "${seat.entityId}" for a seat`);
+        }
+        pinnedIds.add(seat.entityId);
       }
 
       for (const placed of dungeon.monsters) {
