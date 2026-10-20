@@ -2,10 +2,17 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
 
 /**
- * The westmost ready plate, authored (9.5, 2) in `content/dungeons/hub.json`, and a spot on the
- * gate road behind the row of plates, well clear of all four.
+ * The two westmost ready plates, authored (9.5, 2) and (10.5, 2) in `content/dungeons/hub.json`,
+ * and a spot on the gate road behind the row of plates, well clear of all four.
  */
 const WEST_PLATE = { x: 39.5, y: 9.5 };
+const SECOND_PLATE = { x: 43.5, y: 9.5 };
+
+/**
+ * How close a walk has to get. Well inside a plate's 1.5 half-width, but loose enough that a slow
+ * runner's longer key presses do not overshoot back and forth around the target.
+ */
+const PLATE_REACH = 1;
 const OFF_PLATES = { x: 39.5, y: 14 };
 
 /**
@@ -50,7 +57,7 @@ async function walkToGateRoad(page: Page): Promise<void> {
   const start = await position(page);
   const column = start.x < 45.5 ? WEST_COLUMN_X : EAST_COLUMN_X;
   for (const waypoint of [{ x: column, y: start.y }, { x: column, y: OFF_PLATES.y }, OFF_PLATES]) {
-    await walkTo(page, waypoint, 0.6);
+    await walkTo(page, waypoint, PLATE_REACH);
   }
 }
 
@@ -83,25 +90,30 @@ test.describe("Hub ready plates", () => {
     await walkToGateRoad(host);
     await expect(pip(host, "Maya")).not.toHaveClass(/hud__hub-pip--ready/);
 
-    await walkTo(host, WEST_PLATE, 0.6);
+    await walkTo(host, WEST_PLATE, PLATE_REACH);
     for (const page of [host, guest]) {
       await expect(pip(page, "Maya")).toHaveClass(/hud__hub-pip--ready/, { timeout: 5_000 });
     }
     await host.screenshot({ path: testInfo.outputPath("plate-host-ready.png") });
     await guest.screenshot({ path: testInfo.outputPath("plate-guest-sees-host-ready.png") });
 
-    await walkTo(host, OFF_PLATES, 0.6);
+    await walkTo(host, OFF_PLATES, PLATE_REACH);
     for (const page of [host, guest]) {
       await expect(pip(page, "Maya")).not.toHaveClass(/hud__hub-pip--ready/, { timeout: 5_000 });
     }
     await guest.screenshot({ path: testInfo.outputPath("plate-guest-sees-host-stepped-off.png") });
 
-    // Both on plates: the party is ready, and both screens get the cue.
-    await walkTo(host, WEST_PLATE, 0.6);
-    await walkTo(guest, { x: WEST_PLATE.x + 4, y: WEST_PLATE.y }, 0.6);
-    for (const page of [host, guest]) {
-      await expect(page.getByText("Everyone is ready. Head through the gate.")).toBeVisible({ timeout: 5_000 });
-    }
+    // Both on plates: the party is ready, and both screens get the cue. It fires the moment the
+    // guest's body crosses onto the plate and lives only as long as a toast, so watch for it from
+    // before the guest sets off rather than after they finish walking.
+    await walkTo(host, WEST_PLATE, PLATE_REACH);
+    const cues = [host, guest].map((page) =>
+      page.getByText("Everyone is ready. Head through the gate.").waitFor({ state: "visible", timeout: 60_000 }),
+    );
+    // Along the road first, so the guest does not walk up into the host on the west plate.
+    await walkTo(guest, { x: SECOND_PLATE.x, y: OFF_PLATES.y }, PLATE_REACH);
+    await walkTo(guest, SECOND_PLATE, PLATE_REACH);
+    await Promise.all(cues);
     await host.screenshot({ path: testInfo.outputPath("plate-party-ready.png") });
 
     await host.context().close();
