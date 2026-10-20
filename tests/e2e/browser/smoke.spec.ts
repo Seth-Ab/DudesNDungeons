@@ -25,7 +25,8 @@ test.describe("HUD overlay", () => {
           return { left, top, right, bottom };
         }),
       );
-      expect(panels).toHaveLength(4);
+      // Status, session and party; the actions panel is touch-only and there is no run clock yet.
+      expect(panels).toHaveLength(3);
       for (const panel of panels) {
         expect(panel.left).toBeGreaterThanOrEqual(0);
         expect(panel.top).toBeGreaterThanOrEqual(0);

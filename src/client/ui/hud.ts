@@ -2,6 +2,7 @@ import type { VoiceState } from "../audio/voiceMesh.js";
 import { isTypingTarget } from "../input/inputController.js";
 import { DEBUG_KEY, type GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
+import { followTouchControls } from "../state/touchControls.js";
 import {
   connectionLabel,
   actionPrompt,
@@ -108,11 +109,24 @@ export function createHud(options: HudOptions) {
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
   actionButtons.className = "hud__buttons";
-  // The wheel's pointer and touch way in. Not one of `actions`: a downed player can still call for help.
+  // The wheel's touch way in. Not one of `actions`: a downed player can still call for help.
   const emoteButton = createButton("Emote", options.onOpenEmotes);
   emoteButton.setAttribute("aria-haspopup", "dialog");
   actionButtons.append(...actions.elements, emoteButton);
   actionPanel.append(runClock.element, actionButtons);
+
+  // Hidden buttons are neither drawn nor focusable. With no run clock either, the panel would be an
+  // empty box, so it hides too.
+  const refreshActionPanel = (): void => {
+    actionPanel.hidden = runClock.element.hidden && actionButtons.hidden;
+  };
+  followTouchControls(
+    (query) => window.matchMedia(query),
+    (visible) => {
+      actionButtons.hidden = !visible;
+      refreshActionPanel();
+    },
+  );
 
   element.append(
     vignette.element,
@@ -187,6 +201,7 @@ export function createHud(options: HudOptions) {
 
       vignette.update(self ? self.health : null);
       runClock.update(runClockView(view));
+      refreshActionPanel();
       hubStatus.update(hubStatusView(view));
       toasts.update(toastMessages(view, self));
 

@@ -6,8 +6,8 @@ interface ActionOptions {
 }
 
 /**
- * Attack stays as a mouse/touch fallback. Pickup, interact, and carry are the contextual prompt's
- * job now, and the item slots are the hotbar's.
+ * Attack stays as a touch fallback, shown only on a coarse pointer (see `state/touchControls.ts`).
+ * Pickup, interact, and carry are the contextual prompt's job now, and the item slots are the hotbar's.
  */
 export function createActions(options: ActionOptions) {
   const attack = createButton("Attack", options.onAttack);
