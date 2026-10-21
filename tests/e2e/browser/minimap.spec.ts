@@ -7,12 +7,8 @@ async function box(locator: Locator) {
   return rect;
 }
 
-function overlaps(a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-}
-
 test.describe("Minimap", () => {
-  test("keeps its own top-right frame without covering other HUD modules, and toggles with M", async ({ browser }, testInfo) => {
+  test("keeps its own top-right frame at one size, and toggles with M", async ({ browser }, testInfo) => {
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
     const host = await hostContext.newPage();
@@ -53,20 +49,7 @@ test.describe("Minimap", () => {
       expect(canvas.height).toBeCloseTo(canvas.width, 0);
       // The canvas fills the panel inside its 4 px frame border, drawn at the default 2x zoom.
       expect(canvas.width).toBeGreaterThan(mini.width - 2 * 8 - 4);
-      for (const other of [
-        ".hud__panel--session",
-        ".hud__panel--hints",
-        ".hud__panel--party",
-        ".hud__panel--actions",
-        ".hud__frames",
-        ".hud__toasts",
-        ".hud__hub-status",
-        ".hud__hotbar",
-      ]) {
-        const target = host.locator(other).first();
-        if (!(await target.isVisible())) continue;
-        expect(overlaps(mini, await box(target)), `${other} at ${size.width}px`).toBe(false);
-      }
+      // That it covers no other module is checked in hudZones.spec.ts.
       await host.screenshot({ path: testInfo.outputPath(`minimap-${size.width}.png`) });
     }
 

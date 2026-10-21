@@ -168,10 +168,12 @@ export interface Scene {
 
 /**
  * Screen rectangles the HUD covers, measured from the panels themselves so the label-safe area
- * follows the layout at any window size. Re-measured at most every `HUD_MEASURE_INTERVAL_MS`: the
+ * follows the layout at any window size. The whole minimap corner and notice stack count, toasts
+ * included, not just the panels inside them. Re-measured at most every `HUD_MEASURE_INTERVAL_MS`: the
  * panels move only when they change size or the window does, and a layout read each frame is waste.
  */
-const HUD_OBSTACLE_SELECTOR = ".hud__panel, .hud__hotbar, .hud__hub-status, .hud__frames, .hud__draw";
+const HUD_OBSTACLE_SELECTOR =
+  ".hud__panel, .hud__corner, .hud__notices, .hud__hotbar, .hud__frames, .hud__draw";
 const HUD_MEASURE_INTERVAL_MS = 250;
 
 function measureHudObstacles(): Rect[] {

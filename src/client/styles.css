@@ -195,10 +195,21 @@ button:focus-visible {
   image-rendering: pixelated;
 }
 
-/* One line of key hints, top-left above the party frames. Esc doubles as the camp menu's button. */
-.hud__panel--hints {
+/* The top-left column: the key hints, then the party frames under them, so a taller hint strip (a
+   larger UI scale or frame zoom) pushes the frames down instead of covering them. */
+.hud__top-left {
+  position: absolute;
   top: 0.5rem;
   left: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+/* One line of key hints, top-left above the party frames. Esc doubles as the camp menu's button. */
+.hud__panel--hints {
+  position: static;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
@@ -400,9 +411,6 @@ button:disabled {
 
 /* Visible-only party frames, top-left under the key hints. */
 .hud__frames {
-  position: absolute;
-  top: 3rem;
-  left: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1798,6 +1806,11 @@ button:disabled {
 
   .hud__bar-track {
     width: 7rem;
+  }
+
+  /* The self frame stays clear of the centred hotbar on an 800px window. */
+  .hud__vitals .hud__bar-track {
+    width: 5.5rem;
   }
 
   .hud__slot {

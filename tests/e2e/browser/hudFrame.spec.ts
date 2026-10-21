@@ -117,10 +117,8 @@ for (const { name, uiScale, zoom } of SCALES) {
       }
       expect(boxes.length).toBeGreaterThanOrEqual(4);
 
-      // The party panel and its frames are one cluster, as are the corner's minimap and session.
       for (const [index, a] of boxes.entries()) {
         for (const b of boxes.slice(index + 1)) {
-          if (a.selector === ".hud__panel--party" && b.selector === ".hud__frames") continue;
           expect(overlaps(a.box, b.box), `${a.selector} overlaps ${b.selector}`).toBe(false);
         }
       }
