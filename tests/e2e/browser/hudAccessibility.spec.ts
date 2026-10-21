@@ -57,50 +57,7 @@ test.describe("HUD accessibility and layout", () => {
     await expect(page.locator(".hud__vitals")).toBeVisible();
   });
 
-  for (const size of [
-    { name: "wide", width: 1280, height: 720 },
-    { name: "narrow", width: 800, height: 600 },
-  ]) {
-    test(`renders every HUD cluster inside a ${size.name} viewport without covering the canvas centre`, async ({
-      page,
-    }, testInfo) => {
-      await page.setViewportSize({ width: size.width, height: size.height });
-      const viewport = page.viewportSize()!;
-      for (const selector of [
-        ".hud__panel--hints",
-        ".hud__panel--session",
-        ".hud__panel--party",
-        // The bottom-right actions panel is touch-only in the hub; touchControls.spec.ts places it.
-        ".hud__hotbar",
-        ".hud__hub-status",
-      ]) {
-        const box = await page.locator(selector).first().boundingBox();
-        expect(box, selector).not.toBeNull();
-        expect(box!.x, selector).toBeGreaterThanOrEqual(0);
-        expect(box!.y, selector).toBeGreaterThanOrEqual(0);
-        expect(box!.x + box!.width, selector).toBeLessThanOrEqual(viewport.width);
-        expect(box!.y + box!.height, selector).toBeLessThanOrEqual(viewport.height);
-      }
-
-      // The key hints sit above the party frames, not over them.
-      const hints = (await page.locator(".hud__panel--hints").boundingBox())!;
-      const frames = await page.locator(".hud__frames").boundingBox();
-      if (frames) expect(hints.y + hints.height).toBeLessThanOrEqual(frames.y);
-      // Nor under the toast stack beside them.
-      const toasts = await page.locator(".hud__toasts").boundingBox();
-      if (toasts) expect(hints.x + hints.width).toBeLessThanOrEqual(toasts.x);
-
-      // A trial click fails if an overlay intercepts the pointer at the canvas centre.
-      await page.locator("canvas.game-canvas").click({
-        position: { x: viewport.width / 2, y: viewport.height / 2 },
-        trial: true,
-      });
-      await page.screenshot({ path: testInfo.outputPath(`hud-${size.name}.png`) });
-
-      await openCampMenu(page);
-      await page.screenshot({ path: testInfo.outputPath(`camp-menu-${size.name}.png`) });
-    });
-  }
+  // Zone placement, overlap, the canvas centre and name-plate clearance are in hudZones.spec.ts.
 
   test("keeps the session and voice controls off screen until the camp menu opens", async ({ page }) => {
     for (const name of ["Leave", "Controls", "Stash", "Enable Voice", "Mute", "Deafen"]) {

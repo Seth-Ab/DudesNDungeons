@@ -164,6 +164,11 @@ export function createHud(options: HudOptions) {
   corner.className = "hud__corner";
   corner.append(minimap.element, runClock.element, sessionPanel);
 
+  // The top-left column: key hints, then the party frames stacked under them.
+  const topLeft = document.createElement("div");
+  topLeft.className = "hud__top-left";
+  topLeft.append(keyHints.element, partyFrames.element);
+
   const partyPanel = createPanel("hud__panel hud__panel--party");
   partyPanel.append(vitals.element);
 
@@ -190,9 +195,8 @@ export function createHud(options: HudOptions) {
 
   element.append(
     vignette.element,
-    keyHints.element,
+    topLeft,
     drawReadout.element,
-    partyFrames.element,
     createNoticeStack(hubStatus.element, toasts.element),
     corner,
     partyPanel,
