@@ -56,6 +56,8 @@ export function createBar(glyph: string, name: string, modifier: string, numberI
     element,
     label,
     track,
+    /** The digits; a caller may move them out of the bar's row. */
+    value,
     /** Appends a state glyph to the label, so a state shows by shape and not only by colour. */
     mark(suffix: string) {
       label.textContent = `${glyph}${suffix}`;
@@ -78,8 +80,8 @@ export function createBar(glyph: string, name: string, modifier: string, numberI
 
 /**
  * The bottom-left self frame: the local character's portrait with the resistance badge on its
- * corner, a health bar with its digits inside it, and a thin stamina bar beneath. Health is the
- * largest element; resistance is a number, not a bar.
+ * corner, their name, a health bar with its digits inside it, and a thin stamina bar beneath.
+ * Health is the largest element; resistance is a number, not a bar.
  */
 export function createVitals() {
   const health = createBar(VITAL_GLYPHS.health, "Health", "health", true);
@@ -122,9 +124,13 @@ export function createVitals() {
   avatar.className = "hud__vitals-avatar";
   avatar.append(portrait, badge);
 
+  // The name heads the bars, as it does on an ally's frame.
+  const name = document.createElement("span");
+  name.className = "hud__vitals-name";
+
   const bars = document.createElement("div");
   bars.className = "hud__vitals-bars";
-  bars.append(health.element, stamina.element);
+  bars.append(name, health.element, stamina.element);
 
   const element = document.createElement("div");
   element.className = "hud__vitals";
@@ -138,6 +144,7 @@ export function createVitals() {
 
     /** `health` is the raw number, for the damage/heal diff; null when there is no local player. */
     update(view: VitalsView, rawHealth: number | null, staminaRefusals: number) {
+      name.textContent = view.name;
       health.set(view.health, view.health.spoken);
       stamina.set(view.stamina);
 

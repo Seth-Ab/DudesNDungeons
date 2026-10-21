@@ -518,6 +518,39 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* Under the health bar: the ally's resistance as a bare number, as on the self frame's badge, and
+   their health digits. */
+.hud__frame-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--hud-text-muted);
+  font-size: 0.7rem;
+}
+
+.hud__frame-footer .hud__bar-value {
+  min-width: 0;
+  text-align: right;
+}
+
+.hud__frame-footer[hidden] {
+  display: none;
+}
+
+.hud__frame-resistance {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  color: var(--hud-text);
+  font-family: var(--hud-font-label);
+}
+
+.hud__frame-resistance .hud__bar-label {
+  min-width: 0;
+  color: var(--hud-resistance);
+}
+
 .hud__frame-state {
   color: var(--hud-text-muted);
   font-weight: 700;
@@ -542,8 +575,12 @@ button:disabled {
   font-style: italic;
 }
 
-.hud__frame .hud__bar-track {
-  width: 6.5rem;
+/* An ally's health is a thin bar across the frame; the self frame's taller bar is not theirs. */
+.hud__frame .hud__bar--health .hud__bar-track {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 0.5rem;
 }
 
 .hud__frame .hud__bar-value {
@@ -1079,6 +1116,17 @@ button:disabled {
   flex-direction: column;
   gap: 0.3rem;
   padding-bottom: 0.2rem;
+}
+
+/* Lined up with the bars' glyph column. */
+.hud__vitals-name {
+  padding-left: 0.2rem;
+  overflow: hidden;
+  color: var(--hud-text);
+  font-size: 0.95rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .hud__badge {
@@ -1910,13 +1958,12 @@ button:disabled {
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem;
-  border: 1px solid #34302b;
-  border-radius: 6px;
-  background: #121417;
+  border: 1px solid var(--hud-frame);
+  background: rgba(237, 226, 200, 0.04);
 }
 
 .camp-menu__group h3 {
-  color: #f7f0da;
+  color: var(--hud-brass);
   font-size: 0.95rem;
 }
 

@@ -136,6 +136,7 @@ test.describe("HUD accessibility and layout", () => {
   test("the self frame puts health in the bar and resistance in a number badge", async ({ page }) => {
     const frame = page.locator(".hud__vitals");
     await expect(frame.locator(".hud__vitals-portrait")).toBeVisible();
+    await expect(frame.locator(".hud__vitals-name")).toHaveText("Maya");
     const health = frame.locator(".hud__bar--health");
     await expect(health).toHaveAttribute("role", "meter");
     await expect(health).toHaveAttribute("aria-label", /^Health \d+ of \d+/);
