@@ -40,6 +40,15 @@ test.describe("HUD density", () => {
     await page.screenshot({ path: "test-results/hud-density-full.png" });
   });
 
+  test("Minimal hides the self frame's digits but keeps their text equivalent", async ({ page }) => {
+    const digits = page.locator(".hud__vitals .hud__bar-value--inside");
+    expect((await digits.boundingBox())!.width).toBeGreaterThan(8);
+    await chooseDensity(page, /^Minimal/);
+    expect((await digits.boundingBox())!.width).toBeLessThanOrEqual(1);
+    await expect(page.locator(".hud__vitals .hud__bar--health")).toHaveAttribute("aria-label", /^Health \d+ of \d+/);
+    await expect(page.locator(".hud__badge--resistance")).toHaveAttribute("aria-label", /^Resistance \d+/);
+  });
+
   test("Minimal fades lower and hides the key hints but keeps the camp button", async ({ page }) => {
     await chooseDensity(page, /^Minimal/);
     await expect(page.locator(".hud__hotbar")).toHaveCSS("opacity", "0.35", { timeout: 10_000 });

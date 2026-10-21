@@ -21,13 +21,15 @@ export interface HudDensityRule {
   opacity: number;
   /** Whether optional modules (the key hints) are hidden. Vitals, warnings and party frames never are. */
   hidesHints: boolean;
+  /** Whether the self frame prints its digits; the text equivalent stays for assistive tech. */
+  showsNumbers: boolean;
 }
 
 /** What each HUD density setting does; keep the opacities in step with `[data-hud-density]` in styles.css. */
 export const HUD_DENSITY_RULES: Record<HudDensity, HudDensityRule> = {
-  full: { fades: false, opacity: 1, hidesHints: false },
-  calm: { fades: true, opacity: HUD_FADE_OPACITY, hidesHints: false },
-  minimal: { fades: true, opacity: 0.35, hidesHints: true },
+  full: { fades: false, opacity: 1, hidesHints: false, showsNumbers: true },
+  calm: { fades: true, opacity: HUD_FADE_OPACITY, hidesHints: false, showsNumbers: true },
+  minimal: { fades: true, opacity: 0.35, hidesHints: true, showsNumbers: false },
 };
 
 export type HudModuleId = "vitals" | "party" | "hotbar" | "minimap" | "session" | "hints" | "actions";

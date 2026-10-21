@@ -176,6 +176,21 @@ test.describe("HUD accessibility and layout", () => {
     expect(new Set(glyphs).size).toBe(glyphs.length);
   });
 
+  test("the self frame puts health in the bar and resistance in a number badge", async ({ page }) => {
+    const frame = page.locator(".hud__vitals");
+    await expect(frame.locator(".hud__vitals-portrait")).toBeVisible();
+    const health = frame.locator(".hud__bar--health");
+    await expect(health).toHaveAttribute("role", "meter");
+    await expect(health).toHaveAttribute("aria-label", /^Health \d+ of \d+/);
+    await expect(health.locator(".hud__bar-track .hud__bar-value")).toHaveText(/^\d+\/\d+$/);
+    const badge = frame.locator(".hud__badge--resistance");
+    await expect(badge).toHaveAttribute("aria-label", /^Resistance \d+/);
+    await expect(frame.locator(".hud__bar--resistance")).toHaveCount(0);
+    // Stamina is a bare bar: no digits, and it steps back to half strength while full.
+    await expect(frame.locator(".hud__bar--stamina .hud__bar-value")).toHaveText("");
+    await expect(frame.locator(".hud__bar--stamina")).toHaveClass(/hud__bar--full/);
+  });
+
   test("HUD text keeps WCAG AA contrast on its panel over a dark dungeon and a lit floor", async ({ page }) => {
     const tokens = await page.evaluate<Record<string, string>>(READ_HUD_TOKENS);
     const panel = parseColour(tokens.panel);

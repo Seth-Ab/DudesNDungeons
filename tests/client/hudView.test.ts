@@ -35,6 +35,7 @@ import {
 import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
+  PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
@@ -112,7 +113,14 @@ describe("vitals", () => {
 
   it("shows empty bars without a self player", () => {
     const vitals = vitalsView(null);
-    expect(vitals.health).toEqual({ ratio: 0, text: `0/${PLAYER_MAX_HEALTH}`, low: false });
+    expect(vitals.health).toEqual({
+      ratio: 0,
+      text: `0/${PLAYER_MAX_HEALTH}`,
+      low: false,
+      spoken: `Health 0 of ${PLAYER_MAX_HEALTH}`,
+    });
+    expect(vitals.portrait).toBeNull();
+    expect(vitals.accent).toBeNull();
     expect(vitals.resistance.ratio).toBe(0);
     expect(vitals.stamina.ratio).toBe(0);
   });
@@ -123,14 +131,15 @@ describe("vitals", () => {
   });
 
   it("shows health as current/max and flags low health below the threshold", () => {
-    expect(healthBarView(80, 100)).toEqual({ ratio: 0.8, text: "80/100", low: false });
+    expect(healthBarView(80, 100)).toEqual({ ratio: 0.8, text: "80/100", low: false, spoken: "Health 80 of 100" });
+    expect(healthBarView(24, 100).spoken).toBe("Health 24 of 100, low");
     expect(healthBarView(25, 100).low).toBe(false);
     expect(healthBarView(24, 100)).toMatchObject({ text: "24/100", low: true });
     expect(healthBarView(LOW_HEALTH_RATIO * 100 - 0.1, 100).low).toBe(true);
   });
 
   it("does not pulse for a downed player", () => {
-    expect(healthBarView(0, 100)).toEqual({ ratio: 0, text: "0/100", low: false });
+    expect(healthBarView(0, 100)).toEqual({ ratio: 0, text: "0/100", low: false, spoken: "Health 0 of 100" });
     expect(healthBarView(-3, 100).text).toBe("0/100");
     expect(vitalsView(null).health.low).toBe(false);
   });
@@ -142,6 +151,31 @@ describe("vitals", () => {
     expect(vitalsView(self, null).resistance.decaying).toBe(false);
     expect(vitalsView(player("Maya", { resistance: 0 }), run({ decaying: true })).resistance.decaying).toBe(false);
     expect(vitalsView(null, run({ decaying: true })).resistance.decaying).toBe(false);
+  });
+
+  it("words the resistance badge, adding decaying only while it drains", () => {
+    const self = player("Maya", { resistance: 40 });
+    const draining = vitalsView(self, run({ decaying: true })).resistance;
+    expect(draining).toMatchObject({ text: "40", decaying: true, spoken: "Resistance 40, decaying" });
+    expect(vitalsView(self, run()).resistance).toMatchObject({ decaying: false, spoken: "Resistance 40" });
+  });
+
+  it("marks stamina full only at the top, and keeps it numberless", () => {
+    const full = vitalsView(player("Maya", { stamina: PLAYER_MAX_STAMINA })).stamina;
+    expect(full).toMatchObject({ full: true, text: "" });
+    expect(vitalsView(player("Maya", { stamina: PLAYER_MAX_STAMINA - 1 })).stamina.full).toBe(false);
+    expect(vitalsView(null).stamina.full).toBe(false);
+  });
+
+  it("shows the self player's chosen look and party colour in the portrait", () => {
+    const appearance = { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" } as const;
+    const vitals = vitalsView(player("Maya", { appearance, partyColor: "moss" }));
+    expect(vitals.portrait).toEqual({ ...appearance, partyColor: "moss" });
+    expect(vitals.accent).toBeTruthy();
+  });
+
+  it("shows the grey silhouette while the self player is still designing", () => {
+    expect(vitalsView(player("Maya", { appearance: null })).portrait).toBeNull();
   });
 
   it("reports damage and heals from consecutive health readings", () => {

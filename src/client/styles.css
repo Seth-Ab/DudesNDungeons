@@ -126,6 +126,18 @@ button:focus-visible {
   display: none;
 }
 
+/* Minimal keeps the shapes but not the digits; the bars and badge keep their text equivalent. */
+:root[data-hud-density="minimal"] .hud__bar-value--inside,
+:root[data-hud-density="minimal"] .hud__badge-number {
+  position: absolute;
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .hud [data-faded] {
   transition: opacity 0.4s ease;
 }
@@ -536,7 +548,7 @@ button:disabled {
 /* The bow's draw meter above the hotbar: fill length, an end tick, and a label at full draw. */
 .hud__draw {
   position: absolute;
-  bottom: 6rem;
+  bottom: 7.5rem;
   left: 50%;
   width: 9rem;
   transform: translateX(-50%);
@@ -1022,9 +1034,68 @@ button:disabled {
 /* Vitals sit bottom-left. Health is the big bar; resistance and stamina are thinner. */
 .hud__vitals {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: flex-end;
+  gap: 0.5rem;
   margin-bottom: 0.2rem;
+  /* The party colour is a stripe inside the frame, as on an ally's. */
+  box-shadow: inset 3px 0 0 var(--party-accent, transparent);
+  padding-left: 0.25rem;
+}
+
+/* 64px: 16 art pixels at 4x, crisp. The badge sits on its lower-right corner. */
+.hud__vitals-avatar {
+  position: relative;
+  flex: none;
+}
+
+.hud__vitals-portrait {
+  display: block;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 4px;
+  background: var(--hud-well);
+  image-rendering: pixelated;
+}
+
+.hud__vitals-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-bottom: 0.2rem;
+}
+
+.hud__badge {
+  position: absolute;
+  right: -0.4rem;
+  bottom: -0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--hud-frame);
+  border-radius: 0.5rem 0.5rem 0.9rem 0.9rem;
+  background: var(--hud-panel);
+  font-size: 0.8rem;
+  line-height: 1.1;
+}
+
+.hud__badge .hud__bar-label {
+  min-width: 0;
+  color: var(--hud-resistance);
+}
+
+.hud__badge-number {
+  font-family: var(--hud-font-label);
+  font-weight: 700;
+  color: var(--hud-text);
+}
+
+.hud__badge--decaying {
+  animation: hud-decay 2.4s ease-in-out infinite;
+}
+
+.hud__badge--decaying .hud__bar-label {
+  color: var(--hud-warning);
 }
 
 .hud__bar {
@@ -1052,7 +1123,20 @@ button:disabled {
 }
 
 .hud__bar--health .hud__bar-track {
-  height: 1.05rem;
+  height: 1rem;
+  width: 9rem;
+}
+
+/* The digits ride on the bar, over fill and well alike, so they carry their own shadow. */
+.hud__bar-value--inside {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  color: var(--hud-text);
+  font-size: 0.7rem;
+  text-shadow: 0 0 2px #07080a, 0 0 2px #07080a, 0 1px 0 #07080a;
 }
 
 .hud__bar--resistance .hud__bar-track {
@@ -1061,6 +1145,25 @@ button:disabled {
 
 .hud__bar--stamina .hud__bar-track {
   height: 0.3rem;
+  width: 9rem;
+}
+
+/* Stamina stays a bare bar, so its empty value column must not take width. */
+.hud__bar--stamina .hud__bar-value {
+  display: none;
+}
+
+/* A full stamina bar has nothing to report; it steps back until it is used. */
+.hud__bar--stamina {
+  transition: opacity 0.3s ease;
+}
+
+.hud__bar--stamina.hud__bar--full {
+  opacity: 0.5;
+}
+
+:root[data-reduced-motion="true"] .hud__bar--stamina {
+  transition: none;
 }
 
 .hud__bar--health .hud__bar-label {
