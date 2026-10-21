@@ -228,6 +228,7 @@ const hud = createHud({
     if (!client.convertSkillScroll(itemId)) hud.setActionStatus("No connection");
   },
   onDismissConvert: () => client.dismissConvertPrompt(),
+  onRequestConvert: (itemId) => client.requestConvertPrompt(itemId),
 });
 
 const lobby = createLobby({

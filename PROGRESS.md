@@ -8,7 +8,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll, skill stacks). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v41.
-- Last completed work: milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
+- Last completed work: a Skills panel in the camp menu, built from the owner-only progression catalog and state: permanent, this-run and locked skills with stacks, resolved effects, prerequisites and how each is earned, plus scrolls that cannot be used yet or are maxed, with the existing conversion prompt behind a button (issue #25, protocol unchanged); earlier, milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
   kills, flawless kills, teammates carried out, lever puzzles solved, runs without a torch, items banked,
   moth room) credited to players who extract, and milestone content that grants a skill stack once (issue
   #215, protocol v41); earlier, profile coin, a per-player run purse credited with an escape reward on extraction
@@ -555,9 +555,9 @@ Complete on `feature/hub-run-flow`.
 
 ### 10. Skills and Progression UI
 
-- [ ] Show unlocked skills and their effects.
-- [ ] Show locked skills and their unlock cost.
-- [ ] Drive unlocks from server-owned profile state.
+- [x] Show unlocked skills and their effects. The camp menu's Skills panel (#25) separates permanent from this-run stacks, shows `held/max` (a bare count when unlimited, nothing when non-stacking), the resolved effect and the next stack's.
+- [x] Show locked skills and their unlock cost. Locked entries show prerequisites (unavailable while one is missing) and how they are earned, including milestone thresholds. The coin price is not in the catalog because the hub skill shop (#216) does not exist yet; the panel adds it when the server sends one.
+- [x] Drive unlocks from server-owned profile state. The panel only reads `progressionCatalog` and `progressionUpdated`; the one button opens the existing conversion prompt, and the server judges its Confirm.
 
 ### 11. Drawing at World Scale
 
@@ -571,6 +571,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Skills panel in the camp menu showing permanent, this-run and locked skills, stacks, prerequisites, and scrolls that cannot be used or are maxed (#25, no protocol change).
 - 2026-10-21: Milestone stats on profiles and milestone skill grants, with Emberhardened as the first milestone skill (#215, protocol v41).
 - 2026-10-21: Profile coin, the run purse with an escape reward, and confirmed conversion of max-stack scrolls to coin (#214, protocol v40).
 - 2026-10-21: A scroll for every skill (Torchbearer, Lever Sense) and rare scroll drops from ordinary monsters (#217).
