@@ -33,6 +33,7 @@ async function openPlayer(
     });
   });
   await page.goto("/");
+  await page.bringToFront();
   return page;
 }
 
@@ -53,6 +54,7 @@ test.describe("Character sprites", () => {
     const guests: Page[] = [];
     for (const look of rest) {
       const guest = await openPlayer(browser, look.appearance, errors);
+      await guest.bringToFront();
       await guest.getByPlaceholder("Your name").fill(look.name);
       await guest.getByPlaceholder(/Room code/).fill(roomCode);
       await guest.getByRole("button", { name: "Join dungeon" }).click();
@@ -63,6 +65,7 @@ test.describe("Character sprites", () => {
     }
 
     // Let the sheet decode and a few frames draw, then catch one guest mid-stride.
+    await host.bringToFront();
     await host.waitForTimeout(500);
     await host.screenshot({ path: testInfo.outputPath("hub-party-idle.png") });
     // The first guest spawns east of the fountain; east is open ground, so they keep walking.
@@ -78,6 +81,7 @@ test.describe("Character sprites", () => {
       clip: { x: 560, y: 300, width: 420, height: 240 },
     });
     await walker.keyboard.up("d");
+    await host.bringToFront();
     await host.screenshot({ path: testInfo.outputPath("hub-party-after-walk.png") });
 
     expect(errors).toEqual([]);
