@@ -14,6 +14,24 @@ const TO_GATE = [
   { x: 45.5, y: 17.5 },
 ];
 
+// Page scripts are strings because the test project compiles without the DOM library.
+const SHOW_LATER_STAGES = `(async () => {
+  const { createRunClock } = await import("/src/client/ui/hud/runClock.ts");
+  const corner = document.querySelector(".hud__corner");
+  document.querySelector(".hud__tally")?.setAttribute("hidden", "");
+  const stages = [
+    { label: "Run time 8:40. Decay in 1:20.", status: "", mark: "", ratio: 0.13, stage: "neutral" },
+    { label: "Run time 9:30. Decay in 0:30.", status: "Decay near", mark: "!", ratio: 0.05, stage: "warning" },
+    { label: "Run time 11:40. Resistance falling.", status: "Resistance falling", mark: "▼", ratio: 0, stage: "decaying" },
+  ];
+  for (const view of stages) {
+    const extra = createRunClock();
+    extra.element.classList.add("hud__tally--sample");
+    extra.update(view);
+    corner?.append(extra.element);
+  }
+})()`;
+
 test.describe("Torch tally", () => {
   test("sits under the minimap in a run with no digits, and shows each stage", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
@@ -52,22 +70,7 @@ test.describe("Torch tally", () => {
     await page.screenshot({ path: testInfo.outputPath("tally-neutral.png") });
 
     // The 10-minute decay window is not waited out: the same element is built with each later stage.
-    await page.evaluate(async () => {
-      const { createRunClock } = await import("/src/client/ui/hud/runClock.ts");
-      const corner = document.querySelector(".hud__corner");
-      document.querySelector(".hud__tally")?.setAttribute("hidden", "");
-      const stages = [
-        { label: "Run time 8:40. Decay in 1:20.", status: "", mark: "", ratio: 0.13, stage: "neutral" },
-        { label: "Run time 9:30. Decay in 0:30.", status: "Decay near", mark: "!", ratio: 0.05, stage: "warning" },
-        { label: "Run time 11:40. Resistance falling.", status: "Resistance falling", mark: "▼", ratio: 0, stage: "decaying" },
-      ] as const;
-      for (const view of stages) {
-        const extra = createRunClock();
-        extra.element.classList.add("hud__tally--sample");
-        extra.update(view);
-        corner?.append(extra.element);
-      }
-    });
+    await page.evaluate(SHOW_LATER_STAGES);
     const samples = page.locator(".hud__tally--sample");
     await expect(samples.nth(2)).toContainText("▼ Resistance falling");
     await expect(samples.nth(2)).toHaveAttribute("aria-label", "Run time 11:40. Resistance falling.");
