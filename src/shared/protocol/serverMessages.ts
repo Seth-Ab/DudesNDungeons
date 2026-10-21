@@ -3,7 +3,9 @@ import {
   dungeonSnapshotSchema,
   contentIdSchema,
   entityIdSchema,
+  partyColorSchema,
   playerIdSchema,
+  playerNameSchema,
   playerStateSchema,
   profileSecretSchema,
   profileStateSchema,
@@ -156,6 +158,33 @@ export const playerReadyChangedSchema = z.object({
 });
 
 /**
+ * One party member as the roster lists them. Deliberately only what is safe to tell someone who
+ * cannot see this member: no position, health, resistance, downed state or anything else about the
+ * body. `.strict()` so a field added here is a decision, not an accident.
+ */
+export const partyRosterEntrySchema = z
+  .object({
+    playerId: playerIdSchema,
+    name: playerNameSchema,
+    partyColor: partyColorSchema,
+    connected: z.boolean(),
+  })
+  .strict();
+export type PartyRosterEntry = z.infer<typeof partyRosterEntrySchema>;
+
+/**
+ * Who is in the party, including members the receiver cannot see, so the HUD can keep a frame for
+ * an ally who left sight. Sent to every connected member whenever the list changes, and once after
+ * joining. Members who have not finished designing their character are not listed yet. Snapshots
+ * remain the only source of live state: a member missing from the receiver's snapshot is out of
+ * sight, and the client shows nothing about them but this entry.
+ */
+export const partyRosterSchema = z.object({
+  type: z.literal("partyRoster"),
+  members: z.array(partyRosterEntrySchema),
+});
+
+/**
  * Authoritative world state. Clients render from this rather than from their own predictions.
  *
  * Per-player since protocol v4: this is the receiving player's visible frame, and `run` is that
@@ -248,6 +277,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   playerLeftSchema,
   playerConnectionChangedSchema,
   playerReadyChangedSchema,
+  partyRosterSchema,
   stateSnapshotSchema,
   attackResolvedSchema,
   voiceRangeUpdatedSchema,

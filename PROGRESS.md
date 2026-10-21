@@ -7,8 +7,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v36.
-- Last completed work: quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
+  everyone to the hub under protocol v37.
+- Last completed work: a server-sent party roster and greyed "out of sight" party frames for allies who left sight (issue #172, HUD Torch & Tally Phase 5, protocol v37); earlier, quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
   two seconds and arrows that fly in the hub too (issue #116, protocol v36); earlier, minimap allies marked in their party colour with an initial, and arch and
   chest icons on discovered tiles (issue #171, HUD Torch & Tally Phase 5, protocol unchanged);
   earlier, speaking rings on party portraits from per-peer remote voice levels, with a
@@ -76,7 +76,7 @@ Resolved:
   consumed; duplicates may become upgrades later. Recorded in decision 0011.
 - HUD Torch & Tally open questions, decided on 2026-10-21 for issue #160:
   - Unseen allies appear as a greyed "out of sight" frame with no position, health or resistance and
-    a non-colour cue. This needs a server-sent party roster, built in #172.
+    a non-colour cue. This needs a server-sent party roster, built in #172 (protocol v37).
   - The minimap stays free for everyone for now; revisit with the Skills UI (#25) and the progression
     economy (#23).
   - Health and resistance show their numbers (`82/100`) inside the bar, with an accessible text
@@ -414,6 +414,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add mute, deafened, input level, and permission-denied states. Camp menu buttons (#161), a
   level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`),
   plus an on-screen mic chip.
+  - [x] Show out-of-sight allies in the party frames (issue #172, HUD Torch & Tally Phase 5, protocol v37). The server sends `partyRoster` (`members`: `playerId`, `name`, `partyColor`, `connected`, a strict schema) to each connected member at join and whenever the list changes, built by `partyRosterOf` and sent from the tick loop only when it differs from what that socket last had. It lists members who have a look and carries nothing about the body, so an unseen ally's position, health, resistance and downed state never leave the server; a session test asserts the exact fields and the protocol test rejects extras. The client keeps it in `SessionView.partyRoster`; `partyFrames` shows live frames for allies in `visiblePlayerIds` and, for the rest, a greyed, dashed `outOfSight` frame (icon ◌, caption "out of sight", no bars, silhouette portrait), or `disconnected` when the roster says they dropped. Downed or carried allies in sight sort first; the rest keep roster order. Browser spec `partyOutOfSight.spec.ts` drives two real clients but hides the guest from the host's snapshots, since the lit hub offers no way to lose sight. Still out of scope: last-known room, and a "Designing…" roster entry for unseen members.
   - [x] Show speaking rings on party portraits (issue #173, HUD Torch & Tally Phase 5). Each peer
     link reads its remote stream through an analyser in the microphone's AudioContext, made on the
     track and disconnected on close. `voiceMesh.speakingPeers()` marks a connected peer speaking at

@@ -69,15 +69,20 @@ function createFrame(portraits: Portraits) {
       element.dataset.state = frame.state;
       element.style.setProperty("--party-accent", frame.accent);
 
-      const designing = frame.state === "designing";
-      caption.textContent = designing ? frame.stateLabel : "";
-      caption.hidden = !designing;
-      health.element.hidden = designing;
-      resistance.element.hidden = designing;
-      health.set(frame.health);
-      health.element.classList.toggle("hud__bar--low", frame.health.low);
-      health.mark(frame.health.low ? VITAL_GLYPHS.low : "");
-      resistance.set(frame.resistance);
+      // Without vitals (still designing, or out of sight) the bars give way to a words caption, so
+      // the state never reads from the grey frame alone.
+      const hasVitals = frame.health !== null && frame.resistance !== null && frame.state !== "designing";
+      const captioned = !hasVitals;
+      caption.textContent = captioned ? frame.stateLabel : "";
+      caption.hidden = !captioned;
+      health.element.hidden = !hasVitals;
+      resistance.element.hidden = !hasVitals;
+      if (frame.health && frame.resistance && hasVitals) {
+        health.set(frame.health);
+        health.element.classList.toggle("hud__bar--low", frame.health.low);
+        health.mark(frame.health.low ? VITAL_GLYPHS.low : "");
+        resistance.set(frame.resistance);
+      }
 
       const key = sheetLoaded ? (frame.portrait ? characterLookKey(frame.portrait) : "silhouette") : null;
       if (key !== paintedKey) {
@@ -90,7 +95,7 @@ function createFrame(portraits: Portraits) {
 
 /**
  * Frames are kept per player id so a bar's ghost trail survives between snapshots; a player who
- * is no longer in the snapshot has their frame removed outright.
+ * has left the party has their frame removed outright.
  */
 export function createPartyFrames() {
   const element = document.createElement("ul");

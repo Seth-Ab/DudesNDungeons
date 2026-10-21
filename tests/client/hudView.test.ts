@@ -76,7 +76,9 @@ function item(name: string): InventoryItem {
 }
 
 function view(overrides: Partial<SessionView> = {}): SessionView {
-  return { ...initialSessionView, ...overrides };
+  // Players handed in are taken to be in sight unless the test says otherwise.
+  const visiblePlayerIds = overrides.players?.map((entry) => entry.id) ?? [];
+  return { ...initialSessionView, visiblePlayerIds, ...overrides };
 }
 
 function run(overrides: Partial<RunState> = {}): RunState {
@@ -387,7 +389,7 @@ describe("party frames", () => {
     expect(frames).toHaveLength(1);
     expect(frames[0]).toMatchObject({ id: SAM_ID, name: "Sam", state: "waiting" });
     expect(frames[0]?.health).toMatchObject({ ratio: 0.4, text: "40/100" });
-    expect(frames[0]?.resistance.ratio).toBeCloseTo(25 / PLAYER_MAX_RESISTANCE);
+    expect(frames[0]?.resistance?.ratio).toBeCloseTo(25 / PLAYER_MAX_RESISTANCE);
   });
 
   it("gives every standing a distinct icon shape", () => {
@@ -407,11 +409,11 @@ describe("party frames", () => {
     );
 
     expect(frames.map((frame) => frame.state)).toEqual([
+      "downed",
+      "beingCarried",
       "ready",
       "waiting",
       "carrying",
-      "downed",
-      "beingCarried",
       "disconnected",
       "designing",
     ]);
@@ -956,5 +958,111 @@ describe("seat prompt", () => {
 
     const seated = player("Maya", { id: SELF_ID, seatId: "14f4b265-75ae-41f0-81ba-f62410dcc5b3" });
     expect(actionPrompt(withSeat([seated]), seated, origin)).toBeNull();
+  });
+});
+
+describe("party frames for allies out of sight", () => {
+  const SAM_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const IRIS_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const roster = (...ids: [string, string, boolean?][]) =>
+    ids.map(([playerId, name, connected]) => ({
+      playerId,
+      name,
+      partyColor: "moss" as const,
+      connected: connected ?? true,
+    }));
+  const self = player("Maya", { id: SELF_ID });
+
+  it("keeps a greyed, captioned frame with no vitals for a rostered ally who is not in sight", () => {
+    // Sam's last known state is still in `players`, but he is not in the visible ids.
+    const sam = player("Sam", { id: SAM_ID, health: 12, resistance: 3 });
+    const frames = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self, sam],
+        visiblePlayerIds: [SELF_ID],
+        partyRoster: roster([SELF_ID, "Maya"], [SAM_ID, "Sam"]),
+      }),
+    );
+
+    expect(frames).toHaveLength(1);
+    expect(frames[0]).toMatchObject({
+      id: SAM_ID,
+      name: "Sam",
+      state: "outOfSight",
+      icon: "◌",
+      stateLabel: "out of sight",
+      health: null,
+      resistance: null,
+      portrait: null,
+    });
+  });
+
+  it("restores live data when the ally comes back into sight", () => {
+    const sam = player("Sam", { id: SAM_ID, health: 40 });
+    const frames = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self, sam],
+        visiblePlayerIds: [SELF_ID, SAM_ID],
+        partyRoster: roster([SELF_ID, "Maya"], [SAM_ID, "Sam"]),
+      }),
+    );
+
+    expect(frames[0]).toMatchObject({ state: "waiting" });
+    expect(frames[0]?.health?.text).toBe("40/100");
+  });
+
+  it("shows a rostered ally who dropped as disconnected, still without vitals", () => {
+    const [frame] = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self],
+        partyRoster: roster([SAM_ID, "Sam", false]),
+      }),
+    );
+
+    expect(frame).toMatchObject({ state: "disconnected", health: null });
+  });
+
+  it("drops a frame for an ally the roster no longer lists", () => {
+    expect(
+      partyFrames(view({ selfId: SELF_ID, players: [self], partyRoster: roster([SELF_ID, "Maya"]) })),
+    ).toEqual([]);
+  });
+
+  it("sorts downed allies in sight to the top, otherwise keeping roster order", () => {
+    const sam = player("Sam", { id: SAM_ID });
+    const iris = player("Iris", { id: IRIS_ID, health: 0 });
+    const input = view({
+      selfId: SELF_ID,
+      players: [self, sam, iris],
+      visiblePlayerIds: [SELF_ID, SAM_ID, IRIS_ID],
+      partyRoster: roster([SELF_ID, "Maya"], [SAM_ID, "Sam"], [IRIS_ID, "Iris"]),
+    });
+
+    expect(partyFrames(input).map((frame) => frame.name)).toEqual(["Iris", "Sam"]);
+    // The same input gives the same order every time.
+    expect(partyFrames(input).map((frame) => frame.name)).toEqual(["Iris", "Sam"]);
+
+    const upright = view({
+      ...input,
+      players: [self, sam, player("Iris", { id: IRIS_ID })],
+    });
+    expect(partyFrames(upright).map((frame) => frame.name)).toEqual(["Sam", "Iris"]);
+  });
+
+  it("never marks an unseen ally downed, whatever the stale copy says", () => {
+    const downedStale = player("Sam", { id: SAM_ID, health: 0 });
+    const frames = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self, downedStale],
+        visiblePlayerIds: [SELF_ID],
+        partyRoster: roster([SAM_ID, "Sam"]),
+      }),
+    );
+
+    expect(frames[0]?.state).toBe("outOfSight");
   });
 });

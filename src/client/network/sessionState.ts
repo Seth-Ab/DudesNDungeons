@@ -1,4 +1,4 @@
-import type { ErrorCode, ServerMessage } from "../../shared/protocol/index.js";
+import type { ErrorCode, PartyRosterEntry, ServerMessage } from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
 import { emoteFeedLine, type EmoteRecord } from "../state/emotes.js";
@@ -114,6 +114,11 @@ export interface SessionView {
   voiceRange: VoicePeerRange[];
   /** Null until the server has sent this player's progression. */
   progression: ProgressionView | null;
+  /**
+   * Everyone in the party with a character, seen or not, from the latest `partyRoster`. Identity and
+   * connection only: for a member outside `visiblePlayerIds` this is all the client knows.
+   */
+  partyRoster: PartyRosterEntry[];
 }
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
@@ -147,6 +152,7 @@ export const initialSessionView: SessionView = {
   emoteSeq: 0,
   voiceRange: [],
   progression: null,
+  partyRoster: [],
 };
 
 /**
@@ -195,7 +201,11 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         lastError: null,
         // A new join is a new profile's view; nothing of an earlier one carries over.
         progression: null,
+        partyRoster: [],
       };
+
+    case "partyRoster":
+      return { ...view, partyRoster: message.members };
 
     case "progressionCatalog":
       return {
@@ -228,6 +238,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
       return {
         ...view,
         players: view.players.filter((player) => player.id !== message.playerId),
+        partyRoster: view.partyRoster.filter((entry) => entry.playerId !== message.playerId),
       };
 
     // A drop is not a departure: the player keeps their slot for the server's grace window.

@@ -289,8 +289,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v36, the version that added the bow draw messages and a player's drawFraction", () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+  it("is on protocol v37, the version that added the partyRoster message", () => {
+    expect(PROTOCOL_VERSION).toBe(37);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -616,6 +616,45 @@ describe("emote contract", () => {
     expect(parseServer({ ...emoted, at: -1 }).ok).toBe(false);
     expect(parseServer({ ...emoted, at: 1.5 }).ok).toBe(false);
     expect(parseServer({ ...emoted, playerId: "not-a-uuid" }).ok).toBe(false);
+  });
+});
+
+describe("partyRoster contract", () => {
+  const entry = { playerId: PLAYER_ID, name: "Grix", partyColor: "ember", connected: true };
+  const roster = { type: "partyRoster", members: [entry] };
+  const parse = (message: unknown) => parseServerMessage(JSON.stringify(message));
+
+  it("round-trips a roster, including an empty one", () => {
+    for (const message of [roster, { type: "partyRoster", members: [] }]) {
+      const result = parse(message);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.message).toEqual(message);
+    }
+  });
+
+  it("rejects malformed entries", () => {
+    for (const bad of [
+      { ...entry, playerId: "not-a-uuid" },
+      { ...entry, name: "" },
+      { ...entry, partyColor: "mauve" },
+      { ...entry, connected: "yes" },
+      { playerId: entry.playerId, name: entry.name, partyColor: entry.partyColor },
+    ]) {
+      expect(parse({ ...roster, members: [bad] }).ok, JSON.stringify(bad)).toBe(false);
+    }
+    expect(parse({ type: "partyRoster" }).ok).toBe(false);
+    expect(parse({ ...roster, members: entry }).ok).toBe(false);
+  });
+
+  it("rejects an entry that carries anything about the body", () => {
+    for (const extra of [
+      { position: { x: 1, y: 2 } },
+      { health: 40 },
+      { resistance: 10 },
+      { downed: true },
+    ]) {
+      expect(parse({ ...roster, members: [{ ...entry, ...extra }] }).ok, JSON.stringify(extra)).toBe(false);
+    }
   });
 });
 

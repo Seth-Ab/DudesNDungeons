@@ -137,6 +137,18 @@ describe("party changes", () => {
     expect(view.players.map((p) => p.id)).toEqual([SELF_ID]);
   });
 
+  it("keeps the party roster from partyRoster, forgetting a player who leaves", () => {
+    const members = [
+      { playerId: SELF_ID, name: "Self", partyColor: "ember" as const, connected: true },
+      { playerId: ALLY_ID, name: "Ally", partyColor: "moss" as const, connected: true },
+    ];
+    let view = applyServerMessage(joinedView(), { type: "partyRoster", members });
+    expect(view.partyRoster).toEqual(members);
+
+    view = applyServerMessage(view, { type: "playerLeft", playerId: ALLY_ID, reason: "left" });
+    expect(view.partyRoster.map((entry) => entry.playerId)).toEqual([SELF_ID]);
+  });
+
   it("keeps a dropped player in the roster and only marks them disconnected", () => {
     let view = joinedView();
     view = applyServerMessage(view, { type: "playerJoined", player: player(ALLY_ID) });

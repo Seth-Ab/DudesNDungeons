@@ -520,6 +520,15 @@ button:disabled {
   color: var(--hud-health);
 }
 
+/* Greyed and dashed, and captioned in words: out of sight never reads from the grey alone. */
+.hud__frame[data-state="outOfSight"] {
+  opacity: 0.6;
+  filter: grayscale(1);
+  font-style: italic;
+  outline: 1px dashed var(--hud-text-muted);
+  outline-offset: -3px;
+}
+
 .hud__frame[data-state="disconnected"] {
   opacity: 0.5;
   font-style: italic;
