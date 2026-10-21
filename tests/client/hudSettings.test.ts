@@ -25,14 +25,18 @@ function fakeStorage(initial?: string) {
 
 describe("parseHudSettings", () => {
   it("reads valid settings", () => {
-    expect(parseHudSettings('{"reducedMotion":true,"uiScale":1.3}', fallback)).toEqual({
+    expect(parseHudSettings('{"reducedMotion":true,"uiScale":1.3,"density":"minimal"}', fallback)).toEqual({
       reducedMotion: true,
       uiScale: 1.3,
+      density: "minimal",
     });
   });
 
   it("falls back per field for bad values and wholesale for bad JSON", () => {
     expect(parseHudSettings('{"reducedMotion":"yes","uiScale":9}', fallback)).toEqual(fallback);
+    expect(parseHudSettings('{"density":"loud"}', fallback).density).toBe("calm");
+    expect(parseHudSettings('{"density":7}', fallback).density).toBe("calm");
+    expect(parseHudSettings('{"density":"full"}', fallback).density).toBe("full");
     expect(parseHudSettings("{nope", fallback)).toEqual(fallback);
     expect(parseHudSettings("null", fallback)).toEqual(fallback);
     expect(parseHudSettings(null, fallback)).toEqual(fallback);
@@ -42,15 +46,16 @@ describe("parseHudSettings", () => {
 describe("hud settings stores", () => {
   it("defaults reduced motion to the OS preference", () => {
     const store = createLocalStorageHudSettingsStore(fakeStorage(), () => true);
-    expect(store.read()).toEqual({ reducedMotion: true, uiScale: 1 });
+    expect(store.read()).toEqual({ reducedMotion: true, uiScale: 1, density: "calm" });
   });
 
   it("round-trips through storage, and a saved choice beats the OS preference", () => {
     const storage = fakeStorage();
-    createLocalStorageHudSettingsStore(storage, () => true).write({ reducedMotion: false, uiScale: 1.15 });
+    createLocalStorageHudSettingsStore(storage, () => true).write({ reducedMotion: false, uiScale: 1.15, density: "full" });
     expect(createLocalStorageHudSettingsStore(storage, () => true).read()).toEqual({
       reducedMotion: false,
       uiScale: 1.15,
+      density: "full",
     });
   });
 
@@ -71,8 +76,8 @@ describe("hud settings stores", () => {
 
   it("keeps settings in memory when storage is unavailable", () => {
     const store = createMemoryHudSettingsStore(() => false);
-    store.write({ reducedMotion: true, uiScale: 0.85 });
-    expect(store.read()).toEqual({ reducedMotion: true, uiScale: 0.85 });
+    store.write({ reducedMotion: true, uiScale: 0.85, density: "minimal" });
+    expect(store.read()).toEqual({ reducedMotion: true, uiScale: 0.85, density: "minimal" });
   });
 });
 

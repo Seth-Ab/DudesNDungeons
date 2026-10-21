@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   HUD_FADE_COMBAT_HOLD_MS,
   HUD_FADE_QUIET_MS,
+  HUD_DENSITY_RULES,
+  HUD_FADE_OPACITY,
   createHudFade,
   type HudFadeInput,
 } from "../../src/client/state/hudFade.js";
 
-const NONE: HudFadeInput = { pinned: new Set() };
+const NONE: HudFadeInput = { pinned: new Set(), density: "calm" };
 
 describe("HUD fade", () => {
   it("fades a quiet module after the quiet period and not before", () => {
@@ -33,7 +35,7 @@ describe("HUD fade", () => {
 
   it("never fades a pinned module, and fades it once the pin is released", () => {
     const fade = createHudFade(["vitals", "hotbar"], 0);
-    const pinned: HudFadeInput = { pinned: new Set(["vitals"]) };
+    const pinned: HudFadeInput = { pinned: new Set(["vitals"]), density: "calm" };
     expect(fade.isFaded("vitals", 60_000, pinned)).toBe(false);
     expect(fade.isFaded("hotbar", 60_000, pinned)).toBe(true);
     expect(fade.isFaded("vitals", 60_000, NONE)).toBe(true);
@@ -53,5 +55,34 @@ describe("HUD fade", () => {
     fade.combat(13_000);
     expect(fade.isFaded("vitals", 13_000 + HUD_FADE_COMBAT_HOLD_MS - 1, NONE)).toBe(false);
     expect(fade.isFaded("vitals", 13_000 + HUD_FADE_COMBAT_HOLD_MS, NONE)).toBe(true);
+  });
+
+  describe("density levels", () => {
+    it("Full never fades, however long a module is quiet", () => {
+      const fade = createHudFade(["vitals", "hotbar"], 0);
+      expect(fade.isFaded("hotbar", 60_000, { ...NONE, density: "full" })).toBe(false);
+      expect(HUD_DENSITY_RULES.full).toEqual({ fades: false, opacity: 1, hidesHints: false });
+    });
+
+    it("Calm fades to the base opacity and keeps the key hints", () => {
+      const fade = createHudFade(["hotbar"], 0);
+      expect(fade.isFaded("hotbar", HUD_FADE_QUIET_MS, { ...NONE, density: "calm" })).toBe(true);
+      expect(HUD_DENSITY_RULES.calm).toEqual({ fades: true, opacity: HUD_FADE_OPACITY, hidesHints: false });
+    });
+
+    it("Minimal fades lower than Calm and hides the key hints", () => {
+      const fade = createHudFade(["hotbar"], 0);
+      expect(fade.isFaded("hotbar", HUD_FADE_QUIET_MS, { ...NONE, density: "minimal" })).toBe(true);
+      expect(HUD_DENSITY_RULES.minimal.opacity).toBeLessThan(HUD_DENSITY_RULES.calm.opacity);
+      expect(HUD_DENSITY_RULES.minimal.hidesHints).toBe(true);
+    });
+
+    it("keeps warnings lit at every level", () => {
+      const fade = createHudFade(["vitals"], 0);
+      for (const density of ["full", "calm", "minimal"] as const) {
+        const pinned: HudFadeInput = { pinned: new Set(["vitals"]), density };
+        expect(fade.isFaded("vitals", 60_000, pinned)).toBe(false);
+      }
+    });
   });
 });

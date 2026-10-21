@@ -115,6 +115,17 @@ button:focus-visible {
   opacity: var(--hud-fade-opacity);
 }
 
+/* HUD density (Settings > HUD density). Calm is the default above; keep these in step with
+   HUD_DENSITY_RULES in state/hudFade.ts. Full never sets data-faded, so it needs no rule. */
+:root[data-hud-density="minimal"] {
+  --hud-fade-opacity: 0.35;
+}
+
+/* Minimal hides the optional key hints; the camp button stays so the menu is always reachable. */
+:root[data-hud-density="minimal"] .hud__panel--hints .hud__hint:not(.hud__hint--camp) {
+  display: none;
+}
+
 .hud [data-faded] {
   transition: opacity 0.4s ease;
 }

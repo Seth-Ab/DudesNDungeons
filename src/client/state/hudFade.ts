@@ -1,3 +1,5 @@
+import type { HudDensity } from "./hudSettings.js";
+
 /**
  * Quiet HUD modules dim so the HUD stops out-shining the player's light pool. Kept free of the DOM
  * and the clock (callers pass `now`) so the node test environment can drive it.
@@ -12,11 +14,28 @@ export const HUD_FADE_COMBAT_HOLD_MS = 4000;
 /** The opacity of a faded module; text must stay above the contrast floor at this value. */
 export const HUD_FADE_OPACITY = 0.55;
 
+export interface HudDensityRule {
+  /** False when the density keeps every module lit. */
+  fades: boolean;
+  /** The opacity of a faded module; mirrored by `--hud-fade-opacity` in styles.css. */
+  opacity: number;
+  /** Whether optional modules (the key hints) are hidden. Vitals, warnings and party frames never are. */
+  hidesHints: boolean;
+}
+
+/** What each HUD density setting does; keep the opacities in step with `[data-hud-density]` in styles.css. */
+export const HUD_DENSITY_RULES: Record<HudDensity, HudDensityRule> = {
+  full: { fades: false, opacity: 1, hidesHints: false },
+  calm: { fades: true, opacity: HUD_FADE_OPACITY, hidesHints: false },
+  minimal: { fades: true, opacity: 0.35, hidesHints: true },
+};
+
 export type HudModuleId = "vitals" | "party" | "hotbar" | "minimap" | "session" | "hints" | "actions";
 
 export interface HudFadeInput {
   /** Modules that hold an unresolved warning, the open camp menu, or a focused control. */
   pinned: ReadonlySet<HudModuleId>;
+  density: HudDensity;
 }
 
 export interface HudFade {
@@ -46,7 +65,7 @@ export function createHudFade(modules: readonly HudModuleId[], startedAt: number
       for (const id of lastChange.keys()) lastChange.set(id, now);
     },
     isFaded(id, now, input) {
-      if (input.pinned.has(id) || now < combatUntil) return false;
+      if (!HUD_DENSITY_RULES[input.density].fades || input.pinned.has(id) || now < combatUntil) return false;
       const changedAt = lastChange.get(id);
       return changedAt !== undefined && now - changedAt >= HUD_FADE_QUIET_MS;
     },

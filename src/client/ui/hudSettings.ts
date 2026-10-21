@@ -1,4 +1,6 @@
 import {
+  HUD_DENSITIES,
+  HUD_DENSITY_LABELS,
   hudFrameZoom,
   UI_SCALES,
   UI_SCALE_LABELS,
@@ -6,14 +8,19 @@ import {
   type HudSettingsStore,
 } from "../state/hudSettings.js";
 
+/** Fired on the root element after the settings are applied, so the HUD can re-evaluate at once. */
+export const HUD_SETTINGS_CHANGED_EVENT = "hud-settings-changed";
+
 /**
- * Reflects the settings onto the document: `data-reduced-motion` for CSS, root font size for scale,
+ * Reflects the settings onto the document: `data-reduced-motion` and `data-hud-density` for CSS, root font size for scale,
  * and `--hud-zoom`, the whole-number scale of the HUD frame art.
  */
 export function applyHudSettings(settings: HudSettings, root: HTMLElement = document.documentElement): void {
   root.dataset.reducedMotion = String(settings.reducedMotion);
+  root.dataset.hudDensity = settings.density;
   root.style.fontSize = `${settings.uiScale * 100}%`;
   root.style.setProperty("--hud-zoom", String(hudFrameZoom(settings.uiScale)));
+  root.dispatchEvent(new Event(HUD_SETTINGS_CHANGED_EVENT));
 }
 
 /**
@@ -49,6 +56,18 @@ export function createHudSettingsSection(store: HudSettingsStore) {
   scale.value = String(settings.uiScale);
   scaleLabel.append("UI scale ", scale);
 
+  const densityLabel = document.createElement("label");
+  densityLabel.className = "controls-menu__setting";
+  const density = document.createElement("select");
+  for (const value of HUD_DENSITIES) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = HUD_DENSITY_LABELS[value];
+    density.append(option);
+  }
+  density.value = settings.density;
+  densityLabel.append("HUD density ", density);
+
   const update = (next: HudSettings): void => {
     settings = next;
     applyHudSettings(settings);
@@ -57,6 +76,11 @@ export function createHudSettingsSection(store: HudSettingsStore) {
   motion.addEventListener("change", () => update({ ...settings, reducedMotion: motion.checked }));
   scale.addEventListener("change", () => update({ ...settings, uiScale: Number(scale.value) }));
 
-  element.append(heading, motionLabel, scaleLabel);
+  density.addEventListener("change", () => {
+    const chosen = HUD_DENSITIES.find((value) => value === density.value);
+    if (chosen) update({ ...settings, density: chosen });
+  });
+
+  element.append(heading, motionLabel, scaleLabel, densityLabel);
   return { element };
 }
