@@ -8,7 +8,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v38.
-- Last completed work: a party vault shared by the room code, which escapes deposit into and any
+- Last completed work: the progression economy decided and recorded in decision 0014, with
+  follow-ups #213-#217 (issue #23, documentation only); earlier, a party vault shared by the room code, which escapes deposit into and any
   member can take from or store in at the hub's Bank, saved in `data/vaults.json` and reopened with
   its room after a restart; personal banks are now a read-only legacy list (issue #126, protocol
   v38); earlier, the final HUD Torch & Tally pass, comparing the finished HUD with the proposal and fixing the self frame's missing name, squat ally health bars, the allies' resistance bar and the camp menu's off-palette groups; this finishes the series, with no follow-up issues (issue #194, protocol unchanged); earlier, an e2e spec for the Torch & Tally HUD zones, density levels and touch layout, with three layout fixes it found (issue #176, HUD Torch & Tally, protocol unchanged); earlier, a server-sent party roster and greyed "out of sight" party frames for allies who left sight (issue #172, HUD Torch & Tally Phase 5, protocol v37); earlier, quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
@@ -48,9 +49,9 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: a wider item catalog, combat depth, and tick
-  performance (see the open issues), then build Frontend
-  step 10 on the owner-only progression messages (#24, v15). Verifying Backend step 6 on a real
+- Next recommended step: skill stacking and prerequisites (#213), which the rest of the economy
+  (#214-#217) and Frontend step 10 (#25) build on, alongside a wider item catalog, combat depth,
+  and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the
   current GitHub plan; make the repo public or upgrade to GitHub Pro to require CI before merge.
@@ -69,14 +70,27 @@ Resolved:
 - Identity for progression: Device-local profile first, backed by a local profile secret. Real
   accounts are deferred. Implemented on 2026-09-20: the server issues the secret and keeps only its
   hash, and the browser holds it in local storage.
-- Progression currency: none. `GAMEDESCRIPTION.md` names only items and skills kept between runs,
-  so no currency was invented to go with them, and upgrade definitions keep leaving unlock costs
-  out. Decided on 2026-09-20 while building the profile; revisit only if the owner asks for one.
+- Progression economy, decided by the owner on 2026-10-19 for issue #23 and recorded in decision
+  0014 (replacing the 2026-09-20 "no currency" checkpoint):
+  - Skills come from coin earned on runs (spent at a hub skill shop), milestone achievements, and
+    rare monster drops. The shop sells scrolls, which follow every scroll rule and can be stored in
+    the party vault. The same coin buys cosmetics (#128).
+  - Run coin sits in a per-player run purse, credited on extraction and lost on death like carry.
+  - Skills stack up to a per-skill `maxStacks` (or unlimited), replacing duplicate-scroll and tiered
+    upgrades. Skills may require other skills; a scroll whose prerequisites are missing can't be
+    used, so it waits in the vault or goes to a teammate.
+  - Using a scroll at max stacks prompts to convert it to coin, reminding the player to give it
+    away or keep it; it converts only after they confirm.
+  - A locked skill shows its coin price and prerequisites. Unlocks survive content changes, and new
+    content shows up locked.
+  - Shop stock is mostly fixed with 2-3 rotating items each week, shared with the cosmetics shop.
+  - Follow-ups: #213 stacking and prerequisites, #214 coin and conversion, #215 milestones, #216
+    the skill shop, #217 scrolls and monster drops; then the Skills UI (#25).
 - Skill acquisition and saving: skills are rare, transferable scroll loot occupying a normal
   inventory slot. Using one activates it immediately, but dungeon-earned skills become permanent
   only on extraction; a hub purchase is permanent immediately. Revive then escape counts, as will
   carrying a downed player through the exit once carrying exists. An already-known scroll is not
-  consumed; duplicates may become upgrades later. Recorded in decision 0011.
+  consumed; duplicates now add stacks (decision 0014). Recorded in decision 0011.
 - Party vault, decided on 2026-10-19 for issue #126 and recorded in decision 0013:
   - The party is the room code. Its vault is saved on disk, and a new room starts empty; this is
     the party identity #122's per-room saves will share.
@@ -91,8 +105,8 @@ Resolved:
 - HUD Torch & Tally open questions, decided on 2026-10-21 for issue #160:
   - Unseen allies appear as a greyed "out of sight" frame with no position, health or resistance and
     a non-colour cue. This needs a server-sent party roster, built in #172 (protocol v37).
-  - The minimap stays free for everyone for now; revisit with the Skills UI (#25) and the progression
-    economy (#23).
+  - The minimap stays free for everyone for now; revisit with the Skills UI (#25). The progression
+    economy (#23) left it free.
   - Health and resistance show their numbers (`82/100`) inside the bar, with an accessible text
     equivalent; stamina stays a bare bar. The Minimal density level (#170) may hide the numbers.
   - The run clock is a numberless torch that burns down toward the decay window, built in #174. The
@@ -297,7 +311,8 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 ### 11. Roguelite Progression and Persistence
 
 Identity and persistence landed on 2026-09-20 under protocol v9. The first skill-scroll slice landed
-under protocol v10; the full catalog, upgrade acquisition, and UI remain.
+under protocol v10; the full catalog, upgrade acquisition, and UI remain. The economy is decided
+(#23, decision 0014) and split into #213-#217.
 
 - [x] Add a player profile holding banked items and unlocked skills. `src/server/profiles/`.
   `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
@@ -311,7 +326,8 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
   effect resolver drives resistance, attack damage, upgrade tiers, and torch sight. Remaining:
-  add upgrade acquisition and connect puzzle effects. The owner now receives the catalog
+  stacking and prerequisites in place of upgrade tiers (#213), coin and scroll conversion (#214),
+  milestones (#215), the skill shop (#216), more scrolls and drops (#217), and puzzle effects. The owner now receives the catalog
   (`progressionCatalog`) and live state (`progressionUpdated`), protocol v15 (#24).
 - [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
   skill definitions now feed the effect resolver, while upgrade acquisition remains future work.
@@ -529,6 +545,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a weekly-rotating skill shop and milestones, in decision 0014; follow-ups #213-#217.
 - 2026-10-21: Party vault shared by the room code: escapes deposit into it, any member takes or stores at the hub's Bank, saved in `data/vaults.json`; personal banks become read-only (#126, protocol v38).
 - 2026-10-21: Final HUD Torch & Tally pass against the proposal: self-frame name, thin ally health bars with a resistance number, warm camp-menu groups; series finished, no follow-ups (#194).
 - 2026-10-21: E2e spec for HUD zones, density levels and touch layout, fixing hint, hotbar and name-plate overlaps (#176, HUD Torch & Tally).

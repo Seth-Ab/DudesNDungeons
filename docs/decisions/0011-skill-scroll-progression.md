@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-09-20.
+Accepted on 2026-09-20. The duplicate-scroll rule is superseded by decision 0014, which adds
+coin, skill stacking, prerequisites and the hub skill shop.
 
 ## Context
 
