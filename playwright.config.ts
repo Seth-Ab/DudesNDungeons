@@ -8,6 +8,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // The walking specs take 20-30 s on a two-core CI runner, so the 30 s default timed out their
+  // first attempt in most runs and only the retry passed. Locally they finish in about 10 s.
+  timeout: process.env.CI ? 60_000 : 30_000,
   // Most specs drive two browsers against one server and spend their time waiting. One worker per
   // two-core CI runner is all it holds: with two, the game server is starved and the timing-
   // sensitive specs time out, so CI gets its parallelism from shards. Locally, more than a few
