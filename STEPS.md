@@ -119,7 +119,7 @@ an existing slot still works during a run.
   the hub; a hub purchase is permanent immediately. A duplicate scroll adds a stack up to the
   skill's limit, and a scroll whose prerequisites are missing cannot be used.
 - Add coin, earned from runs and carried in a run purse that is lost on death like items, and spend
-  it at a hub skill shop with mostly fixed stock and a small weekly rotation. A scroll at max
+  it at a hub skill shop with mostly fixed stock and a small rotation that rerolls after every run. A scroll at max
   stacks converts to coin only after the player confirms. Milestone achievements grant special
   skills.
 - Never trust a client-sent profile, inventory, or unlock. The client asks; the server decides.

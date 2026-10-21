@@ -101,14 +101,16 @@ This replaces duplicate-scroll upgrades and the separate tiered-upgrade content.
   hub ring is layout work for the follow-up ticket. Like the vault, a purchase requires a standing,
   non-designing player inside that room, in the hub.
 - A purchase names a stock entry, never a price. The server refuses it when the item is not in
-  stock this week, the player cannot afford it, their inventory has no free slot, or the scroll's
+  stock right now, the player cannot afford it, their inventory has no free slot, or the scroll's
   skill is already at max stacks for them. Buying a scroll whose prerequisites they lack is
   allowed, since it can wait or go to a teammate.
 - A skill's price is per scroll and flat unless a later tuning ticket adds a per-stack rule.
 - **Stock** (shared with the cosmetics shop, #128 and #137): mostly fixed, plus a small rotating
-  slot of 2-3 items each week. A week starts Monday 00:00 UTC. The rotation is derived
-  deterministically from the week number and the rotating pool in content, so every room on a
-  server shows the same stock and a restart does not reshuffle it.
+  slot of 2-3 items that rerolls **after every run** (owner decision, 2026-10-21, replacing the
+  weekly rotation). Stock belongs to the room: a run ending by escape or wipe advances that room's
+  run count, and the rotation is derived deterministically from the room code, that count and the
+  rotating pool in content. Only the count needs saving, alongside the room's vault, so a restart
+  does not reshuffle it and the stock never changes during a run.
 
 ### Milestones
 
@@ -125,7 +127,7 @@ This replaces duplicate-scroll upgrades and the separate tiered-upgrade content.
 
 A locked skill shows its coin price and any prerequisite skills. When a skill is not in the shop's
 fixed stock, it shows its other source instead (its milestone and threshold, or that it is found in
-the dungeon), and a rotating skill shows whether it is in stock this week. A held scroll the player
+the dungeon), and a rotating skill shows whether it is in stock right now. A held scroll the player
 cannot use yet shows the missing prerequisites; a held maxed scroll shows that it can be converted.
 Stacking skills show their stack count against the limit; unlimited ones show only the count, and
 non-stacking ones show none. All of this comes from the owner-only progression messages, never from
@@ -154,7 +156,7 @@ Filed on 2026-10-21, in dependency order:
 - #213: skill stacking and prerequisites, folding tiered upgrades into stacks.
 - #214: profile coin, the run purse, and converting max-stack scrolls with a confirmation.
 - #215: milestone stat tracking and milestone skill grants.
-- #216: the hub skill shop with weekly rotating stock.
+- #216: the hub skill shop with stock that rotates after every run.
 - #217: a scroll for every skill and rare skill-scroll monster drops.
 
 The Skills UI (#25) and the cosmetics shop (#137) build on them.

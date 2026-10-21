@@ -83,7 +83,7 @@ Resolved:
     away or keep it; it converts only after they confirm.
   - A locked skill shows its coin price and prerequisites. Unlocks survive content changes, and new
     content shows up locked.
-  - Shop stock is mostly fixed with 2-3 rotating items each week, shared with the cosmetics shop.
+  - Shop stock is mostly fixed with 2-3 rotating items that reroll after every run (owner, 2026-10-21), shared with the cosmetics shop.
   - Follow-ups: #213 stacking and prerequisites, #214 coin and conversion, #215 milestones, #216
     the skill shop, #217 scrolls and monster drops; then the Skills UI (#25).
 - Skill acquisition and saving: skills are rare, transferable scroll loot occupying a normal
@@ -545,7 +545,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
-- 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a weekly-rotating skill shop and milestones, in decision 0014; follow-ups #213-#217.
+- 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a skill shop whose stock rotates after every run, and milestones, in decision 0014; follow-ups #213-#217.
 - 2026-10-21: Party vault shared by the room code: escapes deposit into it, any member takes or stores at the hub's Bank, saved in `data/vaults.json`; personal banks become read-only (#126, protocol v38).
 - 2026-10-21: Final HUD Torch & Tally pass against the proposal: self-frame name, thin ally health bars with a resistance number, warm camp-menu groups; series finished, no follow-ups (#194).
 - 2026-10-21: E2e spec for HUD zones, density levels and touch layout, fixing hint, hotbar and name-plate overlaps (#176, HUD Torch & Tally).
