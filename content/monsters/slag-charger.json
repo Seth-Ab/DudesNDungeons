@@ -11,7 +11,10 @@
   "windupMs": 800,
   "charge": { "speed": 13, "distance": 8, "stunMs": 1500 },
   "loot": {
-    "entries": [{ "itemId": "warding-salve", "weight": 1 }],
-    "nothingWeight": 3
+    "entries": [
+      { "itemId": "warding-salve", "weight": 20 },
+      { "itemId": "iron-will-scroll", "weight": 1 }
+    ],
+    "nothingWeight": 60
   }
 }

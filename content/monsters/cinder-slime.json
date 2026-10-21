@@ -9,7 +9,10 @@
   "attackCooldownMs": 1400,
   "windupMs": 700,
   "loot": {
-    "entries": [{ "itemId": "warding-salve", "weight": 1 }],
-    "nothingWeight": 3
+    "entries": [
+      { "itemId": "warding-salve", "weight": 20 },
+      { "itemId": "lever-sense-scroll", "weight": 1 }
+    ],
+    "nothingWeight": 60
   }
 }

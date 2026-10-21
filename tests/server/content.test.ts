@@ -75,6 +75,18 @@ describe("the shipped content", () => {
     expect(resolveContentRoot()).not.toContain(join("src", "server"));
   });
 
+  it("gives every skill a scroll item", () => {
+    // Milestone-only skills (#215), granted straight to a profile, will be exempt; none ship yet.
+    const content = loadContent();
+    const taught = new Set(
+      [...content.items.values()].flatMap((item) => (item.kind === "skillScroll" ? [item.skillId] : [])),
+    );
+
+    for (const skillId of content.skills.keys()) {
+      expect(taught.has(skillId), skillId).toBe(true);
+    }
+  });
+
   it("gives every room template at least one way in", () => {
     const content = loadContent();
 

@@ -147,7 +147,10 @@ definitions. It occupies an inventory slot and is consumed on use, adding one st
 the stack and its effect are provisional until that player extracts; in the hub, it is permanent
 immediately. The limit and prerequisites count permanent and provisional stacks together. A scroll
 whose skill is already at `maxStacks`, or whose prerequisites are missing, is refused without being
-consumed, so it remains available to give away or store. Lowering `maxStacks` never deletes stored
+consumed, so it remains available to give away or store. Every skill has a scroll (a content test
+enforces it; milestone-only skills, #215, will be exempt). Scrolls come from the Ember Warden and
+the vault chest and, rarely (about one kill in eighty), from ordinary monsters: the Ash Imp and
+Cinder Spitter drop Torchbearer, the Cinder Slime Lever Sense, and the Slag Charger Iron Will. Lowering `maxStacks` never deletes stored
 stacks; effects apply only up to the current limit. `puzzlePowerBonus` is consumed by `puzzles/`
 (see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, item,
 or profile state.

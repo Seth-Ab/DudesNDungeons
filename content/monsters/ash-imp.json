@@ -10,7 +10,10 @@
   "windupMs": 450,
   "glowRadius": 4,
   "loot": {
-    "entries": [{ "itemId": "minor-tonic", "weight": 1 }],
-    "nothingWeight": 3
+    "entries": [
+      { "itemId": "minor-tonic", "weight": 20 },
+      { "itemId": "torchbearer-scroll", "weight": 1 }
+    ],
+    "nothingWeight": 60
   }
 }
