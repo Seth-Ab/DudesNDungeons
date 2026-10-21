@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 40;
+export const PROTOCOL_VERSION = 41;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -173,6 +173,27 @@ export const WEAPON_KINDS = ["melee", "ranged"] as const;
  * kept beside the other shared numbers; scroll conversion values live in each skill's content.
  */
 export const ESCAPE_REWARD_COIN = 5;
+
+/**
+ * The profile stats milestones are measured against (decision 0014). A run credits them when it
+ * ends, to each player who extracts; a wipe, or being left behind, credits none.
+ */
+export const MILESTONE_STATS = [
+  "runsEscaped",
+  "fullPartyEscapes",
+  "wins",
+  "emberWardenKills",
+  "flawlessEmberWardenKills",
+  "teammatesCarriedOut",
+  "leverPuzzlesSolved",
+  "runsWithoutTorch",
+  "itemsBanked",
+  "mothRoomsFound",
+] as const;
+export type MilestoneStat = (typeof MILESTONE_STATS)[number];
+
+/** The monster type whose defeat counts toward the Ember Warden stats. */
+export const EMBER_WARDEN_MONSTER_ID = "ember-warden";
 
 /** Longest HUD blurb a consumable may carry. */
 export const MAX_ITEM_DESCRIPTION_LENGTH = 80;

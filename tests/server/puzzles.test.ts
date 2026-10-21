@@ -52,6 +52,19 @@ describe("cooperative puzzle resolution", () => {
     expect(puzzle.progress).toBe(1);
   });
 
+  it("counts the solve toward the stats of the players who held the plates", () => {
+    const { session, p1, p2 } = withPuzzle(1);
+    const bystander = [...session.players.values()].find((player) => player !== p1 && player !== p2)!;
+    p1.position = { ...PLATE_A };
+    p2.position = { ...PLATE_B };
+
+    resolvePuzzles(session, 0);
+    resolvePuzzles(session, type.holdMs);
+    resolvePuzzles(session, type.holdMs + 5000);
+
+    expect([p1, p2, bystander].map((player) => player.runStats.leverPuzzlesSolved)).toEqual([1, 1, 0]);
+  });
+
   it("pays an authoritative reward on the first plate and only once", () => {
     const { session, p1, p2 } = withPuzzle();
     p1.position = { ...PLATE_A };

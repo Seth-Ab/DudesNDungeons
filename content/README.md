@@ -152,12 +152,31 @@ whose skill is already at `maxStacks`, or whose prerequisites are missing, is re
 consumed, so it remains available to give away or store. A scroll at `maxStacks` can instead be
 converted to coin after the player confirms (`convertSkillScroll`): into the run purse in a dungeon,
 which is lost with the run, or straight to the profile in the hub. Every skill has a scroll (a content test
-enforces it; milestone-only skills, #215, will be exempt). Scrolls come from the Ember Warden and
+enforces it; a skill granted by a milestone is exempt). Scrolls come from the Ember Warden and
 the vault chest and, rarely (about one kill in eighty), from ordinary monsters: the Ash Imp and
 Cinder Spitter drop Torchbearer, the Cinder Slime Lever Sense, and the Slag Charger Iron Will. Lowering `maxStacks` never deletes stored
 stacks; effects apply only up to the current limit. `puzzlePowerBonus` is consumed by `puzzles/`
 (see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, item,
 or profile state.
+
+## Milestones
+
+`content/milestones/` holds achievements that grant a skill outright (decision 0014). A milestone
+names a `stat` from the profile's tracked stats, a positive `threshold`, and the `skillId` it grants:
+
+- `runsEscaped`, `fullPartyEscapes` (every player in the party got out), `wins` (escaped a dungeon
+  that had a boss, with every boss defeated), `emberWardenKills`, `flawlessEmberWardenKills` (nobody
+  in the party was downed at any point in the run before the Warden fell), `teammatesCarriedOut`,
+  `leverPuzzlesSolved`, `runsWithoutTorch`, `itemsBanked` and `mothRoomsFound`.
+
+Stats are gathered per player during a run and credited when it ends, only to players who extract
+(the same rule that saves provisional skills, so a downed player carried out counts). A Warden kill
+or puzzle solve counts for every standing party member or plate holder. When a credited stat reaches
+the threshold the profile gets one permanent stack of the skill and the milestone is recorded as
+earned, so it never grants twice, even across restarts. If the skill is already at `maxStacks` the
+milestone is still recorded and nothing more is granted. A milestone's skill may not have
+`requires`, and an unknown skill or stat is refused at load. Existing profiles start every stat at
+zero; nothing is backfilled. Emberhardened, granted by escaping five runs, is the shipped example.
 
 Room-template loot rules accept an optional `chance` from 0 to 1 before their inclusive `min`/`max`
 count is rolled. It defaults to 1 for existing loot; rare scrolls can therefore ask for one item at

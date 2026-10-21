@@ -15,6 +15,8 @@ import {
   MAX_INVENTORY_SIZE,
   MAX_STACK_SIZE,
   MAX_PLAYER_NAME_LENGTH,
+  MILESTONE_STATS,
+  type MilestoneStat,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
@@ -657,6 +659,14 @@ export type ProfileSecret = z.infer<typeof profileSecretSchema>;
 export const skillStacksSchema = z.record(contentIdSchema, z.number().int().positive());
 export type SkillStacks = z.infer<typeof skillStacksSchema>;
 
+/** A count for every milestone stat; a stat never earned is zero rather than absent. */
+export const milestoneStatsSchema = z.object(
+  Object.fromEntries(
+    MILESTONE_STATS.map((stat) => [stat, z.number().int().nonnegative()]),
+  ) as Record<MilestoneStat, z.ZodNumber>,
+);
+export type MilestoneStats = z.infer<typeof milestoneStatsSchema>;
+
 /**
  * A profile as its owner sees it, sent on join and to nobody else.
  *
@@ -675,6 +685,10 @@ export const profileStateSchema = z.object({
   runsLost: z.number().int().nonnegative(),
   /** Banked progression currency; only the server changes it. */
   coin: z.number().int().nonnegative(),
+  /** Lifetime stats milestones are measured against. */
+  stats: milestoneStatsSchema,
+  /** Ids of the milestones this profile has earned. */
+  earnedMilestones: z.array(contentIdSchema),
 });
 export type ProfileState = z.infer<typeof profileStateSchema>;
 
@@ -705,6 +719,16 @@ export const skillViewSchema = z.object({
   perStackEffects: z.array(progressionEffectViewSchema),
 });
 export type SkillView = z.infer<typeof skillViewSchema>;
+
+/** A milestone as content defines it: reach `threshold` in `stat` to be granted `skillId`. */
+export const milestoneViewSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  stat: z.enum(MILESTONE_STATS),
+  threshold: z.number().int().positive(),
+  skillId: contentIdSchema,
+});
+export type MilestoneView = z.infer<typeof milestoneViewSchema>;
 
 export const bodyTypeSchema = z.enum(BODY_TYPES);
 export type BodyType = z.infer<typeof bodyTypeSchema>;

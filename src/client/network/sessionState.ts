@@ -1,3 +1,4 @@
+import { MILESTONE_STATS } from "../../shared/constants/game.js";
 import type { ErrorCode, PartyRosterEntry, ServerMessage } from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
@@ -11,6 +12,8 @@ import type {
   PlayerState,
   RunState,
   SkillStacks,
+  MilestoneStats,
+  MilestoneView,
   SkillView,
   SessionLocation,
 } from "../../shared/types/core.js";
@@ -37,6 +40,8 @@ export interface SessionError {
 export interface ProgressionView {
   /** Definitions for display, with stack limits and prerequisites. Empty until `progressionCatalog` arrives. */
   skills: SkillView[];
+  /** Milestones the server grants skills for. Empty until `progressionCatalog` arrives. */
+  milestones: MilestoneView[];
   /** Stacks kept between runs. */
   skillStacks: SkillStacks;
   /** Stacks learned this run and lost unless the player makes it back to the hub. */
@@ -47,15 +52,22 @@ export interface ProgressionView {
   coin: number;
   /** The run purse: carried this run, credited on extraction and lost otherwise. */
   runCoin: number;
+  /** Lifetime stats milestones are measured against. */
+  stats: MilestoneStats;
+  /** Ids of milestones already earned. */
+  earnedMilestones: string[];
 }
 
 export const emptyProgression: ProgressionView = {
   skills: [],
+  milestones: [],
   skillStacks: {},
   runSkillStacks: {},
   activeSkillStacks: {},
   coin: 0,
   runCoin: 0,
+  stats: Object.fromEntries(MILESTONE_STATS.map((stat) => [stat, 0])) as MilestoneStats,
+  earnedMilestones: [],
 };
 
 export interface SessionView {
@@ -228,6 +240,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         progression: {
           ...(view.progression ?? emptyProgression),
           skills: message.skills,
+          milestones: message.milestones,
         },
       };
 
@@ -241,6 +254,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
           activeSkillStacks: message.activeSkillStacks,
           coin: message.coin,
           runCoin: message.runCoin,
+          stats: message.stats,
+          earnedMilestones: message.earnedMilestones,
         },
       };
 

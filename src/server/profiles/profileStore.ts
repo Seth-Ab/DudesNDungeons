@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { PlayerName, ProfileId, ProfileSecret } from "../../shared/types/core.js";
 import {
+  createMilestoneStats,
   markProfileChanged,
   PROFILE_FILE_VERSION,
   profileFileSchema,
@@ -122,6 +123,8 @@ export class ProfileStore {
       bankedItems: [],
       skillStacks: {},
       coin: 0,
+      stats: createMilestoneStats(),
+      earnedMilestones: [],
       runsEscaped: 0,
       runsLost: 0,
       createdAt: at,
@@ -169,6 +172,8 @@ export class ProfileStore {
         bankedItems: profile.bankedItems.map((item) => ({ ...item })),
         skillStacks: { ...profile.skillStacks },
         coin: profile.coin,
+        stats: { ...profile.stats },
+        earnedMilestones: [...profile.earnedMilestones],
         runsEscaped: profile.runsEscaped,
         runsLost: profile.runsLost,
         createdAt: profile.createdAt,

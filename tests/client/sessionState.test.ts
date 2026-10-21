@@ -93,6 +93,8 @@ function joinedView(): SessionView {
       bankedItems: [],
       skillStacks: {},
       coin: 0,
+      stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+      earnedMilestones: [],
       runsEscaped: 0,
       runsLost: 0,
     },
@@ -527,6 +529,7 @@ describe("inParty", () => {
 describe("progression", () => {
   const catalog = {
     type: "progressionCatalog" as const,
+    milestones: [],
     skills: [
       {
         id: "iron-will",
@@ -551,6 +554,8 @@ describe("progression", () => {
     activeSkillStacks: {},
     coin: 0,
     runCoin: 0,
+    stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+    earnedMilestones: [] as string[],
     ...overrides,
   });
 
@@ -625,6 +630,8 @@ describe("progression", () => {
         bankedItems: [],
         skillStacks: {},
         coin: 0,
+        stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+        earnedMilestones: [],
         runsEscaped: 0,
         runsLost: 0,
       },

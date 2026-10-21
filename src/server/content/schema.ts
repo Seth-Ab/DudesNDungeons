@@ -5,6 +5,7 @@ import {
   DEFAULT_MONSTER_WINDUP_MS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_STACK_SIZE,
+  MILESTONE_STATS,
   MONSTER_BEHAVIORS,
 } from "../../shared/constants/game.js";
 import {
@@ -761,3 +762,18 @@ export const dungeonDefinitionSchema = z.discriminatedUnion("layout", [
   generatedDungeonSchema,
 ]);
 export type DungeonDefinition = z.infer<typeof dungeonDefinitionSchema>;
+
+/**
+ * A milestone achievement (decision 0014): when a profile's `stat` reaches `threshold`, the profile
+ * is granted one stack of `skillId` straight away, with no scroll. The skill must exist and must
+ * have no prerequisites, so a grant never has to wait; the loader checks both, since a single
+ * definition cannot see the skills.
+ */
+export const milestoneDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  stat: z.enum(MILESTONE_STATS),
+  threshold: z.number().int().positive(),
+  skillId: contentIdSchema,
+});
+export type MilestoneDefinition = z.infer<typeof milestoneDefinitionSchema>;

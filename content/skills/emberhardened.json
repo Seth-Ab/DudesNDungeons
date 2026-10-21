@@ -1,0 +1,8 @@
+{
+  "id": "emberhardened",
+  "name": "Emberhardened",
+  "description": "Earned by escaping the vault again and again: a lasting resistance to its heat.",
+  "effects": [{ "type": "resistanceBonus", "amount": 5 }],
+  "conversionCoin": 2,
+  "maxStacks": 1
+}

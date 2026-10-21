@@ -5,6 +5,7 @@ import type { PuzzleType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { lootInstance } from "./dungeonBuilder.js";
 import { isDown } from "./dungeonState.js";
+import { recordPuzzleSolved } from "./milestones.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
 
 /**
@@ -103,6 +104,7 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     session.dungeon.loot.push(lootInstance(reward, puzzle.plates[0]!.position, randomUUID()));
     session.puzzleHeldSince.delete(puzzle.id);
     puzzle.phase = "solved";
+    recordPuzzleSolved(assigned.filter((holder): holder is SessionPlayer => holder !== null));
     solved.push(puzzle);
   }
 

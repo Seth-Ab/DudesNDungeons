@@ -51,6 +51,7 @@ export function damagePlayer(
   const dealt = Math.min(Math.max(1, Math.round(scaled)), player.health);
 
   player.health -= dealt;
+  if (player.health <= 0) player.runStats.downed = true;
   return dealt;
 }
 

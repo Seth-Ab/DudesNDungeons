@@ -9,6 +9,7 @@ import {
   dungeonDefinitionSchema,
   itemDefinitionSchema,
   lootTableDefinitionSchema,
+  milestoneDefinitionSchema,
   monsterTypeSchema,
   roomTemplateSchema,
   skillDefinitionSchema,
@@ -17,6 +18,7 @@ import {
   type DungeonDefinition,
   type ItemDefinition,
   type LootTableDefinition,
+  type MilestoneDefinition,
   type MonsterType,
   type RoomTemplate,
   type SkillDefinition,
@@ -38,6 +40,8 @@ export interface GameContent {
   monsters: ReadonlyMap<string, MonsterType>;
   items: ReadonlyMap<string, ItemDefinition>;
   skills: ReadonlyMap<string, SkillDefinition>;
+  /** Achievements that grant a skill outright when a profile stat reaches a threshold. */
+  milestones: ReadonlyMap<string, MilestoneDefinition>;
   traps: ReadonlyMap<string, TrapType>;
   puzzles: ReadonlyMap<string, PuzzleType>;
   /** Named tables that content refers to by id, such as the one a chest rolls when opened. */
@@ -258,6 +262,19 @@ function validateReferences(content: GameContent): void {
   }
 
   validateSkillPrerequisites(content.skills);
+
+  for (const milestone of content.milestones.values()) {
+    const skill = content.skills.get(milestone.skillId);
+    if (!skill) {
+      throw new Error(`Milestone "${milestone.id}" grants unknown skill "${milestone.skillId}"`);
+    }
+    // A grant goes straight to the profile, so it could never wait for a prerequisite.
+    if (skill.requires.length > 0) {
+      throw new Error(
+        `Milestone "${milestone.id}" grants skill "${skill.id}", which has prerequisites`,
+      );
+    }
+  }
 
   for (const template of content.templates.values()) {
     const label = `Room template "${template.id}"`;
@@ -480,6 +497,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     monsters: loadCollection(join(contentRoot, "monsters"), monsterTypeSchema),
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
+    milestones: loadCollection(join(contentRoot, "milestones"), milestoneDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),
