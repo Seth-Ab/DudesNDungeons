@@ -13,13 +13,15 @@
   --hud-brass: #d6a84c;
   --hud-ember: #f08a48;
   --hud-text: #ede2c8;
-  --hud-text-muted: #d8ceb1;
+  --hud-text-muted: #e6dbc0;
   --hud-well: #0b0908;
   --hud-warning: #e0b64f;
   --hud-warning-frame: #6b5524;
   /* The frame art is 16 px with a 4 px border; --hud-zoom is the whole-number scale it is drawn at,
      set from the UI scale in ui/hudSettings.ts. The stud is 8 px. */
   --hud-zoom: 2;
+  /* Keep in step with HUD_FADE_OPACITY in state/hudFade.ts; the accessibility spec checks contrast at it. */
+  --hud-fade-opacity: 0.55;
   --hud-frame-width: calc(4px * var(--hud-zoom));
   --hud-stud-size: calc(8px * var(--hud-zoom));
   /* Each vital is a light top and a dark base; the light tone also colours its label. */
@@ -105,6 +107,20 @@ button:focus-visible {
   font-family: var(--hud-font-name);
   /* Neither pixel face has an italic, and the disconnected frame keeps its slant as a cue. */
   font-synthesis: style;
+}
+
+/* A module that has been quiet for a while dims so the HUD does not out-shine the player's light.
+   hud.ts sets data-faded; a change, damage, a key press, a warning or focus clears it. */
+.hud [data-faded="true"] {
+  opacity: var(--hud-fade-opacity);
+}
+
+.hud [data-faded] {
+  transition: opacity 0.4s ease;
+}
+
+:root[data-reduced-motion="true"] .hud [data-faded] {
+  transition: none;
 }
 
 /* Only the interactive controls take the pointer; the rest of the HUD lets clicks reach the canvas. */

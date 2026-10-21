@@ -189,6 +189,34 @@ test.describe("HUD accessibility and layout", () => {
     }
   });
 
+  test("HUD text stays readable when a quiet module is faded to 55%", async ({ page }) => {
+    const tokens = await page.evaluate<Record<string, string>>(READ_HUD_TOKENS);
+    const opacity = Number(
+      await page.evaluate<string>(
+        `getComputedStyle(document.documentElement).getPropertyValue("--hud-fade-opacity")`,
+      ),
+    );
+    expect(opacity).toBe(0.55);
+    const panel = parseColour(tokens.panel);
+    // AA over the dark scene the fade is for; over a brightly lit floor a dimmed light-on-dark
+    // module cannot reach AA at 55%, so it keeps the 3:1 large-text floor there.
+    const floors: Record<string, { backdrop: Rgba; minimum: number }> = {
+      "unlit dungeon": { backdrop: [0, 0, 0, 1], minimum: 4.5 },
+      "lit cobble": { backdrop: [160, 150, 140, 1], minimum: 3 },
+    };
+    // The module is composited as a whole, so text and panel are both dimmed towards the backdrop.
+    const dim = (colour: Rgba, backdrop: Rgba): Rgba => over([colour[0], colour[1], colour[2], opacity], backdrop);
+    for (const [backdropName, { backdrop, minimum }] of Object.entries(floors)) {
+      const ground = over(panel, backdrop);
+      // Warning text is exempt, since a module holding a warning never fades. Vital glyphs are
+      // exempt too: each bar carries its value in --hud-text and a spoken label.
+      for (const name of ["text", "text-muted"]) {
+        const ratio = contrast(dim(over(parseColour(tokens[name]), ground), backdrop), dim(ground, backdrop));
+        expect(ratio, `faded --hud-${name} on --hud-panel over ${backdropName}`).toBeGreaterThanOrEqual(minimum);
+      }
+    }
+  });
+
   test("HUD fonts load from the game's own origin, never a third-party font host", async ({ page }) => {
     const loaded = await page.evaluate<string[]>(LOADED_FONT_FAMILIES);
     expect(loaded).toContain("Silkscreen");

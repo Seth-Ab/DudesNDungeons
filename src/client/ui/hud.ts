@@ -4,6 +4,8 @@ import { DEBUG_KEY, type GameplayAction } from "../input/keyBindings.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import { followTouchControls } from "../state/touchControls.js";
 import { itemFeedbackEvents } from "../state/itemFeedback.js";
+import { createHudFade, type HudModuleId } from "../state/hudFade.js";
+import { minimapRoomName, minimapWorldKey } from "../state/minimap.js";
 import {
   connectionLabel,
   actionPrompt,
@@ -14,7 +16,10 @@ import {
   hotbarView,
   hubReadyVisible,
   newServerAction,
+  partyFrames as partyFramesView,
   positionLabel,
+  torchView,
+  vitalChange,
   roomCodeLabel,
   toastMessages,
   vitalsView,
@@ -37,6 +42,9 @@ import { createSession } from "./hud/session.js";
 import { createNoticeStack, createToasts } from "./hud/toasts.js";
 import { createVitals } from "./hud/vitals.js";
 import { createVoice } from "./hud/voice.js";
+
+/** How often the fade re-checks which modules have gone quiet. */
+const FADE_TICK_MS = 250;
 
 interface HudOptions {
   onToggleVoice: () => void;
@@ -89,7 +97,14 @@ export function createHud(options: HudOptions) {
   const partyFrames = createPartyFrames();
   const inventory = createInventory();
   const minimap = createMinimap();
-  const actions = createActions(options);
+  let noteCombat = (): void => {};
+  const actions = createActions({
+    ...options,
+    onAttack: () => {
+      noteCombat();
+      options.onAttack();
+    },
+  });
   const runClock = createRunClock();
   const hubStatus = createHubStatus();
   const drawReadout = createDrawReadout();
@@ -186,6 +201,56 @@ export function createHud(options: HudOptions) {
     camp.element,
   );
 
+  // Quiet modules dim to `--hud-fade-opacity` (see styles.css). Each snapshot reports which modules
+  // changed; the timer only re-evaluates, so a module fades even when snapshots stop changing it.
+  const fadeModules: Record<HudModuleId, HTMLElement> = {
+    vitals: partyPanel,
+    party: partyFrames.element,
+    hotbar: hotbar.element,
+    minimap: minimap.element,
+    session: sessionPanel,
+    hints: keyHints.element,
+    actions: actionPanel,
+  };
+  const fadeIds = Object.keys(fadeModules) as HudModuleId[];
+  const fade = createHudFade(fadeIds, Date.now());
+  const signatures = new Map<HudModuleId, string>();
+  let warned = new Set<HudModuleId>();
+  let lastHealth: number | null = null;
+  const noteSignature = (id: HudModuleId, signature: string): void => {
+    if (signatures.get(id) !== signature) {
+      if (signatures.has(id)) fade.changed(id, Date.now());
+      signatures.set(id, signature);
+    }
+  };
+  const applyFade = (): void => {
+    const now = Date.now();
+    const pinned = new Set<HudModuleId>(warned);
+    // The camp menu and the Stash own the keyboard; nothing dims behind them.
+    if (camp.isOpen() || inventory.isOpen()) for (const id of fadeIds) pinned.add(id);
+    for (const id of fadeIds) {
+      if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
+    }
+    for (const id of fadeIds) {
+      fadeModules[id].dataset.faded = String(fade.isFaded(id, now, { pinned }));
+    }
+  };
+  noteCombat = () => {
+    fade.combat(Date.now());
+    applyFade();
+  };
+  window.addEventListener(
+    "keydown",
+    () => {
+      fade.changedAll(Date.now());
+      applyFade();
+    },
+    true,
+  );
+  window.addEventListener("focusin", applyFade);
+  window.addEventListener("focusout", () => setTimeout(applyFade, 0));
+  window.setInterval(applyFade, FADE_TICK_MS);
+
   // The prompt follows the predicted position, which moves between snapshots.
   let currentView: SessionView | null = null;
   let currentPosition: Vector2 = { x: 0, y: 0 };
@@ -266,6 +331,32 @@ export function createHud(options: HudOptions) {
         lastServerAction = serverAction;
         toasts.say("action", serverAction);
       }
+
+      if (vitalChange(lastHealth, self ? self.health : null) === "damage") fade.combat(Date.now());
+      lastHealth = self ? self.health : null;
+      const vitalsSnapshot = vitalsView(self, view.run);
+      warned = new Set<HudModuleId>();
+      if (self && (vitalsSnapshot.health.low || vitalsSnapshot.resistance.decaying)) warned.add("vitals");
+      const frames = partyFramesView(view);
+      if (frames.some((frame) => frame.state === "downed" || frame.state === "beingCarried")) {
+        warned.add("party");
+      }
+      noteSignature("vitals", JSON.stringify(vitalsSnapshot));
+      noteSignature("party", JSON.stringify(frames.map(({ portrait: _portrait, ...rest }) => rest)));
+      noteSignature(
+        "hotbar",
+        JSON.stringify([hotbarView(view, self), heldView(view, self), torchView(self)]),
+      );
+      noteSignature(
+        "minimap",
+        `${minimapWorldKey(view)}|${minimapRoomName(view, currentPosition)}`,
+      );
+      noteSignature(
+        "session",
+        JSON.stringify([connectionLabel(view), roomCodeLabel(view), self ? self.ready : null, controls]),
+      );
+      noteSignature("actions", JSON.stringify(runClockView(view)));
+      applyFade();
 
       const itemEvents = currentView ? itemFeedbackEvents(currentView, view) : [];
       currentView = view;
