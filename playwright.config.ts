@@ -16,7 +16,9 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
-    trace: "on-first-retry",
+    // CI keeps the trace of every failed attempt, not just the retry, which usually passes: a flaky
+    // first attempt is the one worth looking at. Locally a trace is recorded only when retrying.
+    trace: process.env.CI ? "retain-on-failure" : "on-first-retry",
   },
   projects: [
     {
