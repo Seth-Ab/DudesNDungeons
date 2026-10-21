@@ -28,6 +28,8 @@ const SWEEP_MS = 20;
 let server: GameServer;
 let baseUrl: string;
 let wsUrl: string;
+/** While set, the server's clock reads this instead of the real one. Reset for every test. */
+let frozenNow: number | null = null;
 const openClients: TestClient[] = [];
 
 /**
@@ -217,7 +219,9 @@ async function enterDungeon(roomCode: string, client: TestClient) {
 }
 
 beforeEach(async () => {
+  frozenNow = null;
   server = createGameServer({
+    now: () => frozenNow ?? performance.now(),
     // The authored dungeon, so the assertions below can name a map and known entity positions.
     store: new SessionStore({ reconnectGraceMs: GRACE_MS, dungeon: { dungeonId: "ember-vault" } }),
     tickIntervalMs: TICK_MS,
@@ -438,25 +442,31 @@ describe("joining a dungeon", () => {
     const { client, joined } = await joinRoom(roomCode, "Alpha");
     const start = joined.players[0]?.position.y ?? 0;
 
+    // Held still, so the whole burst is judged at one instant however slowly the server reaches it.
+    frozenNow = performance.now();
     const burst = 10;
     for (let sequence = 1; sequence <= burst; sequence += 1) {
       client.send({ type: "playerMoveIntent", sequence, direction: { x: 0, y: 1 } });
     }
 
-    await client.next("actionRejected");
-    // A couple of ticks later, every intent in the burst has been answered.
-    await client.next("stateSnapshot");
-    await client.next("stateSnapshot");
+    // The first move and one more within the burst tolerance land; the other eight are refused.
+    const accepted = 2;
+    const refused = burst - accepted;
+    await vi.waitFor(() => {
+      const cooldowns = client
+        .received("actionRejected")
+        .filter((message) => message.reason === "onCooldown");
+      expect(cooldowns).toHaveLength(refused);
+    });
 
-    const rejected = client
-      .received("actionRejected")
-      .filter((message) => message.reason === "onCooldown").length;
-    const latest = client.received("stateSnapshot").at(-1);
-
-    expect(rejected).toBeGreaterThan(0);
-    expect(latest?.players[0]?.position.y).toBeCloseTo(
-      start + (burst - rejected) * PLAYER_STEP_DISTANCE,
+    const snapshot = await client.nextWhere(
+      "stateSnapshot",
+      (message) =>
+        Math.abs((message.players[0]?.position.y ?? start) - (start + accepted * PLAYER_STEP_DISTANCE)) <
+        1e-9,
     );
+    expect(snapshot.players[0]?.position.y).toBeCloseTo(start + accepted * PLAYER_STEP_DISTANCE);
+    expect(client.received("actionRejected")).toHaveLength(refused);
   });
 
   it("resolves a swing at nothing and refuses loot out of reach", async () => {
