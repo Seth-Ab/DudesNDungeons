@@ -159,6 +159,28 @@ describe("monster loot drops", () => {
   });
 });
 
+describe("skill scroll monster drops", () => {
+  it("lets ordinary monsters drop skill scrolls, rarely", () => {
+    const { items, monsters } = gameContent();
+    const isScroll = (itemId: string): boolean => items.get(itemId)?.kind === "skillScroll";
+    const ordinary = [...monsters.values()].filter(
+      (type) => !type.boss && type.loot?.entries.some((entry) => isScroll(entry.itemId)),
+    );
+    expect(ordinary.length).toBeGreaterThan(0);
+
+    const kills = 10_000;
+    for (const type of ordinary) {
+      const rng = createRng(TEST_SEED);
+      let scrolls = 0;
+      for (let kill = 0; kill < kills; kill += 1) {
+        scrolls += rollLootTable(type.loot!, rng).filter(isScroll).length;
+      }
+      expect(scrolls, type.id).toBeGreaterThan(0);
+      expect(scrolls / kills, type.id).toBeLessThan(0.03);
+    }
+  });
+});
+
 describe("monster loot table validation", () => {
   const roots: string[] = [];
   afterEach(() => {

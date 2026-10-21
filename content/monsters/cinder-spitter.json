@@ -13,7 +13,10 @@
   "glowRadius": 3,
   "projectile": { "speed": 9, "radius": 0.25, "damage": 6, "range": 14 },
   "loot": {
-    "entries": [{ "itemId": "minor-tonic", "weight": 1 }],
-    "nothingWeight": 3
+    "entries": [
+      { "itemId": "minor-tonic", "weight": 20 },
+      { "itemId": "torchbearer-scroll", "weight": 1 }
+    ],
+    "nothingWeight": 60
   }
 }

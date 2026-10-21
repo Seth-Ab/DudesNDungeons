@@ -1,0 +1,6 @@
+{
+  "id": "torchbearer-scroll",
+  "name": "Scroll of Torchbearer",
+  "kind": "skillScroll",
+  "skillId": "torchbearer"
+}

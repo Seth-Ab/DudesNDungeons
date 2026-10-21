@@ -8,8 +8,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   persistence, first skill scroll, skill stacks). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
   everyone to the hub under protocol v39.
-- Last completed work: skills that stack up to a per-skill `maxStacks` and may require other
-  skills, with Iron Will's two upgrades folded into its stacks 2 and 3, old profiles migrated on
+- Last completed work: a scroll for every skill (Torchbearer and Lever Sense join Iron Will),
+  enforced by a content test, and rare skill-scroll drops from every ordinary monster, about one
+  kill in eighty (issue #217, protocol unchanged); earlier, skills that stack up to a per-skill
+  `maxStacks` and may require other skills, with Iron Will's two upgrades folded into its stacks 2 and 3, old profiles migrated on
   read, and maxed or prerequisite-missing scrolls refused and kept (issue #213, protocol v39);
   earlier, the progression economy decided and recorded in decision 0014, with
   follow-ups #213-#217 (issue #23, documentation only); earlier, a party vault shared by the room code, which escapes deposit into and any
@@ -334,8 +336,8 @@ and UI remain. The economy is decided (#23, decision 0014) and split into #213-#
   (provisional in a dungeon, permanent in the hub), and a maxed scroll or one missing
   prerequisites is refused with `skillMaxed`/`missingPrerequisites` and kept. Iron Will's two
   upgrades are its stacks 2 and 3, and `content/upgrades/` is retired. Remaining: coin and scroll
-  conversion (#214), milestones (#215), the skill shop (#216), more scrolls and drops (#217), and
-  puzzle effects. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
+  conversion (#214), milestones (#215), the skill shop (#216), and puzzle effects. Since #217 every
+  skill has a scroll and ordinary monsters drop them rarely, alongside the Warden and vault chest. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
   `requires` and per-stack effects) and live stacks (`progressionUpdated`: permanent, run and
   active), first under protocol v15 (#24).
 - [x] Add validated JSON definitions for skills. They feed the effect resolver; since #213 each
@@ -555,6 +557,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: A scroll for every skill (Torchbearer, Lever Sense) and rare scroll drops from ordinary monsters (#217).
 - 2026-10-21: Skills stack up to a per-skill `maxStacks` and may require other skills; Iron Will's upgrades become its stacks 2-3, `content/upgrades/` is retired, profiles migrate to `skillStacks` (#213, protocol v39).
 - 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a skill shop whose stock rotates after every run, and milestones, in decision 0014; follow-ups #213-#217.
 - 2026-10-21: Party vault shared by the room code: escapes deposit into it, any member takes or stores at the hub's Bank, saved in `data/vaults.json`; personal banks become read-only (#126, protocol v38).
