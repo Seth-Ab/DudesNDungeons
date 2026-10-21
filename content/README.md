@@ -141,13 +141,17 @@ stacking skill adds exactly one of:
 A skill with `maxStacks: 1` has neither, and loading refuses any other combination. Iron Will's
 former tiered upgrades are its stacks 2 and 3. An optional `requires` list names skills the player
 must hold at least one stack of first; unknown ids and prerequisite cycles are refused at load.
+Every skill also declares `conversionCoin`, a positive integer: the coin one scroll of it converts to
+once the skill is at `maxStacks` (decision 0014). It must stay below the scroll's shop price.
 
 A skill scroll is an item with `kind: "skillScroll"` and a `skillId` naming one of these skill
 definitions. It occupies an inventory slot and is consumed on use, adding one stack. In a dungeon,
 the stack and its effect are provisional until that player extracts; in the hub, it is permanent
 immediately. The limit and prerequisites count permanent and provisional stacks together. A scroll
 whose skill is already at `maxStacks`, or whose prerequisites are missing, is refused without being
-consumed, so it remains available to give away or store. Every skill has a scroll (a content test
+consumed, so it remains available to give away or store. A scroll at `maxStacks` can instead be
+converted to coin after the player confirms (`convertSkillScroll`): into the run purse in a dungeon,
+which is lost with the run, or straight to the profile in the hub. Every skill has a scroll (a content test
 enforces it; milestone-only skills, #215, will be exempt). Scrolls come from the Ember Warden and
 the vault chest and, rarely (about one kill in eighty), from ordinary monsters: the Ash Imp and
 Cinder Spitter drop Torchbearer, the Cinder Slime Lever Sense, and the Slag Charger Iron Will. Lowering `maxStacks` never deletes stored

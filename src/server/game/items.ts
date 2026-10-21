@@ -22,7 +22,7 @@ import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
 import { placeFlare } from "./flares.js";
 import { spillLootTable } from "./monsterLoot.js";
-import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
+import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { seatById, sitOn } from "./seats.js";
 import { inVaultArea, storeInVault } from "./vault.js";
@@ -422,6 +422,26 @@ export function useItem(
       // attacking, not by `useItem`, and ammo is spent by the weapon that fires it.
       return reject("notPermitted");
   }
+
+  player.inventory = player.inventory.filter((candidate) => candidate !== item);
+  return OK;
+}
+
+/**
+ * Converts a skill scroll into coin after the player confirmed it. Re-checks everything the
+ * `useItem` refusal that prompted it said, because the client's confirmation proves nothing: the
+ * scroll must be in this player's inventory and its skill at the limit for them. A scroll that is
+ * not at its limit, or any other item, is refused with nothing changed.
+ */
+export function convertSkillScroll(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
+  const player = actor(session, playerId);
+  if (!player || !isSpawned(player)) return reject("notPermitted");
+
+  const item = player.inventory.find((candidate) => candidate.id === itemId);
+  if (!item) return reject(player.held?.id === itemId ? "notPermitted" : "targetMissing");
+  if (item.kind !== "skillScroll") return reject("notPermitted");
+
+  if (convertScrollSkill(session, player, item.skillId) !== "converted") return reject("notPermitted");
 
   player.inventory = player.inventory.filter((candidate) => candidate !== item);
   return OK;

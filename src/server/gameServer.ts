@@ -23,6 +23,7 @@ import { isSpawned, movePlayer } from "./game/dungeonState.js";
 import { emoteAudience, emoteRefusal, playerEmotedFor } from "./game/emotes.js";
 import { beginDraw, releaseDraw } from "./game/bow.js";
 import {
+  convertSkillScroll,
   depositVaultItem,
   dropItem,
   giveItem,
@@ -58,6 +59,7 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "playerInteract",
   "pickupItem",
   "useItem",
+  "convertSkillScroll",
   "dropItem",
   "giveItem",
   "swapHeld",
@@ -543,6 +545,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (
         message.type === "pickupItem" ||
         message.type === "useItem" ||
+        message.type === "convertSkillScroll" ||
         message.type === "dropItem" ||
         message.type === "giveItem" ||
         message.type === "swapHeld" ||
@@ -561,7 +564,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
             ? pickupItem(member.session, playerId, message.itemId)
             : message.type === "useItem"
               ? useItem(member.session, playerId, message.itemId, now(), message.targetPlayerId ?? null)
-              : message.type === "dropItem"
+              : message.type === "convertSkillScroll"
+                ? convertSkillScroll(member.session, playerId, message.itemId)
+                : message.type === "dropItem"
                 ? dropItem(member.session, playerId, message.itemId)
                 : message.type === "giveItem"
                   ? giveItem(member.session, playerId, message.itemId, message.targetPlayerId)

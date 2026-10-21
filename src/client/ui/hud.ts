@@ -27,11 +27,13 @@ import {
   vaultPanelView,
   vitalsView,
 } from "../state/hudView.js";
+import { coinReadout, convertPromptView } from "../state/convertPrompt.js";
 import { inVaultArea } from "../state/runFlow.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
 import { createDrawReadout } from "./hud/drawReadout.js";
 import { createCampMenu } from "./hud/campMenu.js";
+import { createConvertPrompt } from "./hud/convertPrompt.js";
 import { createDamageVignette } from "./hud/damageVignette.js";
 import { createHubStatus } from "./hud/hubStatus.js";
 import { createRunClock } from "./hud/runClock.js";
@@ -64,6 +66,8 @@ interface HudOptions {
   onOpenEmotes: () => void;
   onWithdrawVaultItem: (itemId: string) => void;
   onDepositVaultItem: (itemId: string) => void;
+  onConvertScroll: (itemId: string) => void;
+  onDismissConvert: () => void;
 }
 
 /**
@@ -108,6 +112,10 @@ export function createHud(options: HudOptions) {
     onDeposit: options.onDepositVaultItem,
   });
   const minimap = createMinimap();
+  const convertPrompt = createConvertPrompt({
+    onConfirm: options.onConvertScroll,
+    onCancel: options.onDismissConvert,
+  });
   let noteCombat = (): void => {};
   const actions = createActions({
     ...options,
@@ -149,7 +157,9 @@ export function createHud(options: HudOptions) {
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || event.defaultPrevented || event.repeat) return;
     if (isTypingTarget(event.target)) return;
-    if (vault.isOpen()) {
+    if (convertPrompt.isOpen()) {
+      options.onDismissConvert();
+    } else if (vault.isOpen()) {
       vault.close();
     } else if (inventory.isOpen()) {
       inventory.close();
@@ -161,10 +171,17 @@ export function createHud(options: HudOptions) {
     event.preventDefault();
   });
 
+  // Under the room code rather than the self frame: a taller self frame reaches the bow's draw meter.
+  const coin = document.createElement("p");
+  coin.className = "hud__coin";
+  coin.setAttribute("aria-label", "Coin");
+  coin.hidden = true;
+
   const sessionPanel = createPanel("hud__panel hud__panel--session");
   sessionPanel.append(
     voice.chipElement,
     session.roomElement,
+    coin,
     session.connectionElement,
     session.hubReadyButton,
     session.positionElement,
@@ -216,6 +233,7 @@ export function createHud(options: HudOptions) {
     hotbar.element,
     inventory.panel,
     vault.panel,
+    convertPrompt.panel,
     camp.element,
   );
 
@@ -364,6 +382,10 @@ export function createHud(options: HudOptions) {
       voice.setInSession(!controls.sessionControlsDisabled);
       campAvailable = view.phase === "inSession" && self !== null && self.appearance !== null;
       if (!campAvailable) camp.close();
+      const coinText = coinReadout(view);
+      coin.hidden = coinText === null;
+      coin.textContent = coinText ?? "";
+      convertPrompt.update(convertPromptView(view));
       vitals.update(vitalsView(self, view.run), self ? self.health : null, view.staminaRefusals);
 
       vignette.update(self ? self.health : null);

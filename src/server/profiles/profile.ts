@@ -11,8 +11,8 @@ import { inventoryItemSchema, skillStacksSchema } from "../../shared/types/core.
  * A roguelite profile: what a device keeps between runs, and between server restarts.
  *
  * Per `GAMEDESCRIPTION.md`, progression is items and skills a player keeps, losing only items on
- * death. Skills are held as stack counts (decision 0014); coin and milestone stats arrive with
- * their own follow-up tickets.
+ * death. Skills are held as stack counts and coin is the progression currency (decision 0014);
+ * milestone stats arrive with their own follow-up ticket.
  *
  * `secretHash` rather than the secret itself, so a leaked `profiles.json` does not hand over every
  * profile on the server. It is also why a client that loses its secret cannot be reminded of it.
@@ -28,6 +28,8 @@ export interface PlayerProfile {
    * or above a lowered limit, so a content change never deletes what a player earned.
    */
   skillStacks: Record<string, number>;
+  /** Banked coin. Credited on extraction or a hub conversion, only through `markProfileChanged`. */
+  coin: number;
   runsEscaped: number;
   runsLost: number;
   createdAt: number;
@@ -60,6 +62,7 @@ export function toProfileState(profile: PlayerProfile): ProfileState {
     displayName: profile.displayName,
     bankedItems: profile.bankedItems.map((item) => ({ ...item })),
     skillStacks: { ...profile.skillStacks },
+    coin: profile.coin,
     runsEscaped: profile.runsEscaped,
     runsLost: profile.runsLost,
   };
@@ -135,6 +138,8 @@ export const persistedProfileSchema = z.preprocess(
     displayName: z.string().min(1),
     bankedItems: z.array(z.preprocess(migrateLegacyItem, inventoryItemSchema)),
     skillStacks: skillStacksSchema,
+    // Absent from profiles written before coin existed, which start with none.
+    coin: z.number().int().nonnegative().default(0),
     runsEscaped: z.number().int().nonnegative(),
     runsLost: z.number().int().nonnegative(),
     createdAt: z.number().int().nonnegative(),

@@ -196,6 +196,25 @@ describe("disconnect and reconnect", () => {
     expect(result.player.runSkillStacks).toEqual(new Map([["iron-will", 2]]));
   });
 
+  it("keeps the run purse across a reconnect", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "Grix");
+    player.runCoin = 7;
+
+    store.markDisconnected(player.id);
+    clock += GRACE_MS - 1;
+    const result = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      resumeToken: player.resumeToken,
+    }));
+
+    expect(result.ok && result.resumed).toBe(true);
+    if (!result.ok) return;
+    expect(result.player.runCoin).toBe(7);
+  });
+
   it("refuses to resume a slot that is still connected", () => {
     const store = createStore();
     const session = store.createSession();

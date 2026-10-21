@@ -3,5 +3,6 @@
   "name": "Torchbearer",
   "description": "See farther while carrying a torch.",
   "effects": [{ "type": "sightRadiusBonus", "amount": 1.5 }],
+  "conversionCoin": 4,
   "maxStacks": 1
 }

@@ -299,7 +299,7 @@ describe("beginning and releasing a draw", () => {
       skills: new Map([
         [
           "battle-focus",
-          { id: "battle-focus", name: "Battle Focus", description: "x", effects: [{ type: "attackDamageBonus", amount: 3 }], maxStacks: 1, requires: [] },
+          { id: "battle-focus", name: "Battle Focus", description: "x", effects: [{ type: "attackDamageBonus", amount: 3 }], maxStacks: 1, requires: [], conversionCoin: 1 },
         ],
       ]),
     };

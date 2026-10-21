@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 39;
+export const PROTOCOL_VERSION = 40;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -167,6 +167,12 @@ export const MAX_STACK_SIZE = 99;
 
 /** How a weapon is used. The weapon issues extend the weapon block per kind. */
 export const WEAPON_KINDS = ["melee", "ranged"] as const;
+
+/**
+ * Coin credited to a player's run purse when the party escapes with them (decision 0014). Tuning,
+ * kept beside the other shared numbers; scroll conversion values live in each skill's content.
+ */
+export const ESCAPE_REWARD_COIN = 5;
 
 /** Longest HUD blurb a consumable may carry. */
 export const MAX_ITEM_DESCRIPTION_LENGTH = 80;

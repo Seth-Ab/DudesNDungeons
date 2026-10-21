@@ -112,6 +112,16 @@ export const useItemSchema = z.object({
   targetPlayerId: playerIdSchema.nullish(),
 });
 
+/**
+ * Turns a skill scroll into coin. Sent only after the player confirms the prompt a maxed `useItem`
+ * opens. The server re-checks that the scroll is in the sender's inventory and its skill is at
+ * `maxStacks` for them; the client never names an amount.
+ */
+export const convertSkillScrollSchema = z.object({
+  type: z.literal("convertSkillScroll"),
+  itemId: entityIdSchema,
+});
+
 /** Puts a carried item (inventory or hand) on the floor at the sender's feet as loot anyone can pick up again. */
 export const dropItemSchema = z.object({
   type: z.literal("dropItem"),
@@ -190,6 +200,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   playerInteractSchema,
   pickupItemSchema,
   useItemSchema,
+  convertSkillScrollSchema,
   dropItemSchema,
   giveItemSchema,
   swapHeldSchema,

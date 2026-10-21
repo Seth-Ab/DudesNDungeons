@@ -62,6 +62,16 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts a scroll conversion that names only the item, and refuses a client-sent amount", () => {
+    const itemId = "e0000000-0000-4000-8000-000000000001";
+
+    expect(parseClientMessage(JSON.stringify({ type: "convertSkillScroll", itemId })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "convertSkillScroll" })).ok).toBe(false);
+    // Strict, like the rest of the intents: a field the server would ignore is a malformed message.
+    const withAmount = parseClientMessage(JSON.stringify({ type: "convertSkillScroll", itemId, coin: 999 }));
+    expect(withAmount.ok && "coin" in withAmount.message).toBe(false);
+  });
+
   it("rejects payloads that are not valid JSON", () => {
     const result = parseClientMessage("{not json");
 
@@ -289,8 +299,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v39, the version that made skills stack", () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+  it("is on protocol v40, the version that added coin and scroll conversion", () => {
+    expect(PROTOCOL_VERSION).toBe(40);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -362,6 +372,7 @@ describe("appearance contract", () => {
         displayName: "Grix",
         bankedItems: [],
         skillStacks: {},
+        coin: 0,
         runsEscaped: 0,
         runsLost: 0,
       },
@@ -410,6 +421,7 @@ describe("appearance contract", () => {
           displayName: "Grix",
           bankedItems: [],
           skillStacks: {},
+          coin: 0,
           runsEscaped: 0,
           runsLost: 0,
         },
@@ -718,6 +730,7 @@ describe("parseServerMessage", () => {
         displayName: "Grix",
         bankedItems: [],
         skillStacks: { "iron-will": 2 },
+        coin: 0,
         runsEscaped: 2,
         runsLost: 1,
       },
@@ -744,6 +757,7 @@ describe("parseServerMessage", () => {
           effects: [{ type: "resistanceBonus", amount: 10 }],
           maxStacks: 3,
           requires: [],
+          conversionCoin: 1,
           stackEffects: [
             [{ type: "resistanceBonus", amount: 5 }],
             [{ type: "resistanceBonus", amount: 5 }],
@@ -757,6 +771,7 @@ describe("parseServerMessage", () => {
           effects: [{ type: "attackDamageBonus", amount: 1 }],
           maxStacks: null,
           requires: ["iron-will"],
+          conversionCoin: 1,
           stackEffects: [],
           perStackEffects: [{ type: "attackDamageBonus", amount: 1 }],
         },
@@ -767,6 +782,8 @@ describe("parseServerMessage", () => {
       skillStacks: { "iron-will": 4 },
       runSkillStacks: { torchbearer: 1 },
       activeSkillStacks: { "iron-will": 3, torchbearer: 1 },
+      coin: 12,
+      runCoin: 4,
     };
 
     for (const message of [catalog, state]) {
@@ -783,6 +800,8 @@ describe("parseServerMessage", () => {
           skillStacks: {},
           runSkillStacks: {},
           activeSkillStacks: {},
+          coin: 0,
+          runCoin: 0,
           ...fields,
         }),
       );
@@ -793,6 +812,7 @@ describe("parseServerMessage", () => {
       effects: [{ type: "resistanceBonus", amount: 1 }],
       maxStacks: 1,
       requires: [],
+      conversionCoin: 1,
       stackEffects: [],
       perStackEffects: [],
     };

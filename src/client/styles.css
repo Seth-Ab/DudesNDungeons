@@ -2065,6 +2065,25 @@ button:disabled {
   overflow-y: auto;
 }
 
+/* The maxed-scroll confirmation reuses the vault's placement; its reminder is a sentence, not a label. */
+.hud__convert .hud__stash-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+}
+
+.hud__coin {
+  margin: 0;
+  color: #caa85a;
+  font-family: var(--hud-font-label);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.hud__coin[hidden] {
+  display: none;
+}
+
 .hud__vault-list {
   display: grid;
   gap: 0.3rem;

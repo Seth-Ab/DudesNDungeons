@@ -7,8 +7,10 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll, skill stacks). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v39.
-- Last completed work: a scroll for every skill (Torchbearer and Lever Sense join Iron Will),
+  everyone to the hub under protocol v40.
+- Last completed work: profile coin, a per-player run purse credited with an escape reward on extraction
+  and lost otherwise, and confirmed conversion of a max-stack scroll to coin, with a small HUD
+  readout and confirmation prompt (issue #214, protocol v40); earlier, a scroll for every skill (Torchbearer and Lever Sense join Iron Will),
   enforced by a content test, and rare skill-scroll drops from every ordinary monster, about one
   kill in eighty (issue #217, protocol unchanged); earlier, skills that stack up to a per-skill
   `maxStacks` and may require other skills, with Iron Will's two upgrades folded into its stacks 2 and 3, old profiles migrated on
@@ -54,8 +56,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: skill stacking and prerequisites (#213), which the rest of the economy
-  (#214-#217) and Frontend step 10 (#25) build on, alongside a wider item catalog, combat depth,
+- Next recommended step: milestones (#215) and the hub skill shop (#216), which the rest of the economy
+  (#217) and Frontend step 10 (#25) build on, alongside a wider item catalog, combat depth,
   and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the
@@ -316,8 +318,8 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 ### 11. Roguelite Progression and Persistence
 
 Identity and persistence landed on 2026-09-20 under protocol v9. The first skill-scroll slice landed
-under protocol v10, and skill stacking under protocol v39 (#213); the full catalog, coin, the shop
-and UI remain. The economy is decided (#23, decision 0014) and split into #213-#217.
+under protocol v10, skill stacking under protocol v39 (#213), and coin under protocol v40 (#214); the
+full catalog, the shop and UI remain. The economy is decided (#23, decision 0014) and split into #213-#217.
 
 - [x] Add a player profile holding banked items and skill stacks. `src/server/profiles/`.
   `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
@@ -335,8 +337,13 @@ and UI remain. The economy is decided (#23, decision 0014) and split into #213-#
   old `unlockedSkillIds`/`unlockedUpgradeIds` migrated on read), a duplicate scroll adds a stack
   (provisional in a dungeon, permanent in the hub), and a maxed scroll or one missing
   prerequisites is refused with `skillMaxed`/`missingPrerequisites` and kept. Iron Will's two
-  upgrades are its stacks 2 and 3, and `content/upgrades/` is retired. Remaining: coin and scroll
-  conversion (#214), milestones (#215), the skill shop (#216), and puzzle effects. Since #217 every
+  upgrades are its stacks 2 and 3, and `content/upgrades/` is retired. Since #214 a profile
+  holds `coin` (0 for existing profiles), each player carries a run `runCoin` purse outside the
+  inventory slots that `returnToHub` credits, with `ESCAPE_REWARD_COIN`, to a player who extracts
+  (including a carried downed player) and discards otherwise, and a `convertSkillScroll { itemId }`
+  intent turns a scroll at its skill's `maxStacks` into that skill's `conversionCoin` (purse in a
+  dungeon, profile in the hub); the client opens a confirmation when `useItem` is refused as
+  `skillMaxed`. Remaining: milestones (#215), the skill shop (#216), and puzzle effects. Since #217 every
   skill has a scroll and ordinary monsters drop them rarely, alongside the Warden and vault chest. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
   `requires` and per-stack effects) and live stacks (`progressionUpdated`: permanent, run and
   active), first under protocol v15 (#24).
@@ -557,6 +564,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Profile coin, the run purse with an escape reward, and confirmed conversion of max-stack scrolls to coin (#214, protocol v40).
 - 2026-10-21: A scroll for every skill (Torchbearer, Lever Sense) and rare scroll drops from ordinary monsters (#217).
 - 2026-10-21: Skills stack up to a per-skill `maxStacks` and may require other skills; Iron Will's upgrades become its stacks 2-3, `content/upgrades/` is retired, profiles migrate to `skillStacks` (#213, protocol v39).
 - 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a skill shop whose stock rotates after every run, and milestones, in decision 0014; follow-ups #213-#217.
