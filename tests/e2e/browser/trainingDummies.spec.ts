@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { position, walkTo } from "./walk.js";
 
@@ -74,8 +75,10 @@ function countHits(page: Page): { count: number } {
   return hits;
 }
 
+const track = trackContexts();
+
 async function openPlayer(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const context = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
   const page = await context.newPage();
   await page.goto("/?debug");
   return page;

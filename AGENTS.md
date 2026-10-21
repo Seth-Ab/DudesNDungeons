@@ -74,7 +74,7 @@ Add tests alongside meaningful behavior, especially server-side game rules and m
 
 For multiplayer features, include tests for invalid input, disconnected players, duplicate session joins, and proximity distance calculations.
 
-Browser-driven end-to-end tests live in `tests/e2e/browser/` and run under Playwright, not Vitest. Name them `*.spec.ts` (Playwright's default match) so they stay separate from Vitest's `*.test.ts` glob; add one when a change needs verifying in a real rendered page (canvas output, input handling, multi-client flows) rather than through unit-level assertions. Specs that move a player share `walkTo` from `tests/e2e/browser/walk.ts`, which holds a key down for long legs instead of tapping it in slices; use it instead of writing another walking loop.
+Browser-driven end-to-end tests live in `tests/e2e/browser/` and run under Playwright, not Vitest. Name them `*.spec.ts` (Playwright's default match) so they stay separate from Vitest's `*.test.ts` glob; add one when a change needs verifying in a real rendered page (canvas output, input handling, multi-client flows) rather than through unit-level assertions. Specs that move a player share `walkTo` from `tests/e2e/browser/walk.ts`, which holds a key down for long legs instead of tapping it in slices; use it instead of writing another walking loop. A spec that opens its own pages with `browser.newContext()` passes each context through `trackContexts()` from `tests/e2e/browser/contexts.ts`, which closes them after the test; contexts left open keep rendering and slow whichever spec the worker runs next.
 
 ## Commit & Pull Request Guidelines
 
