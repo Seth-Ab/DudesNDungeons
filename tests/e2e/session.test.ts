@@ -671,6 +671,116 @@ describe("character appearance", () => {
   });
 });
 
+describe("party roster", () => {
+  const rosterOf = (client: TestClient) => client.received("partyRoster");
+
+  /**
+   * The first roster in the client's whole inbox that satisfies `matches`. Not `nextWhere`, which
+   * only watches what arrives after the call: the roster rides the first tick, which can land
+   * before the test starts waiting.
+   */
+  async function rosterWhere(
+    client: TestClient,
+    matches: (message: ServerMessage & { type: "partyRoster" }) => boolean,
+    timeoutMs = 2000,
+    after?: ServerMessage,
+  ) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const all = rosterOf(client);
+      const found = all.slice(after ? all.indexOf(after as (typeof all)[number]) + 1 : 0).find(matches);
+      if (found) return found;
+      if (Date.now() > deadline) throw new Error("timed out waiting for a matching partyRoster");
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+
+  it("lists exactly identity, colour and connection, and nothing about the body", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    // Make the roster's subject as revealing as possible: hurt, downed-adjacent, far away, worn down.
+    const session = server.store.getSession(roomCode);
+    const betaPlayer = session?.players.get(beta.joined.playerId);
+    if (!betaPlayer) throw new Error("expected beta");
+    betaPlayer.health = 0;
+    betaPlayer.resistance = 3;
+    betaPlayer.position = { x: 123.5, y: 456.5 };
+
+    const roster = await rosterWhere(alpha.client, (message) => message.members.length === 2);
+
+    expect(roster.members.map((member) => Object.keys(member).sort())).toEqual([
+      ["connected", "name", "partyColor", "playerId"],
+      ["connected", "name", "partyColor", "playerId"],
+    ]);
+    expect(roster.members).toEqual([
+      { playerId: alpha.joined.playerId, name: "Alpha", partyColor: "ember", connected: true },
+      { playerId: beta.joined.playerId, name: "Beta", partyColor: "moss", connected: true },
+    ]);
+
+    // Nothing the roster carries, on any message of that type, mentions the body.
+    for (const message of [...rosterOf(alpha.client), ...rosterOf(beta.client)]) {
+      const text = JSON.stringify(message);
+      for (const leak of ["position", "health", "resistance", "123.5", "456.5", "downed", "stamina"]) {
+        expect(text, leak).not.toContain(leak);
+      }
+    }
+  });
+
+  it("leaves out a member who is still designing, then lists them once they have a look", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta", undefined, false);
+
+    await alpha.client.nextWhere("stateSnapshot", () => true);
+    expect(rosterOf(alpha.client).at(-1)?.members.map((member) => member.name)).toEqual(["Alpha"]);
+
+    beta.client.send({ type: "setAppearance", appearance: LOOK });
+    const grown = await rosterWhere(alpha.client, (message) => message.members.length === 2);
+    expect(grown.members.map((member) => member.name)).toEqual(["Alpha", "Beta"]);
+  });
+
+  it("follows a drop, a reconnect and a timeout, and resends in full to a new socket", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+
+    beta.client.close();
+    const dropped = await rosterWhere(
+      alpha.client,
+      (message) => message.members.find((member) => member.name === "Beta")?.connected === false,
+    );
+    expect(dropped.members).toHaveLength(2);
+
+    const resumed = await joinRoom(roomCode, "Beta", beta.joined.resumeToken);
+    expect(resumed.joined.resumed).toBe(true);
+    const full = await rosterWhere(resumed.client, () => true);
+    expect(full.members.map((member) => member.connected)).toEqual([true, true]);
+    await rosterWhere(
+      alpha.client,
+      (message) => message.members.every((member) => member.connected),
+      2000,
+      dropped,
+    );
+
+    resumed.client.close();
+    const timedOut = await rosterWhere(alpha.client, (message) => message.members.length === 1, 3000);
+    expect(timedOut.members.map((member) => member.name)).toEqual(["Alpha"]);
+  });
+
+  it("drops a member who leaves", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    await rosterWhere(alpha.client, (message) => message.members.length === 2);
+
+    beta.client.send({ type: "leaveSession" });
+    const shrunk = await rosterWhere(alpha.client, (message) => message.members.length === 1);
+    expect(shrunk.members[0]?.name).toBe("Alpha");
+  });
+});
+
 describe("resume tokens stay private", () => {
   it("never sends a player's token to anyone else", async () => {
     const roomCode = await createRoom();

@@ -33,7 +33,7 @@ import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from 
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
-import { SessionStore, rosterOf, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
+import { SessionStore, partyRosterOf, rosterOf, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
 /**
@@ -123,6 +123,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
    * site announcing, and a change cannot be forgotten by a path nobody thought of.
    */
   const lastProgressionSent = new Map<PlayerId, string>();
+  /** The party roster each player last received, so it is resent only when it changes. */
+  const lastRosterSent = new Map<PlayerId, string>();
   /** When a slow tick was last logged, or null before the first. */
   let lastSlowTickLoggedAt: number | null = null;
 
@@ -163,6 +165,13 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, update);
   }
 
+  /** Sends the party roster if it differs from what this player last had. Same for everyone, so it leaks nothing per viewer. */
+  function sendPartyRoster(socket: WebSocket, playerId: PlayerId, serialized: string, message: ServerMessage): void {
+    if (lastRosterSent.get(playerId) === serialized) return;
+    lastRosterSent.set(playerId, serialized);
+    send(socket, message);
+  }
+
   function sendSnapshot(session: Session, playerId: PlayerId, roster: readonly PlayerState[]): void {
     const socket = socketsByPlayer.get(playerId);
     if (!socket) return;
@@ -188,7 +197,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   function broadcastSnapshots(session: Session): void {
     // Built once for the whole party: every viewer filters the same public states.
     const roster = rosterOf(session);
+    const partyRoster: ServerMessage = { type: "partyRoster", members: partyRosterOf(session) };
+    const serializedRoster = JSON.stringify(partyRoster);
     for (const player of session.players.values()) {
+      const socket = socketsByPlayer.get(player.id);
+      if (socket) sendPartyRoster(socket, player.id, serializedRoster, partyRoster);
       sendSnapshot(session, player.id, roster);
     }
   }
@@ -347,6 +360,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
         // Owner-only, and sent fresh on every join: a new socket holds nothing yet.
         lastProgressionSent.delete(player.id);
+        // Likewise the roster: the next tick sends it to this socket whether or not it changed.
+        lastRosterSent.delete(player.id);
         send(socket, progressionCatalogFor(contentForSession(session)));
         sendProgression(socket, session, player);
 
@@ -374,6 +389,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         const member = store.leave(playerId);
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
+        lastRosterSent.delete(playerId);
         signalLimiter.forget(playerId);
         emoteLimiter.forget(playerId);
         playerId = null;
@@ -702,6 +718,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     for (const member of store.sweep()) {
       socketsByPlayer.delete(member.player.id);
       lastProgressionSent.delete(member.player.id);
+      lastRosterSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
       emoteLimiter.forget(member.player.id);
       broadcast(member.session, {
@@ -742,6 +759,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();
       lastProgressionSent.clear();
+      lastRosterSent.clear();
       signalLimiter.clear();
       emoteLimiter.clear();
       return new Promise((resolve) => {

@@ -1,5 +1,6 @@
 import type { VoiceState } from "../audio/voiceMesh.js";
 import type { SessionView } from "../network/sessionState.js";
+import type { PartyRosterEntry } from "../../shared/protocol/index.js";
 import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
@@ -493,7 +494,9 @@ export type PartyMemberState =
   | "carrying"
   | "downed"
   | "beingCarried"
-  | "disconnected";
+  | "disconnected"
+  /** Not in the viewer's snapshot: the roster says they exist, and nothing else is known. */
+  | "outOfSight";
 
 /** One glyph per state, so the states differ by shape and not only by hue. */
 export const PARTY_STATE_ICONS: Record<PartyMemberState, string> = {
@@ -504,6 +507,7 @@ export const PARTY_STATE_ICONS: Record<PartyMemberState, string> = {
   downed: "✖",
   beingCarried: "↓",
   disconnected: "⊘",
+  outOfSight: "◌",
 };
 
 export const PARTY_STATE_LABELS: Record<PartyMemberState, string> = {
@@ -514,6 +518,7 @@ export const PARTY_STATE_LABELS: Record<PartyMemberState, string> = {
   downed: "downed",
   beingCarried: "downed, being carried",
   disconnected: "disconnected",
+  outOfSight: "out of sight",
 };
 
 export interface PartyFrameView {
@@ -522,8 +527,9 @@ export interface PartyFrameView {
   state: PartyMemberState;
   icon: string;
   stateLabel: string;
-  health: HealthBarView;
-  resistance: BarView;
+  /** Null for an ally out of sight: the client holds no current health to show, and shows none. */
+  health: HealthBarView | null;
+  resistance: BarView | null;
   /** What the portrait shows: their character, or null for the grey silhouette while designing. */
   portrait: CharacterLook | null;
   /** The party colour's ring, edging the frame the way it rings their feet in the world. */
@@ -538,16 +544,31 @@ export function partyMemberState(player: PlayerState): PartyMemberState {
   return player.ready ? "ready" : "waiting";
 }
 
+const DOWNED_FRAME_STATES: ReadonlySet<PartyMemberState> = new Set(["downed", "beingCarried"]);
+
 /**
- * One frame per other player in the latest snapshot. The server only lists players on tiles this
- * player can see, so an ally who leaves sight is simply absent from the next snapshot and loses
- * their frame; nothing here remembers last-known state. Self is left out: the vitals cluster
- * already covers it.
+ * One frame per other party member. Members in the latest snapshot show live health and resistance;
+ * the rest come from the server's roster and get a grey "out of sight" frame (or "disconnected")
+ * with no vitals, so a frame never holds a number the viewer should not know. Downed allies who are
+ * in sight sort first; otherwise the order is the roster's, which does not change between ticks.
+ * Self is left out: the vitals cluster already covers it.
  */
 export function partyFrames(view: SessionView): PartyFrameView[] {
-  return view.players
-    .filter((player) => player.id !== view.selfId)
-    .map((player) => {
+  const visible = new Set(view.visiblePlayerIds);
+  const live = new Map(
+    view.players.filter((player) => player.id !== view.selfId && visible.has(player.id)).map((player) => [player.id, player]),
+  );
+
+  const rostered = new Map(view.partyRoster.map((entry) => [entry.playerId, entry]));
+  // Roster order first; then anyone seen who is not listed yet, such as a member still designing.
+  const ids = [
+    ...[...rostered.keys()].filter((id) => id !== view.selfId),
+    ...[...live.keys()].filter((id) => !rostered.has(id)),
+  ];
+
+  const frames = ids.map((id): PartyFrameView => {
+    const player = live.get(id);
+    if (player) {
       const state = partyMemberState(player);
       return {
         id: player.id,
@@ -560,7 +581,27 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
         portrait: player.appearance && { ...player.appearance, partyColor: player.partyColor },
         accent: PARTY_PALETTES[player.partyColor].ring,
       };
-    });
+    }
+
+    const entry = rostered.get(id) as PartyRosterEntry;
+    const state: PartyMemberState = entry.connected ? "outOfSight" : "disconnected";
+    return {
+      id: entry.playerId,
+      name: entry.name,
+      state,
+      icon: PARTY_STATE_ICONS[state],
+      stateLabel: PARTY_STATE_LABELS[state],
+      health: null,
+      resistance: null,
+      portrait: null,
+      accent: PARTY_PALETTES[entry.partyColor].ring,
+    };
+  });
+
+  // Array.prototype.sort is stable, so everyone else keeps the order above.
+  return frames.sort(
+    (a, b) => Number(DOWNED_FRAME_STATES.has(b.state)) - Number(DOWNED_FRAME_STATES.has(a.state)),
+  );
 }
 
 /** What a slot holds, for its look: an empty slot, a skill scroll (violet), or any other item. */

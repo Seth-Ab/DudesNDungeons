@@ -11,7 +11,7 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
 } from "../../shared/constants/game.js";
-import type { ErrorCode } from "../../shared/protocol/index.js";
+import type { ErrorCode, PartyRosterEntry } from "../../shared/protocol/index.js";
 import type {
   DungeonState,
   EntityId,
@@ -609,6 +609,22 @@ export function toOwnerPlayerState(player: SessionPlayer, session?: Session): Pl
 
 export function withOwnBank(state: PlayerState, player: SessionPlayer): PlayerState {
   return { ...state, bankedItems: player.profile.bankedItems.map((item) => ({ ...item })) };
+}
+
+/**
+ * Who is in the party, for members who cannot see each other. Only identity and connection: nothing
+ * here may reveal where a member is or how they are, because the receiver may have lost sight of
+ * them on purpose. Members still designing their character are left out until they have one.
+ */
+export function partyRosterOf(session: Session): PartyRosterEntry[] {
+  return [...session.players.values()]
+    .filter((player) => player.appearance !== null)
+    .map((player) => ({
+      playerId: player.id,
+      name: player.name,
+      partyColor: player.partyColor,
+      connected: player.connected,
+    }));
 }
 
 /** Public state for every player, without banks. Build once per tick and share across viewers. */
