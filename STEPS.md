@@ -109,16 +109,26 @@ an existing slot still works during a run.
 
 ### 11. Roguelite Progression and Persistence
 
-- Add a player profile that outlives a session: unlocked skills, and whatever currency the description's progression needs. Banked items that predate the party vault stay on it as a read-only legacy list.
+- Add a player profile that outlives a session: skill stacks, coin, and milestone stats. Banked items that predate the party vault stay on it as a read-only legacy list.
 - Persist profiles across server restarts. File-backed is enough at this size.
 - Persist the party vault under its room code, so a new room starts empty and a party that rejoins its code after a restart finds what it stored.
 - Deposit what a survivor carries out into the party vault; take what a dead player was carrying, per the death checkpoint.
 - Add skills with server-resolved effects across combat, sight range, resistance, and puzzle interaction.
   Skills enter the dungeon as rare, transferable scroll items that occupy an inventory slot. Using
   one grants its effect for the run, but it becomes permanent only if that player makes it back to
-  the hub; a hub purchase is permanent immediately. An already-known scroll cannot be consumed,
-  leaving duplicates available for another player or a future upgrade path.
+  the hub; a hub purchase is permanent immediately. A duplicate scroll adds a stack up to the
+  skill's limit, and a scroll whose prerequisites are missing cannot be used.
+- Add coin, earned from runs and carried in a run purse that is lost on death like items, and spend
+  it at a hub skill shop with mostly fixed stock and a small rotation that rerolls after every run. A scroll at max
+  stacks converts to coin only after the player confirms. Milestone achievements grant special
+  skills.
 - Never trust a client-sent profile, inventory, or unlock. The client asks; the server decides.
+
+Owner decisions (progression economy, issue #23): coin from runs, milestone achievements and rare
+monster drops are the three sources of skills; skills stack to a per-skill `maxStacks`, may require
+other skills, and replace tiered upgrades; a maxed scroll converts to coin behind a confirmation; and
+unlocks survive content changes while new content shows up locked. See
+`docs/decisions/0014-progression-economy.md`; the work is split across #213-#217.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
 
@@ -249,7 +259,8 @@ Owner decisions (HUD Torch & Tally, issue #160): unseen allies stay in the party
 ### 10. Skills and Progression UI
 
 - Show unlocked skills and what each one does.
-- Show what is still locked and what unlocking it takes.
+- Show what is still locked and what unlocking it takes: its coin price and prerequisite skills,
+  or its milestone, plus stack counts against each skill's limit (decision 0014).
 - Drive the unlock flow from server-owned profile state, never from local state.
 
 ### 11. Drawing at World Scale
