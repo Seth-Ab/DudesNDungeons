@@ -1,0 +1,10 @@
+{
+  "id": "scroll-shop",
+  "name": "Scrolls",
+  "fixed": [{ "itemId": "iron-will-scroll", "price": 20 }],
+  "rotating": [
+    { "itemId": "lever-sense-scroll", "price": 12 },
+    { "itemId": "torchbearer-scroll", "price": 12 }
+  ],
+  "rotatingCount": 1
+}

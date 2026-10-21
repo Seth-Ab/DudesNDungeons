@@ -85,6 +85,34 @@ describe("parseClientMessage", () => {
     expect(withAmount.ok && "coin" in withAmount.message).toBe(false);
   });
 
+  it("accepts a purchase that names only the stock entry, and refuses a client-sent price", () => {
+    const itemId = "iron-will-scroll";
+
+    expect(parseClientMessage(JSON.stringify({ type: "buySkillScroll", itemId })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "buySkillScroll" })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "buySkillScroll", itemId: "Not A Slug" })).ok).toBe(false);
+    const withPrice = parseClientMessage(JSON.stringify({ type: "buySkillScroll", itemId, price: 0 }));
+    expect(withPrice.ok && "price" in withPrice.message).toBe(false);
+  });
+
+  it("round-trips the skill shop stock and the purchase rejection reasons", () => {
+    const stock: ServerMessage = {
+      type: "skillShopStock",
+      entries: [{ itemId: "iron-will-scroll", name: "Scroll of Iron Will", skillId: "iron-will", price: 20, rotating: false }],
+    };
+    const parsed = parseServerMessage(serializeServerMessage(stock));
+    expect(parsed.ok && parsed.message).toEqual(stock);
+    expect(
+      parseServerMessage(JSON.stringify({ ...stock, entries: [{ ...stock.entries[0], price: 0 }] })).ok,
+    ).toBe(false);
+
+    for (const reason of ["outOfStock", "insufficientCoin", "inventoryFull"] as const) {
+      const message: ServerMessage = { type: "actionRejected", sequence: null, reason };
+      const result = parseServerMessage(serializeServerMessage(message));
+      expect(result.ok && result.message).toEqual(message);
+    }
+  });
+
   it("rejects payloads that are not valid JSON", () => {
     const result = parseClientMessage("{not json");
 
@@ -312,8 +340,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v41, the version that added milestone stats and grants", () => {
-    expect(PROTOCOL_VERSION).toBe(41);
+  it("is on protocol v42, the version that added the hub skill shop", () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 
   it("ships the id lists the design fixed", () => {

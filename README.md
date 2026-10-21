@@ -112,8 +112,8 @@ inventory, and use. Players can drop an item at their feet or hand it to a nearb
 in the boss room, occupies an inventory slot, and grants its server-resolved effect when used. A
 scroll used in a dungeon is provisional until that player escapes; a wipe or abandonment loses it.
 A scroll of a skill the player already has adds a stack, up to the skill's limit, and a scroll whose
-prerequisites are missing is refused and kept. Coin, the skill shop, milestones and the full
-progression UI remain in Backend Step 11 and Frontend Step 10.
+prerequisites are missing is refused and kept. Coin is spent at the hub's Scrolls stall, whose stock is mostly fixed with a small rotation that
+rerolls after every run.
 See `content/README.md` for the supported shapes and relationships.
 
 Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no

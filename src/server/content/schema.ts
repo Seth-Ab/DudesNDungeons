@@ -490,6 +490,8 @@ export const roomKindSchema = z.enum([
   "exit",
   /** Where the party vault is used. Only meaningful in the hub, the one place the vault opens. */
   "vault",
+  /** Where the hub skill shop is used. Only meaningful in the hub, like the vault. */
+  "shop",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 
@@ -777,3 +779,46 @@ export const milestoneDefinitionSchema = z.object({
   skillId: contentIdSchema,
 });
 export type MilestoneDefinition = z.infer<typeof milestoneDefinitionSchema>;
+
+/** One scroll for sale and what it costs in coin. */
+const shopEntrySchema = z.object({
+  itemId: contentIdSchema,
+  price: z.number().int().positive(),
+});
+
+/**
+ * The hub skill shop (decision 0014): scrolls for coin, `fixed` always in stock plus `rotatingCount`
+ * entries drawn from `rotating` that reroll after every run. Every entry names a skill scroll item;
+ * the loader checks that, that no scroll is listed twice, and that a price stays above what the
+ * scroll converts to, since a single definition cannot see items or skills. The draw itself is
+ * `rotatingStock` in `src/server/game/shop.ts`, shared with the cosmetics shop (#137).
+ */
+export const shopDefinitionSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    fixed: z.array(shopEntrySchema),
+    rotating: z.array(shopEntrySchema),
+    rotatingCount: z.number().int().nonnegative(),
+  })
+  .superRefine((shop, context) => {
+    if (shop.rotatingCount > shop.rotating.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["rotatingCount"],
+        message: "rotatingCount cannot exceed the number of rotating entries",
+      });
+    }
+    const seen = new Set<string>();
+    for (const entry of [...shop.fixed, ...shop.rotating]) {
+      if (seen.has(entry.itemId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["rotating"],
+          message: `"${entry.itemId}" is listed twice`,
+        });
+      }
+      seen.add(entry.itemId);
+    }
+  });
+export type ShopDefinition = z.infer<typeof shopDefinitionSchema>;

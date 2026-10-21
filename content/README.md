@@ -159,6 +159,20 @@ stacks; effects apply only up to the current limit. `puzzlePowerBonus` is consum
 (see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, item,
 or profile state.
 
+## Shops
+
+`content/shops/` holds hub shops. `scroll-shop.json` is the skill shop at the hub's Scrolls stall (a
+room of kind `shop`, which like `vault` only works in the hub). It lists `fixed` entries, always in
+stock, a `rotating` pool, and a `rotatingCount` of pool entries in stock at a time; each entry is
+`{ itemId, price }` with a positive coin price. Every `itemId` must be a skill scroll item, may
+be listed only once across `fixed` and `rotating`, and must cost more than its skill's
+`conversionCoin`, so buying a scroll to convert it never pays. `rotatingCount` cannot exceed the pool.
+
+The rotating entries reroll after every run, by escape or wipe. The draw is a pure function of the
+room code, the room's run count (saved with its party vault in `data/vaults.json`) and the pool, so
+it is the same across calls and restarts and never changes during a run. A client buys with
+`buySkillScroll { itemId }` and never names a price; the server reads it from here.
+
 ## Milestones
 
 `content/milestones/` holds achievements that grant a skill outright (decision 0014). A milestone

@@ -19,6 +19,7 @@ import {
   discardRunSkills,
 } from "./progression.js";
 import { createDiscoveredGrid } from "./tileGrid.js";
+import { advanceRunCount } from "../vaults/partyVault.js";
 import { storeInVault } from "./vault.js";
 
 export type RunTransitionResult =
@@ -139,7 +140,8 @@ export function startRun(session: Session, now: number): RunTransitionResult {
  * too: that is the payoff for hauling them to the exit, distinct from and short of a full revive.
  *
  * The vault belongs to the room code and the skills, coin and run counts to each profile, and both
- * outlive the session, so this is the one moment a run leaves a mark a restart cannot clear. The
+ * outlive the session, so this is the one moment a run leaves a mark a restart cannot clear (the
+ * vault's run count included, which is what rotates the shop). The
  * personal `bankedItems` list is legacy and no longer grows.
  *
  * Milestone stats are credited here to the same survivors, and a threshold they cross grants its
@@ -187,6 +189,8 @@ export function returnToHub(session: Session, escaped: boolean): void {
     player.carryingTorch = false;
   }
 
+  // An escape and a wipe both end a run, so both reroll the shop's rotating stock for this room.
+  advanceRunCount(session.vault);
   installWorld(session, HUB_DUNGEON_ID, null);
   session.location = "hub";
 }

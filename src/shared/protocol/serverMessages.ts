@@ -64,6 +64,12 @@ export const rejectionReasonSchema = z.enum([
   "skillMaxed",
   /** A skill scroll whose `requires` the player does not hold yet. The scroll is kept. */
   "missingPrerequisites",
+  /** A shop purchase naming something not in the room's current stock. */
+  "outOfStock",
+  /** A shop purchase the buyer's profile cannot afford. */
+  "insufficientCoin",
+  /** A shop purchase with no free inventory slot for the scroll. */
+  "inventoryFull",
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 
@@ -211,6 +217,26 @@ export const partyVaultSchema = z.object({
 });
 
 /**
+ * What the hub skill shop sells right now (decision 0014). Stock belongs to the room: the fixed
+ * entries plus this run count's rotation, the same for every member, sent after joining and again
+ * when a run ends. `itemId` names the entry a `buySkillScroll` refers to; `price` is informational,
+ * since the server reads the real one from content.
+ */
+export const skillShopStockSchema = z.object({
+  type: z.literal("skillShopStock"),
+  entries: z.array(
+    z.object({
+      itemId: contentIdSchema,
+      name: z.string().min(1),
+      skillId: contentIdSchema,
+      price: z.number().int().positive(),
+      /** True for an entry from the rotating pool, which rerolls after every run. */
+      rotating: z.boolean(),
+    }),
+  ),
+});
+
+/**
  * Authoritative world state. Clients render from this rather than from their own predictions.
  *
  * Per-player since protocol v4: this is the receiving player's visible frame, and `run` is that
@@ -305,6 +331,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   playerReadyChangedSchema,
   partyRosterSchema,
   partyVaultSchema,
+  skillShopStockSchema,
   stateSnapshotSchema,
   attackResolvedSchema,
   voiceRangeUpdatedSchema,

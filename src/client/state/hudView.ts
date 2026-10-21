@@ -11,7 +11,9 @@ import {
 import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
+  inShopArea,
   inVaultArea,
+  SHOP_PROMPT,
   VAULT_PROMPT,
   entranceMessage,
   entranceStatus,
@@ -765,6 +767,7 @@ export function actionPrompt(
   }
   if (target?.kind === "seat") return prompt("interact", "Sit");
   if (inVaultArea(view.location, view.dungeon.rooms, position)) return prompt("interact", VAULT_PROMPT);
+  if (inShopArea(view.location, view.dungeon.rooms, position)) return prompt("interact", SHOP_PROMPT);
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

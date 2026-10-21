@@ -83,7 +83,8 @@ describe("what an escape deposits", () => {
     returnToHub(session, false);
 
     expect(session.vault.items).toEqual([]);
-    expect(session.vault.revision).toBe(0);
+    // Nothing was deposited, but the run ended, which rerolls the shop's rotation.
+    expect(session.vault.runCount).toBe(1);
   });
 
   it("merges stacks of arrows into the vault's stacks until they are full", () => {

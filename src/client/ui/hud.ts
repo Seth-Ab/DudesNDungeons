@@ -29,7 +29,8 @@ import {
 } from "../state/hudView.js";
 import { coinReadout, convertPromptView } from "../state/convertPrompt.js";
 import { skillsPanelView } from "../state/skillsView.js";
-import { inVaultArea } from "../state/runFlow.js";
+import { inShopArea, inVaultArea } from "../state/runFlow.js";
+import { skillShopView } from "../state/skillShop.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
 import { createDrawReadout } from "./hud/drawReadout.js";
@@ -48,6 +49,7 @@ import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSkills } from "./hud/skills.js";
 import { createSession } from "./hud/session.js";
 import { createNoticeStack, createToasts } from "./hud/toasts.js";
+import { createShop } from "./hud/shop.js";
 import { createVault } from "./hud/vault.js";
 import { createVitals } from "./hud/vitals.js";
 import { createVoice } from "./hud/voice.js";
@@ -68,6 +70,7 @@ interface HudOptions {
   onOpenEmotes: () => void;
   onWithdrawVaultItem: (itemId: string) => void;
   onDepositVaultItem: (itemId: string) => void;
+  onBuySkillScroll: (itemId: string) => void;
   onConvertScroll: (itemId: string) => void;
   onDismissConvert: () => void;
   onRequestConvert: (itemId: string) => void;
@@ -114,6 +117,7 @@ export function createHud(options: HudOptions) {
     onWithdraw: options.onWithdrawVaultItem,
     onDeposit: options.onDepositVaultItem,
   });
+  const shop = createShop({ onBuy: options.onBuySkillScroll });
   const skills = createSkills({ onConvert: options.onRequestConvert });
   const minimap = createMinimap();
   const convertPrompt = createConvertPrompt({
@@ -171,6 +175,8 @@ export function createHud(options: HudOptions) {
       options.onDismissConvert();
     } else if (skills.isOpen()) {
       skills.close();
+    } else if (shop.isOpen()) {
+      shop.close();
     } else if (vault.isOpen()) {
       vault.close();
     } else if (inventory.isOpen()) {
@@ -246,6 +252,7 @@ export function createHud(options: HudOptions) {
     inventory.panel,
     skills.panel,
     vault.panel,
+    shop.panel,
     convertPrompt.panel,
     camp.element,
   );
@@ -277,7 +284,7 @@ export function createHud(options: HudOptions) {
     const pinned = new Set<HudModuleId>(warned);
     const density = hudDensityFrom(document.documentElement.dataset.hudDensity);
     // The camp menu, the Stash and the vault own the keyboard; nothing dims behind them.
-    if (camp.isOpen() || inventory.isOpen() || skills.isOpen() || vault.isOpen()) for (const id of fadeIds) pinned.add(id);
+    if (camp.isOpen() || inventory.isOpen() || skills.isOpen() || vault.isOpen() || shop.isOpen()) for (const id of fadeIds) pinned.add(id);
     for (const id of fadeIds) {
       if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
     }
@@ -330,6 +337,26 @@ export function createHud(options: HudOptions) {
     vault.update(vaultPanelView(currentView, selfOf(currentView)));
   };
 
+  /** Likewise the shop: open only while the player stands inside the shop area, alive, in the hub. */
+  const canUseShop = (): boolean => {
+    const self = currentView ? selfOf(currentView) : null;
+    return (
+      currentView !== null &&
+      currentView.phase === "inSession" &&
+      self !== null &&
+      self.health > 0 &&
+      inShopArea(currentView.location, currentView.dungeon?.rooms ?? [], currentPosition)
+    );
+  };
+  const refreshShop = (): void => {
+    if (!shop.isOpen()) return;
+    if (!canUseShop() || !currentView) {
+      shop.close();
+      return;
+    }
+    shop.update(skillShopView(currentView));
+  };
+
   const setDebug = (on: boolean): void => {
     sessionPanel.classList.toggle("hud__panel--debug", on);
     session.positionElement.hidden = !on;
@@ -364,6 +391,7 @@ export function createHud(options: HudOptions) {
       minimap.setPosition(position);
       refreshPrompt();
       refreshVault();
+      refreshShop();
     },
 
     /** Opens the party vault, if the player is where they can use it. False when they are not. */
@@ -372,6 +400,17 @@ export function createHud(options: HudOptions) {
       inventory.close();
       vault.update(vaultPanelView(currentView, selfOf(currentView)));
       vault.open();
+      applyFade();
+      return true;
+    },
+
+    /** Opens the scroll shop, if the player is where they can use it. False when they are not. */
+    openShop(): boolean {
+      if (!canUseShop() || !currentView) return false;
+      inventory.close();
+      vault.close();
+      shop.update(skillShopView(currentView));
+      shop.open();
       applyFade();
       return true;
     },
@@ -456,6 +495,7 @@ export function createHud(options: HudOptions) {
       inventory.update(self);
       skills.update(skillsPanelView(view));
       refreshVault();
+      refreshShop();
       partyFrames.update(view);
       minimap.update(view);
     },

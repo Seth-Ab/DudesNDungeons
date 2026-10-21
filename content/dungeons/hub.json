@@ -6,7 +6,7 @@
   "tiles": [
     "#######################",
     "####.....##.##.....####",
-    "##...................##",
+    "##...##..............##",
     "#.....................#",
     "#.....................#",
     "##....##.#...#.##.....#",
@@ -42,6 +42,7 @@
     { "kind": "fountain", "x": 10, "y": 6, "label": "Strategy Hearth" },
     { "kind": "stall", "x": 6, "y": 5, "tint": "ember", "label": "Torch Supply" },
     { "kind": "stall", "x": 15, "y": 5, "tint": "azure", "label": "Weapons" },
+    { "kind": "stall", "x": 5, "y": 2, "tint": "plum", "label": "Scrolls" },
     { "kind": "stall", "x": 6, "y": 9, "tint": "moss", "facing": "north", "label": "Bank" },
     { "kind": "stall", "x": 15, "y": 9, "tint": "plum", "facing": "north", "label": "Wardrobe" },
     { "kind": "bench", "x": 9, "y": 5 },
@@ -73,6 +74,8 @@
     { "kind": "hanging-lantern", "x": 7.6, "y": 5 },
     { "kind": "hanging-lantern", "x": 15.1, "y": 5 },
     { "kind": "hanging-lantern", "x": 16.6, "y": 5 },
+    { "kind": "hanging-lantern", "x": 5.1, "y": 2 },
+    { "kind": "hanging-lantern", "x": 6.4, "y": 2 },
     { "kind": "hanging-lantern", "x": 1.1, "y": 7 },
     { "kind": "hanging-lantern", "x": 2.6, "y": 7 }
   ],
@@ -87,6 +90,7 @@
     { "id": "dungeon-gate", "name": "Dungeon Gate", "kind": "entrance", "x": 9, "y": 1, "width": 5, "height": 3 },
     { "id": "torch-supply", "name": "Torch Supply", "kind": "hall", "x": 5, "y": 4, "width": 3, "height": 3 },
     { "id": "weapons", "name": "Weapons", "kind": "hall", "x": 15, "y": 4, "width": 3, "height": 3 },
+    { "id": "scrolls", "name": "Scrolls", "kind": "shop", "x": 4, "y": 1, "width": 5, "height": 3 },
     { "id": "bank", "name": "Bank", "kind": "vault", "x": 5, "y": 8, "width": 3, "height": 3 },
     { "id": "wardrobe", "name": "Wardrobe", "kind": "hall", "x": 15, "y": 8, "width": 3, "height": 3 },
     { "id": "campfire-clearing", "name": "Campfire Clearing", "kind": "hall", "x": 1, "y": 7, "width": 4, "height": 6 },
@@ -143,6 +147,8 @@
     { "entityId": "a988f9b0-0f59-4416-b3f2-daa0a3890719", "name": "Torch Stall Lantern East", "x": 7.6, "y": 5.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
     { "entityId": "25d8d9d1-fee5-45d9-a0a5-bacc4c5d1411", "name": "Weapon Stall Lantern West", "x": 15.1, "y": 5.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
     { "entityId": "1a400ec0-5c64-4fd6-8f9f-fff8ea10ddb3", "name": "Weapon Stall Lantern East", "x": 16.4, "y": 5.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
+    { "entityId": "939b86e7-5215-4c4a-8c0a-63d0234540a1", "name": "Scroll Stall Lantern West", "x": 5.1, "y": 2.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
+    { "entityId": "285b9abe-7d6d-4bc1-b86c-186ebf739456", "name": "Scroll Stall Lantern East", "x": 6.4, "y": 2.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
     { "entityId": "fb340cf3-6da5-4c34-815c-c5d869dfe7d8", "name": "Board Lantern West", "x": 1.1, "y": 7.5, "radius": 10, "fixture": "none", "flicker": 0.14 },
     { "entityId": "c81eaed1-e1f4-4ff9-9fa6-e991fb007533", "name": "Board Lantern East", "x": 2.6, "y": 7.5, "radius": 10, "fixture": "none", "flicker": 0.14 }
   ]

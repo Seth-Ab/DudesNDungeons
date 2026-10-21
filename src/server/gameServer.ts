@@ -33,6 +33,7 @@ import {
   useItem,
   withdrawVaultItem,
 } from "./game/items.js";
+import { buySkillScroll, skillShopStockMessage } from "./game/shop.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveReadyPlates } from "./game/readyPlates.js";
@@ -60,6 +61,7 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "pickupItem",
   "useItem",
   "convertSkillScroll",
+  "buySkillScroll",
   "dropItem",
   "giveItem",
   "swapHeld",
@@ -140,6 +142,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const lastRosterSent = new Map<PlayerId, string>();
   /** The vault revision each player last received, so the vault is resent only when it changes. */
   const lastVaultSent = new Map<PlayerId, number>();
+  /** The run count whose shop stock each player last received, so it is resent only after a run ends. */
+  const lastStockSent = new Map<PlayerId, number>();
   /** When a slow tick was last logged, or null before the first. */
   let lastSlowTickLoggedAt: number | null = null;
 
@@ -194,6 +198,13 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, { type: "partyVault", items: session.vault.items.map((item) => ({ ...item })) });
   }
 
+  /** Sends the skill shop's stock if this room's run count moved since the player last had it. */
+  function sendSkillShopStock(socket: WebSocket, session: Session, playerId: PlayerId): void {
+    if (lastStockSent.get(playerId) === session.vault.runCount) return;
+    lastStockSent.set(playerId, session.vault.runCount);
+    send(socket, skillShopStockMessage(session));
+  }
+
   /** Writes whatever an action changed: a profile, the vault, or both. No-ops when nothing did. */
   function flushPersistent(): void {
     profiles.flush();
@@ -232,6 +243,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (socket) {
         sendPartyRoster(socket, player.id, serializedRoster, partyRoster);
         sendPartyVault(socket, session, player.id);
+        sendSkillShopStock(socket, session, player.id);
       }
       sendSnapshot(session, player.id, roster);
     }
@@ -394,6 +406,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         // Likewise the roster and the vault: the next tick sends them whether or not they changed.
         lastRosterSent.delete(player.id);
         lastVaultSent.delete(player.id);
+        lastStockSent.delete(player.id);
         send(socket, progressionCatalogFor(contentForSession(session)));
         sendProgression(socket, session, player);
 
@@ -423,6 +436,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);
         lastVaultSent.delete(playerId);
+        lastStockSent.delete(playerId);
         signalLimiter.forget(playerId);
         emoteLimiter.forget(playerId);
         playerId = null;
@@ -546,6 +560,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         message.type === "pickupItem" ||
         message.type === "useItem" ||
         message.type === "convertSkillScroll" ||
+        message.type === "buySkillScroll" ||
         message.type === "dropItem" ||
         message.type === "giveItem" ||
         message.type === "swapHeld" ||
@@ -566,6 +581,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
               ? useItem(member.session, playerId, message.itemId, now(), message.targetPlayerId ?? null)
               : message.type === "convertSkillScroll"
                 ? convertSkillScroll(member.session, playerId, message.itemId)
+                : message.type === "buySkillScroll"
+                ? buySkillScroll(member.session, playerId, message.itemId)
                 : message.type === "dropItem"
                 ? dropItem(member.session, playerId, message.itemId)
                 : message.type === "giveItem"
@@ -763,6 +780,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       lastProgressionSent.delete(member.player.id);
       lastRosterSent.delete(member.player.id);
       lastVaultSent.delete(member.player.id);
+      lastStockSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
       emoteLimiter.forget(member.player.id);
       broadcast(member.session, {
@@ -805,6 +823,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       lastProgressionSent.clear();
       lastRosterSent.clear();
       lastVaultSent.clear();
+      lastStockSent.clear();
       signalLimiter.clear();
       emoteLimiter.clear();
       return new Promise((resolve) => {

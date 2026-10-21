@@ -208,7 +208,7 @@ describe("the hub's layout", () => {
     expect(dungeon.loot.length).toBe(7);
     expect(dungeon.exits).toHaveLength(1);
     const stalls = props.filter((prop) => prop.kind === "stall");
-    expect(stalls.map((stall) => stall.label)).toEqual(["Torch Supply", "Weapons", "Bank", "Wardrobe"]);
+    expect(stalls.map((stall) => stall.label)).toEqual(["Torch Supply", "Weapons", "Scrolls", "Bank", "Wardrobe"]);
     const corners = ["Campfire Clearing", "Training Yard"].map((name) => dungeon.rooms.find((room) => room.name === name)!);
     expect(corners.every(Boolean)).toBe(true);
 
@@ -435,14 +435,14 @@ describe("the hub's ground", () => {
     expect(discovered.every((run) => run.ground === undefined)).toBe(true);
   });
 
-  it("gives each stall its own awning colour, and turns the southern stalls and benches to face north", () => {
+  it("gives each stall an awning colour (the Scrolls stall repeats one, as there are four), and turns the southern stalls and benches to face north", () => {
     const { session } = hub();
     const props = session.dungeon.map.props ?? [];
     const stalls = props.filter((prop) => prop.kind === "stall");
     const fountain = props.find((prop) => prop.kind === "fountain")!;
     const middle = fountain.y - 0.5 + MAP_PROP_SIZES.fountain.tilesHigh / 2;
 
-    expect(stalls.map((stall) => stall.tint)).toEqual(["ember", "azure", "moss", "plum"]);
+    expect(stalls.map((stall) => stall.tint)).toEqual(["ember", "azure", "plum", "moss", "plum"]);
     // Everything that faces the fountain from the south of it is turned round to face it.
     for (const prop of props.filter((candidate) => candidate.kind === "stall" || candidate.kind === "bench")) {
       expect(prop.facing ?? "south", `${prop.kind} at (${prop.x}, ${prop.y})`).toBe(prop.y > middle ? "north" : "south");
@@ -483,6 +483,7 @@ describe("the hub's lights", () => {
       expect.arrayContaining([
         "Torch Supply",
         "Weapons",
+        "Scrolls",
         "Bank",
         "Wardrobe",
         "Quest Gallery",

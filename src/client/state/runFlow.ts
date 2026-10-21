@@ -121,6 +121,21 @@ export function inVaultArea(
   return location === "hub" && roomAt(rooms, position)?.kind === "vault";
 }
 
+/** The action prompt inside the shop area, where interacting opens the scroll shop. */
+export const SHOP_PROMPT = "Browse the scroll shop";
+
+/**
+ * Whether this position can use the skill shop: in the hub, inside a `shop` room. The same rule the
+ * server judges `buySkillScroll` by, from the same shared `roomAt`.
+ */
+export function inShopArea(
+  location: SessionLocation | null,
+  rooms: readonly RoomState[],
+  position: Vector2,
+): boolean {
+  return location === "hub" && roomAt(rooms, position)?.kind === "shop";
+}
+
 function countOf(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
@@ -181,5 +196,11 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "You already know that skill as well as it can be known.";
     case "missingPrerequisites":
       return "You need another skill before you can learn this one.";
+    case "outOfStock":
+      return "That scroll is not in stock.";
+    case "insufficientCoin":
+      return "Not enough coin.";
+    case "inventoryFull":
+      return "Your pack is full.";
   }
 }
