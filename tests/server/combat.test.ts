@@ -285,6 +285,7 @@ describe("weapon swings", () => {
         effects: [{ type: "attackDamageBonus", amount: 2 }],
         maxStacks: 1,
         requires: [],
+        conversionCoin: 1,
       },
     ]);
     monster(session, ASH_IMP_ID).health = 50;

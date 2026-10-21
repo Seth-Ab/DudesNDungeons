@@ -3,6 +3,7 @@
   "name": "Iron Will",
   "description": "Begin each run with additional resistance. Further stacks steel it, then make it unbroken.",
   "effects": [{ "type": "resistanceBonus", "amount": 10 }],
+  "conversionCoin": 3,
   "maxStacks": 3,
   "stackEffects": [
     [{ "type": "resistanceBonus", "amount": 5 }],

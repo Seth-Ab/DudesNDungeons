@@ -146,11 +146,14 @@ describe("rejecting bad content", () => {
       "too many stackEffects": { maxStacks: 2, stackEffects: [effect, effect] },
       "an empty stack": { maxStacks: 2, stackEffects: [[]] },
       "both kinds of stack effects": { maxStacks: 2, stackEffects: [effect], perStackEffects: effect },
+      "a missing conversionCoin": { maxStacks: 1, conversionCoin: undefined },
+      "a zero conversionCoin": { maxStacks: 1, conversionCoin: 0 },
+      "a fractional conversionCoin": { maxStacks: 1, conversionCoin: 1.5 },
     };
 
     for (const [label, fields] of Object.entries(refused)) {
       const root = contentRoot({
-        "skills/odd.json": { id: "odd", name: "Odd", description: "Odd.", effects: effect, ...fields },
+        "skills/odd.json": { id: "odd", name: "Odd", description: "Odd.", effects: effect, conversionCoin: 1, ...fields },
       });
       expect(() => loadContent(root), label).toThrow(/odd\.json is not valid content/);
     }
@@ -167,7 +170,7 @@ describe("rejecting bad content", () => {
 
     for (const [label, fields] of Object.entries(allowed)) {
       const root = contentRoot({
-        "skills/fine.json": { id: "fine", name: "Fine", description: "Fine.", effects: effect, ...fields },
+        "skills/fine.json": { id: "fine", name: "Fine", description: "Fine.", effects: effect, conversionCoin: 1, ...fields },
       });
       expect(() => loadContent(root), label).not.toThrow();
     }
@@ -179,6 +182,7 @@ describe("rejecting bad content", () => {
     description: id,
     effects: [{ type: "resistanceBonus", amount: 1 }],
     maxStacks: 1,
+    conversionCoin: 1,
     requires,
   });
 

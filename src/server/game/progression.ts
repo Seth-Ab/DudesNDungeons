@@ -80,6 +80,7 @@ export function progressionCatalogFor(content: GameContent): ServerMessage {
       effects: skill.effects.map((effect) => ({ ...effect })),
       maxStacks: skill.maxStacks,
       requires: [...skill.requires],
+      conversionCoin: skill.conversionCoin,
       stackEffects: (skill.stackEffects ?? []).map((stack) => stack.map((effect) => ({ ...effect }))),
       perStackEffects: (skill.perStackEffects ?? []).map((effect) => ({ ...effect })),
     })),
@@ -99,6 +100,8 @@ export function progressionUpdateFor(
     skillStacks: { ...player.profile.skillStacks },
     runSkillStacks: Object.fromEntries(player.runSkillStacks),
     activeSkillStacks: Object.fromEntries(activeSkillStacks(player, content)),
+    coin: player.profile.coin,
+    runCoin: player.runCoin,
   };
 }
 
@@ -158,4 +161,45 @@ export function bankRunSkills(player: SessionPlayer): void {
 /** Drops every provisional stack when a player does not make it out. */
 export function discardRunSkills(player: SessionPlayer): void {
   player.runSkillStacks.clear();
+}
+
+/** Saves the run purse for a player who made it out. */
+export function bankRunCoin(player: SessionPlayer): void {
+  if (player.runCoin > 0) {
+    player.profile.coin += player.runCoin;
+    markProfileChanged(player.profile);
+  }
+  player.runCoin = 0;
+}
+
+/** Drops the run purse when a player does not make it out. */
+export function discardRunCoin(player: SessionPlayer): void {
+  player.runCoin = 0;
+}
+
+export type ConvertScrollResult = "converted" | "unknownSkill" | "skillNotMaxed";
+
+/**
+ * Converts a scroll's skill into coin: the purse in a dungeon, the profile in the hub (the save
+ * boundary). Only a skill already at its limit converts, counting permanent and provisional stacks
+ * and any excess above a lowered limit. Anything but `converted` changes nothing.
+ */
+export function convertScrollSkill(
+  session: Session,
+  player: SessionPlayer,
+  skillId: string,
+): ConvertScrollResult {
+  const skill = contentForSession(session).skills.get(skillId);
+  if (!skill) return "unknownSkill";
+  if (skill.maxStacks === null || heldStacks(player, skillId) < skill.maxStacks) {
+    return "skillNotMaxed";
+  }
+
+  if (session.location === "hub") {
+    player.profile.coin += skill.conversionCoin;
+    markProfileChanged(player.profile);
+  } else {
+    player.runCoin += skill.conversionCoin;
+  }
+  return "converted";
 }

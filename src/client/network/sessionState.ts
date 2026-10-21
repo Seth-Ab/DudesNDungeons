@@ -43,6 +43,10 @@ export interface ProgressionView {
   runSkillStacks: SkillStacks;
   /** What is actually in force now, capped at each skill's limit. */
   activeSkillStacks: SkillStacks;
+  /** Banked coin on the profile. */
+  coin: number;
+  /** The run purse: carried this run, credited on extraction and lost otherwise. */
+  runCoin: number;
 }
 
 export const emptyProgression: ProgressionView = {
@@ -50,6 +54,8 @@ export const emptyProgression: ProgressionView = {
   skillStacks: {},
   runSkillStacks: {},
   activeSkillStacks: {},
+  coin: 0,
+  runCoin: 0,
 };
 
 export interface SessionView {
@@ -116,6 +122,11 @@ export interface SessionView {
   partyRoster: PartyRosterEntry[];
   /** What the party vault holds, from the latest `partyVault`. The same list for every member. */
   vault: InventoryItem[];
+  /**
+   * The scroll the player tried to use that the server refused as maxed, waiting on their answer to
+   * the conversion prompt. Set and cleared by the session client, since a refusal does not name it.
+   */
+  convertPromptItemId: string | null;
 }
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
@@ -151,6 +162,7 @@ export const initialSessionView: SessionView = {
   progression: null,
   partyRoster: [],
   vault: [],
+  convertPromptItemId: null,
 };
 
 /**
@@ -201,6 +213,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         progression: null,
         partyRoster: [],
         vault: [],
+        convertPromptItemId: null,
       };
 
     case "partyRoster":
@@ -226,6 +239,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
           skillStacks: message.skillStacks,
           runSkillStacks: message.runSkillStacks,
           activeSkillStacks: message.activeSkillStacks,
+          coin: message.coin,
+          runCoin: message.runCoin,
         },
       };
 

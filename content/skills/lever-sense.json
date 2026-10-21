@@ -3,5 +3,6 @@
   "name": "Lever Sense",
   "description": "Hold puzzle plates more steadily, shortening the time a puzzle must stay held.",
   "effects": [{ "type": "puzzlePowerBonus", "amount": 1 }],
+  "conversionCoin": 4,
   "maxStacks": 1
 }

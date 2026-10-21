@@ -430,7 +430,8 @@ export type ProgressionEffect = z.infer<typeof progressionEffectSchema>;
  * to `maxStacks` and so only for a capped skill, or `perStackEffects`, added again for every stack
  * beyond the first and required when the skill is unlimited. `requires` names skills the player
  * must already hold a stack of before a scroll of this one can be used; the loader refuses unknown
- * ids and cycles, which a single definition cannot see.
+ * ids and cycles, which a single definition cannot see. `conversionCoin` is what a scroll of this
+ * skill converts to once the skill is at its limit; it must stay below the scroll's shop price.
  */
 export const skillDefinitionSchema = z
   .object({
@@ -440,6 +441,7 @@ export const skillDefinitionSchema = z
     effects: z.array(progressionEffectSchema).min(1),
     maxStacks: z.number().int().positive().nullable(),
     requires: z.array(contentIdSchema).default([]),
+    conversionCoin: z.number().int().positive(),
     stackEffects: z.array(z.array(progressionEffectSchema).min(1)).optional(),
     perStackEffects: z.array(progressionEffectSchema).min(1).optional(),
   })

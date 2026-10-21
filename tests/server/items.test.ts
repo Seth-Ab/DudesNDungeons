@@ -54,6 +54,7 @@ function withDeepWill<T extends ReturnType<typeof testSession>>(session: T): T {
           effects: [{ type: "resistanceBonus", amount: 1 }],
           maxStacks: 1,
           requires: ["iron-will"],
+          conversionCoin: 1,
         },
       ],
     ]),

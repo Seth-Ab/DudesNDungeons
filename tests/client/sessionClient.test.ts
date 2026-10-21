@@ -17,6 +17,7 @@ import {
   type SessionClient,
 } from "../../src/client/network/sessionClient.js";
 import type { SessionView } from "../../src/client/network/sessionState.js";
+import { convertPromptView } from "../../src/client/state/convertPrompt.js";
 
 /**
  * Drives the real client against the real server. Node supplies global `WebSocket` and `fetch`, so
@@ -482,5 +483,113 @@ describe("roguelite profiles", () => {
     // Read from the roster the client renders from, so this covers the whole path: file, profile,
     // player state, wire, and the view the HUD draws the bank out of.
     expect(view.players[0]?.bankedItems).toEqual([KEY]);
+  });
+});
+
+describe("converting a maxed scroll", () => {
+  const SCROLL_ID = "e0000000-0000-4000-8000-000000000001";
+
+  /** A hub player holding a scroll of a skill they already have at its limit (Iron Will, 3 stacks). */
+  async function holdingMaxedScroll() {
+    const client = newClient();
+    const roomCode = await client.createRoom();
+    client.join(roomCode, "Alpha");
+    const joined = await until(client, inSession);
+    await design(client);
+
+    const member = server.store.findMember(joined.selfId!)!;
+    member.player.profile.skillStacks = { "iron-will": 3 };
+    markProfileChanged(member.player.profile);
+    member.player.inventory = [
+      { id: SCROLL_ID, name: "Scroll of Iron Will", kind: "skillScroll", skillId: "iron-will" },
+    ];
+    // Waits for the snapshot that carries the scroll, which the prompt would be built from.
+    await until(client, (view) => convertPromptView({ ...view, convertPromptItemId: SCROLL_ID }) !== null);
+
+    return { client, player: member.player };
+  }
+
+  it("opens the confirmation when the scroll is refused as maxed", async () => {
+    const { client } = await holdingMaxedScroll();
+
+    client.useItem(SCROLL_ID);
+    const view = await until(client, (candidate) => candidate.convertPromptItemId !== null);
+
+    expect(convertPromptView(view)).toMatchObject({ itemId: SCROLL_ID, coin: 3, text: "Convert to 3 coin" });
+  });
+
+  it("sends nothing on Cancel", async () => {
+    const { client, player } = await holdingMaxedScroll();
+    client.useItem(SCROLL_ID);
+    await until(client, (view) => view.convertPromptItemId !== null);
+
+    client.dismissConvertPrompt();
+    const view = await until(client, (candidate) => candidate.convertPromptItemId === null);
+
+    expect(convertPromptView(view)).toBeNull();
+    // Give a stray intent time to land before judging that none was sent.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(player.inventory).toHaveLength(1);
+    expect(player.profile.coin).toBe(0);
+  });
+
+  it("sends one conversion intent on Confirm", async () => {
+    const { client, player } = await holdingMaxedScroll();
+    client.useItem(SCROLL_ID);
+    await until(client, (view) => view.convertPromptItemId !== null);
+
+    expect(client.convertSkillScroll(SCROLL_ID)).toBe(true);
+    const view = await until(client, (candidate) => candidate.progression?.coin === 3);
+
+    expect(view.convertPromptItemId).toBeNull();
+    expect(player.inventory).toHaveLength(0);
+    expect(player.profile.coin).toBe(3);
+  });
+
+  it("with two clients: one maxed scroll goes to a teammate, another is converted after confirming", async () => {
+    const SECOND_SCROLL_ID = "e0000000-0000-4000-8000-000000000002";
+    const alpha = newClient();
+    const roomCode = await alpha.createRoom();
+    alpha.join(roomCode, "Alpha");
+    const alphaJoined = await until(alpha, inSession);
+    await design(alpha);
+
+    const bravo = newClient();
+    bravo.join(roomCode, "Bravo");
+    const bravoJoined = await until(bravo, inSession);
+    await design(bravo);
+
+    const holder = server.store.findMember(alphaJoined.selfId!)!.player;
+    const teammate = server.store.findMember(bravoJoined.selfId!)!.player;
+    holder.profile.skillStacks = { "iron-will": 3 };
+    holder.position = { ...teammate.position };
+    holder.inventory = [
+      { id: SCROLL_ID, name: "Scroll of Iron Will", kind: "skillScroll", skillId: "iron-will" },
+      { id: SECOND_SCROLL_ID, name: "Scroll of Iron Will", kind: "skillScroll", skillId: "iron-will" },
+    ];
+    await until(alpha, (view) => view.players.some((p) => p.id === view.selfId && p.inventory.length === 2));
+
+    // The first scroll is refused as maxed and, rather than converted, handed to the teammate.
+    alpha.useItem(SCROLL_ID);
+    await until(alpha, (view) => view.convertPromptItemId === SCROLL_ID);
+    alpha.dismissConvertPrompt();
+    alpha.giveItem(SCROLL_ID, bravoJoined.selfId!);
+    await until(bravo, (view) => view.players.some((p) => p.id === view.selfId && p.inventory.length === 1));
+    expect(holder.profile.coin).toBe(0);
+    expect(holder.runCoin).toBe(0);
+
+    // The teammate has no Iron Will, so the same scroll is theirs to learn.
+    bravo.useItem(SCROLL_ID);
+    await until(bravo, (view) => view.progression?.runSkillStacks["iron-will"] === 1 || view.progression?.skillStacks["iron-will"] === 1);
+
+    // The second is converted only once the prompt is confirmed.
+    alpha.useItem(SECOND_SCROLL_ID);
+    await until(alpha, (view) => view.convertPromptItemId === SECOND_SCROLL_ID);
+    expect(holder.profile.coin).toBe(0);
+    alpha.convertSkillScroll(SECOND_SCROLL_ID);
+    const view = await until(alpha, (candidate) => candidate.progression?.coin === 3);
+
+    expect(view.progression?.runCoin).toBe(0);
+    expect(holder.inventory).toHaveLength(0);
   });
 });

@@ -92,6 +92,7 @@ function joinedView(): SessionView {
       displayName: "Self",
       bankedItems: [],
       skillStacks: {},
+      coin: 0,
       runsEscaped: 0,
       runsLost: 0,
     },
@@ -534,6 +535,7 @@ describe("progression", () => {
         effects: [{ type: "resistanceBonus" as const, amount: 10 }],
         maxStacks: 3,
         requires: [],
+        conversionCoin: 3,
         stackEffects: [
           [{ type: "resistanceBonus" as const, amount: 5 }],
           [{ type: "resistanceBonus" as const, amount: 5 }],
@@ -542,11 +544,13 @@ describe("progression", () => {
       },
     ],
   };
-  const update = (overrides: Record<string, Record<string, number>> = {}) => ({
+  const update = (overrides: Record<string, Record<string, number> | number> = {}) => ({
     type: "progressionUpdated" as const,
     skillStacks: {},
     runSkillStacks: {},
     activeSkillStacks: {},
+    coin: 0,
+    runCoin: 0,
     ...overrides,
   });
 
@@ -620,6 +624,7 @@ describe("progression", () => {
         displayName: "Self",
         bankedItems: [],
         skillStacks: {},
+        coin: 0,
         runsEscaped: 0,
         runsLost: 0,
       },

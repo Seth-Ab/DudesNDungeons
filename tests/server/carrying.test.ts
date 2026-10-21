@@ -186,6 +186,7 @@ describe("disconnect and extraction", () => {
           displayName: playerName,
           bankedItems: [],
           skillStacks: {},
+          coin: 0,
           runsEscaped: 0,
           runsLost: 0,
           createdAt: 0,

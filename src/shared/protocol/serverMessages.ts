@@ -123,13 +123,17 @@ export const progressionCatalogSchema = z.object({
  * `skillStacks` is permanent. `runSkillStacks` is provisional: in force for this run, and gone
  * unless the player gets back to the hub. `activeSkillStacks` is what the server's effects resolve
  * from: both added together, capped at each skill's current `maxStacks`, and without skills the
- * catalog no longer has.
+ * catalog no longer has. `coin` is the profile balance and `runCoin` the run purse (decision 0014).
  */
 export const progressionUpdatedSchema = z.object({
   type: z.literal("progressionUpdated"),
   skillStacks: skillStacksSchema,
   runSkillStacks: skillStacksSchema,
   activeSkillStacks: skillStacksSchema,
+  /** Banked coin on the profile. */
+  coin: z.number().int().nonnegative(),
+  /** The run purse: carried coin, credited on extraction and lost otherwise. Zero in the hub. */
+  runCoin: z.number().int().nonnegative(),
 });
 
 export const playerJoinedSchema = z.object({

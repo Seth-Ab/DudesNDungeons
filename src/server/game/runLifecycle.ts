@@ -1,4 +1,5 @@
 import {
+  ESCAPE_REWARD_COIN,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_STAMINA,
   PLAYER_SPAWN_FACING,
@@ -9,7 +10,7 @@ import { markProfileChanged } from "../profiles/profile.js";
 import type { SessionPlayer, Session } from "../sessions/sessionStore.js";
 import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID, isSpawned } from "./dungeonState.js";
 import { lootRngFor } from "./monsterLoot.js";
-import { bankRunSkills, discardRunSkills } from "./progression.js";
+import { bankRunCoin, bankRunSkills, discardRunCoin, discardRunSkills } from "./progression.js";
 import { createDiscoveredGrid } from "./tileGrid.js";
 import { storeInVault } from "./vault.js";
 
@@ -112,7 +113,10 @@ export function startRun(session: Session, now: number): RunTransitionResult {
   if (!partyReadyForRun(session)) return { ok: false, reason: "notPermitted" };
 
   // Defensive as well as semantic: provisional unlocks never cross from one run into another.
-  for (const player of session.players.values()) discardRunSkills(player);
+  for (const player of session.players.values()) {
+    discardRunSkills(player);
+    discardRunCoin(player);
+  }
   installWorld(session, session.runDungeon.dungeonId ?? "vault-run", now);
   session.location = "dungeon";
   return { ok: true };
@@ -126,7 +130,7 @@ export function startRun(session: Session, now: number): RunTransitionResult {
  * A downed player being physically carried at the moment the party escapes counts as a survivor
  * too: that is the payoff for hauling them to the exit, distinct from and short of a full revive.
  *
- * The vault belongs to the room code and the skills and run counts to each profile, and both
+ * The vault belongs to the room code and the skills, coin and run counts to each profile, and both
  * outlive the session, so this is the one moment a run leaves a mark a restart cannot clear. The
  * personal `bankedItems` list is legacy and no longer grows.
  */
@@ -137,9 +141,12 @@ export function returnToHub(session: Session, escaped: boolean): void {
       for (const item of player.inventory) storeInVault(session, item);
       if (player.held) storeInVault(session, player.held);
       bankRunSkills(player);
+      player.runCoin += ESCAPE_REWARD_COIN;
+      bankRunCoin(player);
       player.profile.runsEscaped += 1;
     } else {
       discardRunSkills(player);
+      discardRunCoin(player);
       player.profile.runsLost += 1;
     }
     markProfileChanged(player.profile);

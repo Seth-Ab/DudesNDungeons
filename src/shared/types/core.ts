@@ -673,6 +673,8 @@ export const profileStateSchema = z.object({
   /** How many runs this profile has escaped from, and how many it went down in. */
   runsEscaped: z.number().int().nonnegative(),
   runsLost: z.number().int().nonnegative(),
+  /** Banked progression currency; only the server changes it. */
+  coin: z.number().int().nonnegative(),
 });
 export type ProfileState = z.infer<typeof profileStateSchema>;
 
@@ -697,6 +699,8 @@ export const skillViewSchema = z.object({
   effects: z.array(progressionEffectViewSchema),
   maxStacks: z.number().int().positive().nullable(),
   requires: z.array(contentIdSchema),
+  /** Coin a scroll of this skill converts to once the skill is at its `maxStacks`. */
+  conversionCoin: z.number().int().positive(),
   stackEffects: z.array(z.array(progressionEffectViewSchema)),
   perStackEffects: z.array(progressionEffectViewSchema),
 });

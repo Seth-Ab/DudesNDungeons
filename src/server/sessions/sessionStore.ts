@@ -70,6 +70,11 @@ export interface SessionPlayer {
   draw: Draw | null;
   /** Stacks per skill from scrolls consumed this run, provisional until this player extracts. */
   runSkillStacks: Map<string, number>;
+  /**
+   * The run purse: coin carried this run, outside the inventory slots. Credited to the profile when
+   * this player extracts and lost otherwise, like `runSkillStacks`.
+   */
+  runCoin: number;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
   /** The downed party member this player is carrying, or null. Set only by `src/server/game/carrying.ts`. */
@@ -431,6 +436,7 @@ export class SessionStore {
       held: null,
       draw: null,
       runSkillStacks: new Map(),
+      runCoin: 0,
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,

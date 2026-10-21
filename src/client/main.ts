@@ -224,6 +224,10 @@ const hud = createHud({
   onDepositVaultItem: (itemId) => {
     if (!client.depositVaultItem(itemId)) hud.setActionStatus("No connection");
   },
+  onConvertScroll: (itemId) => {
+    if (!client.convertSkillScroll(itemId)) hud.setActionStatus("No connection");
+  },
+  onDismissConvert: () => client.dismissConvertPrompt(),
 });
 
 const lobby = createLobby({

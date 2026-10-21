@@ -54,6 +54,7 @@ const BATTLE_FOCUS: SkillDefinition = {
   effects: [{ type: "attackDamageBonus", amount: 2 }],
   maxStacks: 1,
   requires: [],
+  conversionCoin: 1,
 };
 
 function hubSession(players: ReturnType<typeof testPlayer>[]) {

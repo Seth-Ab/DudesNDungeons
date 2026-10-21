@@ -83,6 +83,8 @@ export function createSessionClient(options: SessionClientOptions) {
   let moveSequence = 0;
   let attackSequence = 0;
   let drawSequence = 0;
+  /** The last item `useItem` was sent for, so a maxed refusal can name the scroll to offer converting. */
+  let lastUsedItemId: string | null = null;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -146,7 +148,9 @@ export function createSessionClient(options: SessionClientOptions) {
       return;
     }
 
-    update(applyServerMessage(view, parsed.message));
+    const next = applyServerMessage(view, parsed.message);
+    const maxedRefusal = parsed.message.type === "actionRejected" && parsed.message.reason === "skillMaxed";
+    update(maxedRefusal && lastUsedItemId !== null ? { ...next, convertPromptItemId: lastUsedItemId } : next);
   }
 
   function openSocket(): void {
@@ -308,7 +312,19 @@ export function createSessionClient(options: SessionClientOptions) {
 
     /** `targetPlayerId` names the downed ally for an item used on someone else, such as salts. */
     useItem(itemId: string, targetPlayerId?: string): boolean {
+      lastUsedItemId = itemId;
       return send(targetPlayerId ? { type: "useItem", itemId, targetPlayerId } : { type: "useItem", itemId });
+    },
+
+    /** Converts a maxed scroll to coin. Called only from the prompt's Confirm; the server re-checks. */
+    convertSkillScroll(itemId: string): boolean {
+      if (view.convertPromptItemId !== null) update({ ...view, convertPromptItemId: null });
+      return send({ type: "convertSkillScroll", itemId });
+    },
+
+    /** Closes the conversion prompt without sending anything. */
+    dismissConvertPrompt(): void {
+      if (view.convertPromptItemId !== null) update({ ...view, convertPromptItemId: null });
     },
 
     dropItem(itemId: string): boolean {

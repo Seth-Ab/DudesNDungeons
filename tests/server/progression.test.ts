@@ -79,6 +79,7 @@ describe("active skill effects", () => {
             effects: [{ type: "attackDamageBonus" as const, amount: 2 }],
             maxStacks: null,
             requires: [],
+            conversionCoin: 1,
             perStackEffects: [{ type: "attackDamageBonus" as const, amount: 1 }],
           },
         ],
@@ -102,6 +103,8 @@ describe("active skill effects", () => {
       skillStacks: { "removed-skill": 2, "iron-will": 1 },
       runSkillStacks: {},
       activeSkillStacks: { "iron-will": 1 },
+      coin: 0,
+      runCoin: 0,
     });
   });
 
@@ -115,6 +118,7 @@ describe("active skill effects", () => {
       effects: [{ type: "resistanceBonus", amount: 10 }],
       maxStacks: 3,
       requires: [],
+      conversionCoin: 3,
       stackEffects: [
         [{ type: "resistanceBonus", amount: 5 }],
         [{ type: "resistanceBonus", amount: 5 }],
@@ -151,6 +155,7 @@ describe("active skill effects", () => {
       effects: [{ type: "attackDamageBonus", amount: 2 }],
       maxStacks: 1,
       requires: [],
+      conversionCoin: 1,
     });
     session.runDungeon.content = { ...shipped, skills };
 
