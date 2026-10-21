@@ -171,10 +171,17 @@ export function createHud(options: HudOptions) {
     event.preventDefault();
   });
 
+  // Under the room code rather than the self frame: a taller self frame reaches the bow's draw meter.
+  const coin = document.createElement("p");
+  coin.className = "hud__coin";
+  coin.setAttribute("aria-label", "Coin");
+  coin.hidden = true;
+
   const sessionPanel = createPanel("hud__panel hud__panel--session");
   sessionPanel.append(
     voice.chipElement,
     session.roomElement,
+    coin,
     session.connectionElement,
     session.hubReadyButton,
     session.positionElement,
@@ -192,11 +199,7 @@ export function createHud(options: HudOptions) {
   topLeft.append(keyHints.element, partyFrames.element);
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
-  const coin = document.createElement("p");
-  coin.className = "hud__coin";
-  coin.setAttribute("aria-label", "Coin");
-  coin.hidden = true;
-  partyPanel.append(vitals.element, coin);
+  partyPanel.append(vitals.element);
 
   const actionPanel = createPanel("hud__panel hud__panel--actions");
   const actionButtons = document.createElement("div");
