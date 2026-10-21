@@ -34,6 +34,7 @@ import {
   HUB_DUNGEON_ID,
   type DungeonRequest,
 } from "../game/dungeonState.js";
+import { createRunStats, type RunStats } from "../game/milestones.js";
 import { lootRngFor } from "../game/monsterLoot.js";
 import { pressReady } from "../game/readyPlates.js";
 import { standUp } from "../game/seats.js";
@@ -75,6 +76,8 @@ export interface SessionPlayer {
    * this player extracts and lost otherwise, like `runSkillStacks`.
    */
   runCoin: number;
+  /** What this player did this run toward milestone stats; credited like `runCoin`. */
+  runStats: RunStats;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
   /** The downed party member this player is carrying, or null. Set only by `src/server/game/carrying.ts`. */
@@ -437,6 +440,7 @@ export class SessionStore {
       draw: null,
       runSkillStacks: new Map(),
       runCoin: 0,
+      runStats: createRunStats(),
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,

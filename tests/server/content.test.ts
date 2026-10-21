@@ -76,13 +76,16 @@ describe("the shipped content", () => {
   });
 
   it("gives every skill a scroll item", () => {
-    // Milestone-only skills (#215), granted straight to a profile, will be exempt; none ship yet.
+    // Milestone-only skills are granted straight to a profile, so they have no scroll.
     const content = loadContent();
     const taught = new Set(
       [...content.items.values()].flatMap((item) => (item.kind === "skillScroll" ? [item.skillId] : [])),
     );
 
+    const milestoneOnly = new Set([...content.milestones.values()].map((milestone) => milestone.skillId));
+
     for (const skillId of content.skills.keys()) {
+      if (milestoneOnly.has(skillId)) continue;
       expect(taught.has(skillId), skillId).toBe(true);
     }
   });

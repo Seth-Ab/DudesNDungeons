@@ -1,8 +1,11 @@
 import { z } from "zod";
 import {
   dungeonSnapshotSchema,
+  contentIdSchema,
   entityIdSchema,
   inventoryItemSchema,
+  milestoneStatsSchema,
+  milestoneViewSchema,
   partyColorSchema,
   playerIdSchema,
   playerNameSchema,
@@ -112,6 +115,7 @@ export const sessionJoinedSchema = z.object({
 export const progressionCatalogSchema = z.object({
   type: z.literal("progressionCatalog"),
   skills: z.array(skillViewSchema),
+  milestones: z.array(milestoneViewSchema),
 });
 
 /**
@@ -134,6 +138,10 @@ export const progressionUpdatedSchema = z.object({
   coin: z.number().int().nonnegative(),
   /** The run purse: carried coin, credited on extraction and lost otherwise. Zero in the hub. */
   runCoin: z.number().int().nonnegative(),
+  /** Lifetime milestone stats, credited when a run ends to players who extracted. */
+  stats: milestoneStatsSchema,
+  /** Ids of the milestones already earned, each granted at most once. */
+  earnedMilestones: z.array(contentIdSchema),
 });
 
 export const playerJoinedSchema = z.object({

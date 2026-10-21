@@ -1,18 +1,25 @@
 import { z } from "zod";
+import { MILESTONE_STATS } from "../../shared/constants/game.js";
 import type {
   InventoryItem,
+  MilestoneStats,
   PlayerName,
   ProfileId,
   ProfileState,
 } from "../../shared/types/core.js";
-import { inventoryItemSchema, skillStacksSchema } from "../../shared/types/core.js";
+import {
+  inventoryItemSchema,
+  milestoneStatsSchema,
+  skillStacksSchema,
+} from "../../shared/types/core.js";
 
 /**
  * A roguelite profile: what a device keeps between runs, and between server restarts.
  *
  * Per `GAMEDESCRIPTION.md`, progression is items and skills a player keeps, losing only items on
- * death. Skills are held as stack counts and coin is the progression currency (decision 0014);
- * milestone stats arrive with their own follow-up ticket.
+ * death. Skills are held as stack counts and coin is the progression currency (decision 0014).
+ * Milestone stats count what a profile has done across runs, and `earnedMilestones` records which
+ * thresholds already granted their skill.
  *
  * `secretHash` rather than the secret itself, so a leaked `profiles.json` does not hand over every
  * profile on the server. It is also why a client that loses its secret cannot be reminded of it.
@@ -30,6 +37,10 @@ export interface PlayerProfile {
   skillStacks: Record<string, number>;
   /** Banked coin. Credited on extraction or a hub conversion, only through `markProfileChanged`. */
   coin: number;
+  /** Lifetime milestone stats, credited when a run ends to a player who extracts. */
+  stats: MilestoneStats;
+  /** Ids of milestones already earned, so each grants its skill at most once. */
+  earnedMilestones: string[];
   runsEscaped: number;
   runsLost: number;
   createdAt: number;
@@ -42,6 +53,11 @@ export interface PlayerProfile {
    * exists.
    */
   revision: number;
+}
+
+/** Every milestone stat at zero: where a new profile, or one older than the stats, starts. */
+export function createMilestoneStats(): MilestoneStats {
+  return Object.fromEntries(MILESTONE_STATS.map((stat) => [stat, 0])) as MilestoneStats;
 }
 
 /**
@@ -63,6 +79,8 @@ export function toProfileState(profile: PlayerProfile): ProfileState {
     bankedItems: profile.bankedItems.map((item) => ({ ...item })),
     skillStacks: { ...profile.skillStacks },
     coin: profile.coin,
+    stats: { ...profile.stats },
+    earnedMilestones: [...profile.earnedMilestones],
     runsEscaped: profile.runsEscaped,
     runsLost: profile.runsLost,
   };
@@ -140,6 +158,13 @@ export const persistedProfileSchema = z.preprocess(
     skillStacks: skillStacksSchema,
     // Absent from profiles written before coin existed, which start with none.
     coin: z.number().int().nonnegative().default(0),
+    // Absent from profiles written before milestones existed, which start at zero: nothing is
+    // backfilled from `runsEscaped` or `runsLost`.
+    stats: milestoneStatsSchema
+      .partial()
+      .default({})
+      .transform((stats) => ({ ...createMilestoneStats(), ...stats })),
+    earnedMilestones: z.array(z.string()).default([]),
     runsEscaped: z.number().int().nonnegative(),
     runsLost: z.number().int().nonnegative(),
     createdAt: z.number().int().nonnegative(),

@@ -7,7 +7,8 @@ import {
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { lootRngFor } from "../../src/server/game/monsterLoot.js";
 import { scalePoint } from "../../src/server/game/scale.js";
-import type { PlayerProfile } from "../../src/server/profiles/profile.js";
+import { createRunStats } from "../../src/server/game/milestones.js";
+import { createMilestoneStats, type PlayerProfile } from "../../src/server/profiles/profile.js";
 import type { JoinRequest, Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
 import type { Vector2 } from "../../src/shared/types/core.js";
 
@@ -65,6 +66,8 @@ export function testProfile(id: string, overrides: Partial<PlayerProfile> = {}):
     bankedItems: [],
     skillStacks: {},
     coin: 0,
+    stats: createMilestoneStats(),
+    earnedMilestones: [],
     runsEscaped: 0,
     runsLost: 0,
     createdAt: 0,
@@ -109,6 +112,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     draw: null,
     runSkillStacks: new Map(),
     runCoin: 0,
+    runStats: createRunStats(),
     carryingTorch: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,

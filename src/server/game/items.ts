@@ -189,6 +189,7 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
 
     loot.pickedUp = true;
     player.carryingTorch = true;
+    player.runStats.carriedTorch = true;
     return OK;
   }
   if (loot.kind === "ammo") return pickupStack(session, player, loot);

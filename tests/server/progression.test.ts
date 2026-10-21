@@ -8,6 +8,7 @@ import {
   progressionEffectTotal,
   progressionUpdateFor,
 } from "../../src/server/game/progression.js";
+import { createMilestoneStats } from "../../src/server/profiles/profile.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import { toPlayerState } from "../../src/server/sessions/sessionStore.js";
 import {
@@ -105,6 +106,8 @@ describe("active skill effects", () => {
       activeSkillStacks: { "iron-will": 1 },
       coin: 0,
       runCoin: 0,
+      stats: createMilestoneStats(),
+      earnedMilestones: [],
     });
   });
 

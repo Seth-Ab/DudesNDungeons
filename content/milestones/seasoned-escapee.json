@@ -1,0 +1,7 @@
+{
+  "id": "seasoned-escapee",
+  "name": "Seasoned Escapee",
+  "stat": "runsEscaped",
+  "threshold": 5,
+  "skillId": "emberhardened"
+}

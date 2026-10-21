@@ -84,6 +84,7 @@ export function progressionCatalogFor(content: GameContent): ServerMessage {
       stackEffects: (skill.stackEffects ?? []).map((stack) => stack.map((effect) => ({ ...effect }))),
       perStackEffects: (skill.perStackEffects ?? []).map((effect) => ({ ...effect })),
     })),
+    milestones: [...content.milestones.values()].map((milestone) => ({ ...milestone })),
   };
 }
 
@@ -102,6 +103,8 @@ export function progressionUpdateFor(
     activeSkillStacks: Object.fromEntries(activeSkillStacks(player, content)),
     coin: player.profile.coin,
     runCoin: player.runCoin,
+    stats: { ...player.profile.stats },
+    earnedMilestones: [...player.profile.earnedMilestones],
   };
 }
 

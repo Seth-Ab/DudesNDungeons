@@ -27,6 +27,19 @@ import {
   type PlayerState,
 } from "../../src/shared/types/core.js";
 
+const ZERO_STATS = {
+  runsEscaped: 0,
+  fullPartyEscapes: 0,
+  wins: 0,
+  emberWardenKills: 0,
+  flawlessEmberWardenKills: 0,
+  teammatesCarriedOut: 0,
+  leverPuzzlesSolved: 0,
+  runsWithoutTorch: 0,
+  itemsBanked: 0,
+  mothRoomsFound: 0,
+};
+
 const PLAYER_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
 const TARGET_ID = "1a2b3c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d";
 const SESSION_ID = "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f";
@@ -299,8 +312,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v40, the version that added coin and scroll conversion", () => {
-    expect(PROTOCOL_VERSION).toBe(40);
+  it("is on protocol v41, the version that added milestone stats and grants", () => {
+    expect(PROTOCOL_VERSION).toBe(41);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -373,6 +386,8 @@ describe("appearance contract", () => {
         bankedItems: [],
         skillStacks: {},
         coin: 0,
+        stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+        earnedMilestones: [],
         runsEscaped: 0,
         runsLost: 0,
       },
@@ -422,6 +437,8 @@ describe("appearance contract", () => {
           bankedItems: [],
           skillStacks: {},
           coin: 0,
+          stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+          earnedMilestones: [],
           runsEscaped: 0,
           runsLost: 0,
         },
@@ -731,6 +748,8 @@ describe("parseServerMessage", () => {
         bankedItems: [],
         skillStacks: { "iron-will": 2 },
         coin: 0,
+        stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
+        earnedMilestones: [],
         runsEscaped: 2,
         runsLost: 1,
       },
@@ -749,6 +768,15 @@ describe("parseServerMessage", () => {
   it("round-trips the progression catalog and an owner's progression state", () => {
     const catalog: ServerMessage = {
       type: "progressionCatalog",
+      milestones: [
+        {
+          id: "seasoned-escapee",
+          name: "Seasoned Escapee",
+          stat: "runsEscaped",
+          threshold: 5,
+          skillId: "emberhardened",
+        },
+      ],
       skills: [
         {
           id: "iron-will",
@@ -784,6 +812,8 @@ describe("parseServerMessage", () => {
       activeSkillStacks: { "iron-will": 3, torchbearer: 1 },
       coin: 12,
       runCoin: 4,
+      stats: { ...ZERO_STATS, runsEscaped: 5, itemsBanked: 9 },
+      earnedMilestones: ["seasoned-escapee"],
     };
 
     for (const message of [catalog, state]) {
@@ -802,6 +832,8 @@ describe("parseServerMessage", () => {
           activeSkillStacks: {},
           coin: 0,
           runCoin: 0,
+          stats: ZERO_STATS,
+          earnedMilestones: [],
           ...fields,
         }),
       );
@@ -817,9 +849,14 @@ describe("parseServerMessage", () => {
       perStackEffects: [],
     };
     const catalog = (fields: Record<string, unknown>) =>
-      parseServerMessage(JSON.stringify({ type: "progressionCatalog", skills: [{ ...skill, ...fields }] }));
+      parseServerMessage(JSON.stringify({ type: "progressionCatalog", milestones: [], skills: [{ ...skill, ...fields }] }));
 
     expect(update({}).ok).toBe(true);
+    expect(update({ stats: undefined }).ok).toBe(false);
+    expect(update({ stats: { ...ZERO_STATS, wins: -1 } }).ok).toBe(false);
+    expect(update({ stats: { ...ZERO_STATS, wins: 1.5 } }).ok).toBe(false);
+    expect(update({ earnedMilestones: undefined }).ok).toBe(false);
+    expect(update({ earnedMilestones: ["Not A Slug"] }).ok).toBe(false);
     expect(update({ skillStacks: { "Not A Slug": 1 } }).ok).toBe(false);
     expect(update({ runSkillStacks: { "iron-will": 0 } }).ok).toBe(false);
     expect(update({ activeSkillStacks: { "iron-will": 1.5 } }).ok).toBe(false);

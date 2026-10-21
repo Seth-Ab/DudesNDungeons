@@ -7,8 +7,11 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll, skill stacks). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v40.
-- Last completed work: profile coin, a per-player run purse credited with an escape reward on extraction
+  everyone to the hub under protocol v41.
+- Last completed work: milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
+  kills, flawless kills, teammates carried out, lever puzzles solved, runs without a torch, items banked,
+  moth room) credited to players who extract, and milestone content that grants a skill stack once (issue
+  #215, protocol v41); earlier, profile coin, a per-player run purse credited with an escape reward on extraction
   and lost otherwise, and confirmed conversion of a max-stack scroll to coin, with a small HUD
   readout and confirmation prompt (issue #214, protocol v40); earlier, a scroll for every skill (Torchbearer and Lever Sense join Iron Will),
   enforced by a content test, and rare skill-scroll drops from every ordinary monster, about one
@@ -56,7 +59,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: milestones (#215) and the hub skill shop (#216), which the rest of the economy
+- Next recommended step: the hub skill shop (#216), which the rest of the economy
   (#217) and Frontend step 10 (#25) build on, alongside a wider item catalog, combat depth,
   and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
@@ -319,7 +322,7 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 
 Identity and persistence landed on 2026-09-20 under protocol v9. The first skill-scroll slice landed
 under protocol v10, skill stacking under protocol v39 (#213), and coin under protocol v40 (#214); the
-full catalog, the shop and UI remain. The economy is decided (#23, decision 0014) and split into #213-#217.
+full catalog, the shop and UI remain. Milestones landed under protocol v41 (#215). The economy is decided (#23, decision 0014) and split into #213-#217.
 
 - [x] Add a player profile holding banked items and skill stacks. `src/server/profiles/`.
   `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
@@ -343,7 +346,11 @@ full catalog, the shop and UI remain. The economy is decided (#23, decision 0014
   (including a carried downed player) and discards otherwise, and a `convertSkillScroll { itemId }`
   intent turns a scroll at its skill's `maxStacks` into that skill's `conversionCoin` (purse in a
   dungeon, profile in the hub); the client opens a confirmation when `useItem` is refused as
-  `skillMaxed`. Remaining: milestones (#215), the skill shop (#216), and puzzle effects. Since #217 every
+  `skillMaxed`. Since #215 a profile also holds `stats` and `earnedMilestones`: `returnToHub` credits each
+  extractor's run stats (`src/server/game/milestones.ts`) and a `content/milestones/` entry whose stat
+  reaches its threshold grants one permanent stack of its skill once; a skill with prerequisites is
+  refused at load. The hidden moth room does not exist yet, so `mothRoomsFound` stays at zero until a
+  room sets `runStats.mothRoomFound`. Remaining: the skill shop (#216), and puzzle effects. Since #217 every
   skill has a scroll and ordinary monsters drop them rarely, alongside the Warden and vault chest. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
   `requires` and per-stack effects) and live stacks (`progressionUpdated`: permanent, run and
   active), first under protocol v15 (#24).
@@ -564,6 +571,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Milestone stats on profiles and milestone skill grants, with Emberhardened as the first milestone skill (#215, protocol v41).
 - 2026-10-21: Profile coin, the run purse with an escape reward, and confirmed conversion of max-stack scrolls to coin (#214, protocol v40).
 - 2026-10-21: A scroll for every skill (Torchbearer, Lever Sense) and rare scroll drops from ordinary monsters (#217).
 - 2026-10-21: Skills stack up to a per-skill `maxStacks` and may require other skills; Iron Will's upgrades become its stacks 2-3, `content/upgrades/` is retired, profiles migrate to `skillStacks` (#213, protocol v39).
