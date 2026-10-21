@@ -1,0 +1,8 @@
+{
+  "id": "bonefire",
+  "slot": "flame",
+  "rarity": "legendary",
+  "name": "Bonefire",
+  "lore": "A pale flame for old hands.",
+  "milestone": { "stat": "runsEscaped", "threshold": 50 }
+}

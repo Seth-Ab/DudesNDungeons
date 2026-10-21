@@ -1,6 +1,9 @@
 import type { CosmeticSlot } from "../../../shared/types/core.js";
 import { createCharacterPreview, drawPartyRing } from "../../rendering/characterPreview.js";
 import { CHARACTER_FRAME_HEIGHT, CHARACTER_FRAME_WIDTH, type CharacterLook } from "../../rendering/characters.js";
+import { flameHaloTint, flameSwaps } from "../../rendering/flames.js";
+import { loadTileset } from "../../rendering/tileset.js";
+import { TRAIL_PIXEL, trailPalette, trailPixels, type TrailSwing } from "../../rendering/trails.js";
 import { RARITY_COLOURS, type WardrobeCardView, type WardrobeView } from "../../state/wardrobe.js";
 
 interface WardrobeOptions {
@@ -10,6 +13,26 @@ interface WardrobeOptions {
 
 /** Screen pixels per art pixel in the preview. */
 const PREVIEW_SCALE = 6;
+
+/** The trail and flame preview, in art pixels: wide enough for a whole swing. */
+const EFFECT_WIDTH = 24;
+const EFFECT_HEIGHT = 16;
+
+/**
+ * The demonstration swing a trail is tried on: an overhead slash from the hand at the left of the
+ * preview. Slower than a real swing, so the trail can be seen; a real one is drawn in the world.
+ */
+const PREVIEW_PIVOT = { x: 5, y: 13 };
+const PREVIEW_SWING = { heading: -0.75, halfArc: 0.85, range: 11 * TRAIL_PIXEL };
+const PREVIEW_SWING_MS = 700;
+const PREVIEW_CYCLE_MS = 1000;
+
+/** The blade drawn along the slash's leading edge: grip, guard, steel and a bright tip. */
+function bladeColour(distance: number): string {
+  if (distance < 3) return "#8c6a2a";
+  if (distance < 4) return "#4e535a";
+  return distance > 10 ? "#e6eaf0" : "#9aa1ab";
+}
 
 /**
  * The wardrobe at the Wardrobe stall: a tab per slot, a card per item with its rarity, how it is
@@ -47,9 +70,16 @@ export function createWardrobe(options: WardrobeOptions) {
   turnButton.className = "hud__wardrobe-turn";
   turnButton.textContent = "Show back";
 
+  const effect = document.createElement("canvas");
+  effect.className = "hud__wardrobe-preview hud__wardrobe-effect";
+  effect.width = EFFECT_WIDTH * PREVIEW_SCALE;
+  effect.height = EFFECT_HEIGHT * PREVIEW_SCALE;
+  effect.setAttribute("role", "img");
+  effect.hidden = true;
+
   const stage = document.createElement("div");
   stage.className = "hud__wardrobe-stage";
-  stage.append(canvas, turnButton);
+  stage.append(canvas, turnButton, effect);
 
   const tabList = document.createElement("div");
   tabList.className = "hud__wardrobe-tabs";
@@ -90,6 +120,7 @@ export function createWardrobe(options: WardrobeOptions) {
   let drawn = "";
 
   const preview = createCharacterPreview(() => paintPreview());
+  const tileset = loadTileset(() => paintEffect(performance.now()));
 
   function previewLook(): CharacterLook | null {
     if (!look || !current) return null;
@@ -109,8 +140,83 @@ export function createWardrobe(options: WardrobeOptions) {
     preview.draw(ctx, shown, { facing, mirror: false, pose: "stand", blinking: false }, 0, 0, PREVIEW_SCALE);
   }
 
-  const loop = (): void => {
+  /** What the open tab's slot is showing: the tried-on card, or what is worn. */
+  function shownInSlot(): string | null {
+    if (trying.has(slot)) return trying.get(slot) ?? null;
+    return current?.equipped[slot] ?? null;
+  }
+
+  /** A trail on a looping demonstration swing, drawn with the same pixels as the world's. */
+  function paintTrail(ctx: CanvasRenderingContext2D, now: number): void {
+    const elapsed = now % PREVIEW_CYCLE_MS;
+    const progress = Math.min(1, elapsed / PREVIEW_SWING_MS);
+    const swing: TrailSwing = {
+      ...PREVIEW_SWING,
+      origin: { x: PREVIEW_PIVOT.x * TRAIL_PIXEL, y: PREVIEW_PIVOT.y * TRAIL_PIXEL },
+      progress,
+      seed: Math.floor(now / PREVIEW_CYCLE_MS),
+    };
+    const palette = trailPalette(shownInSlot());
+    if (palette && progress < 1) {
+      for (const pixel of trailPixels(swing, palette)) {
+        ctx.globalAlpha = pixel.alpha;
+        ctx.fillStyle = pixel.colour;
+        ctx.fillRect(
+          Math.round(pixel.x / TRAIL_PIXEL) * PREVIEW_SCALE,
+          Math.round(pixel.y / TRAIL_PIXEL) * PREVIEW_SCALE,
+          PREVIEW_SCALE,
+          PREVIEW_SCALE,
+        );
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    const sweep = Math.min(1, progress * 2);
+    const angle = swing.heading - swing.halfArc + swing.halfArc * 2 * sweep;
+    for (let distance = 1; distance <= 11; distance += 0.5) {
+      ctx.fillStyle = bladeColour(distance);
+      ctx.fillRect(
+        Math.round(PREVIEW_PIVOT.x + Math.cos(angle) * distance) * PREVIEW_SCALE,
+        Math.round(PREVIEW_PIVOT.y + Math.sin(angle) * distance) * PREVIEW_SCALE,
+        PREVIEW_SCALE,
+        PREVIEW_SCALE,
+      );
+    }
+  }
+
+  /** The torch flame, recoloured exactly as a carried torch is in the world, with its halo. */
+  function paintFlame(ctx: CanvasRenderingContext2D): void {
+    if (!tileset.ready) return;
+    const flameId = shownInSlot();
+    const size = EFFECT_HEIGHT * PREVIEW_SCALE;
+    const left = (effect.width - size) / 2;
+    const tint = flameHaloTint(flameId);
+    if (tint) {
+      const halo = ctx.createRadialGradient(effect.width / 2, size / 2, 0, effect.width / 2, size / 2, size * 0.6);
+      halo.addColorStop(0, tint);
+      halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, effect.width, effect.height);
+    }
+    tileset.drawSwapped(ctx, "torch-flame", flameId ?? "hearth", flameSwaps(flameId), left, 0, size, size);
+  }
+
+  function paintEffect(now: number): void {
+    const showing = slot === "trail" || slot === "flame";
+    effect.hidden = !showing;
+    if (!showing) return;
+    effect.setAttribute("aria-label", slot === "trail" ? "The picked trail on a sword swing" : "Your torch in the picked flame");
+    const ctx = effect.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, effect.width, effect.height);
+    if (slot === "trail") paintTrail(ctx, now);
+    else paintFlame(ctx);
+  }
+
+  const loop = (now: number): void => {
     paintPreview();
+    paintEffect(now);
     frame = requestAnimationFrame(loop);
   };
 

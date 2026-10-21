@@ -10,8 +10,9 @@ import { contentForSession } from "./progression.js";
 import { rotatingStock } from "./shop.js";
 
 /**
- * Cosmetics (decision 0014, #128): hats, cloaks and dyes a profile owns for good and wears in the
- * hub. They change how a player looks and nothing else, so nothing here touches gameplay state.
+ * Cosmetics (decision 0014, #128, #138): hats, cloaks, dyes, trails and flames a profile owns for
+ * good and wears in the hub. They change how a player looks and nothing else, so nothing here
+ * touches gameplay state.
  *
  * Ownership and what is worn live on the profile, never the session or the run, which is why a
  * death or a wipe cannot take them and a restart keeps them.

@@ -679,7 +679,8 @@ export const cosmeticRaritySchema = z.enum(COSMETIC_RARITIES);
 export type CosmeticRarity = z.infer<typeof cosmeticRaritySchema>;
 
 /**
- * The cosmetic content id worn in each slot, or null for none. A null dye wears the party colour.
+ * The cosmetic content id worn in each slot, or null for none. A null dye wears the party colour,
+ * a null trail draws only the swing, and a null flame is the default hearth flame.
  * Strict, so a slot added later is a protocol change rather than a field quietly dropped.
  */
 export const equippedCosmeticsSchema = z
@@ -687,12 +688,14 @@ export const equippedCosmeticsSchema = z
     hat: contentIdSchema.nullable(),
     cloak: contentIdSchema.nullable(),
     dye: contentIdSchema.nullable(),
+    trail: contentIdSchema.nullable(),
+    flame: contentIdSchema.nullable(),
   })
   .strict();
 export type EquippedCosmetics = z.infer<typeof equippedCosmeticsSchema>;
 
 /** Nothing worn: where a new profile, or one older than cosmetics, starts. */
-export const NO_COSMETICS: EquippedCosmetics = { hat: null, cloak: null, dye: null };
+export const NO_COSMETICS: EquippedCosmetics = { hat: null, cloak: null, dye: null, trail: null, flame: null };
 
 /**
  * A profile as its owner sees it, sent on join and to nobody else.

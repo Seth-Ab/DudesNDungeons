@@ -383,7 +383,7 @@ describe("cosmetics", () => {
 
   it("builds a player's look from their design, party colour and what they wear", () => {
     const appearance = { body: "girl", skinTone: "tan", hairStyle: "bun", hairColor: "moss" } as const;
-    const cosmetics = { hat: "wizard-hat", cloak: null, dye: "bone-dye" };
+    const cosmetics = { hat: "wizard-hat", cloak: null, dye: "bone-dye", trail: null, flame: null };
 
     expect(lookOf({ appearance, partyColor: "plum", cosmetics })).toEqual({
       ...appearance,

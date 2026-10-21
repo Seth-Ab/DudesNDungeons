@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { PlayerName, ProfileId, ProfileSecret } from "../../shared/types/core.js";
+import { NO_COSMETICS, type PlayerName, type ProfileId, type ProfileSecret } from "../../shared/types/core.js";
 import {
   createMilestoneStats,
   STARTER_COSMETIC_IDS,
@@ -129,7 +129,7 @@ export class ProfileStore {
       stats: createMilestoneStats(),
       earnedMilestones: [],
       ownedCosmeticIds: [...STARTER_COSMETIC_IDS],
-      equippedCosmetics: { hat: null, cloak: null, dye: null },
+      equippedCosmetics: { ...NO_COSMETICS },
       runsEscaped: 0,
       runsLost: 0,
       createdAt: at,

@@ -1,6 +1,6 @@
 import { COSMETIC_SLOTS } from "../../shared/constants/cosmetics.js";
 import type { WardrobeEntry } from "../../shared/protocol/index.js";
-import type { CosmeticRarity, CosmeticSlot, EquippedCosmetics } from "../../shared/types/core.js";
+import { NO_COSMETICS, type CosmeticRarity, type CosmeticSlot, type EquippedCosmetics } from "../../shared/types/core.js";
 import { selfOf, type SessionView } from "../network/sessionState.js";
 import { MILESTONE_STAT_LABELS } from "./skillsView.js";
 
@@ -9,6 +9,8 @@ export const WARDROBE_TAB_LABELS: Record<CosmeticSlot, string> = {
   hat: "Hats",
   cloak: "Cloaks",
   dye: "Outfit dyes",
+  trail: "Weapon trails",
+  flame: "Torch flames",
 };
 
 /** A card's border and rarity line, from the sprite bible's `RARITY`. */
@@ -50,11 +52,16 @@ export interface WardrobeView {
   notice: string | null;
 }
 
-/** The card a slot shows for wearing nothing. Always owned; a dye's "nothing" is the party colour. */
+/**
+ * The card a slot shows for wearing nothing. Always owned; a dye's "nothing" is the party colour and
+ * a flame's is the hearth flame every torch starts with.
+ */
 const EMPTY_CARDS: Record<CosmeticSlot, { name: string; lore: string }> = {
   hat: { name: "No hat", lore: "Just your hair." },
   cloak: { name: "No cloak", lore: "Travel light." },
   dye: { name: "Party colour", lore: "What everyone starts in." },
+  trail: { name: "No trail", lore: "Just the swing." },
+  flame: { name: "Hearth Flame", lore: "The torch you know." },
 };
 
 function howToGet(entry: WardrobeEntry, stats: Record<string, number> | null): string[] {
@@ -78,7 +85,7 @@ function howToGet(entry: WardrobeEntry, stats: Record<string, number> | null): s
  */
 export function wardrobeView(view: SessionView): WardrobeView {
   const self = selfOf(view);
-  const equipped = self?.cosmetics ?? { hat: null, cloak: null, dye: null };
+  const equipped = self?.cosmetics ?? NO_COSMETICS;
   const progression = view.progression;
   const owned = new Set(progression?.ownedCosmeticIds ?? []);
   const coin = progression?.coin ?? 0;

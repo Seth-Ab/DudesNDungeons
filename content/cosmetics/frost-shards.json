@@ -1,0 +1,9 @@
+{
+  "id": "frost-shards",
+  "slot": "trail",
+  "rarity": "rare",
+  "name": "Frost Shards",
+  "lore": "Cold enough to see, never cold enough to slow.",
+  "price": 50,
+  "rotating": true
+}

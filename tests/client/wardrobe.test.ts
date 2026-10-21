@@ -61,7 +61,7 @@ function self(cosmetics: EquippedCosmetics): PlayerState {
   };
 }
 
-function view(cosmetics: EquippedCosmetics = { hat: null, cloak: null, dye: null }, owned: string[] = []): SessionView {
+function view(cosmetics: EquippedCosmetics = { hat: null, cloak: null, dye: null, trail: null, flame: null }, owned: string[] = []): SessionView {
   return {
     ...initialSessionView,
     selfId: SELF_ID,
@@ -78,8 +78,14 @@ describe("the wardrobe view", () => {
   it("has a tab per slot, each led by a card for wearing nothing", () => {
     const wardrobe = wardrobeView(view());
 
-    expect(wardrobe.tabs.map((tab) => tab.label)).toEqual(["Hats", "Cloaks", "Outfit dyes"]);
-    expect(wardrobe.tabs.map((tab) => tab.cards[0]!.name)).toEqual(["No hat", "No cloak", "Party colour"]);
+    expect(wardrobe.tabs.map((tab) => tab.label)).toEqual(["Hats", "Cloaks", "Outfit dyes", "Weapon trails", "Torch flames"]);
+    expect(wardrobe.tabs.map((tab) => tab.cards[0]!.name)).toEqual([
+      "No hat",
+      "No cloak",
+      "Party colour",
+      "No trail",
+      "Hearth Flame",
+    ]);
     expect(wardrobe.coin).toBe(40);
   });
 
@@ -99,12 +105,12 @@ describe("the wardrobe view", () => {
   });
 
   it("marks what is worn, offers to take it off, and lets the empty card clear the slot", () => {
-    const wardrobe = wardrobeView(view({ hat: "feathered-cap", cloak: null, dye: null }, ["feathered-cap"]));
+    const wardrobe = wardrobeView(view({ hat: "feathered-cap", cloak: null, dye: null, trail: null, flame: null }, ["feathered-cap"]));
 
     expect(card(wardrobe, "hat", "feathered-cap")).toMatchObject({ equipped: true, action: "unequip" });
     expect(card(wardrobe, "hat", null)).toMatchObject({ equipped: false, action: "equip" });
     expect(card(wardrobe, "cloak", null)).toMatchObject({ equipped: true, action: "none" });
-    expect(wardrobe.equipped).toEqual({ hat: "feathered-cap", cloak: null, dye: null });
+    expect(wardrobe.equipped).toEqual({ hat: "feathered-cap", cloak: null, dye: null, trail: null, flame: null });
   });
 
   it("folds in the catalogue, ownership and the server's refusal", () => {

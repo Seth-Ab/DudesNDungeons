@@ -45,7 +45,7 @@ function player(id: string, x: number): PlayerState {
     readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
-    cosmetics: { hat: null, cloak: null, dye: null },
+    cosmetics: { hat: null, cloak: null, dye: null, trail: null, flame: null },
     bankedItems: [],
   };
 }

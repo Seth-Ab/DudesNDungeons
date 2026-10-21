@@ -64,8 +64,8 @@ const snapshotOf = (player: SessionPlayer) => ({
 });
 
 describe("the shipped catalogue", () => {
-  it("has hats, cloaks and dyes, each obtainable some way", () => {
-    expect(new Set(cosmetics.map((cosmetic) => cosmetic.slot))).toEqual(new Set(["hat", "cloak", "dye"]));
+  it("has hats, cloaks, dyes, trails and flames, each obtainable some way", () => {
+    expect(new Set(cosmetics.map((cosmetic) => cosmetic.slot))).toEqual(new Set(["hat", "cloak", "dye", "trail", "flame"]));
     for (const cosmetic of cosmetics) {
       expect(cosmetic.starter || cosmetic.price !== undefined || cosmetic.milestone !== undefined, cosmetic.id).toBe(true);
     }
@@ -92,7 +92,7 @@ describe("the shipped catalogue", () => {
     expect(cosmeticDefinitionSchema.safeParse(base).success).toBe(false);
     expect(cosmeticDefinitionSchema.safeParse({ ...base, starter: true, rotating: true }).success).toBe(false);
     expect(cosmeticDefinitionSchema.safeParse({ ...base, price: 10, rotating: true }).success).toBe(true);
-    expect(cosmeticDefinitionSchema.safeParse({ ...base, price: 10, slot: "trail" }).success).toBe(false);
+    expect(cosmeticDefinitionSchema.safeParse({ ...base, price: 10, slot: "aura" }).success).toBe(false);
   });
 });
 
@@ -148,7 +148,7 @@ describe("buying a cosmetic", () => {
 
     expect(player.profile.coin).toBe(200 - FIXED.price!);
     expect(player.profile.ownedCosmeticIds).toContain(FIXED.id);
-    expect(player.profile.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null });
+    expect(player.profile.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null, trail: null, flame: null });
     expect(player.profile.revision).toBeGreaterThan(revision);
   });
 
@@ -222,8 +222,8 @@ describe("equipping a cosmetic", () => {
     expect(equipCosmetic(session, "alpha", "hat", "leather-cap")).toEqual({ ok: true });
     expect(equipCosmetic(session, "alpha", "cloak", "night-cloak")).toEqual({ ok: true });
 
-    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null });
-    expect(toPlayerState(player, session).cosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null });
+    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null });
+    expect(toPlayerState(player, session).cosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null });
   });
 
   it("swaps one item in a slot for another, and takes a slot off with null", () => {
@@ -237,6 +237,24 @@ describe("equipping a cosmetic", () => {
 
     expect(equipCosmetic(session, "alpha", "hat", null)).toEqual({ ok: true });
     expect(player.profile.equippedCosmetics.hat).toBeNull();
+  });
+
+  it("wears a trail and a flame in their own slots, and shows them to the party", () => {
+    const player = shopper({ position: IN_HEARTH });
+    player.profile.ownedCosmeticIds.push("ember-sparks", "spirit-flame");
+    const session = hubWith(player);
+
+    expect(equipCosmetic(session, "alpha", "trail", "ember-sparks")).toEqual({ ok: true });
+    expect(equipCosmetic(session, "alpha", "flame", "spirit-flame")).toEqual({ ok: true });
+    expect(equipCosmetic(session, "alpha", "trail", "spirit-flame")).toEqual({ ok: false, reason: "unknownCosmetic" });
+
+    expect(toPlayerState(player, session).cosmetics).toEqual({
+      hat: null,
+      cloak: null,
+      dye: null,
+      trail: "ember-sparks",
+      flame: "spirit-flame",
+    });
   });
 
   type Equip = Parameters<typeof equipCosmetic>;
@@ -270,20 +288,20 @@ describe("keeping cosmetics", () => {
   it("leaves what is owned and worn alone through a death, a wipe and an escape", () => {
     const player = shopper();
     player.profile.ownedCosmeticIds.push("night-cloak");
-    player.profile.equippedCosmetics = { hat: "leather-cap", cloak: "night-cloak", dye: null };
+    player.profile.equippedCosmetics = { hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null };
     const owned = [...player.profile.ownedCosmeticIds];
 
     const wiped = testSession([player], "vault-run");
     player.health = 0;
     returnToHub(wiped, false);
-    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null });
+    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null });
     expect(player.profile.ownedCosmeticIds).toEqual(owned);
 
     player.health = 100;
     const escaped = testSession([player], "vault-run");
     beginRunStats(player);
     returnToHub(escaped, true);
-    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null });
+    expect(player.profile.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null });
   });
 
   it("survives a server restart", () => {
@@ -291,21 +309,21 @@ describe("keeping cosmetics", () => {
     const before = new ProfileStore({ storage, createProfileId: () => PROFILE_ID });
     const { profile, secret } = before.create("Grix");
     profile.ownedCosmeticIds.push("night-cloak");
-    profile.equippedCosmetics = { hat: "leather-cap", cloak: "night-cloak", dye: null };
+    profile.equippedCosmetics = { hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null };
     profile.revision += 1;
     before.flush();
 
     const after = new ProfileStore({ storage }).find(secret)!;
 
     expect(after.ownedCosmeticIds).toEqual(["leather-cap", "traveler-cape", "night-cloak"]);
-    expect(after.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null });
+    expect(after.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: "night-cloak", dye: null, trail: null, flame: null });
   });
 
   it("gives a new profile the starter items, wearing nothing", () => {
     const { profile } = new ProfileStore().create("Grix");
 
     expect(profile.ownedCosmeticIds).toEqual([...STARTER_COSMETIC_IDS]);
-    expect(profile.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null });
+    expect(profile.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null, trail: null, flame: null });
   });
 
   it("loads a profile written before cosmetics with the starter items owned and nothing worn", () => {
@@ -319,7 +337,19 @@ describe("keeping cosmetics", () => {
     const parsed = persistedProfileSchema.parse({ ...stored, id: PROFILE_ID });
 
     expect(parsed.ownedCosmeticIds).toEqual([...STARTER_COSMETIC_IDS]);
-    expect(parsed.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null });
+    expect(parsed.equippedCosmetics).toEqual({ hat: null, cloak: null, dye: null, trail: null, flame: null });
+  });
+
+  it("loads a profile written before trails and flames wearing none, keeping the rest", () => {
+    const { revision: _revision, ...stored } = testProfile("older");
+
+    const parsed = persistedProfileSchema.parse({
+      ...stored,
+      id: PROFILE_ID,
+      equippedCosmetics: { hat: "leather-cap", cloak: null, dye: "bone-dye" },
+    });
+
+    expect(parsed.equippedCosmetics).toEqual({ hat: "leather-cap", cloak: null, dye: "bone-dye", trail: null, flame: null });
   });
 
   it("adds the starters to a stored profile that somehow lacks them, keeping what it had", () => {

@@ -1,3 +1,4 @@
+import { recolourPixels } from "./characters.js";
 import { spriteRect, type SpriteName } from "./tiles.js";
 
 /**
@@ -31,10 +32,44 @@ export interface Tileset {
     width: number,
     height: number,
   ): void;
+  /**
+   * Stamps a sprite with some of its colours swapped, as `recolourPixels` takes them. `swapKey`
+   * names the swap, so each recoloured sprite is built once and reused.
+   */
+  drawSwapped(
+    ctx: CanvasRenderingContext2D,
+    name: SpriteName,
+    swapKey: string,
+    swaps: ReadonlyMap<number, number>,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void;
 }
 
 export function loadTileset(onReady?: () => void): Tileset {
   let sheet: CanvasImageSource | null = null;
+  const swapped = new Map<string, HTMLCanvasElement>();
+
+  const swappedSprite = (name: SpriteName, swapKey: string, swaps: ReadonlyMap<number, number>) => {
+    const key = `${name}|${swapKey}`;
+    const cached = swapped.get(key);
+    if (cached || !sheet) return cached ?? null;
+
+    const rect = spriteRect(name);
+    const canvas = document.createElement("canvas");
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(sheet, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+    const pixels = context.getImageData(0, 0, rect.width, rect.height);
+    recolourPixels(pixels.data, swaps);
+    context.putImageData(pixels, 0, 0);
+    swapped.set(key, canvas);
+    return canvas;
+  };
 
   const image = new Image();
   image.decoding = "async";
@@ -76,6 +111,14 @@ export function loadTileset(onReady?: () => void): Tileset {
         Math.round(x + width) - left,
         Math.round(y + height) - top,
       );
+    },
+
+    drawSwapped(ctx, name, swapKey, swaps, x, y, width, height): void {
+      const sprite = swappedSprite(name, swapKey, swaps);
+      if (!sprite) return;
+      const left = Math.round(x);
+      const top = Math.round(y);
+      ctx.drawImage(sprite, left, top, Math.round(x + width) - left, Math.round(y + height) - top);
     },
   };
 }

@@ -1,4 +1,4 @@
-import type { Vector2 } from "../../shared/types/core.js";
+import type { LightSourceState, Vector2 } from "../../shared/types/core.js";
 import { KNOWN_FLOOR, KNOWN_WALL, LIT_WALL, UNKNOWN } from "./tiles.js";
 
 /**
@@ -19,6 +19,37 @@ import { KNOWN_FLOOR, KNOWN_WALL, LIT_WALL, UNKNOWN } from "./tiles.js";
 export interface SceneLight {
   position: Vector2;
   radius: number;
+}
+
+/** Someone a carried torch can follow: its light shares their id. */
+export interface LightBearer {
+  id: string;
+  /** Where they are drawn this frame, which is where their torch is. */
+  position: Vector2;
+}
+
+/**
+ * Where each light in the snapshot stands this frame, and how far it reaches: the lightmap's whole
+ * input. Nothing about how a light is drawn, a cosmetic flame included, can reach it.
+ *
+ * A carried torch follows its bearer as drawn, not as last sent: the local player is drawn at
+ * the predicted position and remote players are interpolated, so a torch pinned to the snapshot
+ * position would leave the pool of light trailing a step behind whoever carries it.
+ */
+export function sceneLights(
+  lights: readonly LightSourceState[],
+  self: LightBearer | null,
+  others: readonly LightBearer[],
+  now: number,
+): SceneLight[] {
+  return lights.map((light) => {
+    if (light.kind !== "carriedTorch") {
+      return { position: light.position, radius: light.radius * flickerFactor(light.id, now, light.flicker ?? 0) };
+    }
+    if (self && light.id === self.id) return { position: self.position, radius: light.radius };
+    const bearer = others.find((player) => player.id === light.id);
+    return { position: bearer ? bearer.position : light.position, radius: light.radius };
+  });
 }
 
 /**

@@ -71,6 +71,10 @@ export function damagePopup(
 }
 
 export interface SwingArc {
+  /** Who swung, so the renderer can draw the trail they wear. */
+  attackerId: string;
+  /** Stable for the whole swing, so anything random drawn on it is the same every frame. */
+  seed: number;
   origin: Vector2;
   /** Direction of the arc's centre line, in radians. */
   heading: number;
@@ -98,6 +102,8 @@ export function swingArc(view: SessionView, attack: AttackRecord): SwingArc | nu
 
   const hit = attack.targetId !== null && attack.damage > 0;
   return {
+    attackerId: attack.attackerId,
+    seed: attack.seq,
     origin: swing.origin,
     heading: Math.atan2(swing.facing.y, swing.facing.x),
     halfArc: Math.acos(Math.min(Math.max(swing.arcCos, -1), 1)),
