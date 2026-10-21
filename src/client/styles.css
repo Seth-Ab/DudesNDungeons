@@ -548,7 +548,7 @@ button:disabled {
 /* The bow's draw meter above the hotbar: fill length, an end tick, and a label at full draw. */
 .hud__draw {
   position: absolute;
-  bottom: 6rem;
+  bottom: 7.5rem;
   left: 50%;
   width: 9rem;
   transform: translateX(-50%);
