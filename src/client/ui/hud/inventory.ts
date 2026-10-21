@@ -2,9 +2,9 @@ import { bankEntries } from "../../state/hudView.js";
 import type { PlayerState } from "../../../shared/types/core.js";
 
 /**
- * The Stash: what survived past escapes, in a panel opened from the camp menu instead of text that
- * is always on screen. Escape or its Close button shuts it. The item slots and torch live in the
- * hotbar.
+ * The Stash: the legacy personal bank, what escapes banked before the party vault replaced it, in a
+ * panel opened from the camp menu. Read-only: nothing is added to it any more and nothing can be
+ * taken out. Escape or its Close button shuts it. The item slots and torch live in the hotbar.
  */
 export function createInventory() {
   const heading = document.createElement("p");
@@ -13,7 +13,7 @@ export function createInventory() {
 
   const hint = document.createElement("p");
   hint.className = "hud__stash-hint";
-  hint.textContent = "Banked this session";
+  hint.textContent = "Old personal bank, read-only";
 
   const bank = document.createElement("ul");
   bank.className = "hud__bank";

@@ -115,13 +115,24 @@ Upgrade acquisition and the full progression UI remain in Backend Step 11 and Fr
 See `content/README.md` for the supported shapes and relationships.
 
 Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no
-torch is issued automatically. Escaping banks a standing player's inventory, while a downed player
-or a full-party wipe loses current carried items.
+torch is issued automatically. Escaping deposits every survivor's carry, including a downed player
+being carried out, into the party vault, while a downed player left behind or a full-party wipe loses
+current carried items.
+
+## Party Vault
+
+The vault belongs to the room code rather than to a player: everyone in the room sees it and may
+take from it or store in it while standing in the hub's Bank, around the Bank stall. Vaults live in
+`data/vaults.json`, beside the profiles and relocated by the same `DATA_DIR`. A new room starts with
+an empty vault, a room code with a saved vault is never given to a new room, and joining a saved
+room's code after its session ended, or after a restart, reopens it in the hub with its vault. Like
+the profile file, an unreadable `data/vaults.json` stops the server rather than being overwritten.
 
 ## Player Profiles
 
-Banked items and unlocked skills belong to a profile, which outlives both the session and the
-server. Profiles live in `data/profiles.json`, which `DATA_DIR` relocates.
+Unlocked skills belong to a profile, which outlives both the session and the server, as do items
+banked before the party vault replaced the personal bank; those are kept as a read-only list.
+Profiles live in `data/profiles.json`, which `DATA_DIR` relocates.
 
 Identity is device-local, per the recorded checkpoint: real accounts are deferred. On a first join
 the server issues a profile secret, sends it once, and keeps only a SHA-256 hash of it. The browser

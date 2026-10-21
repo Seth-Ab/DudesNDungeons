@@ -1014,6 +1014,76 @@ describe("hub and run lifecycle", () => {
   });
 });
 
+describe("party vault", () => {
+  const SCROLL = {
+    id: "c1111111-1111-4111-8111-111111111111",
+    name: "Scroll of Iron Will",
+    kind: "skillScroll",
+    skillId: "iron-will",
+  } as const;
+
+  /** Puts a player inside the hub's vault room, which the server checks every take and store against. */
+  function standAtVault(roomCode: string, playerId: string): void {
+    const session = server.store.getSession(roomCode)!;
+    const room = session.dungeon.rooms.find((candidate) => candidate.kind === "vault")!;
+    session.players.get(playerId)!.position = { x: room.x + 1, y: room.y + 1 };
+  }
+
+  it("shows two players the same vault, and one player's withdrawal leaves the other's list", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    standAtVault(roomCode, alpha.joined.playerId);
+    standAtVault(roomCode, beta.joined.playerId);
+    server.store.getSession(roomCode)!.players.get(alpha.joined.playerId)!.inventory = [{ ...SCROLL }];
+
+    alpha.client.send({ type: "depositVaultItem", itemId: SCROLL.id });
+    const [seenByAlpha, seenByBeta] = await Promise.all([
+      alpha.client.nextWhere("partyVault", (message) => message.items.length === 1),
+      beta.client.nextWhere("partyVault", (message) => message.items.length === 1),
+    ]);
+    expect(seenByAlpha.items).toEqual([SCROLL]);
+    expect(seenByBeta.items).toEqual(seenByAlpha.items);
+    // Each joined to an empty vault: a new room starts with nothing in it.
+    expect(alpha.client.received("partyVault")[0]?.items).toEqual([]);
+    expect(beta.client.received("partyVault")[0]?.items).toEqual([]);
+
+    beta.client.send({ type: "withdrawVaultItem", itemId: SCROLL.id });
+    await Promise.all([
+      alpha.client.nextWhere("partyVault", (message) => message.items.length === 0),
+      beta.client.nextWhere("partyVault", (message) => message.items.length === 0),
+    ]);
+    const carried = await beta.client.nextWhere("stateSnapshot", (message) =>
+      message.players.some((player) => player.id === beta.joined.playerId && player.inventory.length === 1),
+    );
+    expect(carried.players.find((player) => player.id === beta.joined.playerId)?.inventory).toEqual([SCROLL]);
+
+    // The item is gone, so a second taker is refused rather than handed a copy.
+    alpha.client.send({ type: "withdrawVaultItem", itemId: SCROLL.id });
+    expect((await alpha.client.next("actionRejected")).reason).toBe("targetMissing");
+  });
+
+  it("refuses a withdrawal from outside the vault area", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    server.store.getSession(roomCode)!.vault.items.push({ ...SCROLL });
+
+    alpha.client.send({ type: "withdrawVaultItem", itemId: SCROLL.id });
+
+    expect((await alpha.client.next("actionRejected")).reason).toBe("outOfRange");
+    expect(server.store.getSession(roomCode)!.vault.items).toEqual([SCROLL]);
+  });
+
+  it("refuses vault messages from a player still designing their character", async () => {
+    const roomCode = await createRoom();
+    const { client } = await joinRoom(roomCode, "Alpha", undefined, false);
+
+    client.send({ type: "withdrawVaultItem", itemId: SCROLL.id });
+
+    expect((await client.next("actionRejected")).reason).toBe("notPermitted");
+  });
+});
+
 describe("handing items over", () => {
   it("hands a tonic between two connected clients, and refuses a full inventory", async () => {
     const roomCode = await createRoom();

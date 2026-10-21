@@ -459,6 +459,8 @@ export const roomKindSchema = z.enum([
   "puzzle",
   "boss",
   "exit",
+  /** Where the party vault is used. Only meaningful in the hub, the one place the vault opens. */
+  "vault",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 

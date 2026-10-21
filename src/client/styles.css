@@ -1645,7 +1645,8 @@ button:disabled {
 
 .hud__tally[hidden],
 .hud__hub-status[hidden],
-.hud__stash[hidden] {
+.hud__stash[hidden],
+.hud__vault[hidden] {
   display: none;
 }
 
@@ -2049,4 +2050,41 @@ button:disabled {
   background: #caa85a;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+/* The party vault at the Bank stall: placed like the Stash, with a Take or Store button per entry. */
+.hud__vault {
+  top: 50%;
+  left: 50%;
+  min-width: 14rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 0.45rem;
+  max-height: min(32rem, calc(100vh - 4rem));
+  overflow-y: auto;
+}
+
+.hud__vault-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__vault-entry {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0.2rem 0.2rem 0.45rem;
+  border: 1px solid var(--hud-frame);
+  background: var(--hud-well);
+  color: var(--hud-text-muted);
+  font-size: 0.78rem;
+}
+
+.hud__vault-entry button {
+  font-size: 0.72rem;
 }

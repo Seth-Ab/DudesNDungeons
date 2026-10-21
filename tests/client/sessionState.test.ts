@@ -137,6 +137,15 @@ describe("party changes", () => {
     expect(view.players.map((p) => p.id)).toEqual([SELF_ID]);
   });
 
+  it("keeps the party vault from partyVault, and starts a fresh join without one", () => {
+    const items = [{ id: "c1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" as const }];
+    let view = applyServerMessage(joinedView(), { type: "partyVault", items });
+    expect(view.vault).toEqual(items);
+
+    view = applyServerMessage(view, { type: "partyVault", items: [] });
+    expect(view.vault).toEqual([]);
+  });
+
   it("keeps the party roster from partyRoster, forgetting a player who leaves", () => {
     const members = [
       { playerId: SELF_ID, name: "Self", partyColor: "ember" as const, connected: true },
@@ -358,12 +367,12 @@ describe("the run lifecycle", () => {
     expect(view.runOutcome).toBeNull();
   });
 
-  it("counts what the player banked when the party returns to the hub", () => {
+  it("counts what the player deposited when the party returns to the hub", () => {
     let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
     view = snapshot(view, 2, "dungeon", player(SELF_ID, { inventory: [key] }));
-    view = snapshot(view, 3, "hub", player(SELF_ID, { bankedItems: [key] }));
+    view = snapshot(view, 3, "hub", player(SELF_ID));
 
-    expect(view.runOutcome).toEqual({ kind: "escaped", banked: 1 });
+    expect(view.runOutcome).toEqual({ kind: "escaped", deposited: 1 });
   });
 
   // The server heals everyone on the way back to the hub, so the snapshot after the transition
@@ -373,16 +382,16 @@ describe("the run lifecycle", () => {
     view = snapshot(view, 2, "dungeon", player(SELF_ID, { health: 0, inventory: [key] }));
     view = snapshot(view, 3, "hub", player(SELF_ID, { health: 100 }));
 
-    expect(view.runOutcome).toEqual({ kind: "lost", banked: 0 });
+    expect(view.runOutcome).toEqual({ kind: "lost", deposited: 0 });
   });
 
   it("keeps the outcome up across later snapshots in the hub", () => {
     let view = snapshot(joinedView(), 1, "hub", player(SELF_ID));
-    view = snapshot(view, 2, "dungeon", player(SELF_ID));
-    view = snapshot(view, 3, "hub", player(SELF_ID, { bankedItems: [key] }));
-    view = snapshot(view, 4, "hub", player(SELF_ID, { bankedItems: [key] }));
+    view = snapshot(view, 2, "dungeon", player(SELF_ID, { inventory: [key] }));
+    view = snapshot(view, 3, "hub", player(SELF_ID));
+    view = snapshot(view, 4, "hub", player(SELF_ID));
 
-    expect(view.runOutcome).toEqual({ kind: "escaped", banked: 1 });
+    expect(view.runOutcome).toEqual({ kind: "escaped", deposited: 1 });
   });
 
   it("puts a refusal in words rather than passing the server's reason through", () => {

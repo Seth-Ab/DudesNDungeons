@@ -24,8 +24,10 @@ import {
   vitalChange,
   roomCodeLabel,
   toastMessages,
+  vaultPanelView,
   vitalsView,
 } from "../state/hudView.js";
+import { inVaultArea } from "../state/runFlow.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
 import { createDrawReadout } from "./hud/drawReadout.js";
@@ -42,6 +44,7 @@ import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
 import { createSession } from "./hud/session.js";
 import { createNoticeStack, createToasts } from "./hud/toasts.js";
+import { createVault } from "./hud/vault.js";
 import { createVitals } from "./hud/vitals.js";
 import { createVoice } from "./hud/voice.js";
 
@@ -59,6 +62,8 @@ interface HudOptions {
   onUseSlot: (slot: number) => void;
   onOpenControls: () => void;
   onOpenEmotes: () => void;
+  onWithdrawVaultItem: (itemId: string) => void;
+  onDepositVaultItem: (itemId: string) => void;
 }
 
 /**
@@ -98,6 +103,10 @@ export function createHud(options: HudOptions) {
   const vitals = createVitals();
   const partyFrames = createPartyFrames();
   const inventory = createInventory();
+  const vault = createVault({
+    onWithdraw: options.onWithdrawVaultItem,
+    onDeposit: options.onDepositVaultItem,
+  });
   const minimap = createMinimap();
   let noteCombat = (): void => {};
   const actions = createActions({
@@ -135,11 +144,14 @@ export function createHud(options: HudOptions) {
 
   // The camp menu's way in. The controls menu, the emote wheel, and the open camp menu all see Escape
   // first and claim it (preventDefault, or stopping it outright), so one press never does two things.
-  // The Stash has no handler of its own, so it is closed here before the menu would open.
+  // The Stash and the vault have no handler of their own, so they are closed here before the menu
+  // would open.
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || event.defaultPrevented || event.repeat) return;
     if (isTypingTarget(event.target)) return;
-    if (inventory.isOpen()) {
+    if (vault.isOpen()) {
+      vault.close();
+    } else if (inventory.isOpen()) {
       inventory.close();
     } else if (campAvailable) {
       camp.open();
@@ -203,6 +215,7 @@ export function createHud(options: HudOptions) {
     actionPanel,
     hotbar.element,
     inventory.panel,
+    vault.panel,
     camp.element,
   );
 
@@ -232,8 +245,8 @@ export function createHud(options: HudOptions) {
     const now = Date.now();
     const pinned = new Set<HudModuleId>(warned);
     const density = hudDensityFrom(document.documentElement.dataset.hudDensity);
-    // The camp menu and the Stash own the keyboard; nothing dims behind them.
-    if (camp.isOpen() || inventory.isOpen()) for (const id of fadeIds) pinned.add(id);
+    // The camp menu, the Stash and the vault own the keyboard; nothing dims behind them.
+    if (camp.isOpen() || inventory.isOpen() || vault.isOpen()) for (const id of fadeIds) pinned.add(id);
     for (const id of fadeIds) {
       if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
     }
@@ -265,6 +278,25 @@ export function createHud(options: HudOptions) {
     hotbar.updatePrompt(
       currentView ? actionPrompt(currentView, selfOf(currentView), currentPosition) : null,
     );
+  };
+  /** The vault panel only stays open while the player can use it: in the hub, in the vault area. */
+  const canUseVault = (): boolean => {
+    const self = currentView ? selfOf(currentView) : null;
+    return (
+      currentView !== null &&
+      currentView.phase === "inSession" &&
+      self !== null &&
+      self.health > 0 &&
+      inVaultArea(currentView.location, currentView.dungeon?.rooms ?? [], currentPosition)
+    );
+  };
+  const refreshVault = (): void => {
+    if (!vault.isOpen()) return;
+    if (!canUseVault() || !currentView) {
+      vault.close();
+      return;
+    }
+    vault.update(vaultPanelView(currentView, selfOf(currentView)));
   };
 
   const setDebug = (on: boolean): void => {
@@ -300,6 +332,17 @@ export function createHud(options: HudOptions) {
       currentPosition = position;
       minimap.setPosition(position);
       refreshPrompt();
+      refreshVault();
+    },
+
+    /** Opens the party vault, if the player is where they can use it. False when they are not. */
+    openVault(): boolean {
+      if (!canUseVault() || !currentView) return false;
+      inventory.close();
+      vault.update(vaultPanelView(currentView, selfOf(currentView)));
+      vault.open();
+      applyFade();
+      return true;
     },
 
     toggleMinimap() {
@@ -373,6 +416,7 @@ export function createHud(options: HudOptions) {
       refreshPrompt();
 
       inventory.update(self);
+      refreshVault();
       partyFrames.update(view);
       minimap.update(view);
     },

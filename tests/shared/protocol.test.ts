@@ -289,8 +289,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v37, the version that added the partyRoster message", () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+  it("is on protocol v38, the version that added the party vault messages", () => {
+    expect(PROTOCOL_VERSION).toBe(38);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -616,6 +616,37 @@ describe("emote contract", () => {
     expect(parseServer({ ...emoted, at: -1 }).ok).toBe(false);
     expect(parseServer({ ...emoted, at: 1.5 }).ok).toBe(false);
     expect(parseServer({ ...emoted, playerId: "not-a-uuid" }).ok).toBe(false);
+  });
+});
+
+describe("party vault contract", () => {
+  const itemId = "a1111111-1111-4111-8111-111111111111";
+  const parse = (message: unknown) => parseServerMessage(JSON.stringify(message));
+
+  it("accepts withdrawVaultItem and depositVaultItem by item id, and rejects malformed ones", () => {
+    for (const type of ["withdrawVaultItem", "depositVaultItem"]) {
+      expect(parseClientMessage(JSON.stringify({ type, itemId })).ok).toBe(true);
+      expect(parseClientMessage(JSON.stringify({ type })).ok).toBe(false);
+      expect(parseClientMessage(JSON.stringify({ type, itemId: null })).ok).toBe(false);
+      expect(parseClientMessage(JSON.stringify({ type, itemId: "nope" })).ok).toBe(false);
+    }
+  });
+
+  it("round-trips the vault's contents, including an empty vault", () => {
+    const items = [
+      { id: itemId, name: "Copper Key", kind: "key" },
+      { id: TARGET_ID, name: "Arrows", kind: "ammo", itemId: "arrow", count: 12 },
+    ];
+    for (const message of [{ type: "partyVault", items }, { type: "partyVault", items: [] }]) {
+      const result = parse(message);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.message).toEqual(message);
+    }
+  });
+
+  it("rejects a vault without its list or with a malformed item", () => {
+    expect(parse({ type: "partyVault" }).ok).toBe(false);
+    expect(parse({ type: "partyVault", items: [{ id: "nope", name: "Key", kind: "key" }] }).ok).toBe(false);
   });
 });
 

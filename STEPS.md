@@ -99,17 +99,20 @@ an existing slot still works during a run.
   the entrance. Reset readiness for the next planning phase.
 - Give the hub four deliberate torch pickups and put torches sparsely in generated dungeons. Torches
   are separate from the three inventory slots; a player who forgets one enters without one.
-- Keep a session-local item bank between runs. Persistence across sessions belongs to step 11.
-- Make the dungeon exit bank standing survivors' carried items and return the entire party to a
-  rebuilt hub. Downed or abandoned players lose their carried items.
+- Keep a party vault between runs, shared by everyone in the room and used at the hub's Bank stall:
+  any standing member may take any item or store one. Persistence belongs to step 11.
+- Make the dungeon exit deposit every survivor's carried items in the party vault, including a
+  downed player being carried out, and return the entire party to a rebuilt hub. Downed or
+  abandoned players lose their carried items.
 - Remove timed auto-respawn. Downed players remain down for later revive/carry mechanics; an
   all-downed party wipes to the hub and everyone loses their current carry.
 
 ### 11. Roguelite Progression and Persistence
 
-- Add a player profile that outlives a session: banked items, unlocked skills, and whatever currency the description's progression needs.
+- Add a player profile that outlives a session: unlocked skills, and whatever currency the description's progression needs. Banked items that predate the party vault stay on it as a read-only legacy list.
 - Persist profiles across server restarts. File-backed is enough at this size.
-- Bank what a survivor carries out; take what a dead player was carrying, per the death checkpoint.
+- Persist the party vault under its room code, so a new room starts empty and a party that rejoins its code after a restart finds what it stored.
+- Deposit what a survivor carries out into the party vault; take what a dead player was carrying, per the death checkpoint.
 - Add skills with server-resolved effects across combat, sight range, resistance, and puzzle interaction.
   Skills enter the dungeon as rare, transferable scroll items that occupy an inventory slot. Using
   one grants its effect for the run, but it becomes permanent only if that player makes it back to

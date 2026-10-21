@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import {
   bankSummary,
+  inVaultArea,
   entranceMessage,
   entranceStatus,
   exitCaption,
@@ -106,18 +107,33 @@ describe("the gate", () => {
 });
 
 describe("how a run ended", () => {
-  it("counts what a survivor banked on the way out", () => {
-    const before = player("Maya", { inventory: [item("Copper Key", "key")] });
-    const after = player("Maya", { bankedItems: [item("Copper Key", "key")] });
+  it("counts what a survivor deposited to the vault on the way out, hand included", () => {
+    const before = player("Maya", {
+      inventory: [item("Copper Key", "key")],
+      held: item("Minor Tonic"),
+    });
+    const after = player("Maya");
 
-    expect(runOutcome(before, after)).toEqual({ kind: "escaped", banked: 1 });
-    expect(outcomeMessage(runOutcome(before, after))).toBe("You made it out and banked 1 item.");
+    expect(runOutcome(before, after)).toEqual({ kind: "escaped", deposited: 2 });
+    expect(outcomeMessage(runOutcome(before, after))).toBe(
+      "You made it out and deposited 2 items to the vault.",
+    );
   });
 
-  it("says nothing was banked when a survivor carried nothing", () => {
+  it("counts a downed player carried out as a survivor, as the server does", () => {
+    const before = player("Maya", {
+      health: 0,
+      carriedByPlayerId: "22222222-2222-4222-8222-222222222222",
+      inventory: [item("Copper Key", "key")],
+    });
+
+    expect(runOutcome(before, player("Maya"))).toEqual({ kind: "escaped", deposited: 1 });
+  });
+
+  it("says nothing was deposited when a survivor carried nothing", () => {
     const outcome = runOutcome(player("Maya"), player("Maya"));
 
-    expect(outcome).toEqual({ kind: "escaped", banked: 0 });
+    expect(outcome).toEqual({ kind: "escaped", deposited: 0 });
     expect(outcomeMessage(outcome)).toBe("You made it out, carrying nothing.");
   });
 
@@ -128,17 +144,22 @@ describe("how a run ended", () => {
     const before = player("Maya", { health: 0, inventory: [item("Minor Tonic")] });
     const after = player("Maya", { health: 100 });
 
-    expect(runOutcome(before, after)).toEqual({ kind: "lost", banked: 0 });
+    expect(runOutcome(before, after)).toEqual({ kind: "lost", deposited: 0 });
     expect(outcomeMessage(runOutcome(before, after))).toBe(
       "You went down. Everything you carried is gone.",
     );
   });
 
-  it("never reports a negative bank if the server ever takes items back", () => {
-    const before = player("Maya", { bankedItems: [item("Minor Tonic"), item("Minor Tonic")] });
-    const after = player("Maya", { bankedItems: [item("Minor Tonic")] });
+  it("reads the vault area as the hub's vault room only", () => {
+    const rooms = [
+      { id: "bank", name: "Bank", kind: "vault" as const, x: 20, y: 32, width: 12, height: 12 },
+      { id: "hearth", name: "Hearth", kind: "hall" as const, x: 32, y: 16, width: 28, height: 28 },
+    ];
 
-    expect(runOutcome(before, after)).toEqual({ kind: "escaped", banked: 0 });
+    expect(inVaultArea("hub", rooms, { x: 25, y: 33 })).toBe(true);
+    expect(inVaultArea("hub", rooms, { x: 40, y: 33 })).toBe(false);
+    expect(inVaultArea("dungeon", rooms, { x: 25, y: 33 })).toBe(false);
+    expect(inVaultArea(null, rooms, { x: 25, y: 33 })).toBe(false);
   });
 });
 

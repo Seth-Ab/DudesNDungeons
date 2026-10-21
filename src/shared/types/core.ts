@@ -384,6 +384,8 @@ export const roomKindSchema = z.enum([
   "boss",
   "exit",
   "corridor",
+  /** The hub's party vault: standing inside one is what lets a player take from or store in it. */
+  "vault",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 

@@ -7,8 +7,11 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v37.
-- Last completed work: the final HUD Torch & Tally pass, comparing the finished HUD with the proposal and fixing the self frame's missing name, squat ally health bars, the allies' resistance bar and the camp menu's off-palette groups; this finishes the series, with no follow-up issues (issue #194, protocol unchanged); earlier, an e2e spec for the Torch & Tally HUD zones, density levels and touch layout, with three layout fixes it found (issue #176, HUD Torch & Tally, protocol unchanged); earlier, a server-sent party roster and greyed "out of sight" party frames for allies who left sight (issue #172, HUD Torch & Tally Phase 5, protocol v37); earlier, quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
+  everyone to the hub under protocol v38.
+- Last completed work: a party vault shared by the room code, which escapes deposit into and any
+  member can take from or store in at the hub's Bank, saved in `data/vaults.json` and reopened with
+  its room after a restart; personal banks are now a read-only legacy list (issue #126, protocol
+  v38); earlier, the final HUD Torch & Tally pass, comparing the finished HUD with the proposal and fixing the self frame's missing name, squat ally health bars, the allies' resistance bar and the camp menu's off-palette groups; this finishes the series, with no follow-up issues (issue #194, protocol unchanged); earlier, an e2e spec for the Torch & Tally HUD zones, density levels and touch layout, with three layout fixes it found (issue #176, HUD Torch & Tally, protocol unchanged); earlier, a server-sent party roster and greyed "out of sight" party frames for allies who left sight (issue #172, HUD Torch & Tally Phase 5, protocol v37); earlier, quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
   two seconds and arrows that fly in the hub too (issue #116, protocol v36); earlier, minimap allies marked in their party colour with an initial, and arch and
   chest icons on discovered tiles (issue #171, HUD Torch & Tally Phase 5, protocol unchanged);
   earlier, speaking rings on party portraits from per-peer remote voice levels, with a
@@ -74,6 +77,17 @@ Resolved:
   only on extraction; a hub purchase is permanent immediately. Revive then escape counts, as will
   carrying a downed player through the exit once carrying exists. An already-known scroll is not
   consumed; duplicates may become upgrades later. Recorded in decision 0011.
+- Party vault, decided on 2026-10-19 for issue #126 and recorded in decision 0013:
+  - The party is the room code. Its vault is saved on disk, and a new room starts empty; this is
+    the party identity #122's per-room saves will share.
+  - Existing personal banks stay as a read-only legacy list, with no migration.
+  - Withdrawing is hub only, inside the vault area (the Bank stall's room), after interacting with
+    the vault. Any standing party member may take any item, with no locks.
+  - Capacity is unlimited, and stackable items such as arrows merge.
+  - Every escaping player deposits, including a downed player being carried. A wipe, or a downed
+    player left behind, loses their carry.
+  - Depositing without a run (`depositVaultItem`) is included, under the same place rules.
+  - Skill scrolls are vault items like any other, so a scroll a player cannot use yet can wait.
 - HUD Torch & Tally open questions, decided on 2026-10-21 for issue #160:
   - Unseen allies appear as a greyed "out of sight" frame with no position, health or resistance and
     a non-colour cue. This needs a server-sent party roster, built in #172 (protocol v37).
@@ -270,9 +284,10 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 - [x] Start players in the hub and generate the dungeon on entry. Every reserved player must be
   connected and ready; fresh joins are refused mid-run while reconnects remain available.
 - [x] Add the torch supply and between-run storage. Four hub torches are deliberate pickups, rare
-  torches can spawn in the dungeon, and `bankedItems` is session-local until step 11.
-- [x] Make the exit room end the run and return survivors to the hub. Standing players bank their
-  inventory; downed players lose it.
+  torches can spawn in the dungeon. Storage is the party vault (#126, v38): `session.vault`, shared
+  by the room code, with `withdrawVaultItem`/`depositVaultItem` from inside the hub's `vault` room.
+- [x] Make the exit room end the run and return survivors to the hub. Survivors, including a
+  carried downed player, deposit their carry in the party vault; downed players left behind lose it.
 - [x] Handle a player who dies mid-run and a party that escapes without them. Timed respawn is gone;
   downed players remain until escape/revival, and an all-downed party wipes to the hub.
 - [x] Ready plates (#147, v35): four authored `readyPlates` before the gate ready whoever stands on
@@ -291,7 +306,8 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain.
   on read, relocatable with `DATA_DIR`. In-memory everywhere except `src/server/index.ts`.
 - [x] Persist survivor banking and dead-player loss across server restarts. `returnToHub` writes to
   the profile and marks it changed; the server flushes on escape, on wipe, on join, every sweep,
-  and on close.
+  and on close. Since #126 the carry goes to the party vault instead, persisted per room code in
+  `data/vaults.json` on the same flushes; `profile.bankedItems` is a read-only legacy list.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
   effect resolver drives resistance, attack damage, upgrade tiers, and torch sight. Remaining:
@@ -400,7 +416,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Draw a growing, flashing cone telegraph for a winding-up monster (issue #90).
 - [x] Add feedback for invalid moves or blocked actions.
 - [x] Show win, loss, and dungeon exit states. Landed with Frontend step 9: on the return to the
-  hub the HUD reports an escape with what was banked, or a loss for a downed player
+  hub the HUD reports an escape with what was deposited to the vault, or a loss for a downed player
   (`runOutcome`/`outcomeMessage` in `src/client/state/runFlow.ts`).
 
 ### 5. Proximity Voice Chat
@@ -491,7 +507,9 @@ Complete on `feature/hub-run-flow`.
   composite, edged in their party colour; one still designing shows a grey silhouette and
   "Designing…", and the hub banner names them as what the run waits on (#134).
 - [x] Show what a player carries and what they banked. Three slots and the torch line, which is
-  separate because a torch is not an inventory item, plus the session bank.
+  separate because a torch is not an inventory item. Since #126 interacting inside the Bank room
+  opens a Party Vault panel listing the shared vault with Take buttons and the player's carry with
+  Store buttons; the camp menu's Stash shows the legacy personal bank, read-only.
 
 ### 10. Skills and Progression UI
 
@@ -511,6 +529,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Party vault shared by the room code: escapes deposit into it, any member takes or stores at the hub's Bank, saved in `data/vaults.json`; personal banks become read-only (#126, protocol v38).
 - 2026-10-21: Final HUD Torch & Tally pass against the proposal: self-frame name, thin ally health bars with a resistance number, warm camp-menu groups; series finished, no follow-ups (#194).
 - 2026-10-21: E2e spec for HUD zones, density levels and touch layout, fixing hint, hotbar and name-plate overlaps (#176, HUD Torch & Tally).
 - 2026-10-21: Numberless torch tally under the minimap replaces the run clock (#174, HUD Torch & Tally Phase 5).

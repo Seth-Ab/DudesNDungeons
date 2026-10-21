@@ -11,6 +11,7 @@ import { buildDungeon, findSpawnPoint, HUB_DUNGEON_ID, isSpawned } from "./dunge
 import { lootRngFor } from "./monsterLoot.js";
 import { bankRunSkills, discardRunSkills } from "./progression.js";
 import { createDiscoveredGrid } from "./tileGrid.js";
+import { storeInVault } from "./vault.js";
 
 export type RunTransitionResult =
   | { ok: true }
@@ -118,21 +119,23 @@ export function startRun(session: Session, now: number): RunTransitionResult {
 }
 
 /**
- * Returns everyone to a rebuilt hub. Survivors bank their carry on escape; a wipe or a downed
- * player loses it. Torches never cross back into the hub, so taking one on the next run is a choice.
+ * Returns everyone to a rebuilt hub. Survivors deposit their carry in the party vault on escape; a
+ * wipe or a downed player left behind loses it. Torches never cross back into the hub, so taking
+ * one on the next run is a choice.
  *
  * A downed player being physically carried at the moment the party escapes counts as a survivor
  * too: that is the payoff for hauling them to the exit, distinct from and short of a full revive.
  *
- * Banking writes to the player's profile, which outlives the session, so this is the one moment a
- * run leaves a permanent mark on something a restart cannot clear.
+ * The vault belongs to the room code and the skills and run counts to each profile, and both
+ * outlive the session, so this is the one moment a run leaves a mark a restart cannot clear. The
+ * personal `bankedItems` list is legacy and no longer grows.
  */
 export function returnToHub(session: Session, escaped: boolean): void {
   for (const player of session.players.values()) {
     const survived = escaped && (player.health > 0 || player.carriedByPlayerId !== null);
     if (survived) {
-      player.profile.bankedItems.push(...player.inventory);
-      if (player.held) player.profile.bankedItems.push(player.held);
+      for (const item of player.inventory) storeInVault(session, item);
+      if (player.held) storeInVault(session, player.held);
       bankRunSkills(player);
       player.profile.runsEscaped += 1;
     } else {

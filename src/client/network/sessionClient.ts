@@ -324,6 +324,16 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "swapHeld", itemId });
     },
 
+    /** Takes an item out of the party vault. The server checks the hub, the vault area, and room. */
+    withdrawVaultItem(itemId: string): boolean {
+      return send({ type: "withdrawVaultItem", itemId });
+    },
+
+    /** Stores a carried item in the party vault, under the same checks. */
+    depositVaultItem(itemId: string): boolean {
+      return send({ type: "depositVaultItem", itemId });
+    },
+
     liftPlayer(targetPlayerId: string): boolean {
       return send({ type: "liftPlayer", targetPlayerId });
     },
