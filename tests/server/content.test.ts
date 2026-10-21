@@ -58,7 +58,8 @@ describe("the shipped content", () => {
       kind: "skillScroll",
       skillId: "iron-will",
     });
-    expect(content.upgrades.has("iron-will-steeled")).toBe(true);
+    expect(content.skills.get("iron-will")).toMatchObject({ maxStacks: 3, requires: [] });
+    expect(content.skills.get("iron-will")?.stackEffects).toHaveLength(2);
     expect(content.templates.size).toBeGreaterThan(0);
     expect(content.traps.has("spike-plate")).toBe(true);
     expect(content.templates.get("collapsing-span")?.traps.length).toBeGreaterThan(0);
@@ -105,21 +106,6 @@ describe("rejecting bad content", () => {
     expect(() => loadContent(root)).toThrow(/reuses the content id "ash-imp"/);
   });
 
-  it("refuses an upgrade for a skill that does not exist", () => {
-    const root = contentRoot({
-      "upgrades/ghost-training.json": {
-        id: "ghost-training",
-        skillId: "missing-skill",
-        name: "Ghost Training",
-        description: "This should never load.",
-        tier: 1,
-        effects: [{ type: "attackDamageBonus", amount: 1 }],
-      },
-    });
-
-    expect(() => loadContent(root)).toThrow(/belongs to unknown skill "missing-skill"/);
-  });
-
   it("refuses a skill scroll that teaches a skill that does not exist", () => {
     const root = contentRoot({
       "items/ghost-scroll.json": {
@@ -133,65 +119,84 @@ describe("rejecting bad content", () => {
     expect(() => loadContent(root)).toThrow(/teaches unknown skill "missing-skill"/);
   });
 
-  it("refuses upgrade prerequisites from another skill", () => {
-    const skill = (id: string) => ({
-      id,
-      name: id,
-      description: id,
-      effects: [{ type: "resistanceBonus", amount: 1 }],
-    });
-    const root = contentRoot({
-      "skills/first.json": skill("first"),
-      "skills/second.json": skill("second"),
-      "upgrades/first-tier.json": {
-        id: "first-tier",
-        skillId: "first",
-        name: "First Tier",
-        description: "First.",
-        tier: 1,
-        effects: [{ type: "resistanceBonus", amount: 1 }],
-      },
-      "upgrades/wrong-tree.json": {
-        id: "wrong-tree",
-        skillId: "second",
-        name: "Wrong Tree",
-        description: "Wrong.",
-        tier: 2,
-        requires: ["first-tier"],
-        effects: [{ type: "resistanceBonus", amount: 1 }],
-      },
-    });
+  it("refuses every maxStacks and stack-effect combination decision 0014 rules out", () => {
+    const effect = [{ type: "resistanceBonus", amount: 1 }];
+    const refused = {
+      "a missing maxStacks": {},
+      "a zero maxStacks": { maxStacks: 0 },
+      "a fractional maxStacks": { maxStacks: 1.5 },
+      "stack effects on a non-stacking skill": { maxStacks: 1, perStackEffects: effect },
+      "explicit stacks on a non-stacking skill": { maxStacks: 1, stackEffects: [] },
+      "an unlimited skill without perStackEffects": { maxStacks: null },
+      "an unlimited skill with stackEffects": { maxStacks: null, stackEffects: [effect] },
+      "a capped stacking skill with no stack effects": { maxStacks: 3 },
+      "too few stackEffects": { maxStacks: 3, stackEffects: [effect] },
+      "too many stackEffects": { maxStacks: 2, stackEffects: [effect, effect] },
+      "an empty stack": { maxStacks: 2, stackEffects: [[]] },
+      "both kinds of stack effects": { maxStacks: 2, stackEffects: [effect], perStackEffects: effect },
+    };
 
-    expect(() => loadContent(root)).toThrow(/requires an upgrade from a different skill/);
+    for (const [label, fields] of Object.entries(refused)) {
+      const root = contentRoot({
+        "skills/odd.json": { id: "odd", name: "Odd", description: "Odd.", effects: effect, ...fields },
+      });
+      expect(() => loadContent(root), label).toThrow(/odd\.json is not valid content/);
+    }
   });
 
-  it("refuses duplicate upgrade tiers for one skill", () => {
+  it("accepts every stacking shape decision 0014 allows", () => {
+    const effect = [{ type: "resistanceBonus", amount: 1 }];
+    const allowed = {
+      "a non-stacking skill": { maxStacks: 1 },
+      "a capped skill with explicit stacks": { maxStacks: 3, stackEffects: [effect, effect] },
+      "a capped skill with per-stack effects": { maxStacks: 3, perStackEffects: effect },
+      "an unlimited skill": { maxStacks: null, perStackEffects: effect },
+    };
+
+    for (const [label, fields] of Object.entries(allowed)) {
+      const root = contentRoot({
+        "skills/fine.json": { id: "fine", name: "Fine", description: "Fine.", effects: effect, ...fields },
+      });
+      expect(() => loadContent(root), label).not.toThrow();
+    }
+  });
+
+  const skill = (id: string, requires: string[]) => ({
+    id,
+    name: id,
+    description: id,
+    effects: [{ type: "resistanceBonus", amount: 1 }],
+    maxStacks: 1,
+    requires,
+  });
+
+  it("refuses a skill that requires a skill that does not exist", () => {
+    const root = contentRoot({ "skills/lonely.json": skill("lonely", ["missing-skill"]) });
+
+    expect(() => loadContent(root)).toThrow(/Skill "lonely" requires unknown skill "missing-skill"/);
+  });
+
+  it("refuses prerequisite cycles, including a skill requiring itself", () => {
+    const loop = contentRoot({
+      "skills/a.json": skill("a", ["b"]),
+      "skills/b.json": skill("b", ["c"]),
+      "skills/c.json": skill("c", ["a"]),
+    });
+    const self = contentRoot({ "skills/a.json": skill("a", ["a"]) });
+
+    expect(() => loadContent(loop)).toThrow(/prerequisites form a cycle: a -> b -> c -> a/);
+    expect(() => loadContent(self)).toThrow(/prerequisites form a cycle: a -> a/);
+  });
+
+  it("accepts prerequisites that share a skill without forming a cycle", () => {
     const root = contentRoot({
-      "skills/iron-will.json": {
-        id: "iron-will",
-        name: "Iron Will",
-        description: "Resist.",
-        effects: [{ type: "resistanceBonus", amount: 1 }],
-      },
-      "upgrades/a.json": {
-        id: "upgrade-a",
-        skillId: "iron-will",
-        name: "A",
-        description: "A.",
-        tier: 1,
-        effects: [{ type: "resistanceBonus", amount: 1 }],
-      },
-      "upgrades/b.json": {
-        id: "upgrade-b",
-        skillId: "iron-will",
-        name: "B",
-        description: "B.",
-        tier: 1,
-        effects: [{ type: "resistanceBonus", amount: 1 }],
-      },
+      "skills/base.json": skill("base", []),
+      "skills/left.json": skill("left", ["base"]),
+      "skills/right.json": skill("right", ["base"]),
+      "skills/top.json": skill("top", ["left", "right"]),
     });
 
-    expect(() => loadContent(root)).toThrow(/more than one tier 1 upgrade/);
+    expect(loadContent(root).skills.get("top")?.requires).toEqual(["left", "right"]);
   });
 
   it("refuses a template spawning a monster that does not exist", () => {

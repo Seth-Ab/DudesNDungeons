@@ -130,19 +130,41 @@ describe("ending a run", () => {
 
 describe("what a run leaves on a profile", () => {
   it("saves used skill scrolls only for players who make it out", () => {
-    const standing = testPlayer("standing", { runSkillIds: new Set(["iron-will"]) });
+    const standing = testPlayer("standing", { runSkillStacks: new Map([["iron-will", 1]]) });
     const downed = testPlayer("downed", {
       health: 0,
-      runSkillIds: new Set(["torchbearer"]),
+      runSkillStacks: new Map([["torchbearer", 1]]),
     });
     const session = testSession([standing, downed]);
 
     returnToHub(session, true);
 
-    expect(standing.profile.unlockedSkillIds).toEqual(["iron-will"]);
-    expect(downed.profile.unlockedSkillIds).toEqual([]);
-    expect(standing.runSkillIds).toEqual(new Set());
-    expect(downed.runSkillIds).toEqual(new Set());
+    expect(standing.profile.skillStacks).toEqual({ "iron-will": 1 });
+    expect(downed.profile.skillStacks).toEqual({});
+    expect(standing.runSkillStacks).toEqual(new Map());
+    expect(downed.runSkillStacks).toEqual(new Map());
+  });
+
+  it("keeps provisional stacks on extraction and loses them when left behind or wiped", () => {
+    const stacked = () => ({
+      profile: testProfile("p", { skillStacks: { "iron-will": 1 } }),
+      runSkillStacks: new Map([["iron-will", 1]]),
+    });
+    const escaped = testPlayer("escaped", stacked());
+    const leftBehind = testPlayer("left", { ...stacked(), health: 0 });
+    const escape = testSession([escaped, leftBehind]);
+
+    returnToHub(escape, true);
+
+    expect(escaped.profile.skillStacks).toEqual({ "iron-will": 2 });
+    expect(leftBehind.profile.skillStacks).toEqual({ "iron-will": 1 });
+    expect(leftBehind.runSkillStacks).toEqual(new Map());
+
+    const wiped = testPlayer("wiped", stacked());
+    returnToHub(testSession([wiped]), false);
+
+    expect(wiped.profile.skillStacks).toEqual({ "iron-will": 1 });
+    expect(wiped.runSkillStacks).toEqual(new Map());
   });
 
   it("marks every profile changed, so the bank reaches the disk", () => {

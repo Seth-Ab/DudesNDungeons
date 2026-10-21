@@ -209,8 +209,8 @@ describe("puzzle power", () => {
       world.p1.position = { ...PLATE_A };
       world.p2.position = { ...PLATE_B };
     }
-    skilled.p1.profile = testProfile("p1", { unlockedSkillIds: ["lever-sense"] });
-    skilled.p2.runSkillIds = new Set(["lever-sense"]);
+    skilled.p1.profile = testProfile("p1", { skillStacks: { "lever-sense": 1 } });
+    skilled.p2.runSkillStacks = new Map([["lever-sense", 1]]);
 
     const early = type.holdMs - 2 * type.holdReductionMsPerPower;
     for (const world of [plain, skilled]) {
@@ -225,7 +225,7 @@ describe("puzzle power", () => {
   it("ignores the bonus of players who are not holding a plate", () => {
     const { session, puzzle, p1, p2 } = withPuzzle(1);
     const bystander = session.players.get("x0")!;
-    bystander.runSkillIds = new Set(["lever-sense"]);
+    bystander.runSkillStacks = new Map([["lever-sense", 1]]);
     p1.position = { ...PLATE_A };
     p2.position = { ...PLATE_B };
 

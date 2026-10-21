@@ -83,8 +83,7 @@ export class ProfileStore {
       const profile: PlayerProfile = {
         ...stored,
         bankedItems: stored.bankedItems.map((item) => ({ ...item })),
-        unlockedSkillIds: [...stored.unlockedSkillIds],
-        unlockedUpgradeIds: [...stored.unlockedUpgradeIds],
+        skillStacks: { ...stored.skillStacks },
         revision: 0,
       };
       this.#byId.set(profile.id, profile);
@@ -121,8 +120,7 @@ export class ProfileStore {
       secretHash: hashSecret(secret),
       displayName,
       bankedItems: [],
-      unlockedSkillIds: [],
-      unlockedUpgradeIds: [],
+      skillStacks: {},
       runsEscaped: 0,
       runsLost: 0,
       createdAt: at,
@@ -168,8 +166,7 @@ export class ProfileStore {
         secretHash: profile.secretHash,
         displayName: profile.displayName,
         bankedItems: profile.bankedItems.map((item) => ({ ...item })),
-        unlockedSkillIds: [...profile.unlockedSkillIds],
-        unlockedUpgradeIds: [...profile.unlockedUpgradeIds],
+        skillStacks: { ...profile.skillStacks },
         runsEscaped: profile.runsEscaped,
         runsLost: profile.runsLost,
         createdAt: profile.createdAt,

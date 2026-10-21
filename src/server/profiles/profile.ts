@@ -5,14 +5,14 @@ import type {
   ProfileId,
   ProfileState,
 } from "../../shared/types/core.js";
-import { contentIdSchema, inventoryItemSchema } from "../../shared/types/core.js";
+import { inventoryItemSchema, skillStacksSchema } from "../../shared/types/core.js";
 
 /**
  * A roguelite profile: what a device keeps between runs, and between server restarts.
  *
  * Per `GAMEDESCRIPTION.md`, progression is items and skills a player keeps, losing only items on
- * death. There is deliberately no currency here: the description names none, and the upgrade
- * schema in `src/server/content/schema.ts` leaves unlock costs out for the same reason.
+ * death. Skills are held as stack counts (decision 0014); coin and milestone stats arrive with
+ * their own follow-up tickets.
  *
  * `secretHash` rather than the secret itself, so a leaked `profiles.json` does not hand over every
  * profile on the server. It is also why a client that loses its secret cannot be reminded of it.
@@ -23,8 +23,11 @@ export interface PlayerProfile {
   /** The name last joined with. Presentation only; the secret is what identifies the profile. */
   displayName: PlayerName;
   bankedItems: InventoryItem[];
-  unlockedSkillIds: string[];
-  unlockedUpgradeIds: string[];
+  /**
+   * Permanent stacks per skill id, each at least 1. Kept even for a skill content no longer has,
+   * or above a lowered limit, so a content change never deletes what a player earned.
+   */
+  skillStacks: Record<string, number>;
   runsEscaped: number;
   runsLost: number;
   createdAt: number;
@@ -56,8 +59,7 @@ export function toProfileState(profile: PlayerProfile): ProfileState {
     id: profile.id,
     displayName: profile.displayName,
     bankedItems: profile.bankedItems.map((item) => ({ ...item })),
-    unlockedSkillIds: [...profile.unlockedSkillIds],
-    unlockedUpgradeIds: [...profile.unlockedUpgradeIds],
+    skillStacks: { ...profile.skillStacks },
     runsEscaped: profile.runsEscaped,
     runsLost: profile.runsLost,
   };
@@ -81,6 +83,43 @@ function migrateLegacyItem(value: unknown): unknown {
 }
 
 /**
+ * The tiered upgrades that decision 0014 folded into skill stacks: which skill each raised, and to
+ * what tier. Repeated here, like the legacy consumables, because a profile is parsed without
+ * content, and these ids no longer exist in it.
+ */
+const LEGACY_UPGRADES = new Map([
+  ["iron-will-steeled", { skillId: "iron-will", tier: 1 }],
+  ["iron-will-unbroken", { skillId: "iron-will", tier: 2 }],
+]);
+
+/**
+ * Profiles written before skills stacked hold `unlockedSkillIds` and `unlockedUpgradeIds`. Each
+ * skill id becomes one stack, and each upgrade id raises its skill to one plus its tier, so
+ * nothing a player unlocked is lost. An upgrade id this list does not know is dropped: no content
+ * ever shipped it, so it never had an effect. The next write persists the new shape.
+ */
+function migrateLegacySkills(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || "skillStacks" in value) return value;
+  const { unlockedSkillIds, unlockedUpgradeIds, ...rest } = value as Record<string, unknown>;
+  const skillStacks: Record<string, number> = {};
+
+  if (Array.isArray(unlockedSkillIds)) {
+    for (const skillId of unlockedSkillIds) {
+      if (typeof skillId === "string") skillStacks[skillId] = 1;
+    }
+  }
+  if (Array.isArray(unlockedUpgradeIds)) {
+    for (const upgradeId of unlockedUpgradeIds) {
+      const upgrade = typeof upgradeId === "string" ? LEGACY_UPGRADES.get(upgradeId) : undefined;
+      if (!upgrade) continue;
+      skillStacks[upgrade.skillId] = Math.max(skillStacks[upgrade.skillId] ?? 0, upgrade.tier + 1);
+    }
+  }
+
+  return { ...rest, skillStacks };
+}
+
+/**
  * The on-disk shape, validated on read for the same reason `content/` is: a file a human or a
  * previous version wrote is untrusted input, and a profile that parses into nonsense is worse than
  * one that fails loudly.
@@ -88,27 +127,30 @@ function migrateLegacyItem(value: unknown): unknown {
  * `revision` is deliberately absent. It tracks what this process has yet to write, so a freshly
  * loaded profile starts at zero and is written again only once something changes it.
  */
-export const persistedProfileSchema = z.object({
-  id: z.string().uuid(),
-  secretHash: z.string().regex(/^[0-9a-f]{64}$/, "Profile secret hash must be 64 lowercase hex"),
-  displayName: z.string().min(1),
-  bankedItems: z.array(z.preprocess(migrateLegacyItem, inventoryItemSchema)),
-  unlockedSkillIds: z.array(contentIdSchema),
-  unlockedUpgradeIds: z.array(contentIdSchema),
-  runsEscaped: z.number().int().nonnegative(),
-  runsLost: z.number().int().nonnegative(),
-  createdAt: z.number().int().nonnegative(),
-  lastSeenAt: z.number().int().nonnegative(),
-});
+export const persistedProfileSchema = z.preprocess(
+  migrateLegacySkills,
+  z.object({
+    id: z.string().uuid(),
+    secretHash: z.string().regex(/^[0-9a-f]{64}$/, "Profile secret hash must be 64 lowercase hex"),
+    displayName: z.string().min(1),
+    bankedItems: z.array(z.preprocess(migrateLegacyItem, inventoryItemSchema)),
+    skillStacks: skillStacksSchema,
+    runsEscaped: z.number().int().nonnegative(),
+    runsLost: z.number().int().nonnegative(),
+    createdAt: z.number().int().nonnegative(),
+    lastSeenAt: z.number().int().nonnegative(),
+  }),
+);
 
 /**
  * `version` is what makes a later format change survivable: a reader that finds a version it does
- * not know refuses rather than discarding fields it cannot see.
+ * not know refuses rather than discarding fields it cannot see. Version 2 stores skill stacks;
+ * version 1 files are still read, and migrated per profile, but only version 2 is written.
  */
 export const profileFileSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   profiles: z.array(persistedProfileSchema),
 });
 export type ProfileFile = z.infer<typeof profileFileSchema>;
 
-export const PROFILE_FILE_VERSION = 1;
+export const PROFILE_FILE_VERSION = 2;

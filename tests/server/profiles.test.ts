@@ -115,8 +115,7 @@ describe("persisting profiles", () => {
             { id: "22222222-2222-4222-8222-222222222222", name: "Warding Salve", kind: "ward" },
             { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
           ],
-          unlockedSkillIds: [],
-          unlockedUpgradeIds: [],
+          skillStacks: {},
           runsEscaped: 0,
           runsLost: 0,
           createdAt: 0,
@@ -174,7 +173,7 @@ describe("persisting profiles", () => {
     const before = newStore(storage);
     const { profile, secret } = before.create("Grix");
     profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" });
-    profile.unlockedSkillIds.push("iron-will");
+    profile.skillStacks["iron-will"] = 2;
     profile.runsEscaped = 3;
     markProfileChanged(profile);
     before.flush();
@@ -186,7 +185,7 @@ describe("persisting profiles", () => {
     expect(restored).not.toBeNull();
     expect(restored?.id).toBe(profile.id);
     expect(restored?.bankedItems).toEqual([{ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" }]);
-    expect(restored?.unlockedSkillIds).toEqual(["iron-will"]);
+    expect(restored?.skillStacks).toEqual({ "iron-will": 2 });
     expect(restored?.runsEscaped).toBe(3);
     // A profile read back has nothing outstanding to write until something changes it again.
     expect(after.dirty).toBe(false);
@@ -225,7 +224,75 @@ describe("the profile file", () => {
     store.create("Grix");
     store.flush();
 
-    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(2);
+  });
+
+  it("loads unlocked skill and upgrade ids as stacks, and saves them in the new shape", () => {
+    const path = join(temporaryDir(), "profiles.json");
+    const legacy = (id: string, unlockedSkillIds: string[], unlockedUpgradeIds: string[]) => ({
+      id,
+      secretHash: id.slice(0, 1).repeat(64),
+      displayName: "Grix",
+      bankedItems: [],
+      unlockedSkillIds,
+      unlockedUpgradeIds,
+      runsEscaped: 2,
+      runsLost: 1,
+      createdAt: 0,
+      lastSeenAt: 0,
+    });
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: 1,
+        profiles: [
+          legacy("11111111-1111-4111-8111-111111111111", ["iron-will", "torchbearer"], []),
+          legacy("22222222-2222-4222-8222-222222222222", ["iron-will"], ["iron-will-steeled"]),
+          // Unbroken alone still means tier 2. An id no content ever shipped had no effect.
+          legacy("33333333-3333-4333-8333-333333333333", ["iron-will"], ["iron-will-unbroken", "ghost-tier"]),
+          // An upgrade without its skill was dormant before, and is kept as the stacks it implies.
+          legacy("44444444-4444-4444-8444-444444444444", [], ["iron-will-steeled"]),
+        ],
+      }),
+      "utf8",
+    );
+
+    const store = newStore(createFileProfileStorage(path));
+    const stacksOf = (id: string) => store.get(id)?.skillStacks;
+
+    expect(stacksOf("11111111-1111-4111-8111-111111111111")).toEqual({ "iron-will": 1, torchbearer: 1 });
+    expect(stacksOf("22222222-2222-4222-8222-222222222222")).toEqual({ "iron-will": 2 });
+    expect(stacksOf("33333333-3333-4333-8333-333333333333")).toEqual({ "iron-will": 3 });
+    expect(stacksOf("44444444-4444-4444-8444-444444444444")).toEqual({ "iron-will": 2 });
+    expect(store.get("11111111-1111-4111-8111-111111111111")?.runsEscaped).toBe(2);
+
+    markProfileChanged(store.get("11111111-1111-4111-8111-111111111111")!);
+    store.flush();
+
+    const written = JSON.parse(readFileSync(path, "utf8"));
+    expect(written.version).toBe(2);
+    expect(written.profiles[0]).not.toHaveProperty("unlockedSkillIds");
+    expect(written.profiles[0]).not.toHaveProperty("unlockedUpgradeIds");
+    expect(written.profiles[1].skillStacks).toEqual({ "iron-will": 2 });
+    expect(stacksOf("22222222-2222-4222-8222-222222222222")).toEqual(
+      newStore(createFileProfileStorage(path)).get("22222222-2222-4222-8222-222222222222")?.skillStacks,
+    );
+  });
+
+  it("refuses stored stack counts that are not positive whole numbers", () => {
+    const profile = {
+      id: "11111111-1111-4111-8111-111111111111",
+      secretHash: "a".repeat(64),
+      displayName: "Grix",
+      bankedItems: [],
+      runsEscaped: 0,
+      runsLost: 0,
+      createdAt: 0,
+      lastSeenAt: 0,
+    };
+    for (const skillStacks of [{ "iron-will": 0 }, { "iron-will": 1.5 }, { "Not A Slug": 1 }]) {
+      expect(profileFileSchema.safeParse({ version: 2, profiles: [{ ...profile, skillStacks }] }).success).toBe(false);
+    }
   });
 
   it("reads a missing file as a server with no profiles yet", () => {

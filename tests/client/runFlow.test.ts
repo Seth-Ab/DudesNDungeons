@@ -254,6 +254,8 @@ describe("refusals", () => {
       "notPermitted",
       "targetMissing",
       "exhausted",
+      "skillMaxed",
+      "missingPrerequisites",
     ] as const) {
       const message = rejectionMessage(reason);
       expect(message).not.toContain(reason);

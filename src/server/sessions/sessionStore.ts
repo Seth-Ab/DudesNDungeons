@@ -68,8 +68,8 @@ export interface SessionPlayer {
   held: InventoryItem | null;
   /** A bow draw in progress, or null. Server-side clock; see `src/server/game/bow.ts`. */
   draw: Draw | null;
-  /** Skills learned from consumed scrolls this run, provisional until this player extracts. */
-  runSkillIds: Set<string>;
+  /** Stacks per skill from scrolls consumed this run, provisional until this player extracts. */
+  runSkillStacks: Map<string, number>;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
   /** The downed party member this player is carrying, or null. Set only by `src/server/game/carrying.ts`. */
@@ -430,7 +430,7 @@ export class SessionStore {
       inventory: [],
       held: null,
       draw: null,
-      runSkillIds: new Set(),
+      runSkillStacks: new Map(),
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,

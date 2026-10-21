@@ -1,6 +1,11 @@
 {
   "id": "iron-will",
   "name": "Iron Will",
-  "description": "Begin each run with additional resistance.",
-  "effects": [{ "type": "resistanceBonus", "amount": 10 }]
+  "description": "Begin each run with additional resistance. Further stacks steel it, then make it unbroken.",
+  "effects": [{ "type": "resistanceBonus", "amount": 10 }],
+  "maxStacks": 3,
+  "stackEffects": [
+    [{ "type": "resistanceBonus", "amount": 5 }],
+    [{ "type": "resistanceBonus", "amount": 5 }]
+  ]
 }

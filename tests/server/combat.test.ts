@@ -275,7 +275,7 @@ describe("weapon swings", () => {
     const player = testPlayer("alpha", {
       position: at(11, 2, -IN_REACH),
       held: IN_HAND,
-      profile: testProfile("alpha", { unlockedSkillIds: ["battle-focus"] }),
+      profile: testProfile("alpha", { skillStacks: { "battle-focus": 1 } }),
     });
     const session = withBlade(testSession([player]), TEST_BLADE, [
       {
@@ -283,6 +283,8 @@ describe("weapon swings", () => {
         name: "Battle Focus",
         description: "Hit harder.",
         effects: [{ type: "attackDamageBonus", amount: 2 }],
+        maxStacks: 1,
+        requires: [],
       },
     ]);
     monster(session, ASH_IMP_ID).health = 50;

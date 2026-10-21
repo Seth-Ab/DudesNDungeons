@@ -52,6 +52,8 @@ const BATTLE_FOCUS: SkillDefinition = {
   name: "Battle Focus",
   description: "Hit harder.",
   effects: [{ type: "attackDamageBonus", amount: 2 }],
+  maxStacks: 1,
+  requires: [],
 };
 
 function hubSession(players: ReturnType<typeof testPlayer>[]) {
@@ -116,7 +118,7 @@ describe("training dummies in the hub", () => {
     const player = testPlayer("alpha", {
       position: at(19, 3, -IN_REACH),
       held: RUSTED_SWORD,
-      profile: testProfile("alpha", { unlockedSkillIds: [BATTLE_FOCUS.id] }),
+      profile: testProfile("alpha", { skillStacks: { [BATTLE_FOCUS.id]: 1 } }),
     });
     const session = hubSession([player]);
     const swordDamage = (() => {
@@ -154,7 +156,7 @@ describe("training dummies in the hub", () => {
     expect(session.dungeon.monsters).toEqual([]);
     expect(session.monsterPosts.size).toBe(0);
     expect(player.profile).toEqual(profileBefore);
-    expect(player.runSkillIds.size).toBe(0);
+    expect(player.runSkillStacks.size).toBe(0);
   });
 
   it("is ignored by monsters, which neither chase nor strike it", () => {

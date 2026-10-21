@@ -93,8 +93,8 @@ monster's damage or adding a room template is a file change and a server restart
 
 - `content/monsters/` - one file per monster type, keyed by a kebab-case id such as `ash-imp`.
 - `content/items/` - keys, tonics, wards, skill scrolls, and separately equipped torches.
-- `content/skills/` - validated skill definitions for persistent player progression.
-- `content/upgrades/` - validated, tiered improvements linked to skills.
+- `content/skills/` - validated skill definitions for persistent player progression, with stack
+  limits, per-stack effects and prerequisites.
 - `content/dungeons/templates/` - room templates, each with tiles, doorways, lights, and spawn rules.
 - `content/dungeons/` - dungeon definitions. `authored` places every entity by hand; `generated`
   stitches templates together at run time.
@@ -111,7 +111,9 @@ Items are active gameplay content: dungeon definitions spawn them and the server
 inventory, and use. Players can drop an item at their feet or hand it to a nearby party member. The first skill-scroll slice is also live: a rare Scroll of Iron Will can spawn
 in the boss room, occupies an inventory slot, and grants its server-resolved effect when used. A
 scroll used in a dungeon is provisional until that player escapes; a wipe or abandonment loses it.
-Upgrade acquisition and the full progression UI remain in Backend Step 11 and Frontend Step 10.
+A scroll of a skill the player already has adds a stack, up to the skill's limit, and a scroll whose
+prerequisites are missing is refused and kept. Coin, the skill shop, milestones and the full
+progression UI remain in Backend Step 11 and Frontend Step 10.
 See `content/README.md` for the supported shapes and relationships.
 
 Sessions begin in `content/dungeons/hub.json`. The hub is fully lit and has four torch pickups; no

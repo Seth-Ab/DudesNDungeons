@@ -10,9 +10,9 @@ import type {
   PlayerId,
   PlayerState,
   RunState,
+  SkillStacks,
   SkillView,
   SessionLocation,
-  UpgradeView,
 } from "../../shared/types/core.js";
 
 /**
@@ -33,29 +33,23 @@ export interface SessionError {
   message: string;
 }
 
-/** The player's own skills and upgrades, from the owner-only progression messages. */
+/** The player's own skill stacks, from the owner-only progression messages. */
 export interface ProgressionView {
-  /** Definitions for display. Empty until `progressionCatalog` arrives. */
+  /** Definitions for display, with stack limits and prerequisites. Empty until `progressionCatalog` arrives. */
   skills: SkillView[];
-  upgrades: UpgradeView[];
-  /** Kept between runs. */
-  unlockedSkillIds: string[];
-  unlockedUpgradeIds: string[];
-  /** Learned this run and lost unless the player makes it back to the hub. */
-  runSkillIds: string[];
-  /** What is actually in force now. */
-  activeSkillIds: string[];
-  activeUpgradeIds: string[];
+  /** Stacks kept between runs. */
+  skillStacks: SkillStacks;
+  /** Stacks learned this run and lost unless the player makes it back to the hub. */
+  runSkillStacks: SkillStacks;
+  /** What is actually in force now, capped at each skill's limit. */
+  activeSkillStacks: SkillStacks;
 }
 
 export const emptyProgression: ProgressionView = {
   skills: [],
-  upgrades: [],
-  unlockedSkillIds: [],
-  unlockedUpgradeIds: [],
-  runSkillIds: [],
-  activeSkillIds: [],
-  activeUpgradeIds: [],
+  skillStacks: {},
+  runSkillStacks: {},
+  activeSkillStacks: {},
 };
 
 export interface SessionView {
@@ -221,7 +215,6 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         progression: {
           ...(view.progression ?? emptyProgression),
           skills: message.skills,
-          upgrades: message.upgrades,
         },
       };
 
@@ -230,11 +223,9 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         ...view,
         progression: {
           ...(view.progression ?? emptyProgression),
-          unlockedSkillIds: message.unlockedSkillIds,
-          unlockedUpgradeIds: message.unlockedUpgradeIds,
-          runSkillIds: message.runSkillIds,
-          activeSkillIds: message.activeSkillIds,
-          activeUpgradeIds: message.activeUpgradeIds,
+          skillStacks: message.skillStacks,
+          runSkillStacks: message.runSkillStacks,
+          activeSkillStacks: message.activeSkillStacks,
         },
       };
 

@@ -289,8 +289,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v38, the version that added the party vault messages", () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+  it("is on protocol v39, the version that made skills stack", () => {
+    expect(PROTOCOL_VERSION).toBe(39);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -361,8 +361,7 @@ describe("appearance contract", () => {
         id: PROFILE_ID,
         displayName: "Grix",
         bankedItems: [],
-        unlockedSkillIds: [],
-        unlockedUpgradeIds: [],
+        skillStacks: {},
         runsEscaped: 0,
         runsLost: 0,
       },
@@ -410,8 +409,7 @@ describe("appearance contract", () => {
           id: PROFILE_ID,
           displayName: "Grix",
           bankedItems: [],
-          unlockedSkillIds: [],
-          unlockedUpgradeIds: [],
+          skillStacks: {},
           runsEscaped: 0,
           runsLost: 0,
         },
@@ -719,8 +717,7 @@ describe("parseServerMessage", () => {
         id: PROFILE_ID,
         displayName: "Grix",
         bankedItems: [],
-        unlockedSkillIds: ["iron-will"],
-        unlockedUpgradeIds: [],
+        skillStacks: { "iron-will": 2 },
         runsEscaped: 2,
         runsLost: 1,
       },
@@ -745,27 +742,31 @@ describe("parseServerMessage", () => {
           name: "Iron Will",
           description: "Start with more resistance.",
           effects: [{ type: "resistanceBonus", amount: 10 }],
-        },
-      ],
-      upgrades: [
-        {
-          id: "iron-will-steeled",
-          skillId: "iron-will",
-          name: "Steeled",
-          description: "More resistance.",
-          tier: 1,
+          maxStacks: 3,
           requires: [],
-          effects: [{ type: "resistanceBonus", amount: 5 }],
+          stackEffects: [
+            [{ type: "resistanceBonus", amount: 5 }],
+            [{ type: "resistanceBonus", amount: 5 }],
+          ],
+          perStackEffects: [],
+        },
+        {
+          id: "quick-step",
+          name: "Quick Step",
+          description: "Keeps stacking.",
+          effects: [{ type: "attackDamageBonus", amount: 1 }],
+          maxStacks: null,
+          requires: ["iron-will"],
+          stackEffects: [],
+          perStackEffects: [{ type: "attackDamageBonus", amount: 1 }],
         },
       ],
     };
     const state: ServerMessage = {
       type: "progressionUpdated",
-      unlockedSkillIds: ["iron-will"],
-      unlockedUpgradeIds: [],
-      runSkillIds: ["torchbearer"],
-      activeSkillIds: ["iron-will", "torchbearer"],
-      activeUpgradeIds: [],
+      skillStacks: { "iron-will": 4 },
+      runSkillStacks: { torchbearer: 1 },
+      activeSkillStacks: { "iron-will": 3, torchbearer: 1 },
     };
 
     for (const message of [catalog, state]) {
@@ -774,29 +775,52 @@ describe("parseServerMessage", () => {
     }
   });
 
-  it("rejects progression state with a malformed id or an unknown effect", () => {
-    const badId = parseServerMessage(
-      JSON.stringify({
-        type: "progressionUpdated",
-        unlockedSkillIds: ["Not A Slug"],
-        unlockedUpgradeIds: [],
-        runSkillIds: [],
-        activeSkillIds: [],
-        activeUpgradeIds: [],
-      }),
-    );
-    const badEffect = parseServerMessage(
-      JSON.stringify({
-        type: "progressionCatalog",
-        skills: [
-          { id: "x", name: "X", description: "d", effects: [{ type: "godMode", amount: 1 }] },
-        ],
-        upgrades: [],
-      }),
-    );
+  it("rejects progression state with a malformed id, a bad stack count or an unknown effect", () => {
+    const update = (fields: Record<string, unknown>) =>
+      parseServerMessage(
+        JSON.stringify({
+          type: "progressionUpdated",
+          skillStacks: {},
+          runSkillStacks: {},
+          activeSkillStacks: {},
+          ...fields,
+        }),
+      );
+    const skill = {
+      id: "x",
+      name: "X",
+      description: "d",
+      effects: [{ type: "resistanceBonus", amount: 1 }],
+      maxStacks: 1,
+      requires: [],
+      stackEffects: [],
+      perStackEffects: [],
+    };
+    const catalog = (fields: Record<string, unknown>) =>
+      parseServerMessage(JSON.stringify({ type: "progressionCatalog", skills: [{ ...skill, ...fields }] }));
 
-    expect(badId.ok).toBe(false);
-    expect(badEffect.ok).toBe(false);
+    expect(update({}).ok).toBe(true);
+    expect(update({ skillStacks: { "Not A Slug": 1 } }).ok).toBe(false);
+    expect(update({ runSkillStacks: { "iron-will": 0 } }).ok).toBe(false);
+    expect(update({ activeSkillStacks: { "iron-will": 1.5 } }).ok).toBe(false);
+    // The retired upgrade fields are not part of the contract any more.
+    expect(update({ skillStacks: undefined, unlockedSkillIds: ["iron-will"] }).ok).toBe(false);
+    expect(catalog({}).ok).toBe(true);
+    expect(catalog({ effects: [{ type: "godMode", amount: 1 }] }).ok).toBe(false);
+    expect(catalog({ maxStacks: 0 }).ok).toBe(false);
+    expect(catalog({ requires: ["Not A Slug"] }).ok).toBe(false);
+    expect(catalog({ perStackEffects: undefined }).ok).toBe(false);
+  });
+
+  it("round-trips the skill scroll rejection reasons", () => {
+    for (const reason of ["skillMaxed", "missingPrerequisites"] as const) {
+      const message: ServerMessage = { type: "actionRejected", sequence: 4, reason };
+      const result = parseServerMessage(serializeServerMessage(message));
+      expect(result.ok && result.message).toEqual(message);
+    }
+    expect(
+      parseServerMessage(JSON.stringify({ type: "actionRejected", sequence: 4, reason: "skillUpgraded" })).ok,
+    ).toBe(false);
   });
 
   it("round-trips a snapshot with server-owned dungeon state", () => {
