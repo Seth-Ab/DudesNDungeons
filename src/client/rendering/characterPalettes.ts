@@ -43,3 +43,50 @@ export const PARTY_PALETTES: Record<PartyColor, PartyPalette> = {
   azure: { ring: "#8fb0f0", tunic: ["#6f8fd0", "#4a66a8", "#2f4275"] },
   plum: { ring: "#d29ae0", tunic: ["#a06aaa", "#7a4785", "#4f2b58"] },
 };
+
+/**
+ * What a cosmetic's key colours become, in the order `COSMETIC_KEY_COLOURS` lists the keys; null
+ * for a key the item does not use. A legendary item's `flicker` swaps some of them on a period, the
+ * one small animation the bible allows it. Copied from the bible's `hats` and `cloaks` tables.
+ */
+export interface CosmeticPalette {
+  colours: readonly (string | null)[];
+  flicker?: { periodMs: number; colours: readonly (string | null)[] };
+}
+
+/** Ramp light, mid, shadow, then the accents `r w y f`. Keyed by cosmetic content id. */
+export const HAT_PALETTES = {
+  "leather-cap": { colours: ["#a07a4a", "#7a5a34", "#4e3a22", null, null, null, null] },
+  "ranger-hood": { colours: ["#5d7d58", "#3f5a3c", "#243424", null, null, null, null] },
+  "feathered-cap": { colours: ["#6a86c4", "#3f5486", "#2a3860", "#d0453a", null, null, null] },
+  "iron-helm": { colours: ["#d2d7de", "#8a929e", "#545b66", null, null, null, null] },
+  "mushroom-cap": { colours: ["#d04434", "#8c2a20", "#ead9b8", null, "#f6eedd", null, null] },
+  "horned-helm": { colours: ["#aeb6c1", "#6f7782", "#444b55", null, "#ece0c4", null, null] },
+  "wizard-hat": { colours: ["#7466cc", "#4a3f99", "#2e2766", null, null, "#f6d860", null] },
+  "ember-crown": {
+    colours: ["#f6cf62", "#d6a84c", "#8c6a2a", "#c2551d", null, null, "#f0a83c"],
+    // The embers along the crown's tips.
+    flicker: { periodMs: 200, colours: [null, null, null, null, null, null, "#ffe6a3"] },
+  },
+} as const satisfies Record<string, CosmeticPalette>;
+
+/** The shared cloak shape's six colours, per cloak. Keyed by cosmetic content id. */
+export const CLOAK_PALETTES = {
+  "traveler-cape": { colours: ["#8a6a44", "#6a4f30", "#45331e", "#d6a84c", "#8a6a44", "#45331e"] },
+  "night-cloak": { colours: ["#3a4466", "#262d48", "#161a2c", "#cfd6dc", "#eef0f6", "#161a2c"] },
+  "moth-cloak": { colours: ["#d4cab2", "#a89c80", "#6e6450", "#6e6450", "#3b2f20", "#6e6450"] },
+  "ember-cloak": {
+    colours: ["#a8361e", "#7b1f14", "#4a120c", "#f0a83c", "#c2551d", "#f0a83c"],
+    // The hem, which never quite goes out.
+    flicker: { periodMs: 160, colours: [null, null, "#c2551d", null, null, "#ffe6a3"] },
+  },
+} as const satisfies Record<string, CosmeticPalette>;
+
+/** Outfit dyes replace the tunic ramp. Keyed by cosmetic content id. */
+export const DYE_RAMPS = {
+  "bone-dye": ["#ece0c4", "#c8b996", "#8e8064"],
+  "ashen-dye": ["#adafb3", "#76797f", "#4a4c51"],
+  "midnight-dye": ["#4a5470", "#2c3348", "#171b28"],
+  "crimson-dye": ["#d8503f", "#9e2a24", "#641812"],
+  "gilded-dye": ["#f6cf62", "#c9962e", "#7d5a18"],
+} as const satisfies Record<string, ColourRamp>;

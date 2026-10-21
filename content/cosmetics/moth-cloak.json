@@ -1,0 +1,8 @@
+{
+  "id": "moth-cloak",
+  "slot": "cloak",
+  "rarity": "rare",
+  "name": "Moth Cloak",
+  "lore": "The eyes on the back keep watch so you don't have to.",
+  "milestone": { "stat": "mothRoomsFound", "threshold": 1 }
+}

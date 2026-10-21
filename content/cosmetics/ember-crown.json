@@ -1,0 +1,8 @@
+{
+  "id": "ember-crown",
+  "slot": "hat",
+  "rarity": "legendary",
+  "name": "Ember Crown",
+  "lore": "Still warm.",
+  "milestone": { "stat": "fullPartyEscapes", "threshold": 10 }
+}

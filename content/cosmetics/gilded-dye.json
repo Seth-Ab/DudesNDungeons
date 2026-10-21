@@ -1,0 +1,8 @@
+{
+  "id": "gilded-dye",
+  "slot": "dye",
+  "rarity": "rare",
+  "name": "Gilded Dye",
+  "lore": "Gold thread, hand-sewn by someone patient.",
+  "milestone": { "stat": "itemsBanked", "threshold": 100 }
+}

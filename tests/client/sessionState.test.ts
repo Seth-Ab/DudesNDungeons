@@ -36,6 +36,7 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
+    cosmetics: { hat: null, cloak: null, dye: null },
     bankedItems: [],
     ...overrides,
   };
@@ -95,6 +96,8 @@ function joinedView(): SessionView {
       coin: 0,
       stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
       earnedMilestones: [],
+      ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+      equippedCosmetics: { hat: null, cloak: null, dye: null },
       runsEscaped: 0,
       runsLost: 0,
     },
@@ -556,6 +559,7 @@ describe("progression", () => {
     runCoin: 0,
     stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
     earnedMilestones: [] as string[],
+    ownedCosmeticIds: [] as string[],
     ...overrides,
   });
 
@@ -632,6 +636,8 @@ describe("progression", () => {
         coin: 0,
         stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
         earnedMilestones: [],
+        ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+        equippedCosmetics: { hat: null, cloak: null, dye: null },
         runsEscaped: 0,
         runsLost: 0,
       },

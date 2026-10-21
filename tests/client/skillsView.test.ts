@@ -93,6 +93,7 @@ function self(inventory: InventoryItem[]): PlayerState {
     readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
+    cosmetics: { hat: null, cloak: null, dye: null },
     bankedItems: [],
   };
 }

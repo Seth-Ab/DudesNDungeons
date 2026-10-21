@@ -10,7 +10,7 @@ import { selfOf, type ProgressionView, type SessionView } from "../network/sessi
 type ProgressionEffectView = z.infer<typeof progressionEffectViewSchema>;
 
 /** How a milestone's stat reads after "reach N", one phrase per stat so none is left unlabelled. */
-const MILESTONE_STAT_LABELS: Record<MilestoneStat, string> = {
+export const MILESTONE_STAT_LABELS: Record<MilestoneStat, string> = {
   runsEscaped: "escaped runs",
   fullPartyEscapes: "full-party escapes",
   wins: "wins",

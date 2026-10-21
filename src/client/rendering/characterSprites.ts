@@ -7,6 +7,7 @@ import {
   CHARACTER_FRAME_WIDTH,
   COMPOSITE_HEIGHT,
   COMPOSITE_WIDTH,
+  HIDE_ALL_HAIR,
   PORTRAIT_SIZE,
   SILHOUETTE_COLOUR,
   SILHOUETTE_LOOK,
@@ -14,17 +15,23 @@ import {
   bodyFrame,
   characterFrameRect,
   characterSwaps,
+  cloakFrame,
   closeEyes,
   compositeCell,
   createBlinkClock,
   createCompositeCache,
   createMotionTracker,
+  drawnCosmetics,
+  flickerPhase,
+  hairClipRow,
   hairFrame,
+  hatFrame,
   pickCharacterPose,
   portraitRect,
   recolourPixels,
   silhouettePixels,
   type CharacterLook,
+  type FlickerPhase,
 } from "./characters.js";
 
 /**
@@ -94,52 +101,67 @@ function drawRing(
 }
 
 /**
- * One canvas per look holding every frame it can show, already recoloured, with hair over the body
- * and a blinking copy of each. Drawing a player is then a single stamp.
+ * One canvas per look holding every frame it can show, already recoloured and layered back to
+ * front, with a blinking copy of each. Drawing a player is then a single stamp. The design screen
+ * and the wardrobe preview build theirs here too, so neither can disagree with the world.
+ *
+ * Layer order is the sprite bible's: a cloak behind (facing down), the body, a cloak's back (facing
+ * up), hair clipped by the hat, a clasp (facing down), then the hat. Side-on a cloak is not drawn,
+ * as in the bible, and a hat wears its front.
  */
-function buildComposite(sheet: HTMLImageElement, look: CharacterLook): HTMLCanvasElement {
+export function buildCharacterComposite(
+  sheet: CanvasImageSource,
+  look: CharacterLook,
+  phase: FlickerPhase = 0,
+): HTMLCanvasElement {
   const { canvas, context } = createSurface(COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
+  const { hat, cloak } = drawnCosmetics(look);
+  const clip = hairClipRow(look);
   const cells = CHARACTER_FACINGS.flatMap((facing) =>
     WALK_POSES.flatMap((pose) =>
-      [false, true].map((blinking) => ({ facing, pose, blinking })),
+      [false, true].map((blinking) => ({ facing, pose, blinking, cell: compositeCell(facing, pose, blinking) })),
     ),
   );
-  const stamp = (frame: string, x: number, y: number): void => {
+  /** Stamps frame rows `fromRow` to the bottom of one frame at a cell. */
+  const stamp = (frame: string, x: number, y: number, fromRow = 0): void => {
     const rect = characterFrameRect(frame);
-    context.drawImage(
-      sheet,
-      rect.x,
-      rect.y,
-      CHARACTER_FRAME_WIDTH,
-      CHARACTER_FRAME_HEIGHT,
-      x,
-      y,
-      CHARACTER_FRAME_WIDTH,
-      CHARACTER_FRAME_HEIGHT,
-    );
+    const rows = CHARACTER_FRAME_HEIGHT - fromRow;
+    context.drawImage(sheet, rect.x, rect.y + fromRow, CHARACTER_FRAME_WIDTH, rows, x, y + fromRow, CHARACTER_FRAME_WIDTH, rows);
   };
 
-  for (const { facing, pose, blinking } of cells) {
-    const cell = compositeCell(facing, pose, blinking);
-    stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
-  }
+  for (const { facing, pose, cell } of cells) stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
 
   // Eyes close on the bare body, before hair could cover a pixel beside one.
   const bodies = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-  for (const { facing, pose, blinking } of cells) {
-    if (!blinking) continue;
-    const cell = compositeCell(facing, pose, blinking);
-    closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
+  for (const { blinking, cell } of cells) {
+    if (blinking) closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
   }
   context.putImageData(bodies, 0, 0);
 
-  for (const { facing, pose, blinking } of cells) {
-    const cell = compositeCell(facing, pose, blinking);
-    stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y);
+  if (cloak) {
+    // Slipped in under the body already drawn, rather than drawn first, so the eye scan above saw
+    // the body alone.
+    context.globalCompositeOperation = "destination-over";
+    for (const { facing, cell } of cells) {
+      if (facing === "down") stamp(cloakFrame("behind"), cell.x, cell.y);
+    }
+    context.globalCompositeOperation = "source-over";
+    for (const { facing, cell } of cells) {
+      if (facing === "up") stamp(cloakFrame("back"), cell.x, cell.y);
+    }
+  }
+
+  if (clip !== HIDE_ALL_HAIR) {
+    for (const { facing, cell } of cells) stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y, clip ?? 0);
+  }
+
+  for (const { facing, cell } of cells) {
+    if (cloak && facing === "down") stamp(cloakFrame("clasp"), cell.x, cell.y);
+    if (hat) stamp(hatFrame(hat, facing), cell.x, cell.y);
   }
 
   const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-  recolourPixels(pixels.data, characterSwaps(look));
+  recolourPixels(pixels.data, characterSwaps(look, phase));
   context.putImageData(pixels, 0, 0);
   return canvas;
 }
@@ -163,7 +185,7 @@ export function createCharacterSprites(onReady?: () => void) {
     onReady?.();
   });
 
-  const composites = createCompositeCache((look) => buildComposite(sheet!, look));
+  const composites = createCompositeCache((look, phase) => buildCharacterComposite(sheet!, look, phase));
 
   const motion = createMotionTracker();
   const blinks = createBlinkClock();
@@ -207,7 +229,7 @@ export function createCharacterSprites(onReady?: () => void) {
         const cell = compositeCell(pose.facing, pose.pose, blinks.blinking(player.id, now));
         const width = CHARACTER_FRAME_WIDTH * px;
         const height = CHARACTER_FRAME_HEIGHT * px;
-        const composite = composites.get(player.look);
+        const composite = composites.get(player.look, flickerPhase(player.look, now));
 
         if (pose.mirror) {
           ctx.save();
@@ -250,12 +272,12 @@ export function createCharacterPortraits(onReady?: () => void) {
     onReady?.();
   });
 
-  const composites = createCompositeCache((look) => buildComposite(sheet!, look));
+  const composites = createCompositeCache((look, phase) => buildCharacterComposite(sheet!, look, phase));
   let silhouette: HTMLCanvasElement | null = null;
 
   const silhouetteComposite = (): HTMLCanvasElement => {
     if (silhouette) return silhouette;
-    silhouette = buildComposite(sheet!, SILHOUETTE_LOOK);
+    silhouette = buildCharacterComposite(sheet!, SILHOUETTE_LOOK);
     const context = silhouette.getContext("2d")!;
     const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
     silhouettePixels(pixels.data, SILHOUETTE_COLOUR);

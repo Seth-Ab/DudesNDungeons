@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MILESTONE_STATS } from "../../shared/constants/game.js";
 import type {
+  EquippedCosmetics,
   InventoryItem,
   MilestoneStats,
   PlayerName,
@@ -8,8 +9,11 @@ import type {
   ProfileState,
 } from "../../shared/types/core.js";
 import {
+  contentIdSchema,
+  equippedCosmeticsSchema,
   inventoryItemSchema,
   milestoneStatsSchema,
+  NO_COSMETICS,
   skillStacksSchema,
 } from "../../shared/types/core.js";
 
@@ -41,6 +45,13 @@ export interface PlayerProfile {
   stats: MilestoneStats;
   /** Ids of milestones already earned, so each grants its skill at most once. */
   earnedMilestones: string[];
+  /**
+   * Cosmetic ids this profile owns, permanently: bought, granted by a milestone, or a starter. Kept
+   * even for an id content no longer has, so a content change never takes back what was earned.
+   */
+  ownedCosmeticIds: string[];
+  /** What the profile wears, public on its player. Changed only in the hub, by `equipCosmetic`. */
+  equippedCosmetics: EquippedCosmetics;
   runsEscaped: number;
   runsLost: number;
   createdAt: number;
@@ -53,6 +64,18 @@ export interface PlayerProfile {
    * exists.
    */
   revision: number;
+}
+
+/**
+ * The cosmetics every profile owns from the start (#128). Repeated here rather than read from
+ * content's `starter` flags, because a profile is parsed without content; a content test keeps the
+ * two in step.
+ */
+export const STARTER_COSMETIC_IDS: readonly string[] = ["leather-cap", "traveler-cape"];
+
+/** The starters plus whatever else a profile owns, each once, starters first. */
+export function withStarterCosmetics(owned: readonly string[]): string[] {
+  return [...new Set([...STARTER_COSMETIC_IDS, ...owned])];
 }
 
 /** Every milestone stat at zero: where a new profile, or one older than the stats, starts. */
@@ -81,6 +104,8 @@ export function toProfileState(profile: PlayerProfile): ProfileState {
     coin: profile.coin,
     stats: { ...profile.stats },
     earnedMilestones: [...profile.earnedMilestones],
+    ownedCosmeticIds: [...profile.ownedCosmeticIds],
+    equippedCosmetics: { ...profile.equippedCosmetics },
     runsEscaped: profile.runsEscaped,
     runsLost: profile.runsLost,
   };
@@ -165,6 +190,10 @@ export const persistedProfileSchema = z.preprocess(
       .default({})
       .transform((stats) => ({ ...createMilestoneStats(), ...stats })),
     earnedMilestones: z.array(z.string()).default([]),
+    // Absent from profiles written before cosmetics existed. Every profile owns the starters, so
+    // they are added on read whether or not the file lists them.
+    ownedCosmeticIds: z.array(contentIdSchema).default([]).transform(withStarterCosmetics),
+    equippedCosmetics: equippedCosmeticsSchema.default(NO_COSMETICS),
     runsEscaped: z.number().int().nonnegative(),
     runsLost: z.number().int().nonnegative(),
     createdAt: z.number().int().nonnegative(),

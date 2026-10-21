@@ -1,0 +1,9 @@
+{
+  "id": "mushroom-cap",
+  "slot": "hat",
+  "rarity": "rare",
+  "name": "Mushroom Cap",
+  "lore": "Do not let the Cinder Slime see it.",
+  "price": 50,
+  "rotating": true
+}

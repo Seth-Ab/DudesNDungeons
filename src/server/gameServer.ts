@@ -34,6 +34,7 @@ import {
   withdrawVaultItem,
 } from "./game/items.js";
 import { buySkillScroll, skillShopStockMessage } from "./game/shop.js";
+import { buyCosmetic, equipCosmetic, wardrobeCatalogMessage } from "./game/wardrobe.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveReadyPlates } from "./game/readyPlates.js";
@@ -62,6 +63,8 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "useItem",
   "convertSkillScroll",
   "buySkillScroll",
+  "buyCosmetic",
+  "equipCosmetic",
   "dropItem",
   "giveItem",
   "swapHeld",
@@ -198,11 +201,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, { type: "partyVault", items: session.vault.items.map((item) => ({ ...item })) });
   }
 
-  /** Sends the skill shop's stock if this room's run count moved since the player last had it. */
+  /**
+   * Sends the skill shop's stock and the wardrobe catalogue if this room's run count moved since the
+   * player last had them. Both rotate on the run count, and nothing else changes either.
+   */
   function sendSkillShopStock(socket: WebSocket, session: Session, playerId: PlayerId): void {
     if (lastStockSent.get(playerId) === session.vault.runCount) return;
     lastStockSent.set(playerId, session.vault.runCount);
     send(socket, skillShopStockMessage(session));
+    send(socket, wardrobeCatalogMessage(session));
   }
 
   /** Writes whatever an action changed: a profile, the vault, or both. No-ops when nothing did. */
@@ -553,6 +560,28 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         if (!draw.ok) {
           send(socket, { type: "actionRejected", sequence: message.sequence, reason: draw.reason });
         }
+        return;
+      }
+
+      if (message.type === "buyCosmetic" || message.type === "equipCosmetic") {
+        const member = store.findMember(playerId);
+        if (!member) {
+          sendError(socket, "notInSession", "Join a dungeon before sending this message");
+          return;
+        }
+
+        const result =
+          message.type === "buyCosmetic"
+            ? buyCosmetic(member.session, playerId, message.id)
+            : equipCosmetic(member.session, playerId, message.slot, message.id);
+        if (!result.ok) {
+          send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
+          return;
+        }
+
+        // Ownership reaches the buyer in their next `progressionUpdated`, and what is worn reaches
+        // everyone in the next snapshot. Only the profile needs writing now.
+        flushPersistent();
         return;
       }
 

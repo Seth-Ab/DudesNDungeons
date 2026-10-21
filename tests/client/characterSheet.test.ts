@@ -8,6 +8,8 @@ import {
   CHARACTER_FRAME_WIDTH,
   CHARACTER_FRAMES,
   CHARACTER_KEY_COLOURS,
+  COSMETIC_KEY_COLOURS,
+  HAT_IDS,
   CHARACTER_LAYERS,
   CHARACTER_SHEET_HEIGHT,
   CHARACTER_SHEET_WIDTH,
@@ -111,7 +113,10 @@ function opaqueColours(image: DecodedPng): Set<string> {
   return colours;
 }
 
-const KEY_COLOURS: readonly string[] = Object.values(CHARACTER_KEY_COLOURS).flat();
+const KEY_COLOURS: readonly string[] = [
+  ...Object.values(CHARACTER_KEY_COLOURS).flat(),
+  ...Object.values(COSMETIC_KEY_COLOURS).flat(),
+];
 
 /** A copy of the real source, so a test can break one thing and leave the rest valid. */
 function source(): CharacterSourceArt {
@@ -134,7 +139,7 @@ describe("the committed character sheet", () => {
     expect([sheet.width, sheet.height]).toEqual([CHARACTER_SHEET_WIDTH, CHARACTER_SHEET_HEIGHT]);
   });
 
-  it("is drawn only in fixed colours and the nine key colours, with no partial alpha", () => {
+  it("is drawn only in fixed colours and the key colours, with no partial alpha", () => {
     const sheet = decodePng(readFileSync(CHARACTER_SHEET_PATH));
 
     for (let y = 0; y < sheet.height; y += 1) {
@@ -203,8 +208,8 @@ describe("characters.ts", () => {
     expect(cells.size).toBe(CHARACTER_FRAMES.length);
   });
 
-  it("declares a body and a hair layer for each of the three facings", () => {
-    expect(CHARACTER_LAYERS).toHaveLength(2 * 3 + 6 * 3);
+  it("declares a body and a hair layer per facing, a hat facing down and up, and three cloak parts", () => {
+    expect(CHARACTER_LAYERS).toHaveLength(2 * 3 + 6 * 3 + HAT_IDS.length * 2 + 3);
   });
 });
 

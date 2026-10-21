@@ -19,6 +19,7 @@ import {
   CHARACTER_FRAME_HEIGHT,
   CHARACTER_FRAME_WIDTH,
   createBlinkClock,
+  NO_COSMETIC_LOOK,
   walkPose,
   type CharacterLook,
 } from "../rendering/characters.js";
@@ -178,7 +179,7 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
   const blinks = createBlinkClock();
   const phone = window.matchMedia(PHONE_QUERY);
 
-  const fullLook = (): CharacterLook => ({ ...look, partyColor });
+  const fullLook = (): CharacterLook => ({ ...look, partyColor, ...NO_COSMETIC_LOOK });
   const largeScale = (): number => (phone.matches ? PHONE_LARGE_SCALE : LARGE_SCALE);
 
   // Stage: the large preview, turn and walk controls, and the in-game scale panel.

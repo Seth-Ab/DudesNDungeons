@@ -13,6 +13,7 @@ import {
   monsterTypeSchema,
   roomTemplateSchema,
   shopDefinitionSchema,
+  cosmeticDefinitionSchema,
   skillDefinitionSchema,
   puzzleTypeSchema,
   trapTypeSchema,
@@ -23,6 +24,7 @@ import {
   type MonsterType,
   type RoomTemplate,
   type ShopDefinition,
+  type CosmeticDefinition,
   type SkillDefinition,
   type PuzzleType,
   type TrapType,
@@ -46,6 +48,8 @@ export interface GameContent {
   milestones: ReadonlyMap<string, MilestoneDefinition>;
   /** Hub shops. The skill shop is `SKILL_SHOP_ID`; each sells scrolls for coin. */
   shops: ReadonlyMap<string, ShopDefinition>;
+  /** Hats, cloaks and dyes: permanent profile unlocks sold at the wardrobe stall or earned. */
+  cosmetics: ReadonlyMap<string, CosmeticDefinition>;
   traps: ReadonlyMap<string, TrapType>;
   puzzles: ReadonlyMap<string, PuzzleType>;
   /** Named tables that content refers to by id, such as the one a chest rolls when opened. */
@@ -519,6 +523,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
     milestones: loadCollection(join(contentRoot, "milestones"), milestoneDefinitionSchema),
     shops: loadCollection(join(contentRoot, "shops"), shopDefinitionSchema),
+    cosmetics: loadCollection(join(contentRoot, "cosmetics"), cosmeticDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),

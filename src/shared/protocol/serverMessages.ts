@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { MILESTONE_STATS } from "../constants/game.js";
 import {
   dungeonSnapshotSchema,
   contentIdSchema,
+  cosmeticRaritySchema,
+  cosmeticSlotSchema,
   entityIdSchema,
   inventoryItemSchema,
   milestoneStatsSchema,
@@ -70,6 +73,12 @@ export const rejectionReasonSchema = z.enum([
   "insufficientCoin",
   /** A shop purchase with no free inventory slot for the scroll. */
   "inventoryFull",
+  /** A cosmetic id content does not have, or one sent for a slot it does not fill. */
+  "unknownCosmetic",
+  /** A cosmetic purchase of something the buyer's profile already owns. */
+  "alreadyOwned",
+  /** Equipping a cosmetic the profile does not own. */
+  "notOwned",
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 
@@ -148,6 +157,8 @@ export const progressionUpdatedSchema = z.object({
   stats: milestoneStatsSchema,
   /** Ids of the milestones already earned, each granted at most once. */
   earnedMilestones: z.array(contentIdSchema),
+  /** Cosmetic ids the profile owns, starters included. What is worn is public, on `PlayerState`. */
+  ownedCosmeticIds: z.array(contentIdSchema),
 });
 
 export const playerJoinedSchema = z.object({
@@ -234,6 +245,39 @@ export const skillShopStockSchema = z.object({
       rotating: z.boolean(),
     }),
   ),
+});
+
+/**
+ * One cosmetic as the wardrobe lists it. How it is unlocked: `starter` items are owned by every
+ * profile, a `price` sells it at the wardrobe stall while it is in stock, and a `milestone` grants it
+ * when a profile stat reaches the threshold. An item may have both a price and a milestone.
+ */
+export const wardrobeEntrySchema = z.object({
+  id: contentIdSchema,
+  slot: cosmeticSlotSchema,
+  rarity: cosmeticRaritySchema,
+  name: z.string().min(1),
+  lore: z.string().min(1),
+  starter: z.boolean(),
+  price: z.number().int().positive().nullable(),
+  milestone: z
+    .object({ stat: z.enum(MILESTONE_STATS), threshold: z.number().int().positive() })
+    .nullable(),
+  /** True for an item from the rotating pool, which rerolls after every run. */
+  rotating: z.boolean(),
+  /** Whether the stall sells it right now: priced, and fixed or in this run count's rotation. */
+  inStock: z.boolean(),
+});
+export type WardrobeEntry = z.infer<typeof wardrobeEntrySchema>;
+
+/**
+ * The whole cosmetic catalogue and what the wardrobe stall sells right now. Stock belongs to the
+ * room, like the skill shop's, so every member gets the same list: after joining and again when a
+ * run ends. `price` is informational; `buyCosmetic` names an id and the server reads the real one.
+ */
+export const wardrobeCatalogSchema = z.object({
+  type: z.literal("wardrobeCatalog"),
+  entries: z.array(wardrobeEntrySchema),
 });
 
 /**
@@ -332,6 +376,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   partyRosterSchema,
   partyVaultSchema,
   skillShopStockSchema,
+  wardrobeCatalogSchema,
   stateSnapshotSchema,
   attackResolvedSchema,
   voiceRangeUpdatedSchema,

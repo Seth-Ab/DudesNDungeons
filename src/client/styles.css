@@ -1648,7 +1648,8 @@ button:disabled {
 .hud__stash[hidden],
 .hud__skills-panel[hidden],
 .hud__vault[hidden],
-.hud__shop[hidden] {
+.hud__shop[hidden],
+.hud__wardrobe[hidden] {
   display: none;
 }
 
@@ -2084,6 +2085,104 @@ button:disabled {
   letter-spacing: 0;
   font-size: 0.8rem;
   color: #e0a070;
+}
+
+/* The wardrobe reuses the vault's placement, wider: a preview beside a tabbed list of cards. */
+.hud__wardrobe {
+  max-width: min(40rem, calc(100vw - 2rem));
+}
+
+.hud__wardrobe-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.hud__wardrobe-stage {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  padding: 0.4rem;
+  border: 1px solid var(--hud-frame);
+  background: var(--hud-well);
+}
+
+.hud__wardrobe-preview {
+  image-rendering: pixelated;
+}
+
+.hud__wardrobe-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.hud__wardrobe-tab[aria-selected="true"] {
+  border-color: var(--hud-brass);
+  color: var(--hud-brass);
+}
+
+.hud__wardrobe-cards {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(22rem, calc(100vh - 14rem));
+  overflow-y: auto;
+}
+
+/* Each card wears its rarity colour as its left edge; the worn card is outlined in brass. */
+.hud__wardrobe-card {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.3rem 0.25rem 0.5rem;
+  border: 1px solid var(--hud-frame);
+  border-left: 4px solid var(--rarity);
+  background: var(--hud-well);
+  font-size: 0.78rem;
+}
+
+.hud__wardrobe-card--worn {
+  outline: 1px solid var(--hud-brass);
+}
+
+.hud__wardrobe-pick {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hud-text);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.hud__wardrobe-pick[aria-pressed="true"] strong {
+  color: var(--hud-brass);
+}
+
+.hud__wardrobe-rarity {
+  color: var(--rarity);
+  text-transform: capitalize;
+}
+
+.hud__wardrobe-action {
+  flex: none;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 34rem) {
+  .hud__wardrobe-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* The Skills panel, placed like the Stash and scrolling inside the viewport on small screens. */

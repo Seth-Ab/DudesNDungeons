@@ -29,9 +29,11 @@ import {
 } from "../state/hudView.js";
 import { coinReadout, convertPromptView } from "../state/convertPrompt.js";
 import { skillsPanelView } from "../state/skillsView.js";
-import { inShopArea, inVaultArea } from "../state/runFlow.js";
+import { inShopArea, inVaultArea, inWardrobeArea } from "../state/runFlow.js";
+import { wardrobeView } from "../state/wardrobe.js";
+import { lookOf, NO_COSMETIC_LOOK } from "../rendering/characters.js";
 import { skillShopView } from "../state/skillShop.js";
-import type { Vector2 } from "../../shared/types/core.js";
+import type { CosmeticSlot, Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
 import { createDrawReadout } from "./hud/drawReadout.js";
 import { createCampMenu } from "./hud/campMenu.js";
@@ -50,6 +52,7 @@ import { createSkills } from "./hud/skills.js";
 import { createSession } from "./hud/session.js";
 import { createNoticeStack, createToasts } from "./hud/toasts.js";
 import { createShop } from "./hud/shop.js";
+import { createWardrobe } from "./hud/wardrobe.js";
 import { createVault } from "./hud/vault.js";
 import { createVitals } from "./hud/vitals.js";
 import { createVoice } from "./hud/voice.js";
@@ -71,6 +74,8 @@ interface HudOptions {
   onWithdrawVaultItem: (itemId: string) => void;
   onDepositVaultItem: (itemId: string) => void;
   onBuySkillScroll: (itemId: string) => void;
+  onBuyCosmetic: (id: string) => void;
+  onEquipCosmetic: (slot: CosmeticSlot, id: string | null) => void;
   onConvertScroll: (itemId: string) => void;
   onDismissConvert: () => void;
   onRequestConvert: (itemId: string) => void;
@@ -118,6 +123,7 @@ export function createHud(options: HudOptions) {
     onDeposit: options.onDepositVaultItem,
   });
   const shop = createShop({ onBuy: options.onBuySkillScroll });
+  const wardrobe = createWardrobe({ onBuy: options.onBuyCosmetic, onEquip: options.onEquipCosmetic });
   const skills = createSkills({ onConvert: options.onRequestConvert });
   const minimap = createMinimap();
   const convertPrompt = createConvertPrompt({
@@ -177,6 +183,8 @@ export function createHud(options: HudOptions) {
       skills.close();
     } else if (shop.isOpen()) {
       shop.close();
+    } else if (wardrobe.isOpen()) {
+      wardrobe.close();
     } else if (vault.isOpen()) {
       vault.close();
     } else if (inventory.isOpen()) {
@@ -253,6 +261,7 @@ export function createHud(options: HudOptions) {
     skills.panel,
     vault.panel,
     shop.panel,
+    wardrobe.panel,
     convertPrompt.panel,
     camp.element,
   );
@@ -284,7 +293,7 @@ export function createHud(options: HudOptions) {
     const pinned = new Set<HudModuleId>(warned);
     const density = hudDensityFrom(document.documentElement.dataset.hudDensity);
     // The camp menu, the Stash and the vault own the keyboard; nothing dims behind them.
-    if (camp.isOpen() || inventory.isOpen() || skills.isOpen() || vault.isOpen() || shop.isOpen()) for (const id of fadeIds) pinned.add(id);
+    if (camp.isOpen() || inventory.isOpen() || skills.isOpen() || vault.isOpen() || shop.isOpen() || wardrobe.isOpen()) for (const id of fadeIds) pinned.add(id);
     for (const id of fadeIds) {
       if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
     }
@@ -357,6 +366,31 @@ export function createHud(options: HudOptions) {
     shop.update(skillShopView(currentView));
   };
 
+  /** Likewise the wardrobe, at the Wardrobe stall. Equipping works anywhere in the hub; buying is here. */
+  const canUseWardrobe = (): boolean => {
+    const self = currentView ? selfOf(currentView) : null;
+    return (
+      currentView !== null &&
+      currentView.phase === "inSession" &&
+      self !== null &&
+      self.health > 0 &&
+      inWardrobeArea(currentView.location, currentView.dungeon?.rooms ?? [], currentPosition)
+    );
+  };
+  const updateWardrobe = (view: SessionView): void => {
+    const self = selfOf(view);
+    const look = self ? lookOf(self) : null;
+    wardrobe.update(wardrobeView(view), look && { ...look, ...NO_COSMETIC_LOOK });
+  };
+  const refreshWardrobe = (): void => {
+    if (!wardrobe.isOpen()) return;
+    if (!canUseWardrobe() || !currentView) {
+      wardrobe.close();
+      return;
+    }
+    updateWardrobe(currentView);
+  };
+
   const setDebug = (on: boolean): void => {
     sessionPanel.classList.toggle("hud__panel--debug", on);
     session.positionElement.hidden = !on;
@@ -392,6 +426,7 @@ export function createHud(options: HudOptions) {
       refreshPrompt();
       refreshVault();
       refreshShop();
+      refreshWardrobe();
     },
 
     /** Opens the party vault, if the player is where they can use it. False when they are not. */
@@ -411,6 +446,18 @@ export function createHud(options: HudOptions) {
       vault.close();
       shop.update(skillShopView(currentView));
       shop.open();
+      applyFade();
+      return true;
+    },
+
+    /** Opens the wardrobe, if the player is at the Wardrobe stall. False when they are not. */
+    openWardrobe(): boolean {
+      if (!canUseWardrobe() || !currentView) return false;
+      inventory.close();
+      vault.close();
+      shop.close();
+      updateWardrobe(currentView);
+      wardrobe.open();
       applyFade();
       return true;
     },
@@ -496,6 +543,7 @@ export function createHud(options: HudOptions) {
       skills.update(skillsPanelView(view));
       refreshVault();
       refreshShop();
+      refreshWardrobe();
       partyFrames.update(view);
       minimap.update(view);
     },

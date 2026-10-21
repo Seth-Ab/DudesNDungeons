@@ -1,0 +1,9 @@
+{
+  "id": "ranger-hood",
+  "slot": "hat",
+  "rarity": "fine",
+  "name": "Ranger's Hood",
+  "lore": "Hides every hair and most of the worry.",
+  "price": 30,
+  "milestone": { "stat": "runsEscaped", "threshold": 5 }
+}

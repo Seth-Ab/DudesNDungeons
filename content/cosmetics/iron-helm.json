@@ -1,0 +1,8 @@
+{
+  "id": "iron-helm",
+  "slot": "hat",
+  "rarity": "rare",
+  "name": "Iron Helm",
+  "lore": "Dented in exactly the right places.",
+  "milestone": { "stat": "emberWardenKills", "threshold": 1 }
+}

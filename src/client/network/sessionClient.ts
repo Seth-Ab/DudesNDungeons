@@ -6,13 +6,13 @@ import {
   type ClientMessage,
   type VoiceSignal,
 } from "../../shared/protocol/index.js";
-import type { PlayerAppearance, PlayerId, Vector2 } from "../../shared/types/core.js";
+import type { CosmeticSlot, PlayerAppearance, PlayerId, Vector2 } from "../../shared/types/core.js";
 import {
   applyServerMessage,
   initialSessionView,
   type SessionView,
 } from "./sessionState.js";
-import { rejectionMessage } from "../state/runFlow.js";
+import { rejectionMessage, wardrobeRejectionMessage } from "../state/runFlow.js";
 
 /** The slice of `WebSocket` this client uses, so tests can supply a double. */
 export interface SocketLike {
@@ -88,6 +88,11 @@ export function createSessionClient(options: SessionClientOptions) {
   let lastUsedItemId: string | null = null;
   /** Set when a purchase is sent and cleared by its outcome, so a refusal can be shown in the shop panel. */
   let buyPending = false;
+  /**
+   * The wardrobe request awaiting its outcome, so a refusal shows in the wardrobe rather than the
+   * action line. A purchase is settled by `progressionUpdated`, an equip by a snapshot wearing it.
+   */
+  let wardrobePending: { kind: "buy" } | { kind: "equip"; slot: CosmeticSlot; id: string | null } | null = null;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -160,6 +165,17 @@ export function createSessionClient(options: SessionClientOptions) {
       return;
     }
     if (buyPending && parsed.message.type === "progressionUpdated") buyPending = false;
+    if (wardrobePending && parsed.message.type === "actionRejected" && parsed.message.sequence === null) {
+      wardrobePending = null;
+      update({ ...next, wardrobeNotice: wardrobeRejectionMessage(parsed.message.reason) });
+      return;
+    }
+    if (wardrobePending?.kind === "buy" && parsed.message.type === "progressionUpdated") wardrobePending = null;
+    if (wardrobePending?.kind === "equip" && parsed.message.type === "stateSnapshot") {
+      const { slot, id } = wardrobePending;
+      const self = next.players.find((player) => player.id === next.selfId);
+      if (self?.cosmetics[slot] === id) wardrobePending = null;
+    }
     update(maxedRefusal && lastUsedItemId !== null ? { ...next, convertPromptItemId: lastUsedItemId } : next);
   }
 
@@ -337,6 +353,20 @@ export function createSessionClient(options: SessionClientOptions) {
       buyPending = true;
       if (view.shopNotice !== null) update({ ...view, shopNotice: null });
       return send({ type: "buySkillScroll", itemId });
+    },
+
+    /** Buys a cosmetic at the wardrobe stall by id. The server names the price and may refuse. */
+    buyCosmetic(id: string): boolean {
+      wardrobePending = { kind: "buy" };
+      if (view.wardrobeNotice !== null) update({ ...view, wardrobeNotice: null });
+      return send({ type: "buyCosmetic", id });
+    },
+
+    /** Wears an owned cosmetic, or takes a slot off with null. Only the hub allows it. */
+    equipCosmetic(slot: CosmeticSlot, id: string | null): boolean {
+      wardrobePending = { kind: "equip", slot, id };
+      if (view.wardrobeNotice !== null) update({ ...view, wardrobeNotice: null });
+      return send({ type: "equipCosmetic", slot, id });
     },
 
     /** Opens the conversion prompt from the Skills panel. Sends nothing; the prompt's Confirm does. */

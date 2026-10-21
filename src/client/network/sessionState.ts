@@ -1,5 +1,10 @@
 import { MILESTONE_STATS } from "../../shared/constants/game.js";
-import type { ErrorCode, PartyRosterEntry, ServerMessage } from "../../shared/protocol/index.js";
+import type {
+  ErrorCode,
+  PartyRosterEntry,
+  ServerMessage,
+  WardrobeEntry,
+} from "../../shared/protocol/index.js";
 import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
 import { emoteFeedLine, type EmoteRecord } from "../state/emotes.js";
@@ -56,6 +61,8 @@ export interface ProgressionView {
   stats: MilestoneStats;
   /** Ids of milestones already earned. */
   earnedMilestones: string[];
+  /** Cosmetic ids the profile owns, starters included. What is worn is on each `PlayerState`. */
+  ownedCosmeticIds: string[];
 }
 
 export const emptyProgression: ProgressionView = {
@@ -68,6 +75,7 @@ export const emptyProgression: ProgressionView = {
   runCoin: 0,
   stats: Object.fromEntries(MILESTONE_STATS.map((stat) => [stat, 0])) as MilestoneStats,
   earnedMilestones: [],
+  ownedCosmeticIds: [],
 };
 
 export interface SessionView {
@@ -143,6 +151,10 @@ export interface SessionView {
   skillShop: SkillShopEntry[];
   /** The refusal to show inside the shop panel for the last purchase, or null. Set by the session client. */
   shopNotice: string | null;
+  /** Every cosmetic and whether the wardrobe stall stocks it now, from the latest `wardrobeCatalog`. */
+  wardrobe: WardrobeEntry[];
+  /** The refusal to show inside the wardrobe for the last buy or equip, or null. Set by the session client. */
+  wardrobeNotice: string | null;
 }
 
 export type SkillShopEntry = Extract<ServerMessage, { type: "skillShopStock" }>["entries"][number];
@@ -183,6 +195,8 @@ export const initialSessionView: SessionView = {
   convertPromptItemId: null,
   skillShop: [],
   shopNotice: null,
+  wardrobe: [],
+  wardrobeNotice: null,
 };
 
 /**
@@ -236,6 +250,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         convertPromptItemId: null,
         skillShop: [],
         shopNotice: null,
+        wardrobe: [],
+        wardrobeNotice: null,
       };
 
     case "partyRoster":
@@ -246,6 +262,9 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
 
     case "skillShopStock":
       return { ...view, skillShop: message.entries };
+
+    case "wardrobeCatalog":
+      return { ...view, wardrobe: message.entries };
 
     case "progressionCatalog":
       return {
@@ -269,6 +288,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
           runCoin: message.runCoin,
           stats: message.stats,
           earnedMilestones: message.earnedMilestones,
+          ownedCosmeticIds: message.ownedCosmeticIds,
         },
       };
 

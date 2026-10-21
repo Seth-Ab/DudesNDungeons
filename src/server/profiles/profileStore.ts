@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { PlayerName, ProfileId, ProfileSecret } from "../../shared/types/core.js";
 import {
   createMilestoneStats,
+  STARTER_COSMETIC_IDS,
   markProfileChanged,
   PROFILE_FILE_VERSION,
   profileFileSchema,
@@ -85,6 +86,8 @@ export class ProfileStore {
         ...stored,
         bankedItems: stored.bankedItems.map((item) => ({ ...item })),
         skillStacks: { ...stored.skillStacks },
+        ownedCosmeticIds: [...stored.ownedCosmeticIds],
+        equippedCosmetics: { ...stored.equippedCosmetics },
         revision: 0,
       };
       this.#byId.set(profile.id, profile);
@@ -125,6 +128,8 @@ export class ProfileStore {
       coin: 0,
       stats: createMilestoneStats(),
       earnedMilestones: [],
+      ownedCosmeticIds: [...STARTER_COSMETIC_IDS],
+      equippedCosmetics: { hat: null, cloak: null, dye: null },
       runsEscaped: 0,
       runsLost: 0,
       createdAt: at,
@@ -174,6 +179,8 @@ export class ProfileStore {
         coin: profile.coin,
         stats: { ...profile.stats },
         earnedMilestones: [...profile.earnedMilestones],
+        ownedCosmeticIds: [...profile.ownedCosmeticIds],
+        equippedCosmetics: { ...profile.equippedCosmetics },
         runsEscaped: profile.runsEscaped,
         runsLost: profile.runsLost,
         createdAt: profile.createdAt,
