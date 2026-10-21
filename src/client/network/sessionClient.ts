@@ -322,6 +322,11 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "convertSkillScroll", itemId });
     },
 
+    /** Opens the conversion prompt from the Skills panel. Sends nothing; the prompt's Confirm does. */
+    requestConvertPrompt(itemId: string): void {
+      update({ ...view, convertPromptItemId: itemId });
+    },
+
     /** Closes the conversion prompt without sending anything. */
     dismissConvertPrompt(): void {
       if (view.convertPromptItemId !== null) update({ ...view, convertPromptItemId: null });

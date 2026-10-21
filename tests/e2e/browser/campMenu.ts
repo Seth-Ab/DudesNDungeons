@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** The camp menu dialog, which holds Ready, Leave, Stash, Controls, and the voice settings. */
+/** The camp menu dialog, which holds Ready, Leave, Skills, Stash, Controls, and the voice settings. */
 export function campMenu(page: Page): Locator {
   return page.getByRole("dialog", { name: "Camp" });
 }

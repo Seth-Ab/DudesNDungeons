@@ -60,7 +60,7 @@ test.describe("HUD accessibility and layout", () => {
   // Zone placement, overlap, the canvas centre and name-plate clearance are in hudZones.spec.ts.
 
   test("keeps the session and voice controls off screen until the camp menu opens", async ({ page }) => {
-    for (const name of ["Leave", "Controls", "Stash", "Enable Voice", "Mute", "Deafen"]) {
+    for (const name of ["Leave", "Controls", "Skills", "Stash", "Enable Voice", "Mute", "Deafen"]) {
       await expect(page.getByRole("button", { name, exact: true }), name).toHaveCount(0);
     }
     // In the hub, Ready stays on screen for new players, and the mic chip stays for everyone.
@@ -77,7 +77,7 @@ test.describe("HUD accessibility and layout", () => {
     await expect(page.getByText("Position:")).toBeVisible();
 
     const camp = await openCampMenu(page);
-    for (const name of ["Ready", "Leave", "Stash", "Controls", "Enable Voice", "Mute", "Deafen"]) {
+    for (const name of ["Ready", "Leave", "Skills", "Stash", "Controls", "Enable Voice", "Mute", "Deafen"]) {
       await expect(camp.getByRole("button", { name, exact: true }), name).toBeVisible();
     }
     // Voice keeps its disabled rules: there is nothing to mute until voice is live.

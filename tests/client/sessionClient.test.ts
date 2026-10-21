@@ -518,6 +518,18 @@ describe("converting a maxed scroll", () => {
     expect(convertPromptView(view)).toMatchObject({ itemId: SCROLL_ID, coin: 3, text: "Convert to 3 coin" });
   });
 
+  it("opens the confirmation from the Skills panel without sending anything", async () => {
+    const { client, player } = await holdingMaxedScroll();
+
+    client.requestConvertPrompt(SCROLL_ID);
+    const view = await until(client, (candidate) => candidate.convertPromptItemId === SCROLL_ID);
+
+    expect(convertPromptView(view)).toMatchObject({ itemId: SCROLL_ID, text: "Convert to 3 coin" });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(player.inventory).toHaveLength(1);
+    expect(player.profile.coin).toBe(0);
+  });
+
   it("sends nothing on Cancel", async () => {
     const { client, player } = await holdingMaxedScroll();
     client.useItem(SCROLL_ID);

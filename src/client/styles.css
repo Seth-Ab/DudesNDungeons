@@ -1646,6 +1646,7 @@ button:disabled {
 .hud__tally[hidden],
 .hud__hub-status[hidden],
 .hud__stash[hidden],
+.hud__skills-panel[hidden],
 .hud__vault[hidden] {
   display: none;
 }
@@ -2070,6 +2071,102 @@ button:disabled {
   text-transform: none;
   letter-spacing: 0;
   font-size: 0.8rem;
+}
+
+/* The Skills panel, placed like the Stash and scrolling inside the viewport on small screens. */
+.hud__skills-panel {
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 0.45rem;
+  width: min(26rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100vh - 2rem));
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+}
+
+.hud__skills {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__skills[hidden],
+.hud__skills-sub[hidden] {
+  display: none;
+}
+
+.hud__skill {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #4a4438;
+  border-left-width: 4px;
+  color: var(--hud-text);
+}
+
+.hud__skill--permanent {
+  border-left-color: #caa85a;
+}
+
+.hud__skill--provisional {
+  border-left-color: #7fb3d5;
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.hud__skill--locked,
+.hud__skill--unavailable {
+  border-left-color: #6b6559;
+  color: #8d8578;
+}
+
+.hud__skill--unavailable {
+  border-style: dotted;
+  border-left-style: solid;
+}
+
+.hud__skill--scroll-blocked,
+.hud__skill--scroll-maxed {
+  border-left-color: #b86b4b;
+}
+
+.hud__skill button {
+  justify-self: start;
+}
+
+.hud__skill-title {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.hud__skill-name {
+  font-weight: 600;
+}
+
+.hud__skill-badge {
+  font-family: var(--hud-font-label);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.hud__skill-text {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.hud__skill-effect {
+  color: #caa85a;
+}
+
+.hud__skill-need {
+  color: #d98a6a;
 }
 
 .hud__coin {

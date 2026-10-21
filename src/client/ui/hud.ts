@@ -28,6 +28,7 @@ import {
   vitalsView,
 } from "../state/hudView.js";
 import { coinReadout, convertPromptView } from "../state/convertPrompt.js";
+import { skillsPanelView } from "../state/skillsView.js";
 import { inVaultArea } from "../state/runFlow.js";
 import type { Vector2 } from "../../shared/types/core.js";
 import { createActions } from "./hud/actions.js";
@@ -44,6 +45,7 @@ import { createItemFeedback } from "./hud/itemFeedback.js";
 import { createKeyHints } from "./hud/keyHints.js";
 import { createMinimap } from "./hud/minimap.js";
 import { createPartyFrames } from "./hud/partyFrames.js";
+import { createSkills } from "./hud/skills.js";
 import { createSession } from "./hud/session.js";
 import { createNoticeStack, createToasts } from "./hud/toasts.js";
 import { createVault } from "./hud/vault.js";
@@ -68,6 +70,7 @@ interface HudOptions {
   onDepositVaultItem: (itemId: string) => void;
   onConvertScroll: (itemId: string) => void;
   onDismissConvert: () => void;
+  onRequestConvert: (itemId: string) => void;
 }
 
 /**
@@ -111,6 +114,7 @@ export function createHud(options: HudOptions) {
     onWithdraw: options.onWithdrawVaultItem,
     onDeposit: options.onDepositVaultItem,
   });
+  const skills = createSkills({ onConvert: options.onRequestConvert });
   const minimap = createMinimap();
   const convertPrompt = createConvertPrompt({
     onConfirm: options.onConvertScroll,
@@ -140,9 +144,15 @@ export function createHud(options: HudOptions) {
   });
   stashButton.setAttribute("aria-haspopup", "dialog");
 
+  const skillsButton = createButton("Skills", () => {
+    closeCamp();
+    skills.open();
+  });
+  skillsButton.setAttribute("aria-haspopup", "dialog");
+
   const camp = createCampMenu([
     { title: "Party", elements: [session.readyButton, session.leaveButton] },
-    { title: "Camp", elements: [stashButton, session.controlsButton] },
+    { title: "Camp", elements: [skillsButton, stashButton, session.controlsButton] },
     { title: "Voice", elements: [voice.statusElement, voice.meterElement, ...voice.buttons] },
   ]);
   openCamp = () => {
@@ -159,6 +169,8 @@ export function createHud(options: HudOptions) {
     if (isTypingTarget(event.target)) return;
     if (convertPrompt.isOpen()) {
       options.onDismissConvert();
+    } else if (skills.isOpen()) {
+      skills.close();
     } else if (vault.isOpen()) {
       vault.close();
     } else if (inventory.isOpen()) {
@@ -232,6 +244,7 @@ export function createHud(options: HudOptions) {
     actionPanel,
     hotbar.element,
     inventory.panel,
+    skills.panel,
     vault.panel,
     convertPrompt.panel,
     camp.element,
@@ -264,7 +277,7 @@ export function createHud(options: HudOptions) {
     const pinned = new Set<HudModuleId>(warned);
     const density = hudDensityFrom(document.documentElement.dataset.hudDensity);
     // The camp menu, the Stash and the vault own the keyboard; nothing dims behind them.
-    if (camp.isOpen() || inventory.isOpen() || vault.isOpen()) for (const id of fadeIds) pinned.add(id);
+    if (camp.isOpen() || inventory.isOpen() || skills.isOpen() || vault.isOpen()) for (const id of fadeIds) pinned.add(id);
     for (const id of fadeIds) {
       if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
     }
@@ -381,7 +394,10 @@ export function createHud(options: HudOptions) {
       session.update(controls, self ? self.ready : null, hubReadyVisible(view));
       voice.setInSession(!controls.sessionControlsDisabled);
       campAvailable = view.phase === "inSession" && self !== null && self.appearance !== null;
-      if (!campAvailable) camp.close();
+      if (!campAvailable) {
+        camp.close();
+        skills.close();
+      }
       const coinText = coinReadout(view);
       coin.hidden = coinText === null;
       coin.textContent = coinText ?? "";
@@ -438,6 +454,7 @@ export function createHud(options: HudOptions) {
       refreshPrompt();
 
       inventory.update(self);
+      skills.update(skillsPanelView(view));
       refreshVault();
       partyFrames.update(view);
       minimap.update(view);
