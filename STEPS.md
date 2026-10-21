@@ -235,6 +235,8 @@ Out of scope here: real movement and collision (Backend step 3), combat (step 4)
 - Render loot, doors, exits, monster health, downed players, and hub/run outcome state.
 - Show server-confirmed combat results, refusals, and a warning as resistance decays.
 
+Owner decisions (HUD Torch & Tally, issue #160): unseen allies stay in the party frames as a greyed "out of sight" entry with no position, health or resistance, fed by a server-sent roster; the minimap stays free for everyone until progression decides otherwise; health and resistance show their numbers inside the bar while stamina stays bar-only; and the run clock is a numberless burning torch whose exact time lives in its accessible label.
+
 ### 9. Hub World and Run Flow
 
 - Render the hub, the dungeon entrance, the torch supply, and storage.

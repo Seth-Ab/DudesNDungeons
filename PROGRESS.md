@@ -74,6 +74,15 @@ Resolved:
   only on extraction; a hub purchase is permanent immediately. Revive then escape counts, as will
   carrying a downed player through the exit once carrying exists. An already-known scroll is not
   consumed; duplicates may become upgrades later. Recorded in decision 0011.
+- HUD Torch & Tally open questions, decided on 2026-10-21 for issue #160:
+  - Unseen allies appear as a greyed "out of sight" frame with no position, health or resistance and
+    a non-colour cue. This needs a server-sent party roster, built in #172.
+  - The minimap stays free for everyone for now; revisit with the Skills UI (#25) and the progression
+    economy (#23).
+  - Health and resistance show their numbers (`82/100`) inside the bar, with an accessible text
+    equivalent; stamina stays a bare bar. The Minimal density level (#170) may hide the numbers.
+  - The run clock is a numberless torch that burns down toward the decay window, built in #174. The
+    exact time stays in its accessible label.
 - Target run length: 15-20 minutes for a full dungeon run.
 - World tile scale: One authored tile is 4 world tiles on each side, so a dungeon is sixteen times the area its templates read as. Chosen on 2026-09-17 after the first demo: a one-tile corridor fitted exactly one of four players.
 - Traversal pacing at that scale: Movement speed rises from 2.5 to 6 world units per second, well under the full four, so crossing the dungeon takes about 1.7 times as long rather than four times and a run still fits the 15-20 minute target.
@@ -497,6 +506,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Owner decisions on unseen allies, minimap access, bar numbers and the run clock (#160), unblocking #167, #172 and #174.
 - 2026-10-20: HUD density setting (Full/Calm/Minimal) next to UI scale (#170, HUD Torch & Tally Phase 4).
 - 2026-10-20: Quiet HUD modules fade to 55% opacity after 4 s out of combat (#169, HUD Torch & Tally Phase 4).
 - 2026-10-20: Baked 9-slice HUD frame and brass studs on every HUD panel, drawn at a whole-number zoom per UI scale (#166, HUD Torch & Tally Phase 2).
