@@ -1,0 +1,9 @@
+{
+  "id": "wizard-hat",
+  "slot": "hat",
+  "rarity": "rare",
+  "name": "Wizard Hat",
+  "lore": "No spells included.",
+  "price": 50,
+  "rotating": true
+}

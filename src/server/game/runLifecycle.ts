@@ -21,6 +21,7 @@ import {
 import { createDiscoveredGrid } from "./tileGrid.js";
 import { advanceRunCount } from "../vaults/partyVault.js";
 import { storeInVault } from "./vault.js";
+import { grantCosmeticMilestones } from "./wardrobe.js";
 
 export type RunTransitionResult =
   | { ok: true }
@@ -177,6 +178,7 @@ export function returnToHub(session: Session, escaped: boolean): void {
         itemsBanked,
       });
       grantMilestones(player, content);
+      grantCosmeticMilestones(player, content);
     } else {
       discardRunSkills(player);
       discardRunCoin(player);

@@ -1,21 +1,12 @@
 import type { PartyColor } from "../../shared/types/core.js";
 import { PARTY_PALETTES } from "./characterPalettes.js";
-import { CHARACTER_SHEET_URL } from "./characterSprites.js";
+import { buildCharacterComposite, CHARACTER_SHEET_URL } from "./characterSprites.js";
 import {
-  CHARACTER_FACINGS,
   CHARACTER_FRAME_HEIGHT,
   CHARACTER_FRAME_WIDTH,
-  COMPOSITE_HEIGHT,
-  COMPOSITE_WIDTH,
-  WALK_POSES,
-  bodyFrame,
-  characterFrameRect,
-  characterSwaps,
-  closeEyes,
   compositeCell,
   createCompositeCache,
-  hairFrame,
-  recolourPixels,
+  flickerPhase,
   type CharacterFacing,
   type CharacterLook,
   type WalkPose,
@@ -59,16 +50,6 @@ export function drawPartyRing(
   }
 }
 
-function createSurface(width: number, height: number) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) throw new Error("Canvas 2D context is unavailable.");
-  context.imageSmoothingEnabled = false;
-  return { canvas, context };
-}
-
 export function createCharacterPreview(onReady: () => void) {
   let sheet: HTMLImageElement | null = null;
   const image = new Image();
@@ -82,46 +63,7 @@ export function createCharacterPreview(onReady: () => void) {
   };
   image.src = CHARACTER_SHEET_URL;
 
-  const composites = createCompositeCache((look: CharacterLook): HTMLCanvasElement => {
-    const { canvas, context } = createSurface(COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    const cells = CHARACTER_FACINGS.flatMap((facing) =>
-      WALK_POSES.flatMap((pose) => [false, true].map((blinking) => ({ facing, pose, blinking }))),
-    );
-    const stamp = (frame: string, x: number, y: number): void => {
-      const rect = characterFrameRect(frame);
-      context.drawImage(
-        sheet!,
-        rect.x,
-        rect.y,
-        CHARACTER_FRAME_WIDTH,
-        CHARACTER_FRAME_HEIGHT,
-        x,
-        y,
-        CHARACTER_FRAME_WIDTH,
-        CHARACTER_FRAME_HEIGHT,
-      );
-    };
-
-    for (const { facing, pose, blinking } of cells) {
-      const cell = compositeCell(facing, pose, blinking);
-      stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
-    }
-    const bodies = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    for (const { facing, pose, blinking } of cells) {
-      if (!blinking) continue;
-      const cell = compositeCell(facing, pose, blinking);
-      closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
-    }
-    context.putImageData(bodies, 0, 0);
-    for (const { facing, pose, blinking } of cells) {
-      const cell = compositeCell(facing, pose, blinking);
-      stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y);
-    }
-    const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-    recolourPixels(pixels.data, characterSwaps(look));
-    context.putImageData(pixels, 0, 0);
-    return canvas;
-  });
+  const composites = createCompositeCache((look, phase) => buildCharacterComposite(sheet!, look, phase));
 
   return {
     get ready(): boolean {
@@ -147,7 +89,7 @@ export function createCharacterPreview(onReady: () => void) {
       const rows = crop?.rows ?? CHARACTER_FRAME_HEIGHT;
       const width = CHARACTER_FRAME_WIDTH * px;
       const height = rows * px;
-      const source = composites.get(look);
+      const source = composites.get(look, flickerPhase(look, performance.now()));
       ctx.imageSmoothingEnabled = false;
       if (pose.mirror) {
         ctx.save();

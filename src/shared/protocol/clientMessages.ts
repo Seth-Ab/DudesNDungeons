@@ -2,6 +2,7 @@ import { z } from "zod";
 import { EMOTES } from "../constants/emotes.js";
 import {
   contentIdSchema,
+  cosmeticSlotSchema,
   entityIdSchema,
   playerAppearanceSchema,
   playerIdSchema,
@@ -133,6 +134,27 @@ export const buySkillScrollSchema = z.object({
   itemId: contentIdSchema,
 });
 
+/**
+ * Buys one cosmetic at the hub wardrobe stall, named by content id and never by price. The server
+ * refuses outside the hub or the wardrobe room, for an unknown or already-owned id, one not in
+ * stock right now, or one the profile cannot afford. A bought item is owned, not worn.
+ */
+export const buyCosmeticSchema = z.object({
+  type: z.literal("buyCosmetic"),
+  id: contentIdSchema,
+});
+
+/**
+ * Wears an owned cosmetic in a slot, or takes that slot off with null. Only in the hub: in a
+ * dungeon the look is fixed. The server refuses an item the profile does not own, or one that
+ * fills a different slot.
+ */
+export const equipCosmeticSchema = z.object({
+  type: z.literal("equipCosmetic"),
+  slot: cosmeticSlotSchema,
+  id: contentIdSchema.nullable(),
+});
+
 /** Puts a carried item (inventory or hand) on the floor at the sender's feet as loot anyone can pick up again. */
 export const dropItemSchema = z.object({
   type: z.literal("dropItem"),
@@ -213,6 +235,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   useItemSchema,
   convertSkillScrollSchema,
   buySkillScrollSchema,
+  buyCosmeticSchema,
+  equipCosmeticSchema,
   dropItemSchema,
   giveItemSchema,
   swapHeldSchema,

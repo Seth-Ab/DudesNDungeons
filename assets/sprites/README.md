@@ -114,12 +114,18 @@ pixel data is ported from the owner-approved `docs/design/character-sprite-bible
 ```
 
 - A frame is **16 x 24**: a 16 x 16 body on frame rows 8 to 23, with the eight rows above it as
-  headroom for hair and, later, hats. Every layer is a whole frame, so its rows must expand to
+  headroom for hair and hats. Every layer is a whole frame, so its rows must expand to
   exactly 24 rows of 16 pixels or the bake fails and names the layer. Rows, `N*` and `0` work as in
   the tile source.
 - Layers stack in one frame, body first and hair over it. `body-guy` and `body-girl`, and
   `hair-crop`, `-spiky`, `-long`, `-ponytail`, `-bun` and `-shaved`, each come in `down`, `up` and
   `side`. Facing left is `side` mirrored.
+- Cosmetics (#137): `hat-<id>-down` and `hat-<id>-up` for each hat in `content/cosmetics/` (side-on
+  a hat wears its `down` frame), and one cloak shape in three parts, `cloak-behind` (under the body,
+  facing down), `cloak-back` (over the body, facing up) and `cloak-clasp` (at the neck, facing down).
+  The renderer draws cloak behind, body, cloak back, hair, clasp, then hat, and hides the hair rows
+  above each hat's `HAT_HAIR_CLIP_ROWS` entry in `characters.ts`. A dye has no art: it replaces the
+  tunic ramp.
 - Bodies are baked in three poses, `stand`, `walk1` and `walk2`, so the renderer only picks a frame.
   The walk frames are **derived, not authored**: `walk1` moves the boot pixels in the right half of
   the frame up one row onto the trousers, and `walk2` does the same for the left half. The cycle is
@@ -142,6 +148,18 @@ colour, so one sheet covers every combination.
 | skin  | `s S T`    | `#ffb0ff` `#ff60ff` `#c000c0`   |
 | hair  | `h H G`    | `#b0ffff` `#00ffff` `#00a0a0`   |
 | tunic | `C c d`    | `#ffffa0` `#ffff00` `#a0a000`   |
+
+Hats and cloaks use **cosmetic key colours** (`COSMETIC_KEY_COLOURS`), swapped per item from
+`HAT_PALETTES` and `CLOAK_PALETTES` in `characterPalettes.ts`, so every cloak shares one shape:
+
+| Ramp  | Characters    | Key colours                                                         |
+| ----- | ------------- | ------------------------------------------------------------------- |
+| hat   | `7 8 9`       | `#ff8080` `#ff0000` `#a00000`, then accents `R W Y F`: `#8080ff` `#0000ff` `#0000a0` `#80ff80` |
+| cloak | `1` to `6`    | `#c0ff80` `#80ff00` `#408000` `#00ff80` `#00a050` `#004020`         |
+
+The bible's hats use `1 2 3` and `r w y f`; they are `7 8 9` and `R W Y F` here so they cannot be
+mistaken for the cloak's digits or the ribbon's `r`. A legendary item's one animation is a palette
+flicker (`flicker` in its palette), drawn as a second composite rather than repainted every frame.
 
 Every other colour is **fixed** and drawn as baked: outline and eyes `#17120c`, belt `#5c4930`,
 buckle `#d6a84c`, trousers `#2b3037`, boots `#3b2f20`, ribbon `#c23b2e` (`CHARACTER_FIXED_COLOURS`).

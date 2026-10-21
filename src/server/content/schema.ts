@@ -8,6 +8,7 @@ import {
   MILESTONE_STATS,
   MONSTER_BEHAVIORS,
 } from "../../shared/constants/game.js";
+import { COSMETIC_RARITIES, COSMETIC_SLOTS } from "../../shared/constants/cosmetics.js";
 import {
   DEFAULT_MAP_THEME,
   FACEABLE_PROP_KINDS,
@@ -492,6 +493,8 @@ export const roomKindSchema = z.enum([
   "vault",
   /** Where the hub skill shop is used. Only meaningful in the hub, like the vault. */
   "shop",
+  /** Where cosmetics are bought, at the hub wardrobe stall. Only meaningful in the hub. */
+  "wardrobe",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 
@@ -822,3 +825,41 @@ export const shopDefinitionSchema = z
     }
   });
 export type ShopDefinition = z.infer<typeof shopDefinitionSchema>;
+
+/**
+ * A cosmetic (decision 0014, #128): a permanent profile unlock that changes a player's look and
+ * nothing else. How it is unlocked is any of: `starter`, owned by every profile; a `price` in coin
+ * at the wardrobe stall, always in stock or, when `rotating`, only while the room's rotation draws
+ * it; or a `milestone`, granted when a profile stat reaches its threshold. A rotating item must
+ * have a price. What it looks like is the client's: `src/client/rendering/` keys its art by `id`.
+ */
+export const cosmeticDefinitionSchema = z
+  .object({
+    id: contentIdSchema,
+    slot: z.enum(COSMETIC_SLOTS),
+    rarity: z.enum(COSMETIC_RARITIES),
+    name: z.string().min(1),
+    lore: z.string().min(1),
+    starter: z.boolean().default(false),
+    price: z.number().int().positive().optional(),
+    milestone: z
+      .object({ stat: z.enum(MILESTONE_STATS), threshold: z.number().int().positive() })
+      .optional(),
+    rotating: z.boolean().default(false),
+  })
+  .superRefine((cosmetic, context) => {
+    if (!cosmetic.starter && cosmetic.price === undefined && cosmetic.milestone === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "A cosmetic needs at least one of starter, price or milestone, or nobody can own it",
+      });
+    }
+    if (cosmetic.rotating && cosmetic.price === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["rotating"],
+        message: "Only a priced cosmetic can rotate through the shop",
+      });
+    }
+  });
+export type CosmeticDefinition = z.infer<typeof cosmeticDefinitionSchema>;

@@ -52,6 +52,7 @@ import { drawEmoteBubbles } from "./emoteBubbles.js";
 import { drawReadyPlates } from "./readyPlates.js";
 import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
 import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js";
+import { lookOf } from "./characters.js";
 
 /**
  * Screen pixels per world unit.
@@ -357,17 +358,19 @@ export function createCanvasRenderer(
    * snapshot puts them, like anyone else. A seated player is the standing figure dropped a little
    * onto the seat, until the character sheet has a seated frame.
    */
-  const drawnPlayer = (player: PlayerState, position: Vector2): DrawnPlayer | null =>
-    player.appearance === null
+  const drawnPlayer = (player: PlayerState, position: Vector2): DrawnPlayer | null => {
+    const look = lookOf(player);
+    return look === null
       ? null
       : {
           id: player.id,
-          look: { ...player.appearance, partyColor: player.partyColor },
+          look,
           facing: player.facing,
           position: player.seatId === null ? position : { x: position.x, y: position.y + SEATED_DROP },
           label: carryLabel(player),
           faded: player.health <= 0 || !player.connected,
         };
+  };
 
   /**
    * The cone a winding-up monster is about to strike. The outline marks the full area; the fill grows

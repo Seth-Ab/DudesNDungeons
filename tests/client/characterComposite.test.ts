@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { HAIR_COLORS, PARTY_COLORS, SKIN_TONES } from "../../src/shared/constants/appearance.js";
+import { loadContent } from "../../src/server/content/loadContent.js";
 import {
+  CLOAK_PALETTES,
+  DYE_RAMPS,
   HAIR_RAMPS,
+  HAT_PALETTES,
   PARTY_PALETTES,
   SKIN_RAMPS,
 } from "../../src/client/rendering/characterPalettes.js";
@@ -14,7 +18,13 @@ import {
   CHARACTER_FRAME_HEIGHT,
   CHARACTER_FRAME_WIDTH,
   CHARACTER_KEY_COLOURS,
+  CLOAK_IDS,
   COMPOSITE_HEIGHT,
+  COSMETIC_KEY_COLOURS,
+  DYE_IDS,
+  HAT_HAIR_CLIP_ROWS,
+  HAT_IDS,
+  HIDE_ALL_HAIR,
   COMPOSITE_WIDTH,
   PORTRAIT_SIZE,
   SILHOUETTE_COLOUR,
@@ -28,6 +38,9 @@ import {
   createBlinkClock,
   createCompositeCache,
   createMotionTracker,
+  flickerPhase,
+  hairClipRow,
+  lookOf,
   pickCharacterPose,
   portraitRect,
   recolourPixels,
@@ -43,6 +56,9 @@ const LOOK: CharacterLook = {
   hairStyle: "crop",
   hairColor: "black",
   partyColor: "ember",
+  hat: null,
+  cloak: null,
+  dye: null,
 };
 
 function pixelsOf(colours: readonly (string | null)[]): Uint8ClampedArray {
@@ -168,6 +184,9 @@ describe("composite cache", () => {
       { hairStyle: "bun" },
       { hairColor: "silver" },
       { partyColor: "azure" },
+      { dye: "crimson-dye" },
+      { hat: "wizard-hat" },
+      { cloak: "night-cloak" },
     ];
     for (const change of changes) {
       const other = cache.get({ ...LOOK, ...change });
@@ -178,7 +197,29 @@ describe("composite cache", () => {
   });
 
   it("keys on every field of the look", () => {
-    expect(characterLookKey(LOOK)).toBe("guy|porcelain|crop|black|ember");
+    expect(characterLookKey(LOOK)).toBe("guy|porcelain|crop|black|ember|-|-|-");
+    expect(characterLookKey({ ...LOOK, dye: "bone-dye", hat: "iron-helm", cloak: "moth-cloak" })).toBe(
+      "guy|porcelain|crop|black|ember|bone-dye|iron-helm|moth-cloak",
+    );
+  });
+
+  it("draws a cosmetic it has no art for as none, sharing the plain look's composite", () => {
+    let built = 0;
+    const cache = createCompositeCache(() => ({ id: (built += 1) }));
+    const plain = cache.get(LOOK);
+
+    expect(cache.get({ ...LOOK, hat: "golden-toque", cloak: "shadow-cape", dye: "teal-dye" })).toBe(plain);
+    expect(built).toBe(1);
+  });
+
+  it("builds one composite per flicker phase, and reuses each", () => {
+    let built = 0;
+    const cache = createCompositeCache((_look, phase) => ({ id: (built += 1), phase }));
+    const crowned = { ...LOOK, hat: "ember-crown" };
+
+    expect(cache.get(crowned, 0)).not.toBe(cache.get(crowned, 1));
+    expect(cache.get(crowned, 1)).toBe(cache.get(crowned, 1));
+    expect(built).toBe(2);
   });
 });
 
@@ -261,5 +302,94 @@ describe("motion tracker", () => {
     expect(motion.moving("a", { x: 1.1, y: 1 }, 16 + WALK_HOLD_MS - 1)).toBe(true);
     expect(motion.moving("a", { x: 1.1, y: 1 }, 16 + WALK_HOLD_MS)).toBe(false);
     expect(motion.moving("b", { x: 1.1, y: 1 }, 20)).toBe(false);
+  });
+});
+
+describe("cosmetics", () => {
+  const recoloured = (look: CharacterLook, keys: readonly string[], phase = 0): string[] => {
+    const data = pixelsOf(keys);
+    recolourPixels(data, characterSwaps(look, phase));
+    return keys.map((_, index) => colourAt(data, index));
+  };
+
+  it("swaps the tunic for a dye's ramp, and back to the party colour without one", () => {
+    const tunic = CHARACTER_KEY_COLOURS.tunic;
+
+    for (const dye of DYE_IDS) {
+      expect(recoloured({ ...LOOK, dye }, tunic), dye).toEqual([...DYE_RAMPS[dye]]);
+    }
+    expect(recoloured(LOOK, tunic)).toEqual([...PARTY_PALETTES.ember.tunic]);
+  });
+
+  it("swaps a dye's tunic while leaving skin and hair as designed", () => {
+    const keys = [...CHARACTER_KEY_COLOURS.skin, ...CHARACTER_KEY_COLOURS.hair];
+
+    expect(recoloured({ ...LOOK, dye: "midnight-dye" }, keys)).toEqual([...SKIN_RAMPS.porcelain, ...HAIR_RAMPS.black]);
+  });
+
+  it("recolours a hat's and a cloak's keys from that item's palette", () => {
+    const look = { ...LOOK, hat: "feathered-cap", cloak: "night-cloak" };
+
+    expect(recoloured(look, COSMETIC_KEY_COLOURS.hat).slice(0, 4)).toEqual(HAT_PALETTES["feathered-cap"].colours.slice(0, 4));
+    expect(recoloured(look, COSMETIC_KEY_COLOURS.cloak)).toEqual([...CLOAK_PALETTES["night-cloak"].colours]);
+  });
+
+  it("flickers only legendary items, each on its own period", () => {
+    expect(flickerPhase({ ...LOOK, hat: "wizard-hat", cloak: "night-cloak" }, 250)).toBe(0);
+
+    const crown = { ...LOOK, hat: "ember-crown" };
+    expect(flickerPhase(crown, 0)).toBe(0);
+    expect(flickerPhase(crown, 200)).toBe(1);
+    expect(flickerPhase(crown, 400)).toBe(0);
+
+    const hem = { ...LOOK, cloak: "ember-cloak" };
+    expect(flickerPhase(hem, 160)).toBe(2);
+    expect(flickerPhase({ ...hem, hat: "ember-crown" }, 200)).toBe(3);
+  });
+
+  it("lights the crown's embers and the cloak's hem in the flickering phase only", () => {
+    const tips = COSMETIC_KEY_COLOURS.hat[6];
+    const hem = COSMETIC_KEY_COLOURS.cloak[5];
+    const look = { ...LOOK, hat: "ember-crown", cloak: "ember-cloak" };
+
+    expect(recoloured(look, [tips, hem], 0)).toEqual(["#f0a83c", "#f0a83c"]);
+    expect(recoloured(look, [tips, hem], 3)).toEqual(["#ffe6a3", "#ffe6a3"]);
+  });
+
+  it("clips hair under a hat, hides it all under a hood, and keeps it all under a crown", () => {
+    expect(hairClipRow(LOOK)).toBeNull();
+    expect(hairClipRow({ ...LOOK, hat: "leather-cap" })).toBe(13);
+    expect(hairClipRow({ ...LOOK, hat: "ranger-hood" })).toBe(HIDE_ALL_HAIR);
+    expect(hairClipRow({ ...LOOK, hat: "ember-crown" })).toBeNull();
+    expect(hairClipRow({ ...LOOK, hat: "golden-toque" })).toBeNull();
+    // Every clip falls between the first hair row and the bottom of the frame.
+    for (const clip of Object.values(HAT_HAIR_CLIP_ROWS)) {
+      if (typeof clip === "number") expect(clip).toBeGreaterThan(8);
+      if (typeof clip === "number") expect(clip).toBeLessThan(CHARACTER_FRAME_HEIGHT);
+    }
+  });
+
+  it("has art for every hat, cloak and dye content lists, and nothing content does not", () => {
+    const content = [...loadContent().cosmetics.values()];
+    const ids = (slot: string): string[] => content.filter((item) => item.slot === slot).map((item) => item.id).sort();
+
+    expect([...HAT_IDS].sort()).toEqual(ids("hat"));
+    expect([...CLOAK_IDS].sort()).toEqual(ids("cloak"));
+    expect([...DYE_IDS].sort()).toEqual(ids("dye"));
+    expect(Object.keys(HAT_PALETTES).sort()).toEqual(ids("hat"));
+    expect(Object.keys(CLOAK_PALETTES).sort()).toEqual(ids("cloak"));
+    expect(Object.keys(DYE_RAMPS).sort()).toEqual(ids("dye"));
+  });
+
+  it("builds a player's look from their design, party colour and what they wear", () => {
+    const appearance = { body: "girl", skinTone: "tan", hairStyle: "bun", hairColor: "moss" } as const;
+    const cosmetics = { hat: "wizard-hat", cloak: null, dye: "bone-dye" };
+
+    expect(lookOf({ appearance, partyColor: "plum", cosmetics })).toEqual({
+      ...appearance,
+      partyColor: "plum",
+      ...cosmetics,
+    });
+    expect(lookOf({ appearance: null, partyColor: "plum", cosmetics })).toBeNull();
   });
 });

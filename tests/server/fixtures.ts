@@ -68,6 +68,8 @@ export function testProfile(id: string, overrides: Partial<PlayerProfile> = {}):
     coin: 0,
     stats: createMilestoneStats(),
     earnedMilestones: [],
+    ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+    equippedCosmetics: { hat: null, cloak: null, dye: null },
     runsEscaped: 0,
     runsLost: 0,
     createdAt: 0,

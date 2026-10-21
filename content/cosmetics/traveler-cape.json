@@ -1,0 +1,8 @@
+{
+  "id": "traveler-cape",
+  "slot": "cloak",
+  "rarity": "common",
+  "name": "Traveler's Cape",
+  "lore": "Smells faintly of every road.",
+  "starter": true
+}

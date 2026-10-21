@@ -26,6 +26,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     carriedByPlayerId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
+    cosmetics: { hat: null, cloak: null, dye: null },
     bankedItems: [],
     seatId: null,
     readyPlateId: null,

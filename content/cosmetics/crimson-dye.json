@@ -1,0 +1,9 @@
+{
+  "id": "crimson-dye",
+  "slot": "dye",
+  "rarity": "fine",
+  "name": "Crimson Dye",
+  "lore": "Hides stains. Mostly.",
+  "price": 30,
+  "rotating": true
+}

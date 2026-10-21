@@ -1,0 +1,8 @@
+{
+  "id": "horned-helm",
+  "slot": "hat",
+  "rarity": "rare",
+  "name": "Horned Helm",
+  "lore": "The horns are mostly for morale.",
+  "milestone": { "stat": "teammatesCarriedOut", "threshold": 3 }
+}

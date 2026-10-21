@@ -95,6 +95,40 @@ describe("parseClientMessage", () => {
     expect(withPrice.ok && "price" in withPrice.message).toBe(false);
   });
 
+  it("accepts a cosmetic purchase by id only, and an equip by slot and id or null", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "buyCosmetic", id: "wizard-hat" })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "buyCosmetic" })).ok).toBe(false);
+    const withPrice = parseClientMessage(JSON.stringify({ type: "buyCosmetic", id: "wizard-hat", price: 0 }));
+    expect(withPrice.ok && "price" in withPrice.message).toBe(false);
+
+    expect(parseClientMessage(JSON.stringify({ type: "equipCosmetic", slot: "hat", id: "wizard-hat" })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "equipCosmetic", slot: "cloak", id: null })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "equipCosmetic", slot: "trail", id: null })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "equipCosmetic", slot: "hat" })).ok).toBe(false);
+  });
+
+  it("round-trips the wardrobe catalogue and refuses an unknown slot or rarity in it", () => {
+    const entry = {
+      id: "ranger-hood",
+      slot: "hat",
+      rarity: "fine",
+      name: "Ranger's Hood",
+      lore: "Hides every hair.",
+      starter: false,
+      price: 30,
+      milestone: { stat: "runsEscaped", threshold: 5 },
+      rotating: false,
+      inStock: true,
+    } as const;
+    const catalogue: ServerMessage = { type: "wardrobeCatalog", entries: [entry] };
+    const parsed = parseServerMessage(serializeServerMessage(catalogue));
+    expect(parsed.ok && parsed.message).toEqual(catalogue);
+
+    for (const bad of [{ slot: "boots" }, { rarity: "mythic" }, { price: 0 }]) {
+      expect(parseServerMessage(JSON.stringify({ type: "wardrobeCatalog", entries: [{ ...entry, ...bad }] })).ok).toBe(false);
+    }
+  });
+
   it("round-trips the skill shop stock and the purchase rejection reasons", () => {
     const stock: ServerMessage = {
       type: "skillShopStock",
@@ -336,12 +370,13 @@ describe("appearance contract", () => {
       readyPlateId: null,
       appearance: LOOK,
       partyColor: "ember",
+      cosmetics: { hat: null, cloak: null, dye: null },
       ...fields,
     };
   }
 
-  it("is on protocol v42, the version that added the hub skill shop", () => {
-    expect(PROTOCOL_VERSION).toBe(42);
+  it("is on protocol v43, the version that added cosmetics and the wardrobe", () => {
+    expect(PROTOCOL_VERSION).toBe(43);
   });
 
   it("ships the id lists the design fixed", () => {
@@ -416,6 +451,8 @@ describe("appearance contract", () => {
         coin: 0,
         stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
         earnedMilestones: [],
+        ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+        equippedCosmetics: { hat: null, cloak: null, dye: null },
         runsEscaped: 0,
         runsLost: 0,
       },
@@ -467,6 +504,8 @@ describe("appearance contract", () => {
           coin: 0,
           stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
           earnedMilestones: [],
+          ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+          equippedCosmetics: { hat: null, cloak: null, dye: null },
           runsEscaped: 0,
           runsLost: 0,
         },
@@ -512,6 +551,7 @@ describe("seat contract", () => {
       readyPlateId: null,
       appearance: { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" },
       partyColor: "ember",
+      cosmetics: { hat: null, cloak: null, dye: null },
     };
 
     const joined = parseServerMessage(JSON.stringify({ type: "playerJoined", player }));
@@ -575,6 +615,7 @@ describe("ready plate contract", () => {
           readyPlateId: TARGET_ID,
           appearance: { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" },
           partyColor: "ember",
+          cosmetics: { hat: null, cloak: null, dye: null },
         },
       }),
     );
@@ -778,6 +819,8 @@ describe("parseServerMessage", () => {
         coin: 0,
         stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
         earnedMilestones: [],
+        ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+        equippedCosmetics: { hat: null, cloak: null, dye: null },
         runsEscaped: 2,
         runsLost: 1,
       },
@@ -842,6 +885,7 @@ describe("parseServerMessage", () => {
       runCoin: 4,
       stats: { ...ZERO_STATS, runsEscaped: 5, itemsBanked: 9 },
       earnedMilestones: ["seasoned-escapee"],
+      ownedCosmeticIds: [],
     };
 
     for (const message of [catalog, state]) {
@@ -862,6 +906,7 @@ describe("parseServerMessage", () => {
           runCoin: 0,
           stats: ZERO_STATS,
           earnedMilestones: [],
+          ownedCosmeticIds: [],
           ...fields,
         }),
       );
@@ -1085,6 +1130,7 @@ describe("parseServerMessage", () => {
         readyPlateId: null,
         appearance: { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" },
         partyColor: "plum",
+        cosmetics: { hat: null, cloak: null, dye: null },
         bankedItems: [],
       },
     };

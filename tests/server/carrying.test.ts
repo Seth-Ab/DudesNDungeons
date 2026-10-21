@@ -189,6 +189,8 @@ describe("disconnect and extraction", () => {
           coin: 0,
           stats: { runsEscaped: 0, fullPartyEscapes: 0, wins: 0, emberWardenKills: 0, flawlessEmberWardenKills: 0, teammatesCarriedOut: 0, leverPuzzlesSolved: 0, runsWithoutTorch: 0, itemsBanked: 0, mothRoomsFound: 0 },
           earnedMilestones: [],
+          ownedCosmeticIds: ["leather-cap", "traveler-cape"],
+          equippedCosmetics: { hat: null, cloak: null, dye: null },
           runsEscaped: 0,
           runsLost: 0,
           createdAt: 0,

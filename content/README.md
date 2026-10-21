@@ -173,6 +173,35 @@ room code, the room's run count (saved with its party vault in `data/vaults.json
 it is the same across calls and restarts and never changes during a run. A client buys with
 `buySkillScroll { itemId }` and never names a price; the server reads it from here.
 
+## Cosmetics
+
+`content/cosmetics/` holds hats, cloaks and outfit dyes (decision 0014, #128). They change how a
+player looks and nothing else, and once owned they belong to the profile for good: never dropped,
+never lost on death, kept across restarts. Each file is one item:
+
+```json
+{ "id": "ranger-hood", "slot": "hat", "rarity": "fine", "name": "Ranger's Hood",
+  "lore": "Hides every hair and most of the worry.", "price": 30,
+  "milestone": { "stat": "runsEscaped", "threshold": 5 } }
+```
+
+- `slot` is `hat`, `cloak` or `dye`; `rarity` is `common`, `fine`, `rare` or `legendary` and only
+  colours the wardrobe card.
+- How it is got is any of: `starter: true`, owned by every profile (the Leather Cap and Traveler's
+  Cape; `STARTER_COSMETIC_IDS` in `src/server/profiles/profile.ts` must match, which a test checks); a
+  `price` in coin at the hub's Wardrobe stall (a room of kind `wardrobe`); or a `milestone`, a stat
+  from the list under Milestones and a threshold, granted when a run's stats are credited. An item
+  with none of the three, or `rotating` without a price, fails validation.
+- Priced items are in stock all the time unless `rotating: true`. Rotating ones form a pool from
+  which `COSMETIC_ROTATING_COUNT` (2) are in stock at a time, rerolled after every run by the same
+  draw as the skill shop's rotation. Keep the pool larger than that, or the rotation never rotates.
+- What an item looks like is the client's: `src/client/rendering/characters.ts` lists the hats,
+  cloaks and dyes it has art for, and `characterPalettes.ts` their colours, keyed by these ids. An id
+  with no art is drawn as nothing. Prices are tuning.
+
+A client buys with `buyCosmetic { id }`, standing at the stall, and wears an owned item anywhere in
+the hub with `equipCosmetic { slot, id }` (`id: null` takes the slot off). Neither names a price.
+
 ## Milestones
 
 `content/milestones/` holds achievements that grant a skill outright (decision 0014). A milestone

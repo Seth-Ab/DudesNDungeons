@@ -10,7 +10,7 @@ import { isDown, isSpawned } from "./dungeonState.js";
 import { contentForSession, heldStacks } from "./progression.js";
 import { createRng } from "./random.js";
 
-/** The one hub shop that exists today; the cosmetics shop (#137) adds its own id beside it. */
+/** The hub skill shop. The wardrobe stall sells cosmetics from their own content kind instead. */
 export const SKILL_SHOP_ID = "scroll-shop";
 
 export type ShopEntry = ShopDefinition["fixed"][number];

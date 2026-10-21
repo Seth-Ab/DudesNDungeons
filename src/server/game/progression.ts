@@ -105,6 +105,7 @@ export function progressionUpdateFor(
     runCoin: player.runCoin,
     stats: { ...player.profile.stats },
     earnedMilestones: [...player.profile.earnedMilestones],
+    ownedCosmeticIds: [...player.profile.ownedCosmeticIds],
   };
 }
 

@@ -639,6 +639,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     readyPlateId: player.readyPlateId,
     appearance: player.appearance ? { ...player.appearance } : null,
     partyColor: player.partyColor,
+    cosmetics: { ...player.profile.equippedCosmetics },
   };
 }
 

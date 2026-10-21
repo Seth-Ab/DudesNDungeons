@@ -6,21 +6,26 @@
  * import it to decide what to stamp, and the tests drive it under node. One declaration, so the
  * baked sheet and the renderer's reads cannot drift.
  *
- * A character is drawn as layers stacked in one 16 x 24 frame: a body, then hair over it. Skin, hair
- * and tunic are baked in key colours rather than real ones, so a renderer can swap each ramp for the
- * player's skin tone, hair colour and party colour without a sheet per combination.
+ * A character is drawn as layers stacked in one 16 x 24 frame: a cloak behind, the body, a cloak's
+ * back, hair, a clasp, then a hat. Skin, hair, tunic, hats and cloaks are baked in key colours rather
+ * than real ones, so a renderer can swap each for the player's skin tone, hair colour, party colour
+ * or dye, hat and cloak without a sheet per combination.
  *
  * The pixel work and choices the renderer makes per player live here too, for the same reason: the
  * recolour, the blink, the composite cache and the frame picker are all tested under node. Only the
  * canvases they run on are in `characterSprites.ts`.
  */
 
-import type { HairColor, PartyColor, SkinTone } from "../../shared/types/core.js";
+import type { HairColor, PartyColor, PlayerState, SkinTone } from "../../shared/types/core.js";
 import {
+  CLOAK_PALETTES,
+  DYE_RAMPS,
   HAIR_RAMPS,
+  HAT_PALETTES,
   PARTY_PALETTES,
   SKIN_RAMPS,
   type ColourRamp,
+  type CosmeticPalette,
 } from "./characterPalettes.js";
 
 /** A character frame, in art pixels. Taller than a tile so hair and hats clear the head. */
@@ -51,6 +56,55 @@ export const WALK_POSES = ["stand", "walk1", "walk2"] as const;
 export type WalkPose = (typeof WALK_POSES)[number];
 
 /**
+ * Hats the sheet has art for, by cosmetic content id. Content may list a hat the client has no art
+ * for yet; that one is drawn as no hat rather than refused.
+ */
+export const HAT_IDS = [
+  "leather-cap",
+  "ranger-hood",
+  "feathered-cap",
+  "iron-helm",
+  "mushroom-cap",
+  "horned-helm",
+  "wizard-hat",
+  "ember-crown",
+] as const;
+export type HatId = (typeof HAT_IDS)[number];
+
+/** Hair is hidden on every row: a hood covers it all. */
+export const HIDE_ALL_HAIR = "all";
+
+/**
+ * The first frame row of hair each hat leaves showing; rows above it are under the hat. Null keeps
+ * all of the hair (a crown sits on top of it), `HIDE_ALL_HAIR` none. The sprite bible's `clip`, plus
+ * the eight headroom rows above the body.
+ */
+export const HAT_HAIR_CLIP_ROWS: Record<HatId, number | null | typeof HIDE_ALL_HAIR> = {
+  "leather-cap": 13,
+  "ranger-hood": HIDE_ALL_HAIR,
+  "feathered-cap": 13,
+  "iron-helm": 15,
+  "mushroom-cap": 12,
+  "horned-helm": 13,
+  "wizard-hat": 13,
+  "ember-crown": null,
+};
+
+export const CLOAK_IDS = ["traveler-cape", "night-cloak", "moth-cloak", "ember-cloak"] as const;
+export type CloakId = (typeof CLOAK_IDS)[number];
+
+/** Every cloak shares one shape, in three parts, recoloured per cloak. */
+export const CLOAK_PARTS = ["behind", "back", "clasp"] as const;
+export type CloakPart = (typeof CLOAK_PARTS)[number];
+
+export const DYE_IDS = ["bone-dye", "ashen-dye", "midnight-dye", "crimson-dye", "gilded-dye"] as const;
+export type DyeId = (typeof DYE_IDS)[number];
+
+function isOneOf<T extends string>(ids: readonly T[], id: string | null): id is T {
+  return id !== null && (ids as readonly string[]).includes(id);
+}
+
+/**
  * The recolourable ramps, light to dark, as they are baked. Deliberately garish and far from any
  * real skin, hair or cloth, so a key colour left unswapped is obvious on screen. None may appear in
  * `dungeon.png`, or recolouring a character would also recolour the floor it stands on.
@@ -62,6 +116,15 @@ export const CHARACTER_KEY_COLOURS = {
 } as const satisfies Record<string, readonly [string, string, string]>;
 
 export type CharacterRamp = keyof typeof CHARACTER_KEY_COLOURS;
+
+/**
+ * Cosmetic key colours, swapped per item. A hat is a three-colour ramp then four accents (the
+ * bible's `1 2 3` and `r w y f`); a cloak is six colours. Each palette lists its colours in this order.
+ */
+export const COSMETIC_KEY_COLOURS = {
+  hat: ["#ff8080", "#ff0000", "#a00000", "#8080ff", "#0000ff", "#0000a0", "#80ff80"],
+  cloak: ["#c0ff80", "#80ff00", "#408000", "#00ff80", "#00a050", "#004020"],
+} as const satisfies Record<string, readonly string[]>;
 
 /** Colours drawn as baked, the same on every character. */
 export const CHARACTER_FIXED_COLOURS = {
@@ -99,6 +162,15 @@ export function hairFrame(style: HairStyle, facing: CharacterFacing): CharacterF
   return hairLayer(style, facing);
 }
 
+/** A hat has art facing down and up. Side-on it wears its front, which every hat draws symmetric. */
+export function hatFrame(hat: HatId, facing: CharacterFacing): CharacterFrameName {
+  return `hat-${hat}-${facing === "up" ? "up" : "down"}`;
+}
+
+export function cloakFrame(part: CloakPart): CharacterFrameName {
+  return `cloak-${part}`;
+}
+
 export interface CharacterFrame {
   name: CharacterFrameName;
   /** The authored layer this frame is baked from. */
@@ -124,6 +196,14 @@ export const CHARACTER_FRAMES: readonly CharacterFrame[] = [
       pose: "stand" as const,
     })),
   ),
+  ...HAT_IDS.flatMap((hat) =>
+    (["down", "up"] as const).map((facing) => ({
+      name: hatFrame(hat, facing),
+      layer: hatFrame(hat, facing),
+      pose: "stand" as const,
+    })),
+  ),
+  ...CLOAK_PARTS.map((part) => ({ name: cloakFrame(part), layer: cloakFrame(part), pose: "stand" as const })),
 ];
 
 /** Every layer the source art must author, each exactly once. The baker validates against this. */
@@ -160,8 +240,8 @@ export function characterFrameRect(name: CharacterFrameName): CharacterFrameRect
 }
 
 /**
- * The look a player's composite is built for: what they designed and the party colour the server
- * gave them. Hats, cloaks and dyes will join it, and with them the cache key.
+ * The look a player's composite is built for: what they designed, the party colour the server gave
+ * them, and the cosmetics they wear. A cosmetic id the client has no art for is drawn as none.
  */
 export interface CharacterLook {
   body: CharacterBody;
@@ -169,11 +249,73 @@ export interface CharacterLook {
   hairStyle: HairStyle;
   hairColor: HairColor;
   partyColor: PartyColor;
+  hat: string | null;
+  cloak: string | null;
+  dye: string | null;
+}
+
+/** How a player is drawn: their design, party colour and cosmetics. Null while still designing. */
+export function lookOf(player: Pick<PlayerState, "appearance" | "partyColor" | "cosmetics">): CharacterLook | null {
+  if (!player.appearance) return null;
+  return { ...player.appearance, partyColor: player.partyColor, ...player.cosmetics };
+}
+
+/** Nothing worn: the cosmetics of a look built for a player wearing none. */
+export const NO_COSMETIC_LOOK = { hat: null, cloak: null, dye: null } as const;
+
+export interface DrawnCosmetics {
+  hat: HatId | null;
+  cloak: CloakId | null;
+  dye: DyeId | null;
+}
+
+/** What a look actually draws: its cosmetics, with any the client has no art for dropped. */
+export function drawnCosmetics(look: CharacterLook): DrawnCosmetics {
+  return {
+    hat: isOneOf(HAT_IDS, look.hat) ? look.hat : null,
+    cloak: isOneOf(CLOAK_IDS, look.cloak) ? look.cloak : null,
+    dye: isOneOf(DYE_IDS, look.dye) ? look.dye : null,
+  };
 }
 
 /** One string per distinct composite. Every field that changes a pixel must be in it. */
 export function characterLookKey(look: CharacterLook): string {
-  return [look.body, look.skinTone, look.hairStyle, look.hairColor, look.partyColor].join("|");
+  const { hat, cloak, dye } = drawnCosmetics(look);
+  return [
+    look.body,
+    look.skinTone,
+    look.hairStyle,
+    look.hairColor,
+    look.partyColor,
+    dye ?? "-",
+    hat ?? "-",
+    cloak ?? "-",
+  ].join("|");
+}
+
+/**
+ * Which colour each legendary flicker shows, as bits: 1 for the hat's lit colours, 2 for the
+ * cloak's. Always zero for a look with nothing that flickers, so it keeps a single composite.
+ */
+export type FlickerPhase = number;
+
+function flickerBit(palette: CosmeticPalette, timeMs: number): number {
+  if (!palette.flicker) return 0;
+  return Math.floor(timeMs / palette.flicker.periodMs) % 2;
+}
+
+/** The flicker phase of a look at a moment, each legendary item on its own period. */
+export function flickerPhase(look: CharacterLook, timeMs: number): FlickerPhase {
+  const { hat, cloak } = drawnCosmetics(look);
+  const hatBit = hat ? flickerBit(HAT_PALETTES[hat], timeMs) : 0;
+  const cloakBit = cloak ? flickerBit(CLOAK_PALETTES[cloak], timeMs) : 0;
+  return hatBit | (cloakBit << 1);
+}
+
+/** The first hair row a look's hat leaves showing, `HIDE_ALL_HAIR`, or null to keep all of it. */
+export function hairClipRow(look: CharacterLook): number | null | typeof HIDE_ALL_HAIR {
+  const { hat } = drawnCosmetics(look);
+  return hat ? HAT_HAIR_CLIP_ROWS[hat] : null;
 }
 
 function rgb(hex: string): number {
@@ -184,16 +326,27 @@ function rgb(hex: string): number {
  * Each key colour, as `0xrrggbb`, mapped to the real colour this look swaps it for. Fixed colours
  * are absent, which is what leaves them drawn as baked.
  */
-export function characterSwaps(look: CharacterLook): ReadonlyMap<number, number> {
+export function characterSwaps(look: CharacterLook, phase: FlickerPhase = 0): ReadonlyMap<number, number> {
+  const { hat, cloak, dye } = drawnCosmetics(look);
   const ramps: Record<CharacterRamp, ColourRamp> = {
     skin: SKIN_RAMPS[look.skinTone],
     hair: HAIR_RAMPS[look.hairColor],
-    tunic: PARTY_PALETTES[look.partyColor].tunic,
+    // A dye replaces the tunic. The ring at the feet keeps the party colour.
+    tunic: dye ? DYE_RAMPS[dye] : PARTY_PALETTES[look.partyColor].tunic,
   };
   const swaps = new Map<number, number>();
   for (const ramp of Object.keys(CHARACTER_KEY_COLOURS) as CharacterRamp[]) {
     CHARACTER_KEY_COLOURS[ramp].forEach((key, index) => swaps.set(rgb(key), rgb(ramps[ramp][index]!)));
   }
+
+  const swapCosmetic = (keys: readonly string[], palette: CosmeticPalette, lit: boolean): void => {
+    keys.forEach((key, index) => {
+      const colour = (lit ? palette.flicker?.colours[index] : undefined) ?? palette.colours[index];
+      if (colour) swaps.set(rgb(key), rgb(colour));
+    });
+  };
+  if (hat) swapCosmetic(COSMETIC_KEY_COLOURS.hat, HAT_PALETTES[hat], (phase & 1) !== 0);
+  if (cloak) swapCosmetic(COSMETIC_KEY_COLOURS.cloak, CLOAK_PALETTES[cloak], (phase & 2) !== 0);
   return swaps;
 }
 
@@ -301,6 +454,7 @@ export const SILHOUETTE_LOOK: CharacterLook = {
   hairStyle: "shaved",
   hairColor: "black",
   partyColor: "ember",
+  ...NO_COSMETIC_LOOK,
 };
 
 export const SILHOUETTE_COLOUR = "#2b3037";
@@ -320,14 +474,15 @@ export function silhouettePixels(data: Uint8ClampedArray, colour: string): void 
  * Builds each look's composite once and hands back the same one after. Composites are small, a
  * party has four looks, and a look changes only when someone redesigns, so nothing is evicted.
  */
-export function createCompositeCache<T>(build: (look: CharacterLook) => T) {
+export function createCompositeCache<T>(build: (look: CharacterLook, phase: FlickerPhase) => T) {
   const composites = new Map<string, T>();
   return {
-    get(look: CharacterLook): T {
-      const key = characterLookKey(look);
+    /** A legendary flicker is one more composite per phase, rather than a repaint every frame. */
+    get(look: CharacterLook, phase: FlickerPhase = 0): T {
+      const key = `${characterLookKey(look)}#${phase}`;
       let composite = composites.get(key);
       if (composite === undefined) {
-        composite = build(look);
+        composite = build(look, phase);
         composites.set(key, composite);
       }
       return composite;

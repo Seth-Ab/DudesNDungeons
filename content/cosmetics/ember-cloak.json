@@ -1,0 +1,8 @@
+{
+  "id": "ember-cloak",
+  "slot": "cloak",
+  "rarity": "legendary",
+  "name": "Ember Cloak",
+  "lore": "The hem never quite goes out.",
+  "milestone": { "stat": "wins", "threshold": 25 }
+}

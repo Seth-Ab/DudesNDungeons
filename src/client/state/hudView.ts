@@ -13,7 +13,9 @@ import {
   bankSummary,
   inShopArea,
   inVaultArea,
+  inWardrobeArea,
   SHOP_PROMPT,
+  WARDROBE_PROMPT,
   VAULT_PROMPT,
   entranceMessage,
   entranceStatus,
@@ -23,7 +25,7 @@ import {
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
 import { itemSprite, type SpriteName } from "../rendering/tiles.js";
 import { PARTY_PALETTES } from "../rendering/characterPalettes.js";
-import type { CharacterLook } from "../rendering/characters.js";
+import { lookOf, type CharacterLook } from "../rendering/characters.js";
 import {
   carriedAlly,
   nearestDownedAlly,
@@ -149,7 +151,7 @@ export function vitalsView(self: PlayerState | null, run: RunState | null = null
     resistance: { ...resistance, decaying, spoken: `Resistance ${resistance.text}${decaying ? ", decaying" : ""}` },
     // No number: stamina is felt in the moment, not read.
     stamina: { ...stamina, text: "", full: self !== null && stamina.ratio >= 1 },
-    portrait: self?.appearance ? { ...self.appearance, partyColor: self.partyColor } : null,
+    portrait: self ? lookOf(self) : null,
     accent: self ? PARTY_PALETTES[self.partyColor].ring : null,
   };
 }
@@ -609,7 +611,7 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
         stateLabel: PARTY_STATE_LABELS[state],
         health: healthBarView(player.health, PLAYER_MAX_HEALTH),
         resistance: barView(player.resistance, PLAYER_MAX_RESISTANCE),
-        portrait: player.appearance && { ...player.appearance, partyColor: player.partyColor },
+        portrait: lookOf(player),
         accent: PARTY_PALETTES[player.partyColor].ring,
       };
     }
@@ -768,6 +770,7 @@ export function actionPrompt(
   if (target?.kind === "seat") return prompt("interact", "Sit");
   if (inVaultArea(view.location, view.dungeon.rooms, position)) return prompt("interact", VAULT_PROMPT);
   if (inShopArea(view.location, view.dungeon.rooms, position)) return prompt("interact", SHOP_PROMPT);
+  if (inWardrobeArea(view.location, view.dungeon.rooms, position)) return prompt("interact", WARDROBE_PROMPT);
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

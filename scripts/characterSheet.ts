@@ -24,6 +24,7 @@ import {
   CHARACTER_LAYERS,
   CHARACTER_SHEET_HEIGHT,
   CHARACTER_SHEET_WIDTH,
+  COSMETIC_KEY_COLOURS,
   characterFrameRect,
   type WalkPose,
 } from "../src/client/rendering/characters.js";
@@ -53,11 +54,13 @@ export interface CharacterSourceArt {
   layers: Record<string, AuthoredLayer>;
 }
 
-/** Every colour a character may be baked in: the fixed colours and the nine key colours. */
+/** Every colour a character may be baked in: the fixed colours and the key colours, cosmetics' too. */
 export const CHARACTER_COLOURS: ReadonlySet<string> = new Set(
-  [...Object.values(CHARACTER_FIXED_COLOURS), ...Object.values(CHARACTER_KEY_COLOURS).flat()].map(
-    (colour) => colour.toLowerCase(),
-  ),
+  [
+    ...Object.values(CHARACTER_FIXED_COLOURS),
+    ...Object.values(CHARACTER_KEY_COLOURS).flat(),
+    ...Object.values(COSMETIC_KEY_COLOURS).flat(),
+  ].map((colour) => colour.toLowerCase()),
 );
 
 /** The two body rows the walk cycle touches: the boots, and the trouser row above them. */

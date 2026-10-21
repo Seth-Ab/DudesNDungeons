@@ -121,6 +121,21 @@ export function inVaultArea(
   return location === "hub" && roomAt(rooms, position)?.kind === "vault";
 }
 
+/** The action prompt inside the wardrobe area, where interacting opens the wardrobe. */
+export const WARDROBE_PROMPT = "Browse the wardrobe";
+
+/**
+ * Whether this position can buy at the wardrobe stall: in the hub, inside a `wardrobe` room. The
+ * same rule the server judges `buyCosmetic` by. Equipping works anywhere in the hub.
+ */
+export function inWardrobeArea(
+  location: SessionLocation | null,
+  rooms: readonly RoomState[],
+  position: Vector2,
+): boolean {
+  return location === "hub" && roomAt(rooms, position)?.kind === "wardrobe";
+}
+
 /** The action prompt inside the shop area, where interacting opens the scroll shop. */
 export const SHOP_PROMPT = "Browse the scroll shop";
 
@@ -202,5 +217,18 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "Not enough coin.";
     case "inventoryFull":
       return "Your pack is full.";
+    case "unknownCosmetic":
+      return "The wardrobe has no such thing.";
+    case "alreadyOwned":
+      return "You already own that.";
+    case "notOwned":
+      return "You do not own that yet.";
   }
+}
+
+/** A wardrobe refusal in words. The shared ones name scrolls, which a cosmetic is not. */
+export function wardrobeRejectionMessage(reason: RejectionReason): string {
+  if (reason === "outOfStock") return "The stall is not selling that right now.";
+  if (reason === "outOfRange") return "Buy at the Wardrobe stall.";
+  return rejectionMessage(reason);
 }

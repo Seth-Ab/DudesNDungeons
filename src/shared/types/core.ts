@@ -6,6 +6,7 @@ import {
   PARTY_COLORS,
   SKIN_TONES,
 } from "../constants/appearance.js";
+import { COSMETIC_RARITIES, COSMETIC_SLOTS } from "../constants/cosmetics.js";
 import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
@@ -390,6 +391,8 @@ export const roomKindSchema = z.enum([
   "vault",
   /** The hub's skill shop: standing inside one is what lets a player buy a scroll. */
   "shop",
+  /** The hub's wardrobe stall: standing inside one is what lets a player buy a cosmetic. */
+  "wardrobe",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 
@@ -669,6 +672,28 @@ export const milestoneStatsSchema = z.object(
 );
 export type MilestoneStats = z.infer<typeof milestoneStatsSchema>;
 
+export const cosmeticSlotSchema = z.enum(COSMETIC_SLOTS);
+export type CosmeticSlot = z.infer<typeof cosmeticSlotSchema>;
+
+export const cosmeticRaritySchema = z.enum(COSMETIC_RARITIES);
+export type CosmeticRarity = z.infer<typeof cosmeticRaritySchema>;
+
+/**
+ * The cosmetic content id worn in each slot, or null for none. A null dye wears the party colour.
+ * Strict, so a slot added later is a protocol change rather than a field quietly dropped.
+ */
+export const equippedCosmeticsSchema = z
+  .object({
+    hat: contentIdSchema.nullable(),
+    cloak: contentIdSchema.nullable(),
+    dye: contentIdSchema.nullable(),
+  })
+  .strict();
+export type EquippedCosmetics = z.infer<typeof equippedCosmeticsSchema>;
+
+/** Nothing worn: where a new profile, or one older than cosmetics, starts. */
+export const NO_COSMETICS: EquippedCosmetics = { hat: null, cloak: null, dye: null };
+
 /**
  * A profile as its owner sees it, sent on join and to nobody else.
  *
@@ -691,6 +716,10 @@ export const profileStateSchema = z.object({
   stats: milestoneStatsSchema,
   /** Ids of the milestones this profile has earned. */
   earnedMilestones: z.array(contentIdSchema),
+  /** Cosmetic content ids this profile owns, the starter items included. */
+  ownedCosmeticIds: z.array(contentIdSchema),
+  /** What this profile wears; the same as its player's public `cosmetics`. */
+  equippedCosmetics: equippedCosmeticsSchema,
 });
 export type ProfileState = z.infer<typeof profileStateSchema>;
 
@@ -820,6 +849,11 @@ export const playerStateSchema = z.object({
   appearance: playerAppearanceSchema.nullable(),
   /** Assigned by the server on join, unique in the session, and kept for the life of the slot. */
   partyColor: partyColorSchema,
+  /**
+   * What this player wears, public to the whole party. Owned by the profile rather than the run, so
+   * it is unchanged by death or a wipe, and changed only by `equipCosmetic` in the hub.
+   */
+  cosmetics: equippedCosmeticsSchema,
   /**
    * What this player's profile holds. Owned by the profile, so it survives a restart, and owner
    * data: present only on the receiving player's own entry, absent from every teammate's.

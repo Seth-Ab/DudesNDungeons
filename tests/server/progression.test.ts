@@ -108,6 +108,7 @@ describe("active skill effects", () => {
       runCoin: 0,
       stats: createMilestoneStats(),
       earnedMilestones: [],
+      ownedCosmeticIds: ["leather-cap", "traveler-cape"],
     });
   });
 

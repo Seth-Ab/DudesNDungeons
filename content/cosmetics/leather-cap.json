@@ -1,0 +1,8 @@
+{
+  "id": "leather-cap",
+  "slot": "hat",
+  "rarity": "common",
+  "name": "Leather Cap",
+  "lore": "Stitched from an old pack strap.",
+  "starter": true
+}
