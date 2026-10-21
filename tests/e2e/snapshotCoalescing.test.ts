@@ -128,12 +128,9 @@ describe("snapshot coalescing", () => {
     await vi.waitFor(() =>
       expect(snapshotsOf(alpha).length).toBeGreaterThan(0),
     );
-    // Align to just after a tick so the burst below cannot straddle one.
-    const seen = snapshotsOf(alpha).length;
-    await vi.waitFor(() => expect(snapshotsOf(alpha).length).toBe(seen + 1));
-    await sleep(20);
-
+    // The burst may span any number of ticks; what matters is that snapshots and frames follow ticks.
     const before = snapshotsOf(alpha).length;
+    const lastTickBefore = snapshotsOf(alpha)[before - 1]!.tick;
     const framesBefore = frames.calls;
     for (let sequence = 1; sequence <= 5; sequence += 1) {
       alpha.ws.send(
@@ -145,11 +142,22 @@ describe("snapshot coalescing", () => {
       );
       await sleep(5);
     }
-    await sleep(40);
+    // Wait for the first snapshot sent after the burst ended.
+    const afterBurst = snapshotsOf(alpha).length;
+    await vi.waitFor(() =>
+      expect(snapshotsOf(alpha).length).toBeGreaterThan(afterBurst),
+    );
 
-    // Five intents (some accepted, the rest rate limited) and still not one extra snapshot.
-    expect(snapshotsOf(alpha).length).toBe(before);
-    expect(frames.calls).toBe(framesBefore);
+    const received = snapshotsOf(alpha).slice(before);
+    // One snapshot per tick, no extras for the accepted or rate limited actions.
+    received.forEach((snapshot, index) =>
+      expect(snapshot.tick).toBe(lastTickBefore + index + 1),
+    );
+    // One frame per tick for the single viewer (plus at most one tick built but not yet received),
+    // never one per action.
+    const frameCount = frames.calls - framesBefore;
+    expect(frameCount).toBeGreaterThanOrEqual(received.length);
+    expect(frameCount).toBeLessThanOrEqual(received.length + 1);
   });
 
   it("builds the public roster once per tick, however many players are watching", async () => {
