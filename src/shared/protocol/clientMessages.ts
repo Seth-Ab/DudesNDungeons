@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { EMOTES } from "../constants/emotes.js";
 import {
+  contentIdSchema,
   entityIdSchema,
   playerAppearanceSchema,
   playerIdSchema,
@@ -122,6 +123,16 @@ export const convertSkillScrollSchema = z.object({
   itemId: entityIdSchema,
 });
 
+/**
+ * Buys one scroll from the hub skill shop. Names the stock entry by its scroll item id and never a
+ * price or a coin amount: the server reads the price from content, and refuses outside the shop
+ * room, when the entry is not in stock, unaffordable, with no free slot, or for a maxed skill.
+ */
+export const buySkillScrollSchema = z.object({
+  type: z.literal("buySkillScroll"),
+  itemId: contentIdSchema,
+});
+
 /** Puts a carried item (inventory or hand) on the floor at the sender's feet as loot anyone can pick up again. */
 export const dropItemSchema = z.object({
   type: z.literal("dropItem"),
@@ -201,6 +212,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   pickupItemSchema,
   useItemSchema,
   convertSkillScrollSchema,
+  buySkillScrollSchema,
   dropItemSchema,
   giveItemSchema,
   swapHeldSchema,

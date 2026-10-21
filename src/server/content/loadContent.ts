@@ -12,6 +12,7 @@ import {
   milestoneDefinitionSchema,
   monsterTypeSchema,
   roomTemplateSchema,
+  shopDefinitionSchema,
   skillDefinitionSchema,
   puzzleTypeSchema,
   trapTypeSchema,
@@ -21,6 +22,7 @@ import {
   type MilestoneDefinition,
   type MonsterType,
   type RoomTemplate,
+  type ShopDefinition,
   type SkillDefinition,
   type PuzzleType,
   type TrapType,
@@ -42,6 +44,8 @@ export interface GameContent {
   skills: ReadonlyMap<string, SkillDefinition>;
   /** Achievements that grant a skill outright when a profile stat reaches a threshold. */
   milestones: ReadonlyMap<string, MilestoneDefinition>;
+  /** Hub shops. The skill shop is `SKILL_SHOP_ID`; each sells scrolls for coin. */
+  shops: ReadonlyMap<string, ShopDefinition>;
   traps: ReadonlyMap<string, TrapType>;
   puzzles: ReadonlyMap<string, PuzzleType>;
   /** Named tables that content refers to by id, such as the one a chest rolls when opened. */
@@ -276,6 +280,22 @@ function validateReferences(content: GameContent): void {
     }
   }
 
+  for (const shop of content.shops.values()) {
+    for (const entry of [...shop.fixed, ...shop.rotating]) {
+      const item = content.items.get(entry.itemId);
+      if (item?.kind !== "skillScroll") {
+        throw new Error(`Shop "${shop.id}" sells "${entry.itemId}", which is not a skill scroll item`);
+      }
+      // Buying a scroll to convert it must never pay (decision 0014).
+      const conversion = content.skills.get(item.skillId)?.conversionCoin ?? 0;
+      if (entry.price <= conversion) {
+        throw new Error(
+          `Shop "${shop.id}" sells "${entry.itemId}" for ${entry.price}, which is not above its ${conversion} coin conversion`,
+        );
+      }
+    }
+  }
+
   for (const template of content.templates.values()) {
     const label = `Room template "${template.id}"`;
     assertRectangular(label, template.tiles);
@@ -498,6 +518,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
     milestones: loadCollection(join(contentRoot, "milestones"), milestoneDefinitionSchema),
+    shops: loadCollection(join(contentRoot, "shops"), shopDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),

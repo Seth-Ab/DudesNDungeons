@@ -139,7 +139,13 @@ export interface SessionView {
    * the conversion prompt. Set and cleared by the session client, since a refusal does not name it.
    */
   convertPromptItemId: string | null;
+  /** What the hub skill shop sells now, from the latest `skillShopStock`. The same for every member. */
+  skillShop: SkillShopEntry[];
+  /** The refusal to show inside the shop panel for the last purchase, or null. Set by the session client. */
+  shopNotice: string | null;
 }
+
+export type SkillShopEntry = Extract<ServerMessage, { type: "skillShopStock" }>["entries"][number];
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
 
@@ -175,6 +181,8 @@ export const initialSessionView: SessionView = {
   partyRoster: [],
   vault: [],
   convertPromptItemId: null,
+  skillShop: [],
+  shopNotice: null,
 };
 
 /**
@@ -226,6 +234,8 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         partyRoster: [],
         vault: [],
         convertPromptItemId: null,
+        skillShop: [],
+        shopNotice: null,
       };
 
     case "partyRoster":
@@ -233,6 +243,9 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
 
     case "partyVault":
       return { ...view, vault: message.items };
+
+    case "skillShopStock":
+      return { ...view, skillShop: message.entries };
 
     case "progressionCatalog":
       return {

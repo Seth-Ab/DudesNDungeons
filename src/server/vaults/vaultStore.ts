@@ -39,6 +39,7 @@ export class VaultStore {
       this.#byRoomCode.set(stored.roomCode, {
         roomCode: stored.roomCode,
         items: stored.items.map((item) => ({ ...item })),
+        runCount: stored.runCount,
         revision: 0,
       });
       this.#persisted.set(stored.roomCode, 0);
@@ -63,7 +64,7 @@ export class VaultStore {
     const existing = this.#byRoomCode.get(roomCode);
     if (existing) return existing;
 
-    const vault: PartyVault = { roomCode, items: [], revision: 0 };
+    const vault: PartyVault = { roomCode, items: [], runCount: 0, revision: 0 };
     this.#byRoomCode.set(roomCode, vault);
     return vault;
   }
@@ -86,6 +87,7 @@ export class VaultStore {
       vaults: kept.map((vault) => ({
         roomCode: vault.roomCode,
         items: vault.items.map((item) => ({ ...item })),
+        runCount: vault.runCount,
       })),
     });
 

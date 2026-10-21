@@ -18,6 +18,12 @@ import {
 } from "../../src/client/network/sessionClient.js";
 import type { SessionView } from "../../src/client/network/sessionState.js";
 import { convertPromptView } from "../../src/client/state/convertPrompt.js";
+import { skillShopView } from "../../src/client/state/skillShop.js";
+import { actionPrompt } from "../../src/client/state/hudView.js";
+import { selfOf } from "../../src/client/network/sessionState.js";
+import { rejectionMessage, SHOP_PROMPT } from "../../src/client/state/runFlow.js";
+import { currentStock } from "../../src/server/game/shop.js";
+import { at } from "../server/fixtures.js";
 
 /**
  * Drives the real client against the real server. Node supplies global `WebSocket` and `fetch`, so
@@ -603,5 +609,120 @@ describe("converting a maxed scroll", () => {
 
     expect(view.progression?.runCoin).toBe(0);
     expect(holder.inventory).toHaveLength(0);
+  });
+});
+
+describe("the hub skill shop", () => {
+  const IN_SHOP = at(6, 3);
+
+  /** Two real clients in one hub room, the buyer standing in front of the Scrolls stall. */
+  async function twoShoppers(coin: number) {
+    const alpha = newClient();
+    const roomCode = await alpha.createRoom();
+    alpha.join(roomCode, "Alpha");
+    const alphaJoined = await until(alpha, inSession);
+    await design(alpha);
+
+    const bravo = newClient();
+    bravo.join(roomCode, "Bravo");
+    const bravoJoined = await until(bravo, inSession);
+    await design(bravo);
+
+    const buyerMember = server.store.findMember(alphaJoined.selfId!)!;
+    const buyer = buyerMember.player;
+    const teammate = server.store.findMember(bravoJoined.selfId!)!.player;
+    buyer.position = { ...IN_SHOP };
+    teammate.position = { ...IN_SHOP };
+    buyer.profile.coin = coin;
+    markProfileChanged(buyer.profile);
+    return { alpha, bravo, buyer, teammate, session: buyerMember.session };
+  }
+
+  it("sends every member the same stock when they join", async () => {
+    const { alpha, bravo, session } = await twoShoppers(0);
+    const expected = currentStock(session).map((entry) => entry.itemId);
+
+    const forAlpha = await until(alpha, (view) => view.skillShop.length > 0);
+    const forBravo = await until(bravo, (view) => view.skillShop.length > 0);
+
+    expect(forAlpha.skillShop.map((entry) => entry.itemId)).toEqual(expected);
+    expect(forBravo.skillShop).toEqual(forAlpha.skillShop);
+    expect(forAlpha.skillShop.find((entry) => !entry.rotating)).toMatchObject({ price: 20 });
+  });
+
+  it("prompts to browse inside the shop room and lists the stock with the buyer's coin", async () => {
+    const { alpha } = await twoShoppers(25);
+    const view = await until(
+      alpha,
+      (candidate) => candidate.skillShop.length > 0 && candidate.progression?.coin === 25,
+    );
+    const self = selfOf(view)!;
+
+    expect(actionPrompt(view, self, IN_SHOP)?.text).toBe(SHOP_PROMPT);
+    const panel = skillShopView(view);
+    expect(panel.coin).toBe(25);
+    expect(panel.entries.map((entry) => entry.price)).toEqual(view.skillShop.map((entry) => entry.price));
+    expect(panel.entries.every((entry) => entry.description.length > 0)).toBe(true);
+  });
+
+  it("buys a scroll: coin down, scroll in the inventory, and the balance reported back", async () => {
+    const { alpha, buyer } = await twoShoppers(30);
+    await until(alpha, (view) => view.skillShop.length > 0 && view.progression?.coin === 30);
+
+    expect(alpha.buySkillScroll("iron-will-scroll")).toBe(true);
+    const view = await until(alpha, (candidate) => candidate.progression?.coin === 10);
+
+    expect(view.shopNotice).toBeNull();
+    expect(buyer.inventory.map((item) => item.name)).toEqual(["Scroll of Iron Will"]);
+  });
+
+  it("shows the server's refusal inline and changes nothing when the buyer cannot afford it", async () => {
+    const { alpha, buyer } = await twoShoppers(5);
+    await until(alpha, (view) => view.skillShop.length > 0 && view.progression?.coin === 5);
+
+    alpha.buySkillScroll("iron-will-scroll");
+    const view = await until(alpha, (candidate) => candidate.shopNotice !== null);
+
+    expect(view.shopNotice).toBe(rejectionMessage("insufficientCoin"));
+    expect(skillShopView(view).notice).toBe(view.shopNotice);
+    expect(buyer.profile.coin).toBe(5);
+    expect(buyer.inventory).toHaveLength(0);
+  });
+
+  it("refuses a purchase from outside the shop room", async () => {
+    const { alpha, buyer } = await twoShoppers(50);
+    buyer.position = at(11, 7);
+    await until(alpha, (view) => view.skillShop.length > 0 && view.progression?.coin === 50);
+
+    alpha.buySkillScroll("iron-will-scroll");
+    const view = await until(alpha, (candidate) => candidate.shopNotice !== null);
+
+    expect(view.shopNotice).toBe(rejectionMessage("outOfRange"));
+    expect(buyer.profile.coin).toBe(50);
+  });
+
+  it("lets the buyer hand the bought scroll to a teammate", async () => {
+    const { alpha, bravo, buyer, teammate } = await twoShoppers(30);
+    await until(alpha, (view) => view.skillShop.length > 0 && view.progression?.coin === 30);
+
+    alpha.buySkillScroll("iron-will-scroll");
+    await untilServer(() => buyer.inventory.length === 1);
+    alpha.giveItem(buyer.inventory[0]!.id, teammate.id);
+    const view = await until(bravo, (candidate) => (selfOf(candidate)?.inventory.length ?? 0) === 1);
+
+    expect(selfOf(view)?.inventory[0]).toMatchObject({ kind: "skillScroll", skillId: "iron-will" });
+    expect(buyer.inventory).toHaveLength(0);
+  });
+
+  it("resends the stock once a run has ended", async () => {
+    const { alpha, session } = await twoShoppers(0);
+    await until(alpha, (view) => view.skillShop.length > 0);
+
+    // Find a run count whose stock differs from the current one, then end a "run" into it.
+    const before = currentStock(session).map((entry) => entry.itemId).join();
+    while (currentStock(session).map((entry) => entry.itemId).join() === before) session.vault.runCount += 1;
+    const after = currentStock(session).map((entry) => entry.itemId);
+
+    await until(alpha, (view) => view.skillShop.map((entry) => entry.itemId).join() === after.join());
   });
 });

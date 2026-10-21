@@ -12,6 +12,7 @@ import {
   initialSessionView,
   type SessionView,
 } from "./sessionState.js";
+import { rejectionMessage } from "../state/runFlow.js";
 
 /** The slice of `WebSocket` this client uses, so tests can supply a double. */
 export interface SocketLike {
@@ -85,6 +86,8 @@ export function createSessionClient(options: SessionClientOptions) {
   let drawSequence = 0;
   /** The last item `useItem` was sent for, so a maxed refusal can name the scroll to offer converting. */
   let lastUsedItemId: string | null = null;
+  /** Set when a purchase is sent and cleared by its outcome, so a refusal can be shown in the shop panel. */
+  let buyPending = false;
   let retryIndex = 0;
   /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
   let pending: { roomCode: string; playerName: string } | null = null;
@@ -150,6 +153,13 @@ export function createSessionClient(options: SessionClientOptions) {
 
     const next = applyServerMessage(view, parsed.message);
     const maxedRefusal = parsed.message.type === "actionRejected" && parsed.message.reason === "skillMaxed";
+    if (buyPending && parsed.message.type === "actionRejected") {
+      // A purchase refusal is shown in the shop panel; a maxed scroll is not a conversion offer here.
+      buyPending = false;
+      update({ ...next, shopNotice: rejectionMessage(parsed.message.reason) });
+      return;
+    }
+    if (buyPending && parsed.message.type === "progressionUpdated") buyPending = false;
     update(maxedRefusal && lastUsedItemId !== null ? { ...next, convertPromptItemId: lastUsedItemId } : next);
   }
 
@@ -320,6 +330,13 @@ export function createSessionClient(options: SessionClientOptions) {
     convertSkillScroll(itemId: string): boolean {
       if (view.convertPromptItemId !== null) update({ ...view, convertPromptItemId: null });
       return send({ type: "convertSkillScroll", itemId });
+    },
+
+    /** Buys a scroll from the hub skill shop by stock entry. The server names the price and may refuse. */
+    buySkillScroll(itemId: string): boolean {
+      buyPending = true;
+      if (view.shopNotice !== null) update({ ...view, shopNotice: null });
+      return send({ type: "buySkillScroll", itemId });
     },
 
     /** Opens the conversion prompt from the Skills panel. Sends nothing; the prompt's Confirm does. */

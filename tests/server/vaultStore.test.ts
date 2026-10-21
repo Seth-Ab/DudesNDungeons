@@ -115,7 +115,7 @@ describe("a vault across a restart", () => {
     markVaultChanged(session.vault);
     before.vaults.flush();
 
-    expect(storage.read()?.vaults).toEqual([{ roomCode: ROOM, items: [] }]);
+    expect(storage.read()?.vaults).toEqual([{ roomCode: ROOM, items: [], runCount: 0 }]);
     expect(new VaultStore(storage).has(ROOM)).toBe(true);
   });
 

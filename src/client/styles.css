@@ -1647,7 +1647,8 @@ button:disabled {
 .hud__hub-status[hidden],
 .hud__stash[hidden],
 .hud__skills-panel[hidden],
-.hud__vault[hidden] {
+.hud__vault[hidden],
+.hud__shop[hidden] {
   display: none;
 }
 
@@ -2071,6 +2072,18 @@ button:disabled {
   text-transform: none;
   letter-spacing: 0;
   font-size: 0.8rem;
+}
+
+/* The scroll shop reuses the vault's placement; entries stack a name over its detail lines. */
+.hud__shop-detail {
+  color: var(--hud-muted, #b9b2a3);
+}
+
+.hud__shop-notice {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+  color: #e0a070;
 }
 
 /* The Skills panel, placed like the Stash and scrolling inside the viewport on small screens. */

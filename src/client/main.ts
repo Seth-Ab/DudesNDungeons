@@ -224,6 +224,9 @@ const hud = createHud({
   onDepositVaultItem: (itemId) => {
     if (!client.depositVaultItem(itemId)) hud.setActionStatus("No connection");
   },
+  onBuySkillScroll: (itemId) => {
+    if (!client.buySkillScroll(itemId)) hud.setActionStatus("No connection");
+  },
   onConvertScroll: (itemId) => {
     if (!client.convertSkillScroll(itemId)) hud.setActionStatus("No connection");
   },
@@ -455,7 +458,7 @@ function performAction(action: GameplayAction): void {
       if (!targetId) {
         // The vault is an area rather than an entity, and opening it is a panel rather than a
         // message: each take or store from the panel is what the server checks.
-        if (!hud.openVault()) hud.setActionStatus("Nothing nearby");
+        if (!hud.openVault() && !hud.openShop()) hud.setActionStatus("Nothing nearby");
         return;
       }
 

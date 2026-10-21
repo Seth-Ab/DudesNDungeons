@@ -14,6 +14,11 @@ export interface PartyVault {
   roomCode: RoomCode;
   items: InventoryItem[];
   /**
+   * Runs this room has finished, by escape or wipe. The shop's rotating stock is derived from it
+   * and the room code (decision 0014), so it lives with the vault and survives a restart.
+   */
+  runCount: number;
+  /**
    * Bumped by `markVaultChanged` on every mutation, and compared against what was last written and
    * last sent. A counter for the same reason a profile has one: the code that deposits an item needs
    * no reference to whatever persists or broadcasts it.
@@ -26,6 +31,12 @@ export function markVaultChanged(vault: PartyVault): void {
   vault.revision += 1;
 }
 
+/** Records that a run ended, which rerolls the room's rotating shop stock. */
+export function advanceRunCount(vault: PartyVault): void {
+  vault.runCount += 1;
+  markVaultChanged(vault);
+}
+
 /**
  * The on-disk shape, validated on read: a file a previous version or a person wrote is untrusted.
  * `revision` is absent for the reason it is absent from a profile.
@@ -33,6 +44,8 @@ export function markVaultChanged(vault: PartyVault): void {
 export const persistedVaultSchema = z.object({
   roomCode: roomCodeSchema,
   items: z.array(inventoryItemSchema),
+  // Absent from vaults written before the shop existed, which start at their first rotation.
+  runCount: z.number().int().nonnegative().default(0),
 });
 
 export const vaultFileSchema = z.object({
