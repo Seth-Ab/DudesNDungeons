@@ -108,6 +108,8 @@ export interface StaminaBarView extends BarView {
 }
 
 export interface VitalsView {
+  /** The local character's name, heading the self frame; empty when there is no local player. */
+  name: string;
   health: HealthBarView;
   resistance: ResistanceBarView;
   stamina: StaminaBarView;
@@ -138,6 +140,7 @@ export function vitalsView(self: PlayerState | null, run: RunState | null = null
   const stamina = barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA);
   const decaying = self !== null && run?.decaying === true && resistance.ratio > 0;
   return {
+    name: self?.name ?? "",
     health: healthBarView(self?.health ?? 0, PLAYER_MAX_HEALTH),
     resistance: { ...resistance, decaying, spoken: `Resistance ${resistance.text}${decaying ? ", decaying" : ""}` },
     // No number: stamina is felt in the moment, not read.

@@ -57,6 +57,15 @@ test.describe("Party frames for allies out of sight", () => {
     const frame = host.locator(".hud__frame", { hasText: "Sam" });
     await expect(frame).toHaveAttribute("data-state", "waiting", { timeout: 15_000 });
     await expect(frame.locator(".hud__bar").first()).toBeVisible();
+    // Resistance is a number under the health bar, as on the self frame, not a bar of its own; the
+    // health bar spans the frame instead of sharing its row with the digits.
+    await expect(frame.locator(".hud__bar--resistance")).toHaveCount(0);
+    await expect(frame.locator(".hud__frame-resistance")).toHaveAttribute("aria-label", /^Resistance \d+$/);
+    await expect(frame.locator(".hud__frame-footer .hud__bar-value")).toHaveText(/^\d+\/\d+$/);
+    const body = await frame.locator(".hud__frame-body").boundingBox();
+    const track = await frame.locator(".hud__bar--health .hud__bar-track").boundingBox();
+    expect(track!.width).toBeGreaterThan(body!.width * 0.6);
+    expect(track!.height).toBeLessThanOrEqual(10);
     await host.waitForTimeout(300);
     await host.screenshot({ path: testInfo.outputPath("party-frame-in-sight.png") });
 
@@ -65,6 +74,7 @@ test.describe("Party frames for allies out of sight", () => {
     await expect(frame.locator(".hud__frame-caption")).toHaveText("out of sight");
     await expect(frame.locator(".hud__frame-state")).toHaveText("◌");
     await expect(frame.locator(".hud__bar").first()).toBeHidden();
+    await expect(frame.locator(".hud__frame-footer")).toBeHidden();
     await host.waitForTimeout(300);
     await host.screenshot({ path: testInfo.outputPath("party-frame-out-of-sight.png") });
     await host.screenshot({

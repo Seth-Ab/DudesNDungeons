@@ -40,6 +40,17 @@ function createFrame(portraits: Portraits) {
   const icon = document.createElement("span");
   icon.className = "hud__frame-state";
   icon.setAttribute("role", "img");
+  // Resistance is a modifier, so it reads as a number under the bar, as on the self frame's badge.
+  const resistance = document.createElement("span");
+  resistance.className = "hud__frame-resistance";
+  resistance.setAttribute("role", "img");
+  const resistanceGlyph = document.createElement("span");
+  resistanceGlyph.className = "hud__bar-label";
+  resistanceGlyph.setAttribute("aria-hidden", "true");
+  resistanceGlyph.textContent = VITAL_GLYPHS.resistance;
+  const resistanceNumber = document.createElement("span");
+  resistanceNumber.setAttribute("aria-hidden", "true");
+  resistance.append(resistanceGlyph, resistanceNumber);
   header.append(name, icon);
 
   // A player still designing has no character to hurt yet, so their bars give way to what they
@@ -47,9 +58,12 @@ function createFrame(portraits: Portraits) {
   const caption = document.createElement("span");
   caption.className = "hud__frame-caption";
 
+  // The bar spans the frame; its digits share a line beneath it with the resistance number.
   const health = createBar(VITAL_GLYPHS.health, "Health", "health");
-  const resistance = createBar(VITAL_GLYPHS.resistance, "Resistance", "resistance");
-  body.append(header, caption, health.element, resistance.element);
+  const footer = document.createElement("div");
+  footer.className = "hud__frame-footer";
+  footer.append(resistance, health.value);
+  body.append(header, caption, health.element, footer);
   element.append(avatar, body);
 
   return {
@@ -76,12 +90,14 @@ function createFrame(portraits: Portraits) {
       caption.textContent = captioned ? frame.stateLabel : "";
       caption.hidden = !captioned;
       health.element.hidden = !hasVitals;
-      resistance.element.hidden = !hasVitals;
+      footer.hidden = !hasVitals;
       if (frame.health && frame.resistance && hasVitals) {
         health.set(frame.health);
         health.element.classList.toggle("hud__bar--low", frame.health.low);
         health.mark(frame.health.low ? VITAL_GLYPHS.low : "");
-        resistance.set(frame.resistance);
+        resistanceNumber.textContent = frame.resistance.text;
+        resistance.setAttribute("aria-label", `Resistance ${frame.resistance.text}`);
+        resistance.title = `Resistance ${frame.resistance.text}`;
       }
 
       const key = sheetLoaded ? (frame.portrait ? characterLookKey(frame.portrait) : "silhouette") : null;

@@ -115,6 +115,7 @@ describe("vitals", () => {
 
   it("shows empty bars without a self player", () => {
     const vitals = vitalsView(null);
+    expect(vitals.name).toBe("");
     expect(vitals.health).toEqual({
       ratio: 0,
       text: `0/${PLAYER_MAX_HEALTH}`,
@@ -129,6 +130,7 @@ describe("vitals", () => {
 
   it("reads the self player's numbers", () => {
     const vitals = vitalsView(player("Maya", { health: PLAYER_MAX_HEALTH }));
+    expect(vitals.name).toBe("Maya");
     expect(vitals.health.ratio).toBe(1);
   });
 
