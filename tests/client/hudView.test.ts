@@ -35,6 +35,7 @@ import {
 import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
+  RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
 import type { DungeonState, InventoryItem, LootState, PlayerState, RunState } from "../../src/shared/types/core.js";
@@ -758,12 +759,23 @@ describe("run clock", () => {
     expect(runClockView(view({ phase: "connected", location: "dungeon", run: run() }))).toBeNull();
   });
 
-  it("is neutral while decay is far off", () => {
-    expect(runClockView(inRun({ elapsedMs: 65_000, decayStartsInMs: 300_000 }))).toEqual({
-      elapsed: "1:05",
-      countdown: "Decay in 5:00",
+  it("is neutral while decay is far off, with no visible number", () => {
+    const tally = runClockView(inRun({ elapsedMs: 65_000, decayStartsInMs: 300_000 }));
+    expect(tally).toEqual({
+      label: "Run time 1:05. Decay in 5:00.",
+      status: "",
+      mark: "",
+      ratio: 0.5,
       stage: "neutral",
     });
+  });
+
+  it("keeps the exact time out of the visible text in every stage", () => {
+    for (const decayStartsInMs of [600_000, 300_000, RESISTANCE_DECAY_WARNING_MS, 0]) {
+      const tally = runClockView(inRun({ elapsedMs: 123_000, decayStartsInMs, decaying: decayStartsInMs === 0 }));
+      expect(`${tally?.mark}${tally?.status}`).not.toMatch(/\d/);
+      expect(tally?.label).toContain("Run time 2:03.");
+    }
   });
 
   it("turns amber from the warning window and rounds the countdown up", () => {
@@ -771,13 +783,22 @@ describe("run clock", () => {
 
     const warning = runClockView(inRun({ decayStartsInMs: RESISTANCE_DECAY_WARNING_MS }));
     expect(warning?.stage).toBe("warning");
-    expect(runClockView(inRun({ decayStartsInMs: 29_100 }))?.countdown).toBe("Decay in 0:30");
+    expect(warning?.status).toBe("Decay near");
+    expect(runClockView(inRun({ decayStartsInMs: 29_100 }))?.label).toContain("Decay in 0:30.");
   });
 
-  it("turns red once resistance is falling", () => {
+  it("burns the bar down from full to empty across the grace window", () => {
+    expect(runClockView(inRun({ decayStartsInMs: RESISTANCE_DECAY_GRACE_MS }))?.ratio).toBe(1);
+    expect(runClockView(inRun({ decayStartsInMs: RESISTANCE_DECAY_GRACE_MS / 4 }))?.ratio).toBe(0.25);
+    expect(runClockView(inRun({ decayStartsInMs: 0, decaying: true }))?.ratio).toBe(0);
+  });
+
+  it("turns red with a mark and words once resistance is falling", () => {
     expect(runClockView(inRun({ elapsedMs: 700_000, decayStartsInMs: 0, decaying: true }))).toEqual({
-      elapsed: "11:40",
-      countdown: "Resistance falling",
+      label: "Run time 11:40. Resistance falling.",
+      status: "Resistance falling",
+      mark: "▼",
+      ratio: 0,
       stage: "decaying",
     });
   });

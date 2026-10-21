@@ -23,7 +23,7 @@ test.describe("Hub overlay", () => {
     const status = page.locator(".hud__hub-status");
     await expect(status).toBeVisible();
     await expect(status).toContainText("Waiting on Maya");
-    await expect(page.locator(".hud__clock")).toBeHidden();
+    await expect(page.locator(".hud__tally")).toBeHidden();
 
     const stash = page.locator(".hud__stash");
     await expect(stash).toBeHidden();

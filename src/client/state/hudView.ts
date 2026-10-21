@@ -4,6 +4,7 @@ import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
+  RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
 import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
@@ -170,10 +171,19 @@ export function formatClock(ms: number): string {
 /** Neutral until the final warning window, amber inside it, red once resistance is falling. */
 export type RunClockStage = "neutral" | "warning" | "decaying";
 
+/**
+ * The torch tally. It shows no digits: the burn-down bar and the stage carry the pressure, and the
+ * exact times live only in `label` for assistive technology and the hover title.
+ */
 export interface RunClockView {
-  elapsed: string;
-  /** What the second line says: the time left before decay, or that it has begun. */
-  countdown: string;
+  /** Spoken and hovered: "Run time 1:05. Decay in 5:00." Not drawn. */
+  label: string;
+  /** The visible words, or "" while decay is far off. Never a number. */
+  status: string;
+  /** The mark in front of the status, so the decaying state is not colour alone. */
+  mark: string;
+  /** How much of the time before decay is left, 1 (fresh torch) to 0 (decay has begun). */
+  ratio: number;
   stage: RunClockStage;
 }
 
@@ -185,14 +195,24 @@ export function runClockView(view: SessionView): RunClockView | null {
   if (view.phase !== "inSession" || view.location !== "dungeon" || !view.run) return null;
 
   const { elapsedMs, decayStartsInMs, decaying } = view.run;
+  const elapsed = `Run time ${formatClock(elapsedMs)}.`;
   if (decaying) {
-    return { elapsed: formatClock(elapsedMs), countdown: "Resistance falling", stage: "decaying" };
+    return {
+      label: `${elapsed} Resistance falling.`,
+      status: "Resistance falling",
+      mark: "▼",
+      ratio: 0,
+      stage: "decaying",
+    };
   }
 
+  const warning = decayStartsInMs <= RESISTANCE_DECAY_WARNING_MS;
   return {
-    elapsed: formatClock(elapsedMs),
-    countdown: `Decay in ${formatClock(Math.ceil(decayStartsInMs / 1000) * 1000)}`,
-    stage: decayStartsInMs <= RESISTANCE_DECAY_WARNING_MS ? "warning" : "neutral",
+    label: `${elapsed} Decay in ${formatClock(Math.ceil(decayStartsInMs / 1000) * 1000)}.`,
+    status: warning ? "Decay near" : "",
+    mark: warning ? "!" : "",
+    ratio: Math.min(1, Math.max(0, decayStartsInMs / RESISTANCE_DECAY_GRACE_MS)),
+    stage: warning ? "warning" : "neutral",
   };
 }
 
