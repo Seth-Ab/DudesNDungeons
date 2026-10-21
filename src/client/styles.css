@@ -161,6 +161,7 @@ button:focus-visible {
    box, and a panel that wants another colour or a tint sets background-color or a box-shadow. */
 .hud__panel,
 .hud__minimap,
+.hud__tally,
 .hud__frame,
 .hud__prompt,
 .hud__toast,
@@ -1277,35 +1278,88 @@ button:disabled {
   color: #e2a0a0;
 }
 
-/* The run clock: neutral until the final warning window, amber inside it, red once resistance falls. */
-.hud__clock {
+/* The torch tally under the minimap: a torch and a bar that burns down toward the decay window. No
+   digits; amber inside the final warning window, red with a mark and words once resistance falls. */
+.hud__tally {
+  --tally-color: var(--hud-ember);
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.15;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.45rem;
+  padding: 0.3rem 0.5rem;
   font-family: var(--hud-font-label);
-  font-variant-numeric: tabular-nums;
-}
-
-.hud__clock-elapsed {
-  color: var(--hud-text);
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
-.hud__clock-countdown {
-  color: #9a9486;
   font-size: 0.78rem;
+  line-height: 1.15;
 }
 
-.hud__clock[data-stage="warning"] .hud__clock-elapsed,
-.hud__clock[data-stage="warning"] .hud__clock-countdown {
-  color: var(--hud-warning);
+.hud__tally[data-stage="warning"] {
+  --tally-color: var(--hud-warning);
 }
 
-.hud__clock[data-stage="decaying"] .hud__clock-elapsed,
-.hud__clock[data-stage="decaying"] .hud__clock-countdown {
-  color: var(--hud-health);
+.hud__tally[data-stage="decaying"] {
+  --tally-color: var(--hud-health);
+}
+
+.hud__tally-torch {
+  position: relative;
+  flex: none;
+  width: 0.35rem;
+  height: 1.1rem;
+  background: #5a3d22;
+}
+
+/* The flame; a spent torch is a dark stick with a red ember. */
+.hud__tally-torch::before {
+  content: "";
+  position: absolute;
+  left: -0.1rem;
+  bottom: 100%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50% 50% 50% 0;
+  background: var(--tally-color);
+  transform: rotate(-45deg);
+  box-shadow: 0 0 0.45rem var(--tally-color);
+  animation: hud-tally-flicker 1.6s ease-in-out infinite;
+}
+
+.hud__tally-track {
+  flex: 1;
+  min-width: 3rem;
+  height: 0.5rem;
+  border: 1px solid #4a4540;
+  background: #1a1815;
+}
+
+.hud__tally-fill {
+  display: block;
+  height: 100%;
+  background: var(--tally-color);
+  transition: width 0.9s linear;
+}
+
+.hud__tally-status {
+  flex-basis: 100%;
+  color: var(--tally-color);
+  text-align: right;
+}
+
+.hud__tally-status[hidden] {
+  display: none;
+}
+
+@keyframes hud-tally-flicker {
+  50% {
+    opacity: 0.8;
+  }
+}
+
+:root[data-reduced-motion="true"] .hud__tally-torch::before {
+  animation: none;
+}
+
+:root[data-reduced-motion="true"] .hud__tally-fill {
+  transition: none;
 }
 
 /* Persistent hub gate status: the toast card, amber while waiting and green once the party is ready. */
@@ -1421,7 +1475,7 @@ button:disabled {
   letter-spacing: 0.04em;
 }
 
-.hud__clock[hidden],
+.hud__tally[hidden],
 .hud__hub-status[hidden],
 .hud__stash[hidden] {
   display: none;

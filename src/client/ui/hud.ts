@@ -162,7 +162,7 @@ export function createHud(options: HudOptions) {
   // stacks under it. A hidden minimap takes no space, so the panel rises into the corner.
   const corner = document.createElement("div");
   corner.className = "hud__corner";
-  corner.append(minimap.element, sessionPanel);
+  corner.append(minimap.element, runClock.element, sessionPanel);
 
   const partyPanel = createPanel("hud__panel hud__panel--party");
   partyPanel.append(vitals.element);
@@ -174,12 +174,11 @@ export function createHud(options: HudOptions) {
   const emoteButton = createButton("Emote", options.onOpenEmotes);
   emoteButton.setAttribute("aria-haspopup", "dialog");
   actionButtons.append(...actions.elements, emoteButton);
-  actionPanel.append(runClock.element, actionButtons);
+  actionPanel.append(actionButtons);
 
-  // Hidden buttons are neither drawn nor focusable. With no run clock either, the panel would be an
-  // empty box, so it hides too.
+  // Hidden buttons are neither drawn nor focusable, so the panel would be an empty box and hides too.
   const refreshActionPanel = (): void => {
-    actionPanel.hidden = runClock.element.hidden && actionButtons.hidden;
+    actionPanel.hidden = actionButtons.hidden;
   };
   followTouchControls(
     (query) => window.matchMedia(query),
@@ -359,7 +358,6 @@ export function createHud(options: HudOptions) {
         "session",
         JSON.stringify([connectionLabel(view), roomCodeLabel(view), self ? self.ready : null, controls]),
       );
-      noteSignature("actions", JSON.stringify(runClockView(view)));
       applyFade();
 
       const itemEvents = currentView ? itemFeedbackEvents(currentView, view) : [];

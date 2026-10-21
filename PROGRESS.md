@@ -380,6 +380,7 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
   worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
   world. No protocol change.
+  - [x] Replace the run clock with a numberless torch tally under the minimap (issue #174, HUD Torch & Tally Phase 5). `runClockView` now returns `label` (the exact run time and time to decay, for `aria-label` and the title only), `status`, `mark`, `ratio` and `stage`; the visible tally draws no digits. `ui/hud/runClock.ts` renders a torch, a bar that shrinks from full to empty across `RESISTANCE_DECAY_GRACE_MS`, and a status line: nothing while decay is far off, "! Decay near" in the final minute (amber), "▼ Resistance falling" (red) once decay starts, with the bar empty and the tally staying on screen. It sits in `hud__corner` under the minimap, keeps `role="timer"` and the stage thresholds, hides outside a run, and drops its flicker and bar transition under reduced motion. The bottom-right panel now holds only the touch buttons. No protocol change.
   - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1). `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its anchor never moves, and the session panel stacked under it; a hidden minimap takes no space and the panel rises into the corner. It keeps one size on short windows (no more 60% shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored room under the predicted position, or the dungeon's name between rooms) and an `N` mark.
   - [x] Show party colours, initials and icons on the minimap (issue #171, HUD Torch & Tally Phase 5). `minimapAllies` gives each visible ally their `PARTY_PALETTES` ring colour and `minimapInitial` (first letter or digit of the name); a standing ally is a ring holding the letter, a downed one a cross with the letter beside it. `rememberMarkers` keeps exits and chests seen in the current world (a chest keeps its last-seen opened state), and `minimapIcons` draws them only on discovered tiles: an arch for an exit, a box for a chest, hollow once opened. The canvas `title` carries the legend. No protocol change.
 - [x] Add an emote wheel (issue #149, protocol v30). `EMOTES` in `src/shared/constants/emotes.ts`; the
@@ -506,6 +507,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Numberless torch tally under the minimap replaces the run clock (#174, HUD Torch & Tally Phase 5).
 - 2026-10-21: Owner decisions on unseen allies, minimap access, bar numbers and the run clock (#160), unblocking #167, #172 and #174.
 - 2026-10-20: HUD density setting (Full/Calm/Minimal) next to UI scale (#170, HUD Torch & Tally Phase 4).
 - 2026-10-20: Quiet HUD modules fade to 55% opacity after 4 s out of combat (#169, HUD Torch & Tally Phase 4).
