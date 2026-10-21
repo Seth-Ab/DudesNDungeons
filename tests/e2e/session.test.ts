@@ -1438,10 +1438,14 @@ describe("progression state", () => {
     alpha.client.close();
     const back = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
     expect(back.joined.resumed).toBe(true);
-    expect(back.client.received("progressionCatalog")).toHaveLength(1);
-    expect(back.client.received("progressionUpdated")[0]?.unlockedSkillIds).toEqual([
-      "lever-sense",
-    ]);
+    // The catalog and the owner's progression follow `sessionJoined` on the wire, so they may not
+    // have arrived when `joinRoom` resolves.
+    await vi.waitFor(() => {
+      expect(back.client.received("progressionCatalog")).toHaveLength(1);
+      expect(back.client.received("progressionUpdated")[0]?.unlockedSkillIds).toEqual([
+        "lever-sense",
+      ]);
+    });
   });
 });
 
