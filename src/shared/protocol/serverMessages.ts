@@ -3,6 +3,7 @@ import {
   dungeonSnapshotSchema,
   contentIdSchema,
   entityIdSchema,
+  inventoryItemSchema,
   partyColorSchema,
   playerIdSchema,
   playerNameSchema,
@@ -185,6 +186,16 @@ export const partyRosterSchema = z.object({
 });
 
 /**
+ * What the party vault holds. The vault belongs to the room code rather than to anyone in it, so
+ * every member gets the same list: once after joining, and again whenever it changes. Unlike the
+ * legacy personal bank on `PlayerState.bankedItems`, this is shared party data.
+ */
+export const partyVaultSchema = z.object({
+  type: z.literal("partyVault"),
+  items: z.array(inventoryItemSchema),
+});
+
+/**
  * Authoritative world state. Clients render from this rather than from their own predictions.
  *
  * Per-player since protocol v4: this is the receiving player's visible frame, and `run` is that
@@ -278,6 +289,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   playerConnectionChangedSchema,
   playerReadyChangedSchema,
   partyRosterSchema,
+  partyVaultSchema,
   stateSnapshotSchema,
   attackResolvedSchema,
   voiceRangeUpdatedSchema,

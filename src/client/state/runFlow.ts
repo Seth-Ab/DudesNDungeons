@@ -1,4 +1,4 @@
-import { tileOf } from "../../shared/game/movement.js";
+import { roomAt } from "../../shared/game/rooms.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
   ExitState,
@@ -85,42 +85,47 @@ function nameList(names: readonly string[]): string {
  * party wipe and an escape that left this player behind are the same two snapshots from here, since
  * `returnToHub` heals everyone on the way back. So this speaks only about the player reading it,
  * which is true under both, and never about the party.
+ *
+ * A survivor deposits everything they carried into the party vault, so `deposited` is the carry in
+ * the last dungeon snapshot: inventory entries plus the hand. A downed player who was being carried
+ * out counts as a survivor, exactly as the server counts them.
  */
-export type RunOutcome = { kind: "escaped" | "lost"; banked: number };
+export type RunOutcome = { kind: "escaped" | "lost"; deposited: number };
 
 export function runOutcome(before: PlayerState | null, after: PlayerState | null): RunOutcome {
-  if (!before || !after) return { kind: "escaped", banked: 0 };
-  if (before.health <= 0) return { kind: "lost", banked: 0 };
+  if (!before || !after) return { kind: "escaped", deposited: 0 };
+  if (before.health <= 0 && before.carriedByPlayerId === null) return { kind: "lost", deposited: 0 };
 
-  const banked = Math.max(0, (after.bankedItems?.length ?? 0) - (before.bankedItems?.length ?? 0));
-  return { kind: "escaped", banked };
+  return { kind: "escaped", deposited: before.inventory.length + (before.held ? 1 : 0) };
 }
 
 export function outcomeMessage(outcome: RunOutcome): string {
   if (outcome.kind === "lost") return "You went down. Everything you carried is gone.";
-  if (outcome.banked === 0) return "You made it out, carrying nothing.";
+  if (outcome.deposited === 0) return "You made it out, carrying nothing.";
 
-  return `You made it out and banked ${countOf(outcome.banked, "item")}.`;
+  return `You made it out and deposited ${countOf(outcome.deposited, "item")} to the vault.`;
+}
+
+/** The action prompt inside the vault area, where interacting opens the shared vault. */
+export const VAULT_PROMPT = "Open the party vault";
+
+/**
+ * Whether this position can use the party vault: in the hub, inside a `vault` room. The same rule
+ * the server judges `withdrawVaultItem` and `depositVaultItem` by, from the same shared `roomAt`.
+ */
+export function inVaultArea(
+  location: SessionLocation | null,
+  rooms: readonly RoomState[],
+  position: Vector2,
+): boolean {
+  return location === "hub" && roomAt(rooms, position)?.kind === "vault";
 }
 
 function countOf(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-/** The room a position stands in. Bounds are a top-left tile plus a size, inclusive of the walls. */
-export function roomAt(rooms: readonly RoomState[], position: Vector2): RoomState | null {
-  const tile = tileOf(position);
-
-  return (
-    rooms.find(
-      (room) =>
-        tile.x >= room.x &&
-        tile.x < room.x + room.width &&
-        tile.y >= room.y &&
-        tile.y < room.y + room.height,
-    ) ?? null
-  );
-}
+export { roomAt };
 
 /** Where the player is, named: the world, then the part of it they are standing in. */
 export function placeLabel(mapName: string | null, room: RoomState | null): string {
@@ -130,8 +135,8 @@ export function placeLabel(mapName: string | null, room: RoomState | null): stri
 
 /**
  * Banked items as lines to read, counted rather than repeated. A stack counts as its size, so two
- * banked stacks of arrows read as one total. The bank is session-local until Backend step 11
- * persists a profile, which is worth a player knowing before they trust it.
+ * banked stacks of arrows read as one total. Only the legacy personal bank reads this way: the
+ * vault lists entries one by one, because each has its own Take button.
  */
 export function bankSummary(items: readonly InventoryItem[]): string[] {
   const counts = new Map<string, number>();

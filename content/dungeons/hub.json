@@ -87,7 +87,7 @@
     { "id": "dungeon-gate", "name": "Dungeon Gate", "kind": "entrance", "x": 9, "y": 1, "width": 5, "height": 3 },
     { "id": "torch-supply", "name": "Torch Supply", "kind": "hall", "x": 5, "y": 4, "width": 3, "height": 3 },
     { "id": "weapons", "name": "Weapons", "kind": "hall", "x": 15, "y": 4, "width": 3, "height": 3 },
-    { "id": "bank", "name": "Bank", "kind": "hall", "x": 5, "y": 8, "width": 3, "height": 3 },
+    { "id": "bank", "name": "Bank", "kind": "vault", "x": 5, "y": 8, "width": 3, "height": 3 },
     { "id": "wardrobe", "name": "Wardrobe", "kind": "hall", "x": 15, "y": 8, "width": 3, "height": 3 },
     { "id": "campfire-clearing", "name": "Campfire Clearing", "kind": "hall", "x": 1, "y": 7, "width": 4, "height": 6 },
     { "id": "training-yard", "name": "Training Yard", "kind": "hall", "x": 18, "y": 2, "width": 4, "height": 5 }

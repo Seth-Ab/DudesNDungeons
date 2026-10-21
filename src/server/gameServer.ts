@@ -22,7 +22,16 @@ import { resolvePlayerAttack, simulate } from "./game/combat.js";
 import { isSpawned, movePlayer } from "./game/dungeonState.js";
 import { emoteAudience, emoteRefusal, playerEmotedFor } from "./game/emotes.js";
 import { beginDraw, releaseDraw } from "./game/bow.js";
-import { dropItem, giveItem, interact, pickupItem, swapHeld, useItem } from "./game/items.js";
+import {
+  depositVaultItem,
+  dropItem,
+  giveItem,
+  interact,
+  pickupItem,
+  swapHeld,
+  useItem,
+  withdrawVaultItem,
+} from "./game/items.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
 import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveReadyPlates } from "./game/readyPlates.js";
@@ -52,6 +61,8 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "dropItem",
   "giveItem",
   "swapHeld",
+  "withdrawVaultItem",
+  "depositVaultItem",
   "liftPlayer",
   "dropCarry",
   "emote",
@@ -125,6 +136,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const lastProgressionSent = new Map<PlayerId, string>();
   /** The party roster each player last received, so it is resent only when it changes. */
   const lastRosterSent = new Map<PlayerId, string>();
+  /** The vault revision each player last received, so the vault is resent only when it changes. */
+  const lastVaultSent = new Map<PlayerId, number>();
   /** When a slow tick was last logged, or null before the first. */
   let lastSlowTickLoggedAt: number | null = null;
 
@@ -172,6 +185,19 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, message);
   }
 
+  /** Sends the party vault if it changed since this player last had it. The same list for everyone. */
+  function sendPartyVault(socket: WebSocket, session: Session, playerId: PlayerId): void {
+    if (lastVaultSent.get(playerId) === session.vault.revision) return;
+    lastVaultSent.set(playerId, session.vault.revision);
+    send(socket, { type: "partyVault", items: session.vault.items.map((item) => ({ ...item })) });
+  }
+
+  /** Writes whatever an action changed: a profile, the vault, or both. No-ops when nothing did. */
+  function flushPersistent(): void {
+    profiles.flush();
+    store.vaults.flush();
+  }
+
   function sendSnapshot(session: Session, playerId: PlayerId, roster: readonly PlayerState[]): void {
     const socket = socketsByPlayer.get(playerId);
     if (!socket) return;
@@ -201,7 +227,10 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     const serializedRoster = JSON.stringify(partyRoster);
     for (const player of session.players.values()) {
       const socket = socketsByPlayer.get(player.id);
-      if (socket) sendPartyRoster(socket, player.id, serializedRoster, partyRoster);
+      if (socket) {
+        sendPartyRoster(socket, player.id, serializedRoster, partyRoster);
+        sendPartyVault(socket, session, player.id);
+      }
       sendSnapshot(session, player.id, roster);
     }
   }
@@ -360,8 +389,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
         // Owner-only, and sent fresh on every join: a new socket holds nothing yet.
         lastProgressionSent.delete(player.id);
-        // Likewise the roster: the next tick sends it to this socket whether or not it changed.
+        // Likewise the roster and the vault: the next tick sends them whether or not they changed.
         lastRosterSent.delete(player.id);
+        lastVaultSent.delete(player.id);
         send(socket, progressionCatalogFor(contentForSession(session)));
         sendProgression(socket, session, player);
 
@@ -390,6 +420,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);
+        lastVaultSent.delete(playerId);
         signalLimiter.forget(playerId);
         emoteLimiter.forget(playerId);
         playerId = null;
@@ -515,6 +546,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         message.type === "dropItem" ||
         message.type === "giveItem" ||
         message.type === "swapHeld" ||
+        message.type === "withdrawVaultItem" ||
+        message.type === "depositVaultItem" ||
         message.type === "playerInteract"
       ) {
         const member = store.findMember(playerId);
@@ -534,16 +567,21 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
                   ? giveItem(member.session, playerId, message.itemId, message.targetPlayerId)
                   : message.type === "swapHeld"
                     ? swapHeld(member.session, playerId, message.itemId)
-                    : interact(member.session, playerId, message.targetId, now());
+                    : message.type === "withdrawVaultItem"
+                      ? withdrawVaultItem(member.session, playerId, message.itemId)
+                      : message.type === "depositVaultItem"
+                        ? depositVaultItem(member.session, playerId, message.itemId)
+                        : interact(member.session, playerId, message.targetId, now());
         if (!result.ok) {
           // These messages carry no sequence number, so the rejection cannot name one.
           send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
           return;
         }
 
-        // The dungeon exit lives behind `playerInteract`, so this is where an escape banks. A
-        // no-op unless something actually changed a profile, which opening a door does not.
-        profiles.flush();
+        // The dungeon exit lives behind `playerInteract`, so this is where an escape deposits, and
+        // the vault messages change the vault directly. A no-op unless a profile or a vault changed,
+        // which opening a door does not.
+        flushPersistent();
         return;
       }
 
@@ -687,7 +725,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           wipeAnnounced.delete(session);
           returnToHub(session, false);
           // A wipe costs everyone their carry, which is a profile change like any other.
-          profiles.flush();
+          flushPersistent();
         }
       }
       session.tick += 1;
@@ -712,13 +750,14 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   }, tickIntervalMs);
 
   const sweepTimer = setInterval(() => {
-    // The safety net under the targeted flushes above, for any profile change they did not cover.
-    profiles.flush();
+    // The safety net under the targeted flushes above, for any change they did not cover.
+    flushPersistent();
 
     for (const member of store.sweep()) {
       socketsByPlayer.delete(member.player.id);
       lastProgressionSent.delete(member.player.id);
       lastRosterSent.delete(member.player.id);
+      lastVaultSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
       emoteLimiter.forget(member.player.id);
       broadcast(member.session, {
@@ -754,12 +793,13 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       clearInterval(tickTimer);
       clearInterval(sweepTimer);
       // Last chance to save: after this the timers are gone and nothing else will write.
-      profiles.flush();
+      flushPersistent();
       for (const socket of socketsByPlayer.values()) socket.terminate();
       for (const socket of wss.clients) socket.terminate();
       socketsByPlayer.clear();
       lastProgressionSent.clear();
       lastRosterSent.clear();
+      lastVaultSent.clear();
       signalLimiter.clear();
       emoteLimiter.clear();
       return new Promise((resolve) => {

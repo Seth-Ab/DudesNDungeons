@@ -91,16 +91,18 @@ describe("starting a run", () => {
 });
 
 describe("ending a run", () => {
-  it("banks survivors' carry and takes a downed player's carry", () => {
+  it("deposits survivors' carry in the vault and takes a downed player's carry", () => {
     const standing = testPlayer("standing", { resistance: 7, inventory: [{ ...TONIC }] });
-    const downed = testPlayer("downed", { health: 0, inventory: [{ ...TONIC }] });
+    const downed = testPlayer("downed", { health: 0, inventory: [{ ...KEY }] });
     const session = testSession([standing, downed]);
 
     returnToHub(session, true);
 
     expect(session.location).toBe("hub");
     expect(session.dungeon.map.id).toBe("hub");
-    expect(standing.profile.bankedItems).toEqual([TONIC]);
+    expect(session.vault.items).toEqual([TONIC]);
+    // The personal bank is legacy: an escape no longer adds to it.
+    expect(standing.profile.bankedItems).toEqual([]);
     expect(downed.profile.bankedItems).toEqual([]);
     expect(standing.inventory).toEqual([]);
     expect(downed.inventory).toEqual([]);
@@ -121,6 +123,7 @@ describe("ending a run", () => {
     expect(second.inventory).toEqual([]);
     expect(first.profile.bankedItems).toEqual([]);
     expect(second.profile.bankedItems).toEqual([]);
+    expect(session.vault.items).toEqual([]);
     expect(session.dungeon.loot.filter((loot) => loot.kind === "torch")).toHaveLength(4);
   });
 });
@@ -181,7 +184,7 @@ describe("what a run leaves on a profile", () => {
     expect(second.profile.runsLost).toBe(1);
   });
 
-  it("keeps banking onto what the profile already held", () => {
+  it("leaves a legacy personal bank as it was and deposits to the vault instead", () => {
     const player = testPlayer("veteran", {
       inventory: [{ ...TONIC }],
       profile: testProfile("veteran", { bankedItems: [{ ...KEY }] }),
@@ -190,6 +193,7 @@ describe("what a run leaves on a profile", () => {
 
     returnToHub(session, true);
 
-    expect(player.profile.bankedItems).toEqual([KEY, TONIC]);
+    expect(player.profile.bankedItems).toEqual([KEY]);
+    expect(session.vault.items).toEqual([TONIC]);
   });
 });

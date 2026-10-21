@@ -6,6 +6,7 @@ import { litTilesFrom, type LitTileSet } from "../state/litTiles.js";
 import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
+  InventoryItem,
   PlayerId,
   PlayerState,
   RunState,
@@ -119,6 +120,8 @@ export interface SessionView {
    * connection only: for a member outside `visiblePlayerIds` this is all the client knows.
    */
   partyRoster: PartyRosterEntry[];
+  /** What the party vault holds, from the latest `partyVault`. The same list for every member. */
+  vault: InventoryItem[];
 }
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
@@ -153,6 +156,7 @@ export const initialSessionView: SessionView = {
   voiceRange: [],
   progression: null,
   partyRoster: [],
+  vault: [],
 };
 
 /**
@@ -202,10 +206,14 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         // A new join is a new profile's view; nothing of an earlier one carries over.
         progression: null,
         partyRoster: [],
+        vault: [],
       };
 
     case "partyRoster":
       return { ...view, partyRoster: message.members };
+
+    case "partyVault":
+      return { ...view, vault: message.items };
 
     case "progressionCatalog":
       return {

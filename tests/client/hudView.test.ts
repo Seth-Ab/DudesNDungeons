@@ -30,6 +30,7 @@ import {
   slotKind,
   torchStatusLabel,
   torchView,
+  vaultPanelView,
   vitalsView,
 } from "../../src/client/state/hudView.js";
 import {
@@ -227,7 +228,7 @@ describe("notices", () => {
 
   it("keeps the last outcome up in the hub", () => {
     const outcome = noticesView(
-      view({ phase: "inSession", location: "hub", runOutcome: { kind: "lost", banked: 0 } }),
+      view({ phase: "inSession", location: "hub", runOutcome: { kind: "lost", deposited: 0 } }),
       null,
     );
     expect(outcome.outcome).toBe("You went down. Everything you carried is gone.");
@@ -960,6 +961,38 @@ describe("seat prompt", () => {
 
     const seated = player("Maya", { id: SELF_ID, seatId: "14f4b265-75ae-41f0-81ba-f62410dcc5b3" });
     expect(actionPrompt(withSeat([seated]), seated, origin)).toBeNull();
+  });
+});
+
+describe("party vault", () => {
+  const bank = { id: "bank", name: "Bank", kind: "vault" as const, x: 0, y: 0, width: 4, height: 4 };
+  const atVault = (location: "hub" | "dungeon", players: PlayerState[]) =>
+    view({ ...inSession, location, players, dungeon: dungeon({ rooms: [bank] }) });
+
+  it("offers the vault inside the vault room in the hub, and nowhere else", () => {
+    const self = player("Maya", { id: SELF_ID });
+
+    expect(actionPrompt(atVault("hub", [self]), self, { x: 1, y: 1 })).toMatchObject({
+      action: "interact",
+      text: "Open the party vault",
+    });
+    expect(actionPrompt(atVault("hub", [self]), self, { x: 9, y: 9 })).toBeNull();
+    expect(actionPrompt(atVault("dungeon", [self]), self, { x: 1, y: 1 })).toBeNull();
+  });
+
+  it("lists the vault and what the player carries, hand first, with stack counts", () => {
+    const arrows: InventoryItem = { id: "b2222222-2222-4222-8222-222222222222", name: "Arrows", kind: "ammo", itemId: "arrow", count: 6 };
+    const sword: InventoryItem = { id: "b3333333-3333-4333-8333-333333333333", name: "Rusted Sword", kind: "weapon", itemId: "rusted-sword", weaponKind: "melee" };
+    const self = player("Maya", { id: SELF_ID, held: sword, inventory: [item("Minor Tonic")] });
+
+    expect(vaultPanelView(view({ vault: [arrows] }), self)).toEqual({
+      vault: [{ itemId: arrows.id, text: "Arrows x6" }],
+      carried: [
+        { itemId: sword.id, text: "Rusted Sword" },
+        { itemId: "a1111111-1111-4111-8111-111111111111", text: "Minor Tonic" },
+      ],
+    });
+    expect(vaultPanelView(view(), null)).toEqual({ vault: [], carried: [] });
   });
 });
 

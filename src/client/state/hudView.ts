@@ -11,6 +11,8 @@ import {
 import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
+  inVaultArea,
+  VAULT_PROMPT,
   entranceMessage,
   entranceStatus,
   outcomeMessage,
@@ -490,6 +492,30 @@ export function bankEntries(items: readonly InventoryItem[]): BankEntryView[] {
   return lines.map((text) => ({ text, empty: false }));
 }
 
+export interface VaultEntryView {
+  itemId: string;
+  /** The item's name, with its count for a stack: "Arrows x12". */
+  text: string;
+}
+
+function vaultEntryText(item: InventoryItem): string {
+  return item.kind === "ammo" && item.count > 1 ? `${item.name} x${item.count}` : item.name;
+}
+
+/**
+ * The party vault and the player's own carry, for the vault panel. Listed entry by entry rather
+ * than counted like the Stash, because each line has its own Take or Store button and the server
+ * names an entry by its id. The hand comes before the inventory, as it does on the hotbar.
+ */
+export function vaultPanelView(
+  view: SessionView,
+  self: PlayerState | null,
+): { vault: VaultEntryView[]; carried: VaultEntryView[] } {
+  const entry = (item: InventoryItem): VaultEntryView => ({ itemId: item.id, text: vaultEntryText(item) });
+  const carried = self ? [...(self.held ? [self.held] : []), ...self.inventory] : [];
+  return { vault: view.vault.map(entry), carried: carried.map(entry) };
+}
+
 export type PartyMemberState =
   | "designing"
   | "ready"
@@ -696,7 +722,7 @@ export interface ActionPromptView {
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
- * else lifting them, loot, then chests, doors, exits, and seats.
+ * else lifting them, loot, then chests, doors, exits, seats, and the party vault.
  */
 export function actionPrompt(
   view: SessionView,
@@ -738,6 +764,7 @@ export function actionPrompt(
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
   if (target?.kind === "seat") return prompt("interact", "Sit");
+  if (inVaultArea(view.location, view.dungeon.rooms, position)) return prompt("interact", VAULT_PROMPT);
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

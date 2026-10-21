@@ -134,6 +134,22 @@ export const swapHeldSchema = z.object({
   itemId: entityIdSchema.nullable(),
 });
 
+/**
+ * Takes an item out of the party vault into the sender's hand (a weapon, when it is empty) or a free
+ * inventory slot, topping up carried stacks first. Hub only, from inside the vault room. Any standing
+ * party member may take any item; the first request for it wins and every later one is refused.
+ */
+export const withdrawVaultItemSchema = z.object({
+  type: z.literal("withdrawVaultItem"),
+  itemId: entityIdSchema,
+});
+
+/** Stores a carried item (inventory or hand) in the party vault. Same place rules as a withdrawal. */
+export const depositVaultItemSchema = z.object({
+  type: z.literal("depositVaultItem"),
+  itemId: entityIdSchema,
+});
+
 /** Lifts a downed party member within reach. Refused if either player is already carrying/carried. */
 export const liftPlayerSchema = z.object({
   type: z.literal("liftPlayer"),
@@ -177,6 +193,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   dropItemSchema,
   giveItemSchema,
   swapHeldSchema,
+  withdrawVaultItemSchema,
+  depositVaultItemSchema,
   liftPlayerSchema,
   dropCarrySchema,
   emoteSchema,

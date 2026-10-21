@@ -123,7 +123,7 @@ describe("escaping past a boss", () => {
     player.position = { ...exit.position };
     expect(interact(session, "alpha", exit.id)).toEqual({ ok: true });
     expect(session.location).toBe("hub");
-    expect(player.profile.bankedItems).toEqual([TONIC]);
+    expect(session.vault.items).toEqual([TONIC]);
     expect(player.profile.runsEscaped).toBe(1);
   });
 

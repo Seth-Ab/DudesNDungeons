@@ -44,6 +44,8 @@ import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
+import type { PartyVault } from "../vaults/partyVault.js";
+import { VaultStore } from "../vaults/vaultStore.js";
 
 export interface SessionPlayer {
   id: PlayerId;
@@ -188,6 +190,11 @@ export interface Session {
   flareExpiresAt: Map<EntityId, number>;
   /** Hits on each training dummy still inside the readout window. Server-side only. */
   dummyHits: Map<EntityId, DummyHit[]>;
+  /**
+   * The party vault for this room code, owned by `VaultStore` and shared by reference. Every member
+   * sees and may take from it; escapes deposit into it.
+   */
+  vault: PartyVault;
 }
 
 export interface JoinRequest {
@@ -230,6 +237,11 @@ export interface SessionStoreOptions {
   emptySessionTtlMs?: number;
   /** Which dungeon new sessions get. Tests pin a seed here to make a generated run repeatable. */
   dungeon?: DungeonRequest;
+  /**
+   * Where party vaults live. Defaults to an in-memory store, so a test writes nothing;
+   * `src/server/index.ts` supplies the file-backed one.
+   */
+  vaults?: VaultStore;
 }
 
 function defaultRoomCode(): RoomCode {
@@ -248,6 +260,8 @@ function defaultRoomCode(): RoomCode {
  * testable without opening a port.
  */
 export class SessionStore {
+  /** Party vaults by room code. Public so the server can flush them when they change. */
+  readonly vaults: VaultStore;
   readonly #sessions = new Map<RoomCode, Session>();
   /** Reverse index so socket events, which only carry a player id, resolve in constant time. */
   readonly #sessionByPlayer = new Map<PlayerId, RoomCode>();
@@ -272,17 +286,28 @@ export class SessionStore {
     this.#reconnectGraceMs = options.reconnectGraceMs ?? RECONNECT_GRACE_MS;
     this.#emptySessionTtlMs = options.emptySessionTtlMs ?? EMPTY_SESSION_TTL_MS;
     this.#dungeon = options.dungeon ?? {};
+    this.vaults = options.vaults ?? new VaultStore();
   }
 
+  /**
+   * A new room with an empty vault. A code whose vault is saved counts as taken even with no live
+   * session, so a new room is never handed another party's vault.
+   */
   createSession(): Session {
+    const taken = (code: RoomCode): boolean => this.#sessions.has(code) || this.vaults.has(code);
     let roomCode = this.#createRoomCode();
-    for (let attempt = 0; this.#sessions.has(roomCode); attempt += 1) {
+    for (let attempt = 0; taken(roomCode); attempt += 1) {
       if (attempt >= 50) {
         throw new Error("Unable to allocate an unused room code");
       }
       roomCode = this.#createRoomCode();
     }
 
+    return this.#openSession(roomCode);
+  }
+
+  /** Puts a session in the hub under this room code, with the room's vault. */
+  #openSession(roomCode: RoomCode): Session {
     const built = buildDungeon({ dungeonId: HUB_DUNGEON_ID, content: this.#dungeon.content });
     const session: Session = {
       id: this.#createSessionId(),
@@ -306,6 +331,7 @@ export class SessionStore {
       puzzleHeldSince: new Map(),
       flareExpiresAt: new Map(),
       dummyHits: new Map(),
+      vault: this.vaults.open(roomCode),
     };
     this.#sessions.set(roomCode, session);
     return session;
@@ -333,7 +359,11 @@ export class SessionStore {
   }
 
   join(request: JoinRequest): JoinResult {
-    const session = this.#sessions.get(request.roomCode);
+    // A room whose session was swept, or lost to a restart, still owns its vault. Joining its code
+    // reopens it in the hub, which is what lets a party come back to what they stored.
+    const session =
+      this.#sessions.get(request.roomCode) ??
+      (this.vaults.has(request.roomCode) ? this.#openSession(request.roomCode) : undefined);
     if (!session) {
       return { ok: false, code: "sessionNotFound", message: "No dungeon exists for that room code" };
     }

@@ -18,12 +18,14 @@ import type {
 } from "../../shared/types/core.js";
 import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
 import { placeFlare } from "./flares.js";
 import { spillLootTable } from "./monsterLoot.js";
 import { contentForSession, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { seatById, sitOn } from "./seats.js";
+import { inVaultArea, storeInVault } from "./vault.js";
 import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
@@ -281,6 +283,73 @@ export function giveItem(
 
   removeCarried(player, item);
   receive(target, item, destination);
+  return OK;
+}
+
+/**
+ * Takes an item out of the party vault. Hub only, from inside the vault area, by any standing party
+ * member. A weapon fills an empty hand first, anything else a free slot. Ammo tops up carried stacks
+ * and then takes a free slot, like a pickup, and whatever still does not fit stays in the vault as
+ * the same entry with a smaller count. Refused, changing nothing, when not even one would fit.
+ *
+ * The vault is checked by id on every call, and messages are handled one at a time, so two players
+ * asking for the same item resolve to one taker: the second finds it gone (`targetMissing`).
+ */
+export function withdrawVaultItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
+  const player = actor(session, playerId);
+  if (!player) return reject("notPermitted");
+  if (session.location !== "hub") return reject("notPermitted");
+
+  const vault = session.vault;
+  const item = vault.items.find((candidate) => candidate.id === itemId);
+  if (!item) return reject("targetMissing");
+  if (!inVaultArea(session, player)) return reject("outOfRange");
+
+  if (item.kind === "ammo") {
+    const maxStack = maxStackOf(session, item.itemId);
+    const room = maxStack === null ? 0 : mergeRoom(player, item.itemId, maxStack);
+    const freeSlot = player.inventory.length < MAX_INVENTORY_SIZE;
+    if (room === 0 && !freeSlot) return reject("notPermitted");
+
+    let left = maxStack === null ? item.count : topUp(player, item.itemId, maxStack, item.count);
+    if (left > 0 && freeSlot) {
+      const taken = Math.min(left, maxStack ?? left);
+      left -= taken;
+      // The carried stack keeps the vault entry's id only when the entry is used up.
+      player.inventory.push({ ...item, id: left === 0 ? item.id : randomUUID(), count: taken });
+    }
+
+    if (left === 0) vault.items = vault.items.filter((candidate) => candidate !== item);
+    else item.count = left;
+    markVaultChanged(vault);
+    return OK;
+  }
+
+  const destination = destinationFor(player, item);
+  if (!destination) return reject("notPermitted");
+
+  vault.items = vault.items.filter((candidate) => candidate !== item);
+  receive(player, item, destination);
+  markVaultChanged(vault);
+  return OK;
+}
+
+/**
+ * Stores a carried item (inventory or hand) in the party vault, so it can wait for a later run or
+ * for a teammate, such as a skill scroll its carrier cannot use yet. Same place rules as a
+ * withdrawal; capacity is unlimited.
+ */
+export function depositVaultItem(session: Session, playerId: PlayerId, itemId: EntityId): ItemResult {
+  const player = actor(session, playerId);
+  if (!player) return reject("notPermitted");
+  if (session.location !== "hub") return reject("notPermitted");
+
+  const item = carriedItem(player, itemId);
+  if (!item) return reject("targetMissing");
+  if (!inVaultArea(session, player)) return reject("outOfRange");
+
+  removeCarried(player, item);
+  storeInVault(session, item);
   return OK;
 }
 

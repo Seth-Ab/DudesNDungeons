@@ -16,7 +16,7 @@ This repository is currently at planning/scaffold stage. Keep new source code or
 - `src/server/` for authoritative dungeon state, sessions, WebSocket networking, and voice signaling.
 - `src/shared/` for protocol messages, shared game utilities, constants, and TypeScript types.
 - `content/` for editable game data such as dungeons, items, monsters, and player skills.
-- `data/` for persistent server state, currently player profiles. Gitignored and created on demand.
+- `data/` for persistent server state: player profiles and party vaults. Gitignored and created on demand.
 - `assets/` for sprites, maps, audio, and UI media. Pixel art is authored as text under `assets/sprites/source/` and baked to a PNG; see `assets/sprites/README.md`.
 - `tests/` for automated coverage split into `client`, `server`, `shared`, and `e2e`.
 - `docs/` for architecture notes and decision records.
@@ -30,11 +30,15 @@ Avoid mixing client-only browser code with server logic. Shared protocol definit
 ## World State & Rendering Boundary
 
 The server owns whether a party is in the hub or a dungeon, unanimous-ready checks, run generation,
-escape/wipe outcomes, torch ownership, and banked items. Clients send interaction intent and render
-the authoritative snapshot; they must not locally advance the run lifecycle.
+escape/wipe outcomes, torch ownership, and the party vault. Clients send interaction intent and
+render the authoritative snapshot; they must not locally advance the run lifecycle.
 
-It also owns roguelite profiles: what a player has banked and unlocked belongs to a profile in
-`src/server/profiles/`, not to a session, and a client may never send one. A client holds one
+The party vault belongs to the room code in `src/server/vaults/`, shared by reference with the
+session playing it. Anything that mutates one must call `markVaultChanged`, so it is written to
+`data/vaults.json` and resent to the party.
+
+It also owns roguelite profiles: what a player has unlocked (and a legacy, read-only bank) belongs
+to a profile in `src/server/profiles/`, not to a session, and a client may never send one. A client holds one
 credential, the profile secret, and the server answers with what that profile contains. Anything
 that mutates a profile must call `markProfileChanged`, or the change lives only until the process
 exits.

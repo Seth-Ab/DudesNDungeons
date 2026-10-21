@@ -313,15 +313,14 @@ describe("the held item alongside the rest of the kit", () => {
     expect(giver.held).toEqual(BOW);
   });
 
-  it("is banked on escape and lost with everything else on a wipe", () => {
+  it("is deposited on escape and lost with everything else on a wipe", () => {
     const survivor = testPlayer("alpha", { held: SWORD, inventory: [TONIC] });
     const fallen = testPlayer("beta", { health: 0, held: BOW });
     const session = testSession([survivor, fallen]);
 
     returnToHub(session, true);
 
-    expect(survivor.profile.bankedItems).toEqual([TONIC, SWORD]);
-    expect(fallen.profile.bankedItems).toEqual([]);
+    expect(session.vault.items).toEqual([TONIC, SWORD]);
     expect(survivor.held).toBeNull();
     expect(fallen.held).toBeNull();
   });

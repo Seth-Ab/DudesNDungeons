@@ -276,7 +276,7 @@ describe("doors and exits", () => {
     expect(session.location).toBe("hub");
     expect(session.dungeon.map.id).toBe("hub");
     expect(player.inventory).toEqual([]);
-    expect(player.profile.bankedItems).toEqual([TONIC]);
+    expect(session.vault.items).toEqual([TONIC]);
   });
 
   it("refuses an unknown target", () => {

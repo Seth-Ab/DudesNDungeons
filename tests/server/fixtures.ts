@@ -167,6 +167,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     puzzleHeldSince: new Map(),
     flareExpiresAt: new Map(),
     dummyHits: new Map(),
+    vault: { roomCode: "ROOM01", items: [], revision: 0 },
   };
 }
 
