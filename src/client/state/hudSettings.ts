@@ -4,6 +4,25 @@ export interface HudSettings {
   reducedMotion: boolean;
   /** One of `UI_SCALES`; scales every rem-sized element, the HUD and menus included. */
   uiScale: number;
+  /** How much of the HUD stays lit when it is quiet; see `HUD_DENSITY_RULES` in `hudFade.ts`. */
+  density: HudDensity;
+}
+
+export const HUD_DENSITIES = ["full", "calm", "minimal"] as const;
+
+export type HudDensity = (typeof HUD_DENSITIES)[number];
+
+export const HUD_DENSITY_LABELS: Record<HudDensity, string> = {
+  full: "Full (never fade)",
+  calm: "Calm (fade when quiet)",
+  minimal: "Minimal (fade more, hide key hints)",
+};
+
+export const DEFAULT_HUD_DENSITY: HudDensity = "calm";
+
+/** Reads a density back from the document's `data-hud-density`; anything unknown is the default. */
+export function hudDensityFrom(value: string | undefined): HudDensity {
+  return HUD_DENSITIES.find((density) => density === value) ?? DEFAULT_HUD_DENSITY;
 }
 
 export const UI_SCALES = [0.85, 1, 1.15, 1.3] as const;
@@ -27,7 +46,7 @@ export function hudFrameZoom(uiScale: number): number {
 const SETTINGS_KEY = "dnd.hudSettings";
 
 export function defaultHudSettings(prefersReducedMotion: boolean): HudSettings {
-  return { reducedMotion: prefersReducedMotion, uiScale: 1 };
+  return { reducedMotion: prefersReducedMotion, uiScale: 1, density: DEFAULT_HUD_DENSITY };
 }
 
 /** Anything unreadable falls back to the default for that field; stored data is never trusted. */
@@ -45,6 +64,7 @@ export function parseHudSettings(raw: string | null, fallback: HudSettings): Hud
     reducedMotion:
       typeof record.reducedMotion === "boolean" ? record.reducedMotion : fallback.reducedMotion,
     uiScale: UI_SCALES.find((scale) => scale === record.uiScale) ?? fallback.uiScale,
+    density: HUD_DENSITIES.find((density) => density === record.density) ?? fallback.density,
   };
 }
 

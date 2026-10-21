@@ -5,6 +5,8 @@ import { selfOf, type SessionView } from "../network/sessionState.js";
 import { followTouchControls } from "../state/touchControls.js";
 import { itemFeedbackEvents } from "../state/itemFeedback.js";
 import { createHudFade, type HudModuleId } from "../state/hudFade.js";
+import { hudDensityFrom } from "../state/hudSettings.js";
+import { HUD_SETTINGS_CHANGED_EVENT } from "./hudSettings.js";
 import { minimapRoomName, minimapWorldKey } from "../state/minimap.js";
 import {
   connectionLabel,
@@ -226,13 +228,14 @@ export function createHud(options: HudOptions) {
   const applyFade = (): void => {
     const now = Date.now();
     const pinned = new Set<HudModuleId>(warned);
+    const density = hudDensityFrom(document.documentElement.dataset.hudDensity);
     // The camp menu and the Stash own the keyboard; nothing dims behind them.
     if (camp.isOpen() || inventory.isOpen()) for (const id of fadeIds) pinned.add(id);
     for (const id of fadeIds) {
       if (fadeModules[id].contains(document.activeElement)) pinned.add(id);
     }
     for (const id of fadeIds) {
-      fadeModules[id].dataset.faded = String(fade.isFaded(id, now, { pinned }));
+      fadeModules[id].dataset.faded = String(fade.isFaded(id, now, { pinned, density }));
     }
   };
   noteCombat = () => {
@@ -247,6 +250,7 @@ export function createHud(options: HudOptions) {
     },
     true,
   );
+  document.documentElement.addEventListener(HUD_SETTINGS_CHANGED_EVENT, applyFade);
   window.addEventListener("focusin", applyFade);
   window.addEventListener("focusout", () => setTimeout(applyFade, 0));
   window.setInterval(applyFade, FADE_TICK_MS);
