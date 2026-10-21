@@ -2,10 +2,12 @@ import type { GameplayAction } from "../../input/keyBindings.js";
 import { SHEET_URL } from "../../rendering/tileset.js";
 import { SHEET_HEIGHT, SHEET_WIDTH, spriteRect } from "../../rendering/tiles.js";
 import {
-  torchStatusLabel,
+  SCROLL_BADGE,
+  torchView,
   type ActionPromptView,
   type HeldSlotView,
   type HotbarSlotView,
+  type SlotKind,
 } from "../../state/hudView.js";
 import type { FeedbackSlot } from "../../state/itemFeedback.js";
 import type { PlayerState } from "../../../shared/types/core.js";
@@ -42,6 +44,21 @@ function createCount(): HTMLElement {
 function paintCount(element: HTMLElement, count: number | null): void {
   element.hidden = count === null;
   element.textContent = count === null ? "" : String(count);
+}
+
+/** The badge a scroll wears, created with every slot and shown only while it holds a scroll. */
+function createBadge(): HTMLElement {
+  const badge = document.createElement("span");
+  badge.className = "hud__slot-badge";
+  badge.setAttribute("aria-hidden", "true");
+  badge.textContent = SCROLL_BADGE;
+  return badge;
+}
+
+/** Marks the slot empty or holding a scroll, which is what the CSS keys its look on. */
+function paintKind(button: HTMLElement, kind: SlotKind): void {
+  button.classList.toggle("hud__slot--empty", kind === "empty");
+  button.classList.toggle("hud__slot--scroll", kind === "scroll");
 }
 
 function withCount(name: string, count: number | null): string {
@@ -82,7 +99,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
     icon.setAttribute("aria-hidden", "true");
 
     const count = createCount();
-    button.append(key, icon, count);
+    button.append(key, icon, count, createBadge());
     return { button, key, icon, count };
   });
 
@@ -97,7 +114,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
   heldIcon.className = "hud__slot-icon";
   heldIcon.setAttribute("aria-hidden", "true");
   const heldCount = createCount();
-  held.append(heldKey, heldIcon, heldCount);
+  held.append(heldKey, heldIcon, heldCount, createBadge());
 
   const torch = document.createElement("div");
   torch.className = "hud__torch";
@@ -115,7 +132,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
   return {
     element,
 
-    /** The element item feedback plays on: an inventory slot, the hand, or the torch pip. */
+    /** The element item feedback plays on: an inventory slot, the hand, or the torch. */
     slotElement(slot: FeedbackSlot): HTMLElement | null {
       if (slot === "held") return held;
       if (slot === "torch") return torch;
@@ -128,7 +145,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
         if (!slot) return;
         slot.key.textContent = view.keyHint;
         slot.button.disabled = view.disabled;
-        slot.button.classList.toggle("hud__slot--empty", view.empty);
+        paintKind(slot.button, view.kind);
         const detail = view.description ? ` - ${view.description}` : "";
         const name = withCount(view.name, view.count);
         slot.button.title = `${view.keyHint}: ${name}${detail}`;
@@ -141,7 +158,7 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
     updateHeld(view: HeldSlotView) {
       heldKey.textContent = view.keyHint;
       held.disabled = view.disabled;
-      held.classList.toggle("hud__slot--empty", view.empty);
+      paintKind(held, view.kind);
       const name = withCount(view.name, view.count);
       held.title = `${view.keyHint}: In hand - ${name}`;
       held.setAttribute("aria-label", `In hand (${view.keyHint}): ${name}`);
@@ -150,11 +167,10 @@ export function createHotbar(options: HotbarOptions & { onAction: (action: Gamep
     },
 
     updateTorch(self: PlayerState | null) {
-      const carried = self?.carryingTorch === true;
-      torch.classList.toggle("hud__torch--lit", carried);
-      const label = `Torch: ${torchStatusLabel(self)}`;
-      torch.title = label;
-      torch.setAttribute("aria-label", label);
+      const view = torchView(self);
+      torch.classList.toggle("hud__torch--lit", view.lit);
+      torch.title = view.label;
+      torch.setAttribute("aria-label", view.label);
     },
 
     updatePrompt(view: ActionPromptView | null) {

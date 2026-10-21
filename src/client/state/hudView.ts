@@ -423,6 +423,17 @@ export function torchStatusLabel(self: PlayerState | null): string {
   return self?.carryingTorch ? "carried" : "none";
 }
 
+export interface TorchSlotView {
+  /** True while this player carries the torch: the slot glows ember, and is dimmed otherwise. */
+  lit: boolean;
+  label: string;
+}
+
+/** The round torch slot beside the hotbar. */
+export function torchView(self: PlayerState | null): TorchSlotView {
+  return { lit: self?.carryingTorch === true, label: `Torch: ${torchStatusLabel(self)}` };
+}
+
 export interface BankEntryView {
   text: string;
   empty: boolean;
@@ -512,11 +523,23 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
     });
 }
 
+/** What a slot holds, for its look: an empty slot, a skill scroll (violet), or any other item. */
+export type SlotKind = "empty" | "scroll" | "item";
+
+export function slotKind(item: InventoryItem | null | undefined): SlotKind {
+  if (!item) return "empty";
+  return item.kind === "skillScroll" ? "scroll" : "item";
+}
+
+/** The word on a scroll's badge, so magic is told apart from a potion by more than its hue. */
+export const SCROLL_BADGE = "SKILL";
+
 export interface HotbarSlotView {
   /** The key hint printed in the slot, from the shared key-binding table. */
   keyHint: string;
   action: GameplayAction;
   empty: boolean;
+  kind: SlotKind;
   name: string;
   /** Client-safe blurb for consumables; empty for everything else. */
   description: string;
@@ -542,6 +565,7 @@ export function hotbarView(view: SessionView, self: PlayerState | null): HotbarS
       keyHint: keyLabel(action),
       action,
       empty: !item,
+      kind: slotKind(item),
       name: item?.name ?? "Empty",
       description: item?.kind === "consumable" ? item.description : "",
       icon: item ? itemSprite(item) : null,
@@ -555,6 +579,7 @@ export interface HeldSlotView {
   keyHint: string;
   action: GameplayAction;
   empty: boolean;
+  kind: SlotKind;
   name: string;
   icon: SpriteName | null;
   count: number | null;
@@ -569,6 +594,7 @@ export function heldView(view: SessionView, self: PlayerState | null): HeldSlotV
     keyHint: keyLabel("swapHeld"),
     action: "swapHeld",
     empty: !item,
+    kind: slotKind(item),
     name: item?.name ?? "Empty hand",
     icon: item ? itemSprite(item) : null,
     count: stackCount(item),

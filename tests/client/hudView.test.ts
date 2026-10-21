@@ -27,7 +27,9 @@ import {
   noticesView,
   partyFrames,
   toastMessages,
+  slotKind,
   torchStatusLabel,
+  torchView,
   vitalsView,
 } from "../../src/client/state/hudView.js";
 import {
@@ -597,6 +599,29 @@ describe("hotbar", () => {
 
     const holding = player("Maya", { id: SELF_ID, held: { ...arrows, count: 2 } });
     expect(heldView(view({ ...inSession, players: [holding] }), holding).count).toBe(2);
+  });
+
+  it("tells an empty slot, a skill scroll and any other item apart", () => {
+    const scroll: InventoryItem = {
+      id: "f1111111-1111-4111-8111-111111111111",
+      name: "Scroll of Dash",
+      kind: "skillScroll",
+      skillId: "dash",
+    };
+    const self = player("Maya", { id: SELF_ID, inventory: [scroll, item("Tonic")] });
+    const state = view({ ...inSession, players: [self] });
+
+    expect(hotbarView(state, self).map((slot) => slot.kind)).toEqual(["scroll", "item", "empty"]);
+    expect(slotKind(null)).toBe("empty");
+    expect(heldView(state, self).kind).toBe("empty");
+    const holding = player("Maya", { id: SELF_ID, held: scroll });
+    expect(heldView(view({ ...inSession, players: [holding] }), holding).kind).toBe("scroll");
+  });
+
+  it("lights the torch slot only while the torch is carried", () => {
+    expect(torchView(player("Maya", { carryingTorch: true }))).toEqual({ lit: true, label: "Torch: carried" });
+    expect(torchView(player("Maya", { carryingTorch: false }))).toEqual({ lit: false, label: "Torch: none" });
+    expect(torchView(null)).toEqual({ lit: false, label: "Torch: none" });
   });
 
   it("disables every slot when outside a session or downed", () => {
