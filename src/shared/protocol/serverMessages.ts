@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   dungeonSnapshotSchema,
-  contentIdSchema,
   entityIdSchema,
   inventoryItemSchema,
   partyColorSchema,
@@ -15,8 +14,8 @@ import {
   runStateSchema,
   sessionLocationSchema,
   sessionIdSchema,
+  skillStacksSchema,
   skillViewSchema,
-  upgradeViewSchema,
   vector2Schema,
 } from "../types/core.js";
 import { emoteKindSchema } from "./clientMessages.js";
@@ -58,6 +57,10 @@ export const rejectionReasonSchema = z.enum([
   "targetMissing",
   /** The action costs more stamina than the player has. Distinct from a cooldown: waiting is longer. */
   "exhausted",
+  /** A skill scroll whose skill the player already holds at its `maxStacks`. The scroll is kept. */
+  "skillMaxed",
+  /** A skill scroll whose `requires` the player does not hold yet. The scroll is kept. */
+  "missingPrerequisites",
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 
@@ -100,7 +103,8 @@ export const sessionJoinedSchema = z.object({
 });
 
 /**
- * The skill and upgrade definitions this session plays with, for display. Static for the life of a
+ * The skill definitions this session plays with, including stack limits, per-stack effects and
+ * prerequisites, for display. Static for the life of a
  * session, so it is sent once, right after `sessionJoined`, rather than with every change to
  * `progressionUpdated`. Owner-only like the rest of the progression contract, though it holds
  * nothing secret.
@@ -108,7 +112,6 @@ export const sessionJoinedSchema = z.object({
 export const progressionCatalogSchema = z.object({
   type: z.literal("progressionCatalog"),
   skills: z.array(skillViewSchema),
-  upgrades: z.array(upgradeViewSchema),
 });
 
 /**
@@ -117,16 +120,16 @@ export const progressionCatalogSchema = z.object({
  * `sessionJoined` and again whenever any field changes, such as learning a scroll, extracting, or
  * losing a run, so a client never has to infer progression from other messages.
  *
- * `unlocked*` is permanent. `runSkillIds` is provisional: in force for this run, and gone unless the
- * player gets back to the hub. `active*` is the resulting state the server's effects resolve from.
+ * `skillStacks` is permanent. `runSkillStacks` is provisional: in force for this run, and gone
+ * unless the player gets back to the hub. `activeSkillStacks` is what the server's effects resolve
+ * from: both added together, capped at each skill's current `maxStacks`, and without skills the
+ * catalog no longer has.
  */
 export const progressionUpdatedSchema = z.object({
   type: z.literal("progressionUpdated"),
-  unlockedSkillIds: z.array(contentIdSchema),
-  unlockedUpgradeIds: z.array(contentIdSchema),
-  runSkillIds: z.array(contentIdSchema),
-  activeSkillIds: z.array(contentIdSchema),
-  activeUpgradeIds: z.array(contentIdSchema),
+  skillStacks: skillStacksSchema,
+  runSkillStacks: skillStacksSchema,
+  activeSkillStacks: skillStacksSchema,
 });
 
 export const playerJoinedSchema = z.object({

@@ -177,6 +177,25 @@ describe("disconnect and reconnect", () => {
     expect(session.players.size).toBe(1);
   });
 
+  it("keeps provisional skill stacks across a reconnect", () => {
+    const store = createStore();
+    const session = store.createSession();
+    const { player } = joinOrThrow(store, session, "Grix");
+    player.runSkillStacks.set("iron-will", 2);
+
+    store.markDisconnected(player.id);
+    clock += GRACE_MS - 1;
+    const result = store.join(joinRequest({
+      roomCode: session.roomCode,
+      playerName: "Grix",
+      resumeToken: player.resumeToken,
+    }));
+
+    expect(result.ok && result.resumed).toBe(true);
+    if (!result.ok) return;
+    expect(result.player.runSkillStacks).toEqual(new Map([["iron-will", 2]]));
+  });
+
   it("refuses to resume a slot that is still connected", () => {
     const store = createStore();
     const session = store.createSession();

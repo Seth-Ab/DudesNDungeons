@@ -408,7 +408,7 @@ export const itemDefinitionSchema = z
 export type ItemDefinition = z.infer<typeof itemDefinitionSchema>;
 
 /**
- * Passive effects that an unlocked skill or one of its upgrades may grant.
+ * Passive effects that a skill stack may grant.
  *
  * These line up with the four skill areas called out in Backend step 11. Keeping the variants
  * explicit means the eventual gameplay implementation must handle every supported effect instead
@@ -422,30 +422,56 @@ export const progressionEffectSchema = z.discriminatedUnion("type", [
 ]);
 export type ProgressionEffect = z.infer<typeof progressionEffectSchema>;
 
-/** A permanent ability that may be unlocked on a player profile in Backend step 11. */
-export const skillDefinitionSchema = z.object({
-  id: contentIdSchema,
-  name: z.string().min(1),
-  description: z.string().min(1),
-  effects: z.array(progressionEffectSchema).min(1),
-});
-export type SkillDefinition = z.infer<typeof skillDefinitionSchema>;
-
 /**
- * One ordered improvement to a skill. Unlock cost is deliberately absent until the progression
- * currency is designed; prerequisites still let authors express an upgrade path without inventing
- * an economy in content.
+ * A permanent ability held on a player profile as a stack count, per decision 0014.
+ *
+ * `effects` is the first stack. `maxStacks` caps the count, or is null for a skill that keeps
+ * stacking. A stacking skill adds exactly one of `stackEffects`, the explicit effects of stacks 2
+ * to `maxStacks` and so only for a capped skill, or `perStackEffects`, added again for every stack
+ * beyond the first and required when the skill is unlimited. `requires` names skills the player
+ * must already hold a stack of before a scroll of this one can be used; the loader refuses unknown
+ * ids and cycles, which a single definition cannot see.
  */
-export const upgradeDefinitionSchema = z.object({
-  id: contentIdSchema,
-  skillId: contentIdSchema,
-  name: z.string().min(1),
-  description: z.string().min(1),
-  tier: z.number().int().positive(),
-  requires: z.array(contentIdSchema).default([]),
-  effects: z.array(progressionEffectSchema).min(1),
-});
-export type UpgradeDefinition = z.infer<typeof upgradeDefinitionSchema>;
+export const skillDefinitionSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    description: z.string().min(1),
+    effects: z.array(progressionEffectSchema).min(1),
+    maxStacks: z.number().int().positive().nullable(),
+    requires: z.array(contentIdSchema).default([]),
+    stackEffects: z.array(z.array(progressionEffectSchema).min(1)).optional(),
+    perStackEffects: z.array(progressionEffectSchema).min(1).optional(),
+  })
+  .superRefine((skill, context) => {
+    const issue = (path: string, message: string) =>
+      context.addIssue({ code: "custom", path: [path], message });
+    const { maxStacks, stackEffects, perStackEffects } = skill;
+
+    if (stackEffects && perStackEffects) {
+      issue("stackEffects", "a skill takes stackEffects or perStackEffects, not both");
+    } else if (maxStacks === 1) {
+      if (stackEffects || perStackEffects) {
+        issue("maxStacks", "a skill with maxStacks 1 does not stack, so it takes no stack effects");
+      }
+    } else if (maxStacks === null) {
+      if (stackEffects) {
+        issue("stackEffects", "an unlimited skill uses perStackEffects instead");
+      } else if (!perStackEffects) {
+        issue("perStackEffects", "an unlimited skill needs perStackEffects");
+      }
+    } else if (stackEffects) {
+      if (stackEffects.length !== maxStacks - 1) {
+        issue(
+          "stackEffects",
+          `stackEffects must list ${maxStacks - 1} stacks, one per stack after the first`,
+        );
+      }
+    } else if (!perStackEffects) {
+      issue("maxStacks", "a stacking skill needs stackEffects or perStackEffects");
+    }
+  });
+export type SkillDefinition = z.infer<typeof skillDefinitionSchema>;
 
 /**
  * What a room is for. Drives which templates a generator may pick for a slot, and later which

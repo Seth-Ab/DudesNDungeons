@@ -5,10 +5,13 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 ## Current Status
 
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
-  persistence, first skill scroll). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
+  persistence, first skill scroll, skill stacks). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v38.
-- Last completed work: the progression economy decided and recorded in decision 0014, with
+  everyone to the hub under protocol v39.
+- Last completed work: skills that stack up to a per-skill `maxStacks` and may require other
+  skills, with Iron Will's two upgrades folded into its stacks 2 and 3, old profiles migrated on
+  read, and maxed or prerequisite-missing scrolls refused and kept (issue #213, protocol v39);
+  earlier, the progression economy decided and recorded in decision 0014, with
   follow-ups #213-#217 (issue #23, documentation only); earlier, a party vault shared by the room code, which escapes deposit into and any
   member can take from or store in at the hub's Bank, saved in `data/vaults.json` and reopened with
   its room after a restart; personal banks are now a read-only legacy list (issue #126, protocol
@@ -311,10 +314,10 @@ Note: dungeon sizes here are now authored tiles, which the world builds at four 
 ### 11. Roguelite Progression and Persistence
 
 Identity and persistence landed on 2026-09-20 under protocol v9. The first skill-scroll slice landed
-under protocol v10; the full catalog, upgrade acquisition, and UI remain. The economy is decided
-(#23, decision 0014) and split into #213-#217.
+under protocol v10, and skill stacking under protocol v39 (#213); the full catalog, coin, the shop
+and UI remain. The economy is decided (#23, decision 0014) and split into #213-#217.
 
-- [x] Add a player profile holding banked items and unlocked skills. `src/server/profiles/`.
+- [x] Add a player profile holding banked items and skill stacks. `src/server/profiles/`.
   `SessionPlayer.profile` replaces `SessionPlayer.bankedItems`, so one profile is shared by
   reference and may play only one slot at a time.
 - [x] Persist profiles across server restarts. `data/profiles.json`, written atomically, validated
@@ -325,12 +328,19 @@ under protocol v10; the full catalog, upgrade acquisition, and UI remain. The ec
   `data/vaults.json` on the same flushes; `profile.bankedItems` is a read-only legacy list.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
-  effect resolver drives resistance, attack damage, upgrade tiers, and torch sight. Remaining:
-  stacking and prerequisites in place of upgrade tiers (#213), coin and scroll conversion (#214),
-  milestones (#215), the skill shop (#216), more scrolls and drops (#217), and puzzle effects. The owner now receives the catalog
-  (`progressionCatalog`) and live state (`progressionUpdated`), protocol v15 (#24).
-- [x] Add validated JSON definitions for skills and tiered upgrades. This is content scaffolding;
-  skill definitions now feed the effect resolver, while upgrade acquisition remains future work.
+  effect resolver drives resistance, attack damage, skill stacks, and torch sight. Stacking and
+  prerequisites landed in #213 (protocol v39): profiles hold `skillStacks` (profile file v2, with
+  old `unlockedSkillIds`/`unlockedUpgradeIds` migrated on read), a duplicate scroll adds a stack
+  (provisional in a dungeon, permanent in the hub), and a maxed scroll or one missing
+  prerequisites is refused with `skillMaxed`/`missingPrerequisites` and kept. Iron Will's two
+  upgrades are its stacks 2 and 3, and `content/upgrades/` is retired. Remaining: coin and scroll
+  conversion (#214), milestones (#215), the skill shop (#216), more scrolls and drops (#217), and
+  puzzle effects. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
+  `requires` and per-stack effects) and live stacks (`progressionUpdated`: permanent, run and
+  active), first under protocol v15 (#24).
+- [x] Add validated JSON definitions for skills. They feed the effect resolver; since #213 each
+  declares `maxStacks`, optional `requires` and `stackEffects` or `perStackEffects`, and the
+  loader refuses invalid stacking shapes, unknown prerequisites and prerequisite cycles.
 - [x] Reject client-sent profile, inventory, or unlock state. The client sends one credential and
   nothing else; `profileState` is output-only and never parsed from a client frame.
 
@@ -545,6 +555,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Skills stack up to a per-skill `maxStacks` and may require other skills; Iron Will's upgrades become its stacks 2-3, `content/upgrades/` is retired, profiles migrate to `skillStacks` (#213, protocol v39).
 - 2026-10-21: Progression economy decided (#23): coin, skill stacking and prerequisites, max-stack conversion, a skill shop whose stock rotates after every run, and milestones, in decision 0014; follow-ups #213-#217.
 - 2026-10-21: Party vault shared by the room code: escapes deposit into it, any member takes or stores at the hub's Bank, saved in `data/vaults.json`; personal banks become read-only (#126, protocol v38).
 - 2026-10-21: Final HUD Torch & Tally pass against the proposal: self-frame name, thin ally health bars with a resistance number, warm camp-menu groups; series finished, no follow-ups (#194).

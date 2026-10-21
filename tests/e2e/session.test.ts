@@ -1533,15 +1533,10 @@ describe("progression state", () => {
     await alpha.client.nextWhere("stateSnapshot", () => true);
     const received = alpha.client.received("progressionCatalog")[0];
     expect(received?.skills.map((skill) => skill.id)).toContain("iron-will");
-    expect(received?.upgrades.map((upgrade) => upgrade.id)).toContain("iron-will-steeled");
+    expect(received?.skills.find((skill) => skill.id === "iron-will")?.maxStacks).toBe(3);
 
     const state = alpha.client.received("progressionUpdated")[0];
-    expect(state).toMatchObject({
-      unlockedSkillIds: [],
-      runSkillIds: [],
-      activeSkillIds: [],
-      activeUpgradeIds: [],
-    });
+    expect(state).toMatchObject({ skillStacks: {}, runSkillStacks: {}, activeSkillStacks: {} });
   });
 
   it("tracks a provisional scroll, then banks it on extraction", async () => {
@@ -1550,19 +1545,22 @@ describe("progression state", () => {
     await enterDungeon(roomCode, alpha.client);
     const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
 
-    expect(learnSkill(session, player, "iron-will")).toBe(true);
-    const provisional = await alpha.client.nextWhere("progressionUpdated", (m) =>
-      m.runSkillIds.includes("iron-will"),
+    expect(learnSkill(session, player, "iron-will")).toBe("learned");
+    expect(learnSkill(session, player, "iron-will")).toBe("learned");
+    const provisional = await alpha.client.nextWhere(
+      "progressionUpdated",
+      (m) => m.runSkillStacks["iron-will"] === 2,
     );
-    expect(provisional.unlockedSkillIds).toEqual([]);
-    expect(provisional.activeSkillIds).toEqual(["iron-will"]);
+    expect(provisional.skillStacks).toEqual({});
+    expect(provisional.activeSkillStacks).toEqual({ "iron-will": 2 });
 
     returnToHub(session, true);
-    const banked = await alpha.client.nextWhere("progressionUpdated", (m) =>
-      m.unlockedSkillIds.includes("iron-will"),
+    const banked = await alpha.client.nextWhere(
+      "progressionUpdated",
+      (m) => m.skillStacks["iron-will"] === 2,
     );
-    expect(banked.runSkillIds).toEqual([]);
-    expect(banked.activeSkillIds).toEqual(["iron-will"]);
+    expect(banked.runSkillStacks).toEqual({});
+    expect(banked.activeSkillStacks).toEqual({ "iron-will": 2 });
   });
 
   it("drops a provisional scroll when the run is lost", async () => {
@@ -1572,17 +1570,15 @@ describe("progression state", () => {
     const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
 
     learnSkill(session, player, "torchbearer");
-    await alpha.client.nextWhere("progressionUpdated", (m) =>
-      m.runSkillIds.includes("torchbearer"),
-    );
+    await alpha.client.nextWhere("progressionUpdated", (m) => "torchbearer" in m.runSkillStacks);
 
     returnToHub(session, false);
     const lost = await alpha.client.nextWhere(
       "progressionUpdated",
-      (m) => m.runSkillIds.length === 0,
+      (m) => Object.keys(m.runSkillStacks).length === 0,
     );
-    expect(lost.unlockedSkillIds).toEqual([]);
-    expect(lost.activeSkillIds).toEqual([]);
+    expect(lost.skillStacks).toEqual({});
+    expect(lost.activeSkillStacks).toEqual({});
   });
 
   it("never sends one player's progression to another", async () => {
@@ -1593,15 +1589,13 @@ describe("progression state", () => {
 
     // Hub learning is permanent at once, so alpha's own message is the only one that may change.
     learnSkill(session, player, "iron-will");
-    await alpha.client.nextWhere("progressionUpdated", (m) =>
-      m.unlockedSkillIds.includes("iron-will"),
-    );
+    await alpha.client.nextWhere("progressionUpdated", (m) => "iron-will" in m.skillStacks);
     await beta.client.next("stateSnapshot");
     await beta.client.next("stateSnapshot");
 
     for (const message of beta.client.received("progressionUpdated")) {
-      expect(message.unlockedSkillIds).toEqual([]);
-      expect(message.activeSkillIds).toEqual([]);
+      expect(message.skillStacks).toEqual({});
+      expect(message.activeSkillStacks).toEqual({});
     }
     expect(beta.client.received("progressionCatalog")).toHaveLength(1);
   });
@@ -1611,9 +1605,7 @@ describe("progression state", () => {
     const alpha = await joinRoom(roomCode, "Alpha");
     const { session, player } = sessionPlayer(roomCode, alpha.joined.playerId);
     learnSkill(session, player, "lever-sense");
-    await alpha.client.nextWhere("progressionUpdated", (m) =>
-      m.unlockedSkillIds.includes("lever-sense"),
-    );
+    await alpha.client.nextWhere("progressionUpdated", (m) => "lever-sense" in m.skillStacks);
 
     alpha.client.close();
     const back = await joinRoom(roomCode, "Alpha", alpha.joined.resumeToken);
@@ -1622,9 +1614,9 @@ describe("progression state", () => {
     // have arrived when `joinRoom` resolves.
     await vi.waitFor(() => {
       expect(back.client.received("progressionCatalog")).toHaveLength(1);
-      expect(back.client.received("progressionUpdated")[0]?.unlockedSkillIds).toEqual([
-        "lever-sense",
-      ]);
+      expect(back.client.received("progressionUpdated")[0]?.skillStacks).toEqual({
+        "lever-sense": 1,
+      });
     });
   });
 });

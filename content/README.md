@@ -90,8 +90,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   character outside `gcd.`. Grass draws a ragged fringe onto the cobble or dirt beside it, so
   boundaries need no art of their own; the hub is the example. Ground scales with the map, so each
   character covers a `TILE_SCALE` block, and reaches a client with the tiles it describes.
-- `skills/`: permanent skill definitions used by profiles and skill scrolls.
-- `upgrades/`: ordered improvements associated with a skill.
+- `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
+  profiles and skill scrolls.
 
 Every definition needs a unique lowercase kebab-case `id`. A bad field or reference prevents server
 startup and reports the offending file. The schemas are in `src/server/content/schema.ts`; catalog
@@ -120,25 +120,37 @@ consumable needs no code or protocol change, only the JSON file and a placement 
 or loot rule; a new icon also needs art. `stamina-draught`, `flare`, and `smelling-salts` are rolled
 by the chest tables and placed at low odds by the Ashen Hall and Sunken Maze templates.
 
-## Skills and upgrades
+## Skills
 
-Skills and upgrades each contain one or more typed effects. Supported starting effect types are:
+Every skill contains one or more typed effects. Supported starting effect types are:
 
 - `attackDamageBonus`
 - `sightRadiusBonus`
 - `resistanceBonus`
 - `puzzlePowerBonus`
 
-An upgrade names its owning `skillId` and positive `tier`. Its optional `requires` list may contain
-only lower-tier upgrades belonging to the same skill. There can be only one upgrade at each tier for
-a skill.
+A profile holds a stack count per skill (decision 0014). `effects` is the first stack, and every
+skill declares `maxStacks`: a positive integer, or `null` for a skill that keeps stacking. A
+stacking skill adds exactly one of:
+
+- `stackEffects`: the effects of stacks 2 to `maxStacks`, one list per stack, so it has
+  `maxStacks - 1` entries. Only for a capped skill.
+- `perStackEffects`: effects added again for every stack after the first. Required when
+  `maxStacks` is `null`, allowed for a capped skill.
+
+A skill with `maxStacks: 1` has neither, and loading refuses any other combination. Iron Will's
+former tiered upgrades are its stacks 2 and 3. An optional `requires` list names skills the player
+must hold at least one stack of first; unknown ids and prerequisite cycles are refused at load.
 
 A skill scroll is an item with `kind: "skillScroll"` and a `skillId` naming one of these skill
-definitions. It occupies an inventory slot and is consumed on use. In a dungeon, the unlock and its
-effect are provisional until that player extracts; in the hub, it is permanent immediately. A
-scroll for an already-known skill is refused without being consumed, so it remains available to
-give away or to support a later upgrade rule. Upgrade acquisition remains future work. `puzzlePowerBonus` is consumed by `puzzles/`
-(see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, upgrade, item, or profile state.
+definitions. It occupies an inventory slot and is consumed on use, adding one stack. In a dungeon,
+the stack and its effect are provisional until that player extracts; in the hub, it is permanent
+immediately. The limit and prerequisites count permanent and provisional stacks together. A scroll
+whose skill is already at `maxStacks`, or whose prerequisites are missing, is refused without being
+consumed, so it remains available to give away or store. Lowering `maxStacks` never deletes stored
+stacks; effects apply only up to the current limit. `puzzlePowerBonus` is consumed by `puzzles/`
+(see above); Lever Sense is the skill that grants it. Clients must never submit trusted skill, item,
+or profile state.
 
 Room-template loot rules accept an optional `chance` from 0 to 1 before their inclusive `min`/`max`
 count is rolled. It defaults to 1 for existing loot; rare scrolls can therefore ask for one item at

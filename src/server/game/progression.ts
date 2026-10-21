@@ -4,7 +4,7 @@ import {
 } from "../../shared/constants/game.js";
 import type { ServerMessage } from "../../shared/protocol/index.js";
 import { gameContent, type GameContent } from "../content/loadContent.js";
-import type { ProgressionEffect } from "../content/schema.js";
+import type { ProgressionEffect, SkillDefinition } from "../content/schema.js";
 import { markProfileChanged } from "../profiles/profile.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 
@@ -15,81 +15,80 @@ export function contentForSession(session: Session): GameContent {
   return session.runDungeon.content ?? gameContent();
 }
 
-/** Permanent profile skills plus scrolls learned during the current run. */
-export function activeSkillIds(player: SessionPlayer): Set<string> {
-  return new Set([...player.profile.unlockedSkillIds, ...player.runSkillIds]);
+/** Permanent plus provisional stacks of one skill, uncapped: what the limit and prerequisites count. */
+export function heldStacks(player: SessionPlayer, skillId: string): number {
+  return (player.profile.skillStacks[skillId] ?? 0) + (player.runSkillStacks.get(skillId) ?? 0);
 }
 
 /**
- * Adds one supported effect across active skills and valid permanent upgrades.
- *
- * Profiles are durable and content can change between releases, so an id that no longer exists is
- * ignored rather than crashing a live session. An upgrade contributes only while its owning skill
- * and every prerequisite are active on that profile.
+ * Stacks in force per skill: permanent plus provisional, capped at the skill's current
+ * `maxStacks`. A skill content no longer has is left out rather than crashing a live session,
+ * since profiles are durable and content can change between releases; a count above a lowered
+ * limit stays stored but only counts up to the limit.
  */
+export function activeSkillStacks(
+  player: SessionPlayer,
+  content: GameContent = gameContent(),
+): Map<string, number> {
+  const active = new Map<string, number>();
+  const skillIds = new Set([
+    ...Object.keys(player.profile.skillStacks),
+    ...player.runSkillStacks.keys(),
+  ]);
+  for (const skillId of skillIds) {
+    const skill = content.skills.get(skillId);
+    if (!skill) continue;
+    const held = heldStacks(player, skillId);
+    const stacks = skill.maxStacks === null ? held : Math.min(held, skill.maxStacks);
+    if (stacks > 0) active.set(skillId, stacks);
+  }
+  return active;
+}
+
+/** The effects one skill grants at a stack count: its first stack, then each further stack. */
+function effectsAtStacks(skill: SkillDefinition, stacks: number): ProgressionEffect[] {
+  const effects = [...skill.effects];
+  for (let stack = 2; stack <= stacks; stack += 1) {
+    effects.push(...(skill.stackEffects?.[stack - 2] ?? skill.perStackEffects ?? []));
+  }
+  return effects;
+}
+
+/** Adds one supported effect across every active skill stack. */
 export function progressionEffectTotal(
   player: SessionPlayer,
   type: ProgressionEffectType,
   content: GameContent = gameContent(),
 ): number {
   let total = 0;
-
-  for (const skillId of activeSkillIds(player)) {
-    const skill = content.skills.get(skillId);
-    if (!skill) continue;
-    for (const effect of skill.effects) {
+  for (const [skillId, stacks] of activeSkillStacks(player, content)) {
+    for (const effect of effectsAtStacks(content.skills.get(skillId)!, stacks)) {
       if (effect.type === type) total += effect.amount;
     }
   }
-
-  for (const upgradeId of activeUpgradeIds(player, content)) {
-    for (const effect of content.upgrades.get(upgradeId)?.effects ?? []) {
-      if (effect.type === type) total += effect.amount;
-    }
-  }
-
   return total;
 }
 
-/**
- * Permanent upgrades currently in force. An upgrade counts only while its content still exists and
- * its owning skill and every prerequisite are active, the same rule effects resolve by.
- */
-export function activeUpgradeIds(
-  player: SessionPlayer,
-  content: GameContent = gameContent(),
-): string[] {
-  const skills = activeSkillIds(player);
-  const unlocked = new Set(player.profile.unlockedUpgradeIds);
-  return [...unlocked].filter((upgradeId) => {
-    const upgrade = content.upgrades.get(upgradeId);
-    return (
-      upgrade !== undefined &&
-      skills.has(upgrade.skillId) &&
-      upgrade.requires.every((required) => unlocked.has(required))
-    );
-  });
-}
-
-/** The skill and upgrade definitions a client needs to describe progression. */
+/** The skill definitions a client needs to describe progression. */
 export function progressionCatalogFor(content: GameContent): ServerMessage {
   return {
     type: "progressionCatalog",
     skills: [...content.skills.values()].map((skill) => ({
-      ...skill,
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
       effects: skill.effects.map((effect) => ({ ...effect })),
-    })),
-    upgrades: [...content.upgrades.values()].map((upgrade) => ({
-      ...upgrade,
-      requires: [...upgrade.requires],
-      effects: upgrade.effects.map((effect) => ({ ...effect })),
+      maxStacks: skill.maxStacks,
+      requires: [...skill.requires],
+      stackEffects: (skill.stackEffects ?? []).map((stack) => stack.map((effect) => ({ ...effect }))),
+      perStackEffects: (skill.perStackEffects ?? []).map((effect) => ({ ...effect })),
     })),
   };
 }
 
 /**
- * One player's own progression. Ids the catalog no longer knows are withheld from the active
- * lists, because the server ignores them, but kept in the permanent ones so the profile is honest.
+ * One player's own progression. Skills the catalog no longer knows are withheld from the active
+ * stacks, because the server ignores them, but kept in the permanent ones so the profile is honest.
  */
 export function progressionUpdateFor(
   player: SessionPlayer,
@@ -97,11 +96,9 @@ export function progressionUpdateFor(
 ): Extract<ServerMessage, { type: "progressionUpdated" }> {
   return {
     type: "progressionUpdated",
-    unlockedSkillIds: [...player.profile.unlockedSkillIds],
-    unlockedUpgradeIds: [...player.profile.unlockedUpgradeIds],
-    runSkillIds: [...player.runSkillIds],
-    activeSkillIds: [...activeSkillIds(player)].filter((id) => content.skills.has(id)),
-    activeUpgradeIds: activeUpgradeIds(player, content),
+    skillStacks: { ...player.profile.skillStacks },
+    runSkillStacks: Object.fromEntries(player.runSkillStacks),
+    activeSkillStacks: Object.fromEntries(activeSkillStacks(player, content)),
   };
 }
 
@@ -124,38 +121,41 @@ export function torchLightRadiusFor(
   return PLAYER_TORCH_LIGHT_RADIUS + progressionEffectTotal(player, "sightRadiusBonus", content);
 }
 
+export type LearnSkillResult = "learned" | "unknownSkill" | "skillMaxed" | "missingPrerequisites";
+
 /**
- * Learns a scroll. Dungeon learning is provisional; hub learning is permanent immediately because
- * the hub is the save boundary. Returns false for an unknown or already-known skill.
+ * Uses a scroll: adds one stack of its skill. A dungeon stack is provisional; a hub stack is
+ * permanent immediately because the hub is the save boundary. The limit and prerequisites count
+ * permanent and provisional stacks together, so a prerequisite learned earlier this run qualifies.
+ * Anything but `learned` changes nothing, so the caller can leave the scroll where it is.
  */
-export function learnSkill(session: Session, player: SessionPlayer, skillId: string): boolean {
-  const content = contentForSession(session);
-  if (!content.skills.has(skillId)) return false;
-  if (player.profile.unlockedSkillIds.includes(skillId) || player.runSkillIds.has(skillId)) {
-    return false;
+export function learnSkill(session: Session, player: SessionPlayer, skillId: string): LearnSkillResult {
+  const skill = contentForSession(session).skills.get(skillId);
+  if (!skill) return "unknownSkill";
+  const held = heldStacks(player, skillId);
+  if (skill.maxStacks !== null && held >= skill.maxStacks) return "skillMaxed";
+  if (skill.requires.some((requiredId) => heldStacks(player, requiredId) < 1)) {
+    return "missingPrerequisites";
   }
 
   if (session.location === "hub") {
-    player.profile.unlockedSkillIds.push(skillId);
+    player.profile.skillStacks[skillId] = (player.profile.skillStacks[skillId] ?? 0) + 1;
     markProfileChanged(player.profile);
   } else {
-    player.runSkillIds.add(skillId);
+    player.runSkillStacks.set(skillId, (player.runSkillStacks.get(skillId) ?? 0) + 1);
   }
-  return true;
+  return "learned";
 }
 
-/** Saves provisional run skills for a player who made it out. */
+/** Saves provisional run stacks for a player who made it out. */
 export function bankRunSkills(player: SessionPlayer): void {
-  const known = new Set(player.profile.unlockedSkillIds);
-  for (const skillId of player.runSkillIds) {
-    if (known.has(skillId)) continue;
-    player.profile.unlockedSkillIds.push(skillId);
-    known.add(skillId);
+  for (const [skillId, stacks] of player.runSkillStacks) {
+    player.profile.skillStacks[skillId] = (player.profile.skillStacks[skillId] ?? 0) + stacks;
   }
-  player.runSkillIds.clear();
+  player.runSkillStacks.clear();
 }
 
-/** Drops every provisional unlock when a player does not make it out. */
+/** Drops every provisional stack when a player does not make it out. */
 export function discardRunSkills(player: SessionPlayer): void {
-  player.runSkillIds.clear();
+  player.runSkillStacks.clear();
 }

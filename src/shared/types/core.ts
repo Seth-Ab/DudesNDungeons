@@ -651,6 +651,13 @@ export const profileSecretSchema = z
 export type ProfileSecret = z.infer<typeof profileSecretSchema>;
 
 /**
+ * Stack counts per skill content id, each at least 1; a skill with no stacks is simply absent.
+ * Used for permanent, provisional and active stacks alike.
+ */
+export const skillStacksSchema = z.record(contentIdSchema, z.number().int().positive());
+export type SkillStacks = z.infer<typeof skillStacksSchema>;
+
+/**
  * A profile as its owner sees it, sent on join and to nobody else.
  *
  * `bankedItems` repeats what `playerState` carries for this player, because the two are read at
@@ -661,17 +668,15 @@ export const profileStateSchema = z.object({
   id: profileIdSchema,
   displayName: playerNameSchema,
   bankedItems: z.array(inventoryItemSchema),
-  /** Content ids from `content/skills/` that this profile extracted or acquired in the hub. */
-  unlockedSkillIds: z.array(contentIdSchema),
-  /** Content ids from `content/upgrades/`. Acquisition is still future work. */
-  unlockedUpgradeIds: z.array(contentIdSchema),
+  /** Permanent stacks of `content/skills/` ids, extracted from a run or acquired in the hub. */
+  skillStacks: skillStacksSchema,
   /** How many runs this profile has escaped from, and how many it went down in. */
   runsEscaped: z.number().int().nonnegative(),
   runsLost: z.number().int().nonnegative(),
 });
 export type ProfileState = z.infer<typeof profileStateSchema>;
 
-/** What a skill or upgrade does, as the owner's UI needs to describe it. Mirrors `content/`. */
+/** What a skill stack does, as the owner's UI needs to describe it. Mirrors `content/`. */
 export const progressionEffectViewSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("attackDamageBonus"), amount: z.number().int().positive() }),
   z.object({ type: z.literal("sightRadiusBonus"), amount: z.number().positive() }),
@@ -679,24 +684,23 @@ export const progressionEffectViewSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("puzzlePowerBonus"), amount: z.number().int().positive() }),
 ]);
 
+/**
+ * A skill as content defines it. `effects` is the first stack; `stackEffects` lists stacks 2 to
+ * `maxStacks` when the skill spells them out, and `perStackEffects` is what every stack after the
+ * first adds otherwise. Whichever the skill does not use is empty. `maxStacks` is null for a skill
+ * that keeps stacking, and `requires` names skills needed before a scroll of this one can be used.
+ */
 export const skillViewSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   description: z.string().min(1),
   effects: z.array(progressionEffectViewSchema),
+  maxStacks: z.number().int().positive().nullable(),
+  requires: z.array(contentIdSchema),
+  stackEffects: z.array(z.array(progressionEffectViewSchema)),
+  perStackEffects: z.array(progressionEffectViewSchema),
 });
 export type SkillView = z.infer<typeof skillViewSchema>;
-
-export const upgradeViewSchema = z.object({
-  id: contentIdSchema,
-  skillId: contentIdSchema,
-  name: z.string().min(1),
-  description: z.string().min(1),
-  tier: z.number().int().positive(),
-  requires: z.array(contentIdSchema),
-  effects: z.array(progressionEffectViewSchema),
-});
-export type UpgradeView = z.infer<typeof upgradeViewSchema>;
 
 export const bodyTypeSchema = z.enum(BODY_TYPES);
 export type BodyType = z.infer<typeof bodyTypeSchema>;

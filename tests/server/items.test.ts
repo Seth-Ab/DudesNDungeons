@@ -15,6 +15,7 @@ import {
   VAULT_EXIT_ID,
   at,
   testPlayer,
+  testProfile,
   testSession,
   TONIC_FIELDS,
 } from "./fixtures.js";
@@ -29,6 +30,36 @@ const SKILL_SCROLL: InventoryItem = {
   kind: "skillScroll",
   skillId: "iron-will",
 };
+
+const DEEP_WILL_SCROLL: InventoryItem = {
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "Scroll of Deep Will",
+  kind: "skillScroll",
+  skillId: "deep-will",
+};
+
+/** Adds a test skill that requires Iron Will to the session's content. */
+function withDeepWill<T extends ReturnType<typeof testSession>>(session: T): T {
+  const shipped = loadContent();
+  session.runDungeon.content = {
+    ...shipped,
+    skills: new Map([
+      ...shipped.skills,
+      [
+        "deep-will",
+        {
+          id: "deep-will",
+          name: "Deep Will",
+          description: "Needs Iron Will first.",
+          effects: [{ type: "resistanceBonus", amount: 1 }],
+          maxStacks: 1,
+          requires: ["iron-will"],
+        },
+      ],
+    ]),
+  };
+  return session;
+}
 
 /** At the face of the doorway, on the tile before it: where a party walking up to it stops. */
 const BY_THE_DOOR = at(10, 6, 1.9);
@@ -190,49 +221,100 @@ describe("using items", () => {
 
     expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
     expect(player.inventory).toEqual([]);
-    expect(player.runSkillIds).toEqual(new Set(["iron-will"]));
-    expect(player.profile.unlockedSkillIds).toEqual([]);
+    expect(player.runSkillStacks).toEqual(new Map([["iron-will", 1]]));
+    expect(player.profile.skillStacks).toEqual({});
   });
 
-  it("does not consume a scroll for a skill the player already knows", () => {
+  it("adds a provisional stack for a duplicate scroll in a dungeon", () => {
     const player = testPlayer("alpha", {
       inventory: [{ ...SKILL_SCROLL }],
-      profile: testPlayer("known").profile,
-    });
-    player.profile.unlockedSkillIds.push("iron-will");
-    const session = testSession([player]);
-
-    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({
-      ok: false,
-      reason: "notPermitted",
-    });
-    expect(player.inventory).toEqual([SKILL_SCROLL]);
-  });
-
-  it("does not consume a duplicate after learning the same skill during this run", () => {
-    const player = testPlayer("alpha", {
-      inventory: [{ ...SKILL_SCROLL }],
-      runSkillIds: new Set(["iron-will"]),
+      profile: testProfile("alpha", { skillStacks: { "iron-will": 1 } }),
     });
     const session = testSession([player]);
 
-    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({
-      ok: false,
-      reason: "notPermitted",
-    });
-    expect(player.inventory).toEqual([SKILL_SCROLL]);
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
+    expect(player.inventory).toEqual([]);
+    expect(player.runSkillStacks).toEqual(new Map([["iron-will", 1]]));
+    expect(player.profile.skillStacks).toEqual({ "iron-will": 1 });
   });
 
-  it("makes a skill learned in the hub permanent immediately", () => {
-    const player = testPlayer("alpha", { inventory: [{ ...SKILL_SCROLL }] });
+  it("adds a permanent stack for a duplicate scroll in the hub", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }],
+      profile: testProfile("alpha", { skillStacks: { "iron-will": 1 } }),
+    });
     const session = testSession([player]);
     session.location = "hub";
     const before = player.profile.revision;
 
     expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
-    expect(player.profile.unlockedSkillIds).toEqual(["iron-will"]);
-    expect(player.runSkillIds).toEqual(new Set());
+    expect(player.profile.skillStacks).toEqual({ "iron-will": 2 });
+    expect(player.runSkillStacks).toEqual(new Map());
     expect(player.profile.revision).toBe(before + 1);
+  });
+
+  it("refuses a scroll at max stacks, counting provisional ones, and keeps it", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }],
+      profile: testProfile("alpha", { skillStacks: { "iron-will": 2 } }),
+      runSkillStacks: new Map([["iron-will", 1]]),
+    });
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: false, reason: "skillMaxed" });
+    expect(player.inventory).toEqual([SKILL_SCROLL]);
+    expect(player.runSkillStacks).toEqual(new Map([["iron-will", 1]]));
+    expect(player.profile.skillStacks).toEqual({ "iron-will": 2 });
+  });
+
+  it("treats a stored count above a lowered limit as maxed without trimming it", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }],
+      profile: testProfile("alpha", { skillStacks: { "iron-will": 5 } }),
+    });
+    const session = testSession([player]);
+    session.location = "hub";
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: false, reason: "skillMaxed" });
+    expect(player.profile.skillStacks).toEqual({ "iron-will": 5 });
+  });
+
+  it("refuses a scroll whose prerequisites are missing, and keeps it", () => {
+    const player = testPlayer("alpha", { inventory: [{ ...DEEP_WILL_SCROLL }] });
+    const session = withDeepWill(testSession([player]));
+
+    expect(useItem(session, "alpha", DEEP_WILL_SCROLL.id)).toEqual({
+      ok: false,
+      reason: "missingPrerequisites",
+    });
+    expect(player.inventory).toEqual([DEEP_WILL_SCROLL]);
+    expect(player.runSkillStacks).toEqual(new Map());
+  });
+
+  it("accepts a prerequisite learned earlier in the same run", () => {
+    const player = testPlayer("alpha", {
+      inventory: [{ ...SKILL_SCROLL }, { ...DEEP_WILL_SCROLL }],
+    });
+    const session = withDeepWill(testSession([player]));
+
+    expect(useItem(session, "alpha", SKILL_SCROLL.id)).toEqual({ ok: true });
+    expect(useItem(session, "alpha", DEEP_WILL_SCROLL.id)).toEqual({ ok: true });
+    expect(player.inventory).toEqual([]);
+    expect(player.runSkillStacks).toEqual(
+      new Map([
+        ["iron-will", 1],
+        ["deep-will", 1],
+      ]),
+    );
+  });
+
+  it("refuses a scroll for a skill content no longer has, and keeps it", () => {
+    const scroll: InventoryItem = { ...SKILL_SCROLL, skillId: "removed-skill" };
+    const player = testPlayer("alpha", { inventory: [scroll] });
+    const session = testSession([player]);
+
+    expect(useItem(session, "alpha", scroll.id)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(player.inventory).toEqual([scroll]);
   });
 });
 

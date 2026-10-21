@@ -177,5 +177,9 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "Nothing there to use.";
     case "notPermitted":
       return "You cannot do that here.";
+    case "skillMaxed":
+      return "You already know that skill as well as it can be known.";
+    case "missingPrerequisites":
+      return "You need another skill before you can learn this one.";
   }
 }

@@ -14,7 +14,6 @@ import {
   skillDefinitionSchema,
   puzzleTypeSchema,
   trapTypeSchema,
-  upgradeDefinitionSchema,
   type DungeonDefinition,
   type ItemDefinition,
   type LootTableDefinition,
@@ -23,7 +22,6 @@ import {
   type SkillDefinition,
   type PuzzleType,
   type TrapType,
-  type UpgradeDefinition,
 } from "./schema.js";
 
 /**
@@ -40,7 +38,6 @@ export interface GameContent {
   monsters: ReadonlyMap<string, MonsterType>;
   items: ReadonlyMap<string, ItemDefinition>;
   skills: ReadonlyMap<string, SkillDefinition>;
-  upgrades: ReadonlyMap<string, UpgradeDefinition>;
   traps: ReadonlyMap<string, TrapType>;
   puzzles: ReadonlyMap<string, PuzzleType>;
   /** Named tables that content refers to by id, such as the one a chest rolls when opened. */
@@ -112,6 +109,32 @@ function loadCollection<T extends { id: string }>(
   }
 
   return entries;
+}
+
+/**
+ * Every `requires` must name a skill that exists, and following them must never lead back to the
+ * skill that started: a cycle would make every skill on it impossible to learn.
+ */
+function validateSkillPrerequisites(skills: ReadonlyMap<string, SkillDefinition>): void {
+  for (const skill of skills.values()) {
+    for (const requiredId of skill.requires) {
+      if (!skills.has(requiredId)) {
+        throw new Error(`Skill "${skill.id}" requires unknown skill "${requiredId}"`);
+      }
+    }
+  }
+
+  const finished = new Set<string>();
+  const visit = (id: string, path: string[]): void => {
+    if (finished.has(id)) return;
+    if (path.includes(id)) {
+      const cycle = [...path.slice(path.indexOf(id)), id].join(" -> ");
+      throw new Error(`Skill prerequisites form a cycle: ${cycle}`);
+    }
+    for (const requiredId of skills.get(id)!.requires) visit(requiredId, [...path, id]);
+    finished.add(id);
+  };
+  for (const id of skills.keys()) visit(id, []);
 }
 
 /**
@@ -234,32 +257,7 @@ function validateReferences(content: GameContent): void {
     }
   }
 
-  const skillTiers = new Set<string>();
-  for (const upgrade of content.upgrades.values()) {
-    const label = `Upgrade "${upgrade.id}"`;
-    if (!content.skills.has(upgrade.skillId)) {
-      throw new Error(`${label} belongs to unknown skill "${upgrade.skillId}"`);
-    }
-
-    const skillTier = `${upgrade.skillId}:${upgrade.tier}`;
-    if (skillTiers.has(skillTier)) {
-      throw new Error(`Skill "${upgrade.skillId}" has more than one tier ${upgrade.tier} upgrade`);
-    }
-    skillTiers.add(skillTier);
-
-    for (const prerequisiteId of upgrade.requires) {
-      const prerequisite = content.upgrades.get(prerequisiteId);
-      if (!prerequisite) {
-        throw new Error(`${label} requires unknown upgrade "${prerequisiteId}"`);
-      }
-      if (prerequisite.skillId !== upgrade.skillId) {
-        throw new Error(`${label} requires an upgrade from a different skill`);
-      }
-      if (prerequisite.tier >= upgrade.tier) {
-        throw new Error(`${label} must require only lower-tier upgrades`);
-      }
-    }
-  }
+  validateSkillPrerequisites(content.skills);
 
   for (const template of content.templates.values()) {
     const label = `Room template "${template.id}"`;
@@ -482,7 +480,6 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     monsters: loadCollection(join(contentRoot, "monsters"), monsterTypeSchema),
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
     skills: loadCollection(join(contentRoot, "skills"), skillDefinitionSchema),
-    upgrades: loadCollection(join(contentRoot, "upgrades"), upgradeDefinitionSchema),
     traps: loadCollection(join(contentRoot, "traps"), trapTypeSchema),
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),

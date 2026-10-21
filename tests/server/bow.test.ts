@@ -299,11 +299,11 @@ describe("beginning and releasing a draw", () => {
       skills: new Map([
         [
           "battle-focus",
-          { id: "battle-focus", name: "Battle Focus", description: "x", effects: [{ type: "attackDamageBonus", amount: 3 }] },
+          { id: "battle-focus", name: "Battle Focus", description: "x", effects: [{ type: "attackDamageBonus", amount: 3 }], maxStacks: 1, requires: [] },
         ],
       ]),
     };
-    session.players.get("alpha")!.runSkillIds.add("battle-focus");
+    session.players.get("alpha")!.runSkillStacks.set("battle-focus", 1);
     shoot(session, BOW.drawMs);
     expect([...session.projectileRuns.values()][0]!.damage).toBe(BOW.damage + 3);
   });

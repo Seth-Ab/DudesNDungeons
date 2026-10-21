@@ -405,11 +405,14 @@ export function useItem(
       if (!result.ok) return result;
       break;
     }
-    case "skillScroll":
-      // The scroll is consumed only when it teaches something. An already-known skill leaves the
-      // item available to give away or, later, use as an upgrade source.
-      if (!learnSkill(session, player, item.skillId)) return reject("notPermitted");
+    case "skillScroll": {
+      // The scroll is consumed only when it adds a stack. A maxed skill or missing prerequisites
+      // leave it in the slot, to give to a teammate who qualifies or keep until this player does.
+      const learned = learnSkill(session, player, item.skillId);
+      if (learned === "unknownSkill") return reject("notPermitted");
+      if (learned !== "learned") return reject(learned);
       break;
+    }
     case "key":
     case "torch":
     case "weapon":

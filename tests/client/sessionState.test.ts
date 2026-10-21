@@ -91,8 +91,7 @@ function joinedView(): SessionView {
       id: "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
       displayName: "Self",
       bankedItems: [],
-      unlockedSkillIds: [],
-      unlockedUpgradeIds: [],
+      skillStacks: {},
       runsEscaped: 0,
       runsLost: 0,
     },
@@ -533,17 +532,21 @@ describe("progression", () => {
         name: "Iron Will",
         description: "Start with more resistance.",
         effects: [{ type: "resistanceBonus" as const, amount: 10 }],
+        maxStacks: 3,
+        requires: [],
+        stackEffects: [
+          [{ type: "resistanceBonus" as const, amount: 5 }],
+          [{ type: "resistanceBonus" as const, amount: 5 }],
+        ],
+        perStackEffects: [],
       },
     ],
-    upgrades: [],
   };
-  const update = (overrides: Record<string, string[]> = {}) => ({
+  const update = (overrides: Record<string, Record<string, number>> = {}) => ({
     type: "progressionUpdated" as const,
-    unlockedSkillIds: [],
-    unlockedUpgradeIds: [],
-    runSkillIds: [],
-    activeSkillIds: [],
-    activeUpgradeIds: [],
+    skillStacks: {},
+    runSkillStacks: {},
+    activeSkillStacks: {},
     ...overrides,
   });
 
@@ -551,49 +554,56 @@ describe("progression", () => {
     expect(joinedView().progression).toBeNull();
   });
 
-  it("keeps the catalog and the initial state", () => {
+  it("keeps the catalog, with stack limits, and the initial state", () => {
     let view = applyServerMessage(joinedView(), catalog);
     view = applyServerMessage(view, update());
 
-    expect(view.progression?.skills.map((skill) => skill.id)).toEqual(["iron-will"]);
-    expect(view.progression?.activeSkillIds).toEqual([]);
+    expect(view.progression?.skills.map((skill) => [skill.id, skill.maxStacks])).toEqual([
+      ["iron-will", 3],
+    ]);
+    expect(view.progression?.activeSkillStacks).toEqual({});
   });
 
-  it("tells a provisional skill from a permanent one, then banks it on extraction", () => {
+  it("tells a provisional stack from a permanent one, then banks it on extraction", () => {
     let view = applyServerMessage(joinedView(), catalog);
     view = applyServerMessage(
       view,
-      update({ runSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+      update({
+        skillStacks: { "iron-will": 1 },
+        runSkillStacks: { "iron-will": 1 },
+        activeSkillStacks: { "iron-will": 2 },
+      }),
     );
-    expect(view.progression?.runSkillIds).toEqual(["iron-will"]);
-    expect(view.progression?.unlockedSkillIds).toEqual([]);
+    expect(view.progression?.runSkillStacks).toEqual({ "iron-will": 1 });
+    expect(view.progression?.skillStacks).toEqual({ "iron-will": 1 });
+    expect(view.progression?.activeSkillStacks).toEqual({ "iron-will": 2 });
 
     view = applyServerMessage(
       view,
-      update({ unlockedSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+      update({ skillStacks: { "iron-will": 2 }, activeSkillStacks: { "iron-will": 2 } }),
     );
-    expect(view.progression?.runSkillIds).toEqual([]);
-    expect(view.progression?.unlockedSkillIds).toEqual(["iron-will"]);
+    expect(view.progression?.runSkillStacks).toEqual({});
+    expect(view.progression?.skillStacks).toEqual({ "iron-will": 2 });
     // An update replaces state but never the catalog it describes.
     expect(view.progression?.skills).toHaveLength(1);
   });
 
-  it("clears a provisional skill on loss", () => {
+  it("clears a provisional stack on loss", () => {
     let view = applyServerMessage(joinedView(), catalog);
     view = applyServerMessage(
       view,
-      update({ runSkillIds: ["iron-will"], activeSkillIds: ["iron-will"] }),
+      update({ runSkillStacks: { "iron-will": 1 }, activeSkillStacks: { "iron-will": 1 } }),
     );
     view = applyServerMessage(view, update());
 
-    expect(view.progression?.runSkillIds).toEqual([]);
-    expect(view.progression?.activeSkillIds).toEqual([]);
+    expect(view.progression?.runSkillStacks).toEqual({});
+    expect(view.progression?.activeSkillStacks).toEqual({});
   });
 
   it("resets on a fresh join so a new profile never inherits the last one's", () => {
     const view = applyServerMessage(
       applyServerMessage(joinedView(), catalog),
-      update({ unlockedSkillIds: ["iron-will"] }),
+      update({ skillStacks: { "iron-will": 1 } }),
     );
     const rejoined = applyServerMessage(view, {
       type: "sessionJoined",
@@ -609,8 +619,7 @@ describe("progression", () => {
         id: "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
         displayName: "Self",
         bankedItems: [],
-        unlockedSkillIds: [],
-        unlockedUpgradeIds: [],
+        skillStacks: {},
         runsEscaped: 0,
         runsLost: 0,
       },
