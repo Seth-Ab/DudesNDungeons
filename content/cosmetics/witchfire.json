@@ -1,0 +1,8 @@
+{
+  "id": "witchfire",
+  "slot": "flame",
+  "rarity": "rare",
+  "name": "Witchfire",
+  "lore": "Green, and a little smug about it.",
+  "milestone": { "stat": "leverPuzzlesSolved", "threshold": 20 }
+}

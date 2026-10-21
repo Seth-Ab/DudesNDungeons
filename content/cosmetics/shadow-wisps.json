@@ -1,0 +1,8 @@
+{
+  "id": "shadow-wisps",
+  "slot": "trail",
+  "rarity": "rare",
+  "name": "Shadow Wisps",
+  "lore": "It rises like smoke from a snuffed wick.",
+  "milestone": { "stat": "runsWithoutTorch", "threshold": 1 }
+}

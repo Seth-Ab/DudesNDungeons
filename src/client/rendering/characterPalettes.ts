@@ -90,3 +90,46 @@ export const DYE_RAMPS = {
   "crimson-dye": ["#d8503f", "#9e2a24", "#641812"],
   "gilded-dye": ["#f6cf62", "#c9962e", "#7d5a18"],
 } as const satisfies Record<string, ColourRamp>;
+
+/** How a trail's particles move, from the bible's trail swing: one style per trail. */
+export type TrailStyle = "sparks" | "shards" | "wisps" | "petals" | "glint";
+
+/**
+ * A weapon trail: four colours from the arc's inner edge to its outer one, and how its particles
+ * move. Copied from the bible's `trails` table.
+ */
+export interface TrailPalette {
+  style: TrailStyle;
+  colours: readonly [string, string, string, string];
+}
+
+/** Keyed by cosmetic content id. No trail draws only the swing. */
+export const TRAIL_PALETTES = {
+  "ember-sparks": { style: "sparks", colours: ["#7b1f14", "#c2551d", "#f0a83c", "#ffe6a3"] },
+  "frost-shards": { style: "shards", colours: ["#2f4275", "#6f8fd0", "#bcd6f6", "#ffffff"] },
+  "shadow-wisps": { style: "wisps", colours: ["#1b1424", "#3c2a52", "#6a4f8e", "#a68ccc"] },
+  "petal-drift": { style: "petals", colours: ["#8a3a52", "#d06a8a", "#f2a6bc", "#fde2ea"] },
+  "gilded-glint": { style: "glint", colours: ["#7d5a18", "#c9962e", "#f6cf62", "#fff6d0"] },
+} as const satisfies Record<string, TrailPalette>;
+
+/** The torch flame's four key letters in `dungeon.tiles.json`, darkest first. */
+export interface FlameRamp {
+  e: string;
+  f: string;
+  g: string;
+  h: string;
+}
+
+/**
+ * The default flame, exactly the `e f g h` the torch sprite is baked in, so wearing no flame swaps
+ * nothing. Copied from the bible's `flames.hearth`.
+ */
+export const HEARTH_FLAME_RAMP: FlameRamp = { e: "#7b1f14", f: "#c2551d", g: "#f0a83c", h: "#ffe6a3" };
+
+/** Keyed by cosmetic content id. Copied from the bible's `flames` table. */
+export const FLAME_RAMPS = {
+  "spirit-flame": { e: "#1d2f7b", f: "#3d63c9", g: "#7fb0f0", h: "#e0f0ff" },
+  witchfire: { e: "#14502a", f: "#2f9a48", g: "#8ce07a", h: "#eaffd0" },
+  "amethyst-flame": { e: "#4a1d6e", f: "#8a3dc2", g: "#c48cf0", h: "#f4e0ff" },
+  bonefire: { e: "#6e665a", f: "#b0a89a", g: "#e8e0d0", h: "#ffffff" },
+} as const satisfies Record<string, FlameRamp>;

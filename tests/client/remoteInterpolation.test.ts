@@ -39,7 +39,7 @@ function player(position: { x: number; y: number }, overrides: Partial<PlayerSta
     readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
-    cosmetics: { hat: null, cloak: null, dye: null },
+    cosmetics: { hat: null, cloak: null, dye: null, trail: null, flame: null },
     bankedItems: [],
     ...overrides,
   };

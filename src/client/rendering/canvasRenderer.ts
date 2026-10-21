@@ -24,8 +24,8 @@ import {
   createLightShader,
   flickerFactor,
   hubAmbientDarkness,
+  sceneLights,
   shadingTile,
-  type SceneLight,
 } from "./lighting.js";
 import {
   clampPlate,
@@ -53,6 +53,8 @@ import { drawReadyPlates } from "./readyPlates.js";
 import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
 import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js";
 import { lookOf } from "./characters.js";
+import { flameHaloTint, flameSwaps, isRecolouredFlame, lightFlameId } from "./flames.js";
+import { TRAIL_PIXEL, trailPalette, trailPixels } from "./trails.js";
 
 /**
  * Screen pixels per world unit.
@@ -444,11 +446,32 @@ export function createCanvasRenderer(
   };
 
   /**
-   * A slash sweeps across the arc out to the swing's exact reach, then fades; a hit is brighter and
-   * ends in a flash on the target. The arc never extends past the server's range.
+   * The weapon trail a swinger wears, in art pixels over their slash. `trailPixels` keeps every
+   * pixel inside the swing's reach and arc, so a trail never shows more reach than the hit had.
    */
-  const drawSwings = (swings: readonly ActiveSwing[], camera: Vector2): void => {
+  const drawTrail = (swing: ActiveSwing, trailId: string | null, camera: Vector2): void => {
+    const palette = trailPalette(trailId);
+    if (!palette) return;
+    for (const pixel of trailPixels(swing, palette)) {
+      const topLeft = worldToScreen(pixel, camera);
+      const bottomRight = worldToScreen({ x: pixel.x + TRAIL_PIXEL, y: pixel.y + TRAIL_PIXEL }, camera);
+      const left = Math.round(topLeft.x);
+      const top = Math.round(topLeft.y);
+      ctx.globalAlpha = pixel.alpha;
+      ctx.fillStyle = pixel.colour;
+      ctx.fillRect(left, top, Math.round(bottomRight.x) - left, Math.round(bottomRight.y) - top);
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  /**
+   * A slash sweeps across the arc out to the swing's exact reach, then fades; a hit is brighter and
+   * ends in a flash on the target. The arc never extends past the server's range. A swinger's trail
+   * is drawn over their slash.
+   */
+  const drawSwings = (swings: readonly ActiveSwing[], players: readonly PlayerState[], camera: Vector2): void => {
     for (const swing of swings) {
+      const trailId = players.find((player) => player.id === swing.attackerId)?.cosmetics.trail ?? null;
       const center = worldToScreen(swing.origin, camera);
       const reach = swing.range * pixelsPerWorldUnit;
       const sweep = Math.min(1, swing.progress * 2);
@@ -475,6 +498,8 @@ export function createCanvasRenderer(
         ctx.arc(at.x, at.y, (0.3 + 0.4 * swing.progress) * pixelsPerWorldUnit, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
+      drawTrail(swing, trailId, camera);
     }
     ctx.globalAlpha = 1;
   };
@@ -641,6 +666,29 @@ export function createCanvasRenderer(
     ctx.restore();
   };
 
+  /**
+   * A carried torch's flame in its bearer's cosmetic flame, with a faint halo of the same colour.
+   * Only the sprite and halo change: the light's reach and the lightmap are the server's.
+   */
+  const drawCarriedFlame = (light: LightSourceState, at: Vector2, scene: Scene, camera: Vector2): void => {
+    const flameId = lightFlameId(light, scene.self ? [...scene.others, scene.self] : scene.others);
+    if (!isRecolouredFlame(flameId)) {
+      drawSprite("torch-flame", at, 0.7, 0.7, camera);
+      return;
+    }
+
+    const center = worldToScreen(at, camera);
+    const radius = 1.2 * pixelsPerWorldUnit;
+    const halo = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
+    halo.addColorStop(0, flameHaloTint(flameId)!);
+    halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+
+    const size = 0.7 * pixelsPerWorldUnit;
+    tileset.drawSwapped(ctx, "torch-flame", flameId!, flameSwaps(flameId), center.x - size / 2, center.y - size / 2, size, size);
+  };
+
   const drawLightSource = (light: LightSourceState, camera: Vector2, scene: Scene, now: number): void => {
     if (!tileset.ready) {
       if (light.fixture !== "none") {
@@ -648,8 +696,6 @@ export function createCanvasRenderer(
       }
       return;
     }
-
-    drawLightGlow(light, camera, scene, now);
 
     switch (light.kind) {
       case "fixed":
@@ -667,7 +713,7 @@ export function createCanvasRenderer(
         break;
       case "carriedTorch":
         // Held above the head, because the figure is drawn after this and would cover it.
-        drawSprite("torch-flame", { x: light.position.x, y: light.position.y - 0.8 }, 0.7, 0.7, camera);
+        drawCarriedFlame(light, { x: light.position.x, y: light.position.y - 0.8 }, scene, camera);
         break;
       case "monsterGlow":
         drawSprite("glow-mote", light.position, 1, 1, camera);
@@ -876,27 +922,6 @@ export function createCanvasRenderer(
     ctx.restore();
   };
 
-  /** A light's reach this frame: its radius, shortened by its flicker. Steady without one. */
-  const flickeredRadius = (light: LightSourceState, now: number): number =>
-    light.radius * flickerFactor(light.id, now, light.flicker ?? 0);
-
-  /**
-   * Where each light in the snapshot stands this frame.
-   *
-   * A carried torch follows its bearer as drawn, not as last sent: the local player is drawn at
-   * the predicted position and remote players are interpolated, so a torch pinned to the snapshot
-   * position would leave the pool of light trailing a step behind whoever carries it.
-   */
-  const sceneLights = (scene: Scene, now: number): SceneLight[] =>
-    scene.dungeon.lightSources.map((light) => {
-      if (light.kind !== "carriedTorch") return { position: light.position, radius: flickeredRadius(light, now) };
-      if (scene.self && light.id === scene.self.id) {
-        return { position: scene.localPosition, radius: light.radius };
-      }
-      const bearer = scene.others.find((player) => player.id === light.id);
-      return bearer ? { position: bearer.position, radius: light.radius } : light;
-    });
-
   // One pixel per world tile, refilled every frame and stretched over the screen.
   const lightmap = document.createElement("canvas");
   const lightmapContext = lightmap.getContext("2d");
@@ -917,7 +942,12 @@ export function createCanvasRenderer(
     if (!lightmapContext) return;
 
     const { map } = scene.dungeon;
-    const lights = sceneLights(scene, now);
+    const lights = sceneLights(
+      scene.dungeon.lightSources,
+      scene.self ? { id: scene.self.id, position: scene.localPosition } : null,
+      scene.others,
+      now,
+    );
     // A tile of slack past each edge, so the smoothing never clamps against the border on screen.
     const halfX = viewportWidth / 2 / pixelsPerWorldUnit;
     const halfY = viewportHeight / 2 / pixelsPerWorldUnit;
@@ -1036,6 +1066,9 @@ export function createCanvasRenderer(
     );
     // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
     scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));
+    // Every halo before any flame: a hub halo is added to what is under it, and one drawn after a
+    // neighbouring flame would wash that flame out to white.
+    if (tileset.ready) scene.dungeon.lightSources.forEach((light) => drawLightGlow(light, camera, scene, now));
     scene.dungeon.lightSources.forEach((light) => drawLightSource(light, camera, scene, now));
     scene.dungeon.loot.filter((loot) => !loot.pickedUp).forEach((loot) => drawLoot(loot, camera));
     scene.dungeon.monsters
@@ -1061,7 +1094,7 @@ export function createCanvasRenderer(
     drawLightmap(scene, camera, now);
     drawPropLabels(scene, camera, now);
     drawSigns(scene, camera);
-    drawSwings(scene.swings, camera);
+    drawSwings(scene.swings, scene.self ? [...scene.others, scene.self] : scene.others, camera);
     drawBowAims(scene.bowAims, camera);
     drawDummyPlates(ctx, scene.dungeon.dummies, toScreen);
     drawPopups(scene.popups, camera);

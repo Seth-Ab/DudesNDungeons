@@ -1,0 +1,9 @@
+{
+  "id": "amethyst-flame",
+  "slot": "flame",
+  "rarity": "rare",
+  "name": "Amethyst Flame",
+  "lore": "Smells like rain on stone.",
+  "price": 50,
+  "rotating": true
+}

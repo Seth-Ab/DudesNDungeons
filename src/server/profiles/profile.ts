@@ -193,7 +193,12 @@ export const persistedProfileSchema = z.preprocess(
     // Absent from profiles written before cosmetics existed. Every profile owns the starters, so
     // they are added on read whether or not the file lists them.
     ownedCosmeticIds: z.array(contentIdSchema).default([]).transform(withStarterCosmetics),
-    equippedCosmetics: equippedCosmeticsSchema.default(NO_COSMETICS),
+    // Absent from profiles written before cosmetics existed, and missing the trail and flame slots
+    // in those written before #138, which wear nothing there.
+    equippedCosmetics: z.preprocess(
+      (worn) => (typeof worn === "object" && worn !== null ? { ...NO_COSMETICS, ...worn } : worn),
+      equippedCosmeticsSchema.default(NO_COSMETICS),
+    ),
     runsEscaped: z.number().int().nonnegative(),
     runsLost: z.number().int().nonnegative(),
     createdAt: z.number().int().nonnegative(),

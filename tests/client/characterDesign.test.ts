@@ -43,7 +43,7 @@ function self(appearance: PlayerState["appearance"]): PlayerState {
     readyPlateId: null,
     appearance,
     partyColor: "azure",
-    cosmetics: { hat: null, cloak: null, dye: null },
+    cosmetics: { hat: null, cloak: null, dye: null, trail: null, flame: null },
     bankedItems: [],
   };
 }

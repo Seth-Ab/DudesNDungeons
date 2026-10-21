@@ -175,7 +175,8 @@ it is the same across calls and restarts and never changes during a run. A clien
 
 ## Cosmetics
 
-`content/cosmetics/` holds hats, cloaks and outfit dyes (decision 0014, #128). They change how a
+`content/cosmetics/` holds hats, cloaks, outfit dyes, weapon trails and torch flames (decision 0014,
+#128, #138). They change how a
 player looks and nothing else, and once owned they belong to the profile for good: never dropped,
 never lost on death, kept across restarts. Each file is one item:
 
@@ -185,7 +186,7 @@ never lost on death, kept across restarts. Each file is one item:
   "milestone": { "stat": "runsEscaped", "threshold": 5 } }
 ```
 
-- `slot` is `hat`, `cloak` or `dye`; `rarity` is `common`, `fine`, `rare` or `legendary` and only
+- `slot` is `hat`, `cloak`, `dye`, `trail` or `flame`; `rarity` is `common`, `fine`, `rare` or `legendary` and only
   colours the wardrobe card.
 - How it is got is any of: `starter: true`, owned by every profile (the Leather Cap and Traveler's
   Cape; `STARTER_COSMETIC_IDS` in `src/server/profiles/profile.ts` must match, which a test checks); a
@@ -196,8 +197,11 @@ never lost on death, kept across restarts. Each file is one item:
   which `COSMETIC_ROTATING_COUNT` (2) are in stock at a time, rerolled after every run by the same
   draw as the skill shop's rotation. Keep the pool larger than that, or the rotation never rotates.
 - What an item looks like is the client's: `src/client/rendering/characters.ts` lists the hats,
-  cloaks and dyes it has art for, and `characterPalettes.ts` their colours, keyed by these ids. An id
-  with no art is drawn as nothing. Prices are tuning.
+  cloaks and dyes it has art for, and `characterPalettes.ts` their colours, keyed by these ids, with
+  each trail's colours and particle style and each flame's ramp. An id with no art is drawn as
+  nothing: no trail, or the default hearth flame. A trail only ever draws inside the swing's
+  server-resolved reach and arc, and a flame recolours the torch sprite and its halo, never the
+  light it casts. Prices are tuning.
 
 A client buys with `buyCosmetic { id }`, standing at the stall, and wears an owned item anywhere in
 the hub with `equipCosmetic { slot, id }` (`id: null` takes the slot off). Neither names a price.

@@ -1,0 +1,8 @@
+{
+  "id": "gilded-glint",
+  "slot": "trail",
+  "rarity": "legendary",
+  "name": "Gilded Glint",
+  "lore": "One bright point at the tip, like a coin catching light.",
+  "milestone": { "stat": "flawlessEmberWardenKills", "threshold": 1 }
+}

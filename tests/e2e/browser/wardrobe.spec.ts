@@ -85,7 +85,7 @@ test.describe("Hub wardrobe", () => {
     await guest.getByPlaceholder(/Room code/).fill(roomCode);
     await guest.getByRole("button", { name: "Join dungeon" }).click();
     await enterHub(guest);
-    await expect.poll(() => seen).toEqual({ hat: null, cloak: null, dye: null });
+    await expect.poll(() => seen).toEqual({ hat: null, cloak: null, dye: null, trail: null, flame: null });
 
     await walkToWardrobe(host);
     await expect(host.locator(".hud__prompt", { hasText: "Browse the wardrobe" })).toBeVisible();
@@ -103,7 +103,7 @@ test.describe("Hub wardrobe", () => {
     await wardrobe.getByRole("button", { name: "Wear: Traveler's Cape" }).click();
     await expect(wardrobe.getByRole("button", { name: "Take off: Traveler's Cape" })).toBeVisible();
 
-    await expect.poll(() => seen).toEqual({ hat: "leather-cap", cloak: "traveler-cape", dye: null });
+    await expect.poll(() => seen).toEqual({ hat: "leather-cap", cloak: "traveler-cape", dye: null, trail: null, flame: null });
 
     // A new profile has no coin: the server refuses the dye and the wardrobe says why.
     await wardrobe.getByRole("tab", { name: "Outfit dyes" }).click();
@@ -116,10 +116,10 @@ test.describe("Hub wardrobe", () => {
     await wardrobe.getByRole("tab", { name: "Hats" }).click();
     await wardrobe.getByRole("button", { name: "Try on Wizard Hat" }).click();
     await expect(wardrobe.getByRole("button", { name: "Try on Wizard Hat" })).toHaveAttribute("aria-pressed", "true");
-    await expect.poll(() => seen).toEqual({ hat: "leather-cap", cloak: "traveler-cape", dye: null });
+    await expect.poll(() => seen).toEqual({ hat: "leather-cap", cloak: "traveler-cape", dye: null, trail: null, flame: null });
 
     await wardrobe.getByRole("button", { name: "Take off: Leather Cap" }).click();
-    await expect.poll(() => seen).toEqual({ hat: null, cloak: "traveler-cape", dye: null });
+    await expect.poll(() => seen).toEqual({ hat: null, cloak: "traveler-cape", dye: null, trail: null, flame: null });
 
     // Walking away from the stall shuts the wardrobe.
     await walkTo(host, { x: EAST_COLUMN_X, y: AT_WARDROBE.y }, 0.6);

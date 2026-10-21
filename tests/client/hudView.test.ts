@@ -67,7 +67,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     readyPlateId: null,
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
-    cosmetics: { hat: null, cloak: null, dye: null },
+    cosmetics: { hat: null, cloak: null, dye: null, trail: null, flame: null },
     bankedItems: [],
     ...overrides,
   };
@@ -176,7 +176,7 @@ describe("vitals", () => {
   it("shows the self player's chosen look and party colour in the portrait", () => {
     const appearance = { body: "girl", skinTone: "deep", hairStyle: "bun", hairColor: "azure" } as const;
     const vitals = vitalsView(player("Maya", { appearance, partyColor: "moss" }));
-    expect(vitals.portrait).toEqual({ ...appearance, partyColor: "moss", hat: null, cloak: null, dye: null });
+    expect(vitals.portrait).toEqual({ ...appearance, partyColor: "moss", hat: null, cloak: null, dye: null, trail: null, flame: null });
     expect(vitals.accent).toBeTruthy();
   });
 
@@ -441,7 +441,7 @@ describe("party frames", () => {
     );
 
     expect(frame?.state).toBe("ready");
-    expect(frame?.portrait).toEqual({ ...appearance, partyColor: "plum", hat: null, cloak: null, dye: null });
+    expect(frame?.portrait).toEqual({ ...appearance, partyColor: "plum", hat: null, cloak: null, dye: null, trail: null, flame: null });
     expect(frame?.accent).toBe(PARTY_PALETTES.plum.ring);
   });
 
