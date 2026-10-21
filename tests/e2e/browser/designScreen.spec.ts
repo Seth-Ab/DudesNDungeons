@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { trackContexts } from "./contexts.js";
 
 type Sent = { type?: string; appearance?: Record<string, string> };
 
@@ -27,10 +28,12 @@ async function choose(page: Page, group: string, option: string) {
   await page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: option, exact: true }).click();
 }
 
+const track = trackContexts();
+
 test.describe("Character design screen", () => {
   test("designing a character sends exactly the selections and a teammate sees that look", async ({ browser }) => {
     test.setTimeout(60_000);
-    const hostContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const hostContext = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
     const host = await hostContext.newPage();
     const hostSent: Sent[] = [];
     const hostSaw: Array<{ name: string; appearance: unknown }> = [];
@@ -42,7 +45,7 @@ test.describe("Character design screen", () => {
     await expect(host.locator(".hud__vitals")).toBeVisible();
     const roomCode = (await host.locator(".hud__stat", { hasText: "Room:" }).locator("span").textContent()) ?? "";
 
-    const guestContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const guestContext = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
     const guest = await guestContext.newPage();
     const guestSent: Sent[] = [];
     await openRecordedPage(guest, guestSent, []);
@@ -73,7 +76,7 @@ test.describe("Character design screen", () => {
   });
 
   test("every control works from the keyboard and the layout fits a phone", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 400, height: 800 } });
+    const context = track(await browser.newContext({ viewport: { width: 400, height: 800 } }));
     const page = await context.newPage();
     const saved = JSON.stringify({ body: "guy", skinTone: "porcelain", hairStyle: "crop", hairColor: "black" });
     await page.addInitScript(`window.localStorage.setItem("dnd.lastLook", ${JSON.stringify(saved)})`);
