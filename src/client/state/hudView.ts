@@ -90,17 +90,30 @@ export const LOW_HEALTH_RATIO = 0.25;
 
 export interface HealthBarView extends BarView {
   low: boolean;
+  /** The text equivalent of the bar, for assistive tech and for when density hides the digits. */
+  spoken: string;
 }
 
 export interface ResistanceBarView extends BarView {
   /** Resistance is draining on the server's run clock. */
   decaying: boolean;
+  /** The text equivalent of the badge, ending in "decaying" while it drains. */
+  spoken: string;
+}
+
+export interface StaminaBarView extends BarView {
+  /** A full bar has nothing to say, so the frame lets it fade back. */
+  full: boolean;
 }
 
 export interface VitalsView {
   health: HealthBarView;
   resistance: ResistanceBarView;
-  stamina: BarView;
+  stamina: StaminaBarView;
+  /** The local character's portrait look, or null for the grey silhouette while still designing. */
+  portrait: CharacterLook | null;
+  /** The party colour's ring, edging the self frame the way it edges an ally's. */
+  accent: string | null;
 }
 
 /** Label glyphs, so the three bars differ by more than hue. */
@@ -113,16 +126,23 @@ export function healthBarView(current: number, max: number): HealthBarView {
     ratio: bar.ratio,
     text: `${Math.round(Math.max(0, current))}/${Math.round(max)}`,
     low: current > 0 && bar.ratio < LOW_HEALTH_RATIO,
+    spoken: `Health ${Math.round(Math.max(0, current))} of ${Math.round(max)}${
+      current > 0 && bar.ratio < LOW_HEALTH_RATIO ? ", low" : ""
+    }`,
   };
 }
 
 export function vitalsView(self: PlayerState | null, run: RunState | null = null): VitalsView {
   const resistance = barView(self?.resistance ?? 0, PLAYER_MAX_RESISTANCE);
+  const stamina = barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA);
+  const decaying = self !== null && run?.decaying === true && resistance.ratio > 0;
   return {
     health: healthBarView(self?.health ?? 0, PLAYER_MAX_HEALTH),
-    resistance: { ...resistance, decaying: self !== null && run?.decaying === true && resistance.ratio > 0 },
+    resistance: { ...resistance, decaying, spoken: `Resistance ${resistance.text}${decaying ? ", decaying" : ""}` },
     // No number: stamina is felt in the moment, not read.
-    stamina: { ...barView(self?.stamina ?? 0, PLAYER_MAX_STAMINA), text: "" },
+    stamina: { ...stamina, text: "", full: self !== null && stamina.ratio >= 1 },
+    portrait: self?.appearance ? { ...self.appearance, partyColor: self.partyColor } : null,
+    accent: self ? PARTY_PALETTES[self.partyColor].ring : null,
   };
 }
 

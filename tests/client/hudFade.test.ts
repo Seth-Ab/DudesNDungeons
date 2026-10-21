@@ -61,13 +61,16 @@ describe("HUD fade", () => {
     it("Full never fades, however long a module is quiet", () => {
       const fade = createHudFade(["vitals", "hotbar"], 0);
       expect(fade.isFaded("hotbar", 60_000, { ...NONE, density: "full" })).toBe(false);
-      expect(HUD_DENSITY_RULES.full).toEqual({ fades: false, opacity: 1, hidesHints: false });
+      expect(HUD_DENSITY_RULES.full).toEqual({ fades: false, opacity: 1, hidesHints: false, showsNumbers: true });
     });
 
     it("Calm fades to the base opacity and keeps the key hints", () => {
       const fade = createHudFade(["hotbar"], 0);
       expect(fade.isFaded("hotbar", HUD_FADE_QUIET_MS, { ...NONE, density: "calm" })).toBe(true);
-      expect(HUD_DENSITY_RULES.calm).toEqual({ fades: true, opacity: HUD_FADE_OPACITY, hidesHints: false });
+      expect(HUD_DENSITY_RULES.calm).toEqual({ fades: true, opacity: HUD_FADE_OPACITY,
+        hidesHints: false,
+        showsNumbers: true,
+      });
     });
 
     it("Minimal fades lower than Calm and hides the key hints", () => {
@@ -75,6 +78,12 @@ describe("HUD fade", () => {
       expect(fade.isFaded("hotbar", HUD_FADE_QUIET_MS, { ...NONE, density: "minimal" })).toBe(true);
       expect(HUD_DENSITY_RULES.minimal.opacity).toBeLessThan(HUD_DENSITY_RULES.calm.opacity);
       expect(HUD_DENSITY_RULES.minimal.hidesHints).toBe(true);
+    });
+
+    it("Minimal is the only level that hides the self frame's numbers", () => {
+      expect(HUD_DENSITY_RULES.full.showsNumbers).toBe(true);
+      expect(HUD_DENSITY_RULES.calm.showsNumbers).toBe(true);
+      expect(HUD_DENSITY_RULES.minimal.showsNumbers).toBe(false);
     });
 
     it("keeps warnings lit at every level", () => {
