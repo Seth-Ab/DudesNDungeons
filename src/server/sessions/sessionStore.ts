@@ -150,6 +150,11 @@ export interface SessionPlayer {
    * Set when a ready party leaves the hub. Null in the hub.
    */
   enteredDungeonAt: number | null;
+  /**
+   * Server clock time this player last took or dealt damage, or null if not this run. `saveAndQuit`
+   * is refused for `SAVE_QUIT_COMBAT_GRACE_MS` after it. Set by `markCombat` in `vitals.ts`.
+   */
+  lastCombatAt: number | null;
 }
 
 export interface Session {
@@ -204,6 +209,11 @@ export interface Session {
    * sees and may take from it; escapes deposit into it.
    */
   vault: PartyVault;
+  /**
+   * The room saves, shared by reference like `vault`. A session only asks this to drop its room's
+   * run (`returnToHub`); capturing one is the server's job, so a save is never a live reference.
+   */
+  saves: RoomSaveStore;
 }
 
 export interface JoinRequest {
@@ -347,6 +357,7 @@ export class SessionStore {
       flareExpiresAt: new Map(),
       dummyHits: new Map(),
       vault: this.vaults.open(roomCode),
+      saves: this.saves,
     };
     this.#sessions.set(roomCode, session);
     return session;
@@ -468,6 +479,7 @@ export class SessionStore {
       nextMoveAt: null,
       nextAttackAt: null,
       enteredDungeonAt: null,
+      lastCombatAt: null,
     };
 
     session.players.set(player.id, player);

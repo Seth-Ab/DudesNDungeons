@@ -5,7 +5,7 @@ import type { TrapType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
 import { contentForSession } from "./progression.js";
-import { damagePlayer, loseStamina, reduceResistance } from "./vitals.js";
+import { damagePlayer, loseStamina, markCombat, reduceResistance } from "./vitals.js";
 
 /**
  * Server-resolved traps.
@@ -34,8 +34,8 @@ function victimsOf(session: Session, trap: TrapState): SessionPlayer[] {
   );
 }
 
-function applyEffects(player: SessionPlayer, type: TrapType, content: GameContent): void {
-  damagePlayer(player, type.damage, content);
+function applyEffects(player: SessionPlayer, type: TrapType, content: GameContent, now: number): void {
+  if (damagePlayer(player, type.damage, content) > 0) markCombat(player, now);
   reduceResistance(player, type.resistanceLoss);
   loseStamina(player, type.staminaDrain);
 }
@@ -68,7 +68,7 @@ export function resolveTraps(session: Session, now: number): TrapState[] {
     if (victims.length === 0) continue;
 
     const type = trapTypeFor(trap, content);
-    for (const victim of victims) applyEffects(victim, type, content);
+    for (const victim of victims) applyEffects(victim, type, content, now);
 
     if (type.rearmMs === undefined) {
       trap.phase = "disabled";

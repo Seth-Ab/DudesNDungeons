@@ -55,6 +55,11 @@ export function damagePlayer(
   return dealt;
 }
 
+/** Notes that this player took or dealt damage at `now`, which `saveAndQuit` refuses on for a while. */
+export function markCombat(player: SessionPlayer, now: number): void {
+  player.lastCombatAt = now;
+}
+
 /** Raises health, capped. Returns false when the player is already at full health. */
 export function healPlayer(player: SessionPlayer, amount: number): boolean {
   if (player.health >= PLAYER_MAX_HEALTH) return false;

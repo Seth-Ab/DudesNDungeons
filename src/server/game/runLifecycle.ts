@@ -193,6 +193,9 @@ export function returnToHub(session: Session, escaped: boolean): void {
 
   // An escape and a wipe both end a run, so both reroll the shop's rotating stock for this room.
   advanceRunCount(session.vault);
+  // The run is over, win or lose: drop it from the room save so a wipe cannot be reloaded and a
+  // member who saved and quit loses what they left in it. The members stay.
+  session.saves.clearRun(session.roomCode);
   installWorld(session, HUB_DUNGEON_ID, null);
   session.location = "hub";
 }

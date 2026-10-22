@@ -223,6 +223,8 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "You already own that.";
     case "notOwned":
       return "You do not own that yet.";
+    case "inCombat":
+      return "Not while you are in a fight.";
   }
 }
 

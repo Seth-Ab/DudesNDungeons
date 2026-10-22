@@ -37,6 +37,18 @@ export const leaveSessionSchema = z.object({
   type: z.literal("leaveSession"),
 });
 
+/**
+ * Leaves the run on purpose, keeping the sender's carry and position in the room save (decision
+ * 0015). Unlike `leaveSession`, which abandons them. Dungeon only, and refused with `inCombat`
+ * during a fight and `notPermitted` to a player who is downed or being carried. Carries nothing:
+ * the server decides what is saved.
+ */
+export const saveAndQuitSchema = z
+  .object({
+    type: z.literal("saveAndQuit"),
+  })
+  .strict();
+
 export const setReadySchema = z.object({
   type: z.literal("setReady"),
   ready: z.boolean(),
@@ -224,6 +236,7 @@ export const voiceSignalMessageSchema = z.object({
 export const clientMessageSchema = z.discriminatedUnion("type", [
   joinSessionSchema,
   leaveSessionSchema,
+  saveAndQuitSchema,
   setReadySchema,
   setAppearanceSchema,
   playerMoveIntentSchema,

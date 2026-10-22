@@ -8,6 +8,7 @@ import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { lootRngFor } from "../../src/server/game/monsterLoot.js";
 import { scalePoint } from "../../src/server/game/scale.js";
 import { createRunStats } from "../../src/server/game/milestones.js";
+import { RoomSaveStore } from "../../src/server/saves/roomSaveStore.js";
 import { createMilestoneStats, type PlayerProfile } from "../../src/server/profiles/profile.js";
 import type { JoinRequest, Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
 import type { Vector2 } from "../../src/shared/types/core.js";
@@ -135,6 +136,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     nextMoveAt: null,
     nextAttackAt: null,
     enteredDungeonAt: 0,
+    lastCombatAt: null,
     ...overrides,
   };
 }
@@ -175,6 +177,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     flareExpiresAt: new Map(),
     dummyHits: new Map(),
     vault: { roomCode: "ROOM01", items: [], runCount: 0, revision: 0 },
+    saves: new RoomSaveStore(),
   };
 }
 

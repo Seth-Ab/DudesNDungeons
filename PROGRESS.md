@@ -7,8 +7,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 11 partly done (profiles,
   persistence, first skill scroll, skill stacks, coin, milestones, the skill shop, cosmetics; run saves decided in 0015). Frontend steps 1, 2, 4, 5, 7, 8, and 11 complete, and 9 apart from the run-save controls (#232). Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v44.
-- Last completed work: weapon trails and torch flames: two more cosmetic slots (`trail`, `flame`) with the bible's five trails and four flames as content, a trail drawn in art pixels over a swing and clipped to its server-resolved reach and arc for everyone who can see it, a carried torch's flame recoloured by its bearer's `e f g h` ramp with a faint halo while the lightmap stays untouched, and Weapon trails and Torch flames tabs with previews in the Wardrobe (issue #138, protocol v44); earlier, hats, cloaks and outfit dyes: a `cosmetic` content kind (17 items), permanent profile ownership with every profile owning the Leather Cap and Traveler's Cape, `buyCosmetic` at a new `wardrobe` hub room (stock fixed plus a rotation of two from a pool, by the skill shop's helper) and `equipCosmetic` anywhere in the hub, cosmetic milestones granted on extraction, a public `PlayerState.cosmetics` drawn as hat, cloak and dye layers in the character composite with flickering legendaries, and a Wardrobe panel with a try-on preview (issue #137, protocol v43); earlier, the hub skill shop: a `shop` room around a Scrolls stall, a content-defined stock (fixed scrolls plus a rotating pool that rerolls after every run, derived from the room code and a run count saved with the room's vault), a `buySkillScroll { itemId }` intent the server prices and refuses, and a shop panel with inline refusals (issue #216, protocol v42); earlier, a Skills panel in the camp menu, built from the owner-only progression catalog and state: permanent, this-run and locked skills with stacks, resolved effects, prerequisites and how each is earned, plus scrolls that cannot be used yet or are maxed, with the existing conversion prompt behind a button (issue #25, protocol unchanged); earlier, milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
+  everyone to the hub under protocol v45.
+- Last completed work: save triggers and Save and quit: a room save is written when a player sets their look, every 45 s while the room is in the dungeon, when the last connected member disconnects or leaves, before the sweep drops an emptied party, and at shutdown; an escape or a wipe clears the run and keeps the members; and `saveAndQuit` takes a player out of the run with their carry and position kept, refused with `inCombat` or `notPermitted` (issue #234, protocol v45); earlier, weapon trails and torch flames: two more cosmetic slots (`trail`, `flame`) with the bible's five trails and four flames as content, a trail drawn in art pixels over a swing and clipped to its server-resolved reach and arc for everyone who can see it, a carried torch's flame recoloured by its bearer's `e f g h` ramp with a faint halo while the lightmap stays untouched, and Weapon trails and Torch flames tabs with previews in the Wardrobe (issue #138, protocol v44); earlier, hats, cloaks and outfit dyes: a `cosmetic` content kind (17 items), permanent profile ownership with every profile owning the Leather Cap and Traveler's Cape, `buyCosmetic` at a new `wardrobe` hub room (stock fixed plus a rotation of two from a pool, by the skill shop's helper) and `equipCosmetic` anywhere in the hub, cosmetic milestones granted on extraction, a public `PlayerState.cosmetics` drawn as hat, cloak and dye layers in the character composite with flickering legendaries, and a Wardrobe panel with a try-on preview (issue #137, protocol v43); earlier, the hub skill shop: a `shop` room around a Scrolls stall, a content-defined stock (fixed scrolls plus a rotating pool that rerolls after every run, derived from the room code and a run count saved with the room's vault), a `buySkillScroll { itemId }` intent the server prices and refuses, and a shop panel with inline refusals (issue #216, protocol v42); earlier, a Skills panel in the camp menu, built from the owner-only progression catalog and state: permanent, this-run and locked skills with stacks, resolved effects, prerequisites and how each is earned, plus scrolls that cannot be used yet or are maxed, with the existing conversion prompt behind a button (issue #25, protocol unchanged); earlier, milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
   kills, flawless kills, teammates carried out, lever puzzles solved, runs without a torch, items banked,
   moth room) credited to players who extract, and milestone content that grants a skill stack once (issue
   #215, protocol v41); earlier, profile coin, a per-player run purse credited with an escape reward on extraction
@@ -59,8 +59,7 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: run saves, starting with the save triggers and Save and quit (#234), then
-  #235 and #232; otherwise a wider item catalog, combat depth,
+- Next recommended step: run saves, continuing with #235 and #232; otherwise a wider item catalog, combat depth,
   and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the
@@ -353,8 +352,20 @@ full catalog, the shop and UI remain. Milestones landed under protocol v41 (#215
   format and store are in (#233): `src/server/saves/` keeps a `RoomSave` per room code in
   `data/rooms.json` (members, plus a run captured by `captureRun` and put back by `restoreRun` and
   `restoreRunPlayer`, timers as durations), deletes saves unplayed for 7 days, clears a run saved
-  under another `contentVersion` or protocol, and reserves its room code. Nothing writes saves yet:
-  triggers are #234 and continuing #235.
+  under another `contentVersion` or protocol, and reserves its room code. The triggers are in (#234,
+  protocol v45), in `gameServer.ts` through `saveRoom` (`src/server/saves/roomSaving.ts`): a
+  designed character is added to the members, an autosave every `RUN_AUTOSAVE_INTERVAL_MS` (45 s) writes
+  each dungeon session, the last connected member disconnecting or leaving writes it (the sweep
+  repeats that for an emptied party it has not yet saved), and `close()` writes every dungeon
+  session before flushing. A hub session writes members only. `returnToHub` clears the room's run
+  (`session.saves.clearRun`), so a wipe cannot be reloaded and an absent member's entry goes with it.
+  `leaveSession` still abandons: it removes that player's run entry, while a disconnect keeps it.
+  `saveAndQuit` (dungeon only) saves the room with the player in it, then removes them without the
+  abandonment loss; it is refused with `notPermitted` in the hub or to a downed or carried player and
+  with `inCombat` for `SAVE_QUIT_COMBAT_GRACE_MS` (5 s) after they took or dealt damage
+  (`SessionPlayer.lastCombatAt`, set by `markCombat`) or while a monster winds up or charges with
+  them in reach. The quitter gets no acknowledgement message yet and others see `playerLeft`
+  `left`; the client button is #232 and continuing #235.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
   effect resolver drives resistance, attack damage, skill stacks, and torch sight. Stacking and
@@ -597,6 +608,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Room saves written on member changes, autosave, an emptied party and shutdown, cleared by an escape or a wipe, and a `saveAndQuit` intent refused in combat (#234, protocol v45).
 - 2026-10-21: Room save format and store in `data/rooms.json`, with run state captured and restored as durations, a saveable loot stream, and a content version (#233, no protocol change).
 - 2026-10-21: Run saves decided (#122): a save per room code that outlives runs, autosave and "Save and quit", no undoing a death or wipe, 7-day expiry, in decision 0015; follow-ups #232-#235.
 - 2026-10-21: Weapon trails drawn inside the swing's resolved reach and arc, and torch flames recoloured without touching the light, as two new wardrobe slots (#138, protocol v44).

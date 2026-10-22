@@ -29,7 +29,7 @@ import { damageMonster } from "./monsterDamage.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
-import { advanceVitals, damagePlayer, regenerateStamina, spendStamina } from "./vitals.js";
+import { advanceVitals, damagePlayer, markCombat, regenerateStamina, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
 
@@ -184,6 +184,7 @@ export function resolvePlayerAttack(
 
   const monster = target.entity;
   const dealt = damageMonster(session, monster, damage);
+  markCombat(player, now);
 
   return {
     ok: true,
@@ -342,6 +343,7 @@ function resolveWindup(
 
     // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
     const dealt = damagePlayer(player, stats.damage, content);
+    markCombat(player, now);
     events.push({
       type: "attackResolved",
       attackerId: monster.id,
