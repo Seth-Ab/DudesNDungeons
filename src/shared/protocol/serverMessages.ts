@@ -41,6 +41,15 @@ export const errorCodeSchema = z.enum([
    */
   "profileInUse",
   /**
+   * The room's save holds a run, and this profile is not in it, or sent no profile secret. No new
+   * players join a saved or continued run (decision 0015).
+   */
+  "notSaveMember",
+  /** The room's save holds a run this member could continue; the join must say `continue` or `discard`. */
+  "savedRunExists",
+  /** A join that is not allowed right now, such as discarding a save while another member is playing its run. */
+  "notPermitted",
+  /**
    * A voice signal named a player it cannot reach: the sender, a disconnected party member, or
    * nobody in the sender's dungeon. Players in other dungeons are reported exactly like unknown ids.
    */

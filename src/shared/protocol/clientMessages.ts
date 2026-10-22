@@ -23,6 +23,11 @@ import { voiceSignalSchema } from "./voice.js";
  * `sessionJoined` in any room. Absent or unknown to the server, a fresh profile is created and its
  * secret comes back once. The two credentials answer different questions: the resume token says
  * which slot in this room, the profile secret says whose bank and unlocks.
+ *
+ * `savedRun` answers a room whose save holds a run (decision 0015). Absent, a member of that run is
+ * refused with `savedRunExists` so the client can ask; `continue` restores them into it; `discard`
+ * deletes the whole room save (run and characters) and opens the room in the hub as a new one.
+ * Meaningless, and ignored, for a room with no saved run.
  */
 export const joinSessionSchema = z.object({
   type: z.literal("joinSession"),
@@ -31,6 +36,7 @@ export const joinSessionSchema = z.object({
   playerName: playerNameSchema,
   resumeToken: resumeTokenSchema.nullish(),
   profileSecret: profileSecretSchema.nullish(),
+  savedRun: z.enum(["continue", "discard"]).nullish(),
 });
 
 export const leaveSessionSchema = z.object({

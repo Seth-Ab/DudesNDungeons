@@ -392,6 +392,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           roomCode: message.roomCode,
           playerName: message.playerName,
           resumeToken: message.resumeToken,
+          savedRun: message.savedRun ?? null,
           profile: known,
           // Called only once the join has otherwise succeeded, so a mistyped room code does not
           // strand an empty profile on disk.

@@ -1,5 +1,5 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
-import { PARTY_COLORS } from "../../shared/constants/appearance.js";
+import { DEFAULT_APPEARANCE, PARTY_COLORS } from "../../shared/constants/appearance.js";
 import {
   EMPTY_SESSION_TTL_MS,
   MAX_PARTY_SIZE,
@@ -28,6 +28,7 @@ import type {
   SessionId,
   Vector2,
 } from "../../shared/types/core.js";
+import { playerAppearanceSchema } from "../../shared/types/core.js";
 import {
   buildDungeon,
   findSpawnPoint,
@@ -45,6 +46,7 @@ import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
+import { restoreRun, restoreRunPlayer, type PersistedMember } from "../saves/roomSave.js";
 import { RoomSaveStore } from "../saves/roomSaveStore.js";
 import type { PartyVault } from "../vaults/partyVault.js";
 import { VaultStore } from "../vaults/vaultStore.js";
@@ -230,6 +232,11 @@ export interface JoinRequest {
    */
   profile: PlayerProfile | null;
   createProfile: () => PlayerProfile;
+  /**
+   * Answers a room whose save holds a run (decision 0015). Absent, a member of that run is refused
+   * with `savedRunExists`; `continue` restores them into it; `discard` deletes the whole save first.
+   */
+  savedRun?: "continue" | "discard" | null;
 }
 
 export type JoinResult =
@@ -385,17 +392,23 @@ export class SessionStore {
   }
 
   join(request: JoinRequest): JoinResult {
-    // A room whose session was swept, or lost to a restart, still owns its vault. Joining its code
-    // reopens it in the hub, which is what lets a party come back to what they stored.
-    const session =
-      this.#sessions.get(request.roomCode) ??
-      (this.vaults.has(request.roomCode) ? this.#openSession(request.roomCode) : undefined);
-    if (!session) {
+    const live = this.#sessions.get(request.roomCode);
+    let save = this.saves.get(request.roomCode);
+    // A save nobody has played for a week is gone. A live session keeps its own characters, so only
+    // a room with no session can lapse.
+    if (live === undefined && save !== undefined && this.saves.isExpired(save)) {
+      this.saves.delete(request.roomCode);
+      save = undefined;
+    }
+
+    // A room whose session was swept, or lost to a restart, still owns its vault and its save.
+    // Joining its code reopens it, which is what lets a party come back to what they stored.
+    if (live === undefined && !this.vaults.has(request.roomCode) && save === undefined) {
       return { ok: false, code: "sessionNotFound", message: "No dungeon exists for that room code" };
     }
 
-    if (request.resumeToken) {
-      const existing = [...session.players.values()].find(
+    if (request.resumeToken && live) {
+      const existing = [...live.players.values()].find(
         (candidate) => candidate.resumeToken === request.resumeToken,
       );
 
@@ -413,7 +426,7 @@ export class SessionStore {
         // Game state (position, health, ready) is preserved; the display name is refreshed because
         // it is presentation the player may have changed before reconnecting.
         existing.name = request.playerName;
-        return { ok: true, resumed: true, session, player: existing };
+        return { ok: true, resumed: true, session: live, player: existing };
       }
       // An unknown token means the slot already timed out. Fall through to a fresh join rather than
       // erroring. The location check below decides whether a fresh join is currently allowed.
@@ -430,7 +443,53 @@ export class SessionStore {
       };
     }
 
-    if (session.location === "dungeon") {
+    // A live hub holds no run; one that still has a saved run is a leftover, so the run is dropped.
+    if (live?.location === "hub" && live.players.size > 0 && save?.run) {
+      this.saves.clearRun(request.roomCode);
+      save = this.saves.get(request.roomCode);
+    }
+
+    let run = save?.run ?? null;
+    let entry = run?.players.find((candidate) => candidate.profileId === request.profile?.id);
+
+    if (run !== null) {
+      // The run belongs to the profiles that played it. A join with no secret names none, and a
+      // new player can't be added to a saved run, so neither may continue or discard it.
+      if (entry === undefined) {
+        return {
+          ok: false,
+          code: "notSaveMember",
+          message: "This room has a saved run, and only the members who were in it can rejoin",
+        };
+      }
+      if (request.savedRun == null) {
+        return {
+          ok: false,
+          code: "savedRunExists",
+          message: "This room has a saved run. Continue it, or discard it and start fresh",
+        };
+      }
+    }
+
+    let session = live;
+    if (run !== null && request.savedRun === "discard") {
+      if (live && [...live.players.values()].some((candidate) => candidate.connected)) {
+        return {
+          ok: false,
+          code: "notPermitted",
+          message: "Another member is playing this run, so its save can't be discarded",
+        };
+      }
+      // Only slots held open for dropped players remain; the save they were holding goes with them.
+      if (live) this.#closeSession(live);
+      this.saves.delete(request.roomCode);
+      session = undefined;
+      save = undefined;
+      run = null;
+      entry = undefined;
+    }
+
+    if (session?.location === "dungeon" && run === null) {
       return {
         ok: false,
         code: "runInProgress",
@@ -438,8 +497,21 @@ export class SessionStore {
       };
     }
 
-    const partyColor = freePartyColor(session);
-    if (session.players.size >= this.#maxPartySize || partyColor === undefined) {
+    if (session && (session.players.size >= this.#maxPartySize || freePartyColor(session) === undefined)) {
+      return { ok: false, code: "sessionFull", message: "This dungeon is full" };
+    }
+
+    session ??= this.#openSession(request.roomCode);
+    if (run !== null && session.location !== "dungeon") restoreRun(session, run, this.#now());
+
+    // A member skips the designer: their saved character is put back, and so is their party colour
+    // when it is still free.
+    const member = save?.members.find((candidate) => candidate.profileId === request.profile?.id);
+    const partyColor =
+      member !== undefined && isPartyColor(member.partyColor) && !colorInUse(session, member.partyColor)
+        ? member.partyColor
+        : freePartyColor(session);
+    if (partyColor === undefined) {
       return { ok: false, code: "sessionFull", message: "This dungeon is full" };
     }
 
@@ -466,7 +538,7 @@ export class SessionStore {
       readyPlateId: null,
       readyFromPlate: false,
       declinedPlateId: null,
-      appearance: null,
+      appearance: member === undefined ? null : restoredLook(member),
       partyColor,
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Uint8Array(0),
@@ -481,6 +553,9 @@ export class SessionStore {
       enteredDungeonAt: null,
       lastCombatAt: null,
     };
+    if (run !== null && entry !== undefined) {
+      restoreRunPlayer(player, entry, session.dungeon.map, this.#now());
+    }
 
     session.players.set(player.id, player);
     this.#sessionByPlayer.set(player.id, session.roomCode);
@@ -606,6 +681,12 @@ export class SessionStore {
     }
   }
 
+  /** Drops a session and every slot in it, which the caller has checked nobody is connected to. */
+  #closeSession(session: Session): void {
+    for (const player of [...session.players.values()]) this.#removePlayer({ session, player });
+    this.#sessions.delete(session.roomCode);
+  }
+
   #removePlayer({ session, player }: SessionMember): void {
     // A removed player can neither keep carrying nor keep being carried: the slot they occupied is
     // about to disappear, so both sides of any carry link must be cleared before it does.
@@ -618,6 +699,23 @@ export class SessionStore {
     session.players.delete(player.id);
     this.#sessionByPlayer.delete(player.id);
   }
+}
+
+function colorInUse(session: Session, color: PartyColor): boolean {
+  return [...session.players.values()].some((player) => player.partyColor === color);
+}
+
+function isPartyColor(color: string): color is PartyColor {
+  return (PARTY_COLORS as readonly string[]).includes(color);
+}
+
+/**
+ * A member's saved look, or the default one when an id in it has since left the shared lists. The
+ * saved look is kept loose on disk so a content change cannot make a save unreadable.
+ */
+function restoredLook(member: PersistedMember): PlayerAppearance {
+  const parsed = playerAppearanceSchema.safeParse(member.appearance);
+  return parsed.success ? parsed.data : { ...DEFAULT_APPEARANCE };
 }
 
 /**

@@ -17,6 +17,7 @@ import {
 } from "../../src/shared/constants/game.js";
 import {
   parseClientMessage,
+  errorCodeSchema,
   parseServerMessage,
   serializeServerMessage,
   type ServerMessage,
@@ -60,6 +61,32 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.message.type).toBe("joinSession");
+    }
+  });
+
+  it("accepts a joinSession answering a saved run, and nothing else", () => {
+    const join = (savedRun: unknown) =>
+      parseClientMessage(
+        JSON.stringify({
+          type: "joinSession",
+          protocolVersion: PROTOCOL_VERSION,
+          roomCode: "BCDFGH",
+          playerName: "Grix",
+          savedRun,
+        }),
+      );
+
+    expect(join("continue").ok).toBe(true);
+    expect(join("discard").ok).toBe(true);
+    expect(join(null).ok).toBe(true);
+    expect(join(undefined).ok).toBe(true);
+    expect(join("new").ok).toBe(false);
+    expect(join(true).ok).toBe(false);
+  });
+
+  it("names the saved-run refusals as error codes", () => {
+    for (const code of ["savedRunExists", "notSaveMember", "notPermitted"]) {
+      expect(errorCodeSchema.safeParse(code).success).toBe(true);
     }
   });
 
@@ -382,8 +409,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v45, the version that added saveAndQuit", () => {
-    expect(PROTOCOL_VERSION).toBe(45);
+  it("is on protocol v46, the version that added savedRun to joinSession", () => {
+    expect(PROTOCOL_VERSION).toBe(46);
   });
 
   it("ships the id lists the design fixed", () => {
