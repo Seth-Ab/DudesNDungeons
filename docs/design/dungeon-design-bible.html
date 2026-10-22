@@ -1,0 +1,3040 @@
+<!--
+  Dungeon Design Bible: the design for DudesNDungeons' procedural dungeons (generator v2), with a
+  working reference generator. Everything the live workbench draws comes from GEN.generate() in the
+  gen-src script block, which is written to be ported to src/server/game/generation/.
+  It uses the same mulberry32 stream as src/server/game/random.ts and works in authored tiles.
+  Published copy: https://claude.ai/artifact/NPMxae19nMZRk6VStMphXf
+-->
+<title>Dungeon Design Bible</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Silkscreen&display=swap">
+<style>
+/* Layout: a surveyor's table in the dark. A wide workbench up top where the live dungeon is drawn,
+   then a ledger of narrow reading columns and wide reference tables. One dark world on purpose:
+   the maps are judged against the game's own unlit rock. Same family as the Character Sprite Bible. */
+:root {
+  color-scheme: dark;
+  --rock: #08090b;
+  --stone-1: #0f1114;
+  --stone-2: #16191d;
+  --stone-3: #1f2329;
+  --stone-4: #2c3138;
+  --parch: #f2ead3;
+  --parch-dim: #c9b184;
+  --parch-mute: #978d77;
+  --torch: #f0a83c;
+  --ember: #e0703a;
+  --moss: #6fbf8a;
+  --sky: #8fa8d6;
+  --blood: #d9786a;
+  --seal: #b49ad8;
+  --gold: #e8c66a;
+  --f-display: "Pixelify Sans", "Courier New", monospace;
+  --f-label: "Silkscreen", "Pixelify Sans", ui-monospace, monospace;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--stone-1); }
+body {
+  background: var(--stone-1);
+  color: var(--parch);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.wrap {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 96px;
+  display: grid;
+  gap: 88px;
+}
+h1, h2, h3, h4 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(36px, 6.4vw, 64px); color: var(--torch); letter-spacing: 0.5px; }
+h2 { font-size: clamp(26px, 3.4vw, 34px); color: var(--parch); }
+h3 { font-size: 20px; color: var(--parch); }
+h4 { font-size: 16px; color: var(--parch-dim); }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--torch); text-underline-offset: 3px; }
+a:hover { color: var(--gold); }
+:focus-visible { outline: 2px solid var(--torch); outline-offset: 2px; }
+code, pre, kbd { font-family: var(--f-mono); font-size: 13px; }
+code { background: var(--stone-3); padding: 1px 5px; border-radius: 3px; color: #ffe6a3; overflow-wrap: anywhere; }
+strong { color: var(--parch); font-weight: 600; }
+.eyebrow { font-family: var(--f-label); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--parch-mute); }
+.muted { color: var(--parch-mute); }
+.dim { color: var(--parch-dim); }
+.lede { font-size: 17px; color: var(--parch-dim); max-width: 64ch; }
+section { display: grid; gap: 28px; min-width: 0; }
+.section-head { display: grid; gap: 10px; max-width: 76ch; }
+.prose { display: grid; gap: 14px; max-width: 72ch; }
+.prose ul, .prose ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* ---------- header and nav */
+header.top { display: grid; gap: 18px; }
+.top-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.toc a {
+  font-family: var(--f-label); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--parch-dim); text-decoration: none; padding: 5px 9px; border: 1px solid var(--stone-4);
+  border-radius: 3px; background: var(--stone-2);
+}
+nav.toc a:hover { color: var(--torch); border-color: var(--torch); }
+
+/* ---------- workbench */
+.bench { display: grid; gap: 14px; }
+.controls {
+  display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end;
+  padding: 12px; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px;
+}
+.field { display: grid; gap: 4px; }
+.field label, .field .label { font-family: var(--f-label); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--parch-mute); }
+input[type="number"], select {
+  font: 500 14px/1 var(--f-mono); color: var(--parch); background: var(--stone-1);
+  border: 1px solid var(--stone-4); border-radius: 3px; padding: 8px 9px; min-width: 0;
+}
+input[type="number"] { width: 9.5em; }
+button {
+  font: 600 13px/1 var(--f-body); color: var(--parch); background: var(--stone-3);
+  border: 1px solid var(--stone-4); border-radius: 3px; padding: 9px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--parch-mute); }
+button.primary { background: var(--torch); color: #1b1206; border-color: var(--torch); }
+button.primary:hover { background: var(--gold); border-color: var(--gold); }
+.seg { display: inline-flex; border: 1px solid var(--stone-4); border-radius: 3px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 9px 11px; background: var(--stone-1); font-family: var(--f-mono); }
+.seg button + button { border-left: 1px solid var(--stone-4); }
+.seg button[aria-pressed="true"] { background: var(--parch-dim); color: #16120a; }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.toggles label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--parch-dim); cursor: pointer; }
+.toggles input { accent-color: var(--torch); }
+
+.bench-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 920px) { .bench-grid { grid-template-columns: minmax(0, 1fr); } }
+.map-frame {
+  position: relative; background: var(--rock); border: 1px solid var(--stone-4); border-radius: 4px;
+  padding: 8px; min-width: 0;
+}
+.map-frame canvas { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; image-rendering: pixelated; }
+.map-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding: 8px 2px 0; font-size: 12px; color: var(--parch-mute); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 2; background: rgba(8, 9, 11, 0.94);
+  border: 1px solid var(--stone-4); border-radius: 3px; padding: 6px 8px; font-size: 12px; line-height: 1.4;
+  color: var(--parch); max-width: 240px;
+}
+.tip b { font-family: var(--f-display); font-weight: 600; font-size: 13px; display: block; }
+
+.card {
+  background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; padding: 16px;
+  display: grid; gap: 16px; min-width: 0;
+}
+.omen { font-family: var(--f-display); font-size: 18px; line-height: 1.35; color: var(--parch); text-wrap: pretty; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13px; }
+.facts dt { font-family: var(--f-label); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--parch-mute); padding-top: 3px; }
+.facts dd { margin: 0; color: var(--parch); font-variant-numeric: tabular-nums; min-width: 0; }
+.chip {
+  display: inline-block; font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 2px; border: 1px solid currentColor; line-height: 1.5; margin: 1px 4px 1px 0; white-space: nowrap;
+}
+.chip.live { color: var(--moss); }
+.chip.proposed { color: var(--sky); }
+.chip.warning { color: var(--blood); }
+.chip.anomaly { color: var(--moss); }
+.chip.none { color: var(--parch-mute); }
+.locks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+.locks li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; align-items: start; }
+.locks .glyph { width: 10px; height: 10px; margin-top: 5px; border-radius: 1px; }
+.locks .what { color: var(--parch); font-weight: 600; }
+.locks .how { color: var(--parch-dim); }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pacing svg { display: block; width: 100%; height: auto; }
+.pacing-wrap { position: relative; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--parch-dim); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex: none; }
+
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.thumb {
+  display: grid; gap: 6px; text-align: left; padding: 8px; background: var(--stone-2);
+  border: 1px solid var(--stone-4); border-radius: 4px; cursor: pointer; font: inherit; color: inherit;
+}
+.thumb:hover { border-color: var(--torch); }
+.thumb canvas { width: 100%; height: auto; aspect-ratio: 3 / 2; image-rendering: pixelated; display: block; background: var(--rock); }
+.thumb .t1 { font-family: var(--f-display); font-size: 14px; color: var(--parch); line-height: 1.2; }
+.thumb .t2 { font-size: 11px; color: var(--parch-mute); line-height: 1.35; }
+
+/* ---------- reading blocks */
+.compare { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+.compare figure { margin: 0; display: grid; gap: 6px; background: var(--rock); border: 1px solid var(--stone-4); border-radius: 4px; padding: 8px; }
+.compare canvas { width: 100%; height: auto; aspect-ratio: 3 / 2; image-rendering: pixelated; display: block; }
+.compare figcaption { font-size: 12px; color: var(--parch-mute); line-height: 1.45; }
+.compare figcaption b { color: var(--parch-dim); font-family: var(--f-mono); font-weight: 600; }
+
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.finding { padding: 14px; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; display: grid; gap: 6px; align-content: start; }
+.finding .n { font-family: var(--f-display); font-size: 30px; color: var(--blood); line-height: 1; }
+.finding p { font-size: 14px; color: var(--parch-dim); }
+
+.studies { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.study { padding: 16px; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; display: grid; gap: 8px; align-content: start; }
+.study .game { font-family: var(--f-display); font-size: 19px; color: var(--parch); }
+.study .does { font-size: 14px; color: var(--parch-dim); }
+.study .take { font-size: 14px; color: var(--parch); border-top: 1px dashed var(--stone-4); padding-top: 8px; }
+.study .take::before { content: "We take: "; font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--torch); }
+.study .src { font-size: 12px; }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; counter-reset: rule; }
+.rule { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 12px; align-items: start; }
+.rule::before { counter-increment: rule; content: counter(rule); font-family: var(--f-display); font-size: 28px; line-height: 1; color: var(--torch); grid-row: span 2; }
+.rule h3 { font-size: 18px; }
+.rule p { font-size: 14px; color: var(--parch-dim); }
+
+.pipeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--stone-4); border-radius: 4px; overflow: hidden; }
+.pipeline li { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 0.9fr); gap: 4px 18px; padding: 14px 16px; background: var(--stone-2); }
+.pipeline li + li { border-top: 1px solid var(--stone-4); }
+.pipeline .step { font-family: var(--f-display); font-size: 26px; color: var(--torch); line-height: 1; }
+.pipeline h3 { font-size: 17px; margin-bottom: 4px; }
+.pipeline p { font-size: 14px; color: var(--parch-dim); }
+.pipeline .port { font-size: 12px; color: var(--parch-mute); }
+.pipeline .port code { font-size: 12px; }
+@media (max-width: 760px) { .pipeline li { grid-template-columns: 40px minmax(0, 1fr); } .pipeline .port { grid-column: 2; } }
+
+.flows { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.flow { background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; padding: 12px; display: grid; gap: 10px; align-content: start; }
+.flow canvas { width: 100%; height: auto; aspect-ratio: 3 / 2; image-rendering: pixelated; display: block; background: var(--rock); border-radius: 2px; }
+.flow .stats { font-family: var(--f-mono); font-size: 11.5px; color: var(--parch-mute); }
+.flow p { font-size: 14px; color: var(--parch-dim); }
+.flow .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--stone-4); border-radius: 4px; background: var(--stone-2); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--stone-3); }
+th { font-family: var(--f-label); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--parch-mute); font-weight: 400; background: var(--stone-1); position: sticky; top: 0; white-space: nowrap; }
+td { color: var(--parch-dim); min-width: 140px; }
+td:first-child { color: var(--parch); min-width: 150px; }
+td b { color: var(--parch); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.wide td { min-width: 180px; }
+
+.bosses { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.boss { background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+.boss .name { font-family: var(--f-display); font-size: 22px; color: var(--blood); line-height: 1.1; }
+.boss dl { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 6px 12px; margin: 0; font-size: 13.5px; }
+.boss dt { font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--parch-mute); padding-top: 3px; }
+.boss dd { margin: 0; color: var(--parch-dim); }
+
+.biomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.biome { border: 1px solid var(--stone-4); border-radius: 4px; padding: 16px; display: grid; gap: 10px; align-content: start; background: var(--stone-2); }
+.biome .name { font-family: var(--f-display); font-size: 21px; line-height: 1.1; }
+.biome .swatches { display: flex; gap: 4px; }
+.biome .swatches i { width: 22px; height: 10px; border-radius: 1px; display: block; }
+.biome dl { margin: 0; display: grid; gap: 6px; font-size: 13px; }
+.biome dt { font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--parch-mute); }
+.biome dd { margin: 0 0 4px; color: var(--parch-dim); }
+
+pre.code {
+  margin: 0; padding: 14px 16px; background: var(--rock); border: 1px solid var(--stone-4); border-radius: 4px;
+  overflow-x: auto; color: #e9dfc4; line-height: 1.5; font-size: 12.5px; max-height: 560px;
+}
+.code-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.code-grid > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.code-grid h4 { font-family: var(--f-mono); font-size: 13px; color: var(--parch-dim); font-weight: 600; }
+details.source { border: 1px solid var(--stone-4); border-radius: 4px; background: var(--stone-2); }
+details.source summary { cursor: pointer; padding: 12px 14px; font-weight: 600; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+details.source[open] summary { border-bottom: 1px solid var(--stone-4); }
+details.source pre.code { border: 0; border-radius: 0; max-height: 720px; }
+
+.phases { display: grid; gap: 10px; }
+.phase { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 20px; padding: 16px; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; }
+.phase .ph { font-family: var(--f-display); font-size: 20px; color: var(--torch); line-height: 1.1; }
+.phase .ph small { display: block; font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; color: var(--parch-mute); text-transform: uppercase; margin-top: 6px; }
+.phase ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; color: var(--parch-dim); }
+.phase .proto { font-size: 12px; color: var(--parch-mute); margin-top: 6px; }
+@media (max-width: 640px) { .phase { grid-template-columns: minmax(0, 1fr); } }
+
+.decisions { display: grid; gap: 10px; }
+.decision { padding: 14px 16px; background: var(--stone-2); border: 1px solid var(--stone-4); border-radius: 4px; display: grid; gap: 6px; }
+.decision .q { font-weight: 600; color: var(--parch); }
+.decision .rec { font-size: 14px; color: var(--parch-dim); }
+.decision .rec b { color: var(--moss); font-family: var(--f-label); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: 400; margin-right: 6px; }
+
+.sources { columns: 2 320px; column-gap: 28px; margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--parch-dim); }
+.sources li { break-inside: avoid; margin-bottom: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--parch); color: #16120a; padding: 8px 14px; border-radius: 3px; font-weight: 600; font-size: 13px; z-index: 20; }
+footer { font-size: 12px; color: var(--parch-mute); border-top: 1px solid var(--stone-4); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) { .thumb, button { transition: border-color 120ms ease, background 120ms ease; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="top-meta">
+    <span class="eyebrow">DudesNDungeons · design reference · generator v2</span>
+    <span class="eyebrow">Protocol today: v36 · TILE_SCALE 4 · 96×64 authored tiles</span>
+  </div>
+  <h1>Dungeon Design Bible</h1>
+  <p class="lede">Each time the party walks through the gate, the dungeon is rebuilt from a new seed: a new shape, route, boss, set of locks, and omens. This page holds the design, the research behind it, and a working generator. The generator below is the reference to port into <code>src/server/game/</code>. Press <strong>Enter a new delve</strong> to see a new dungeon.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#bench">Workbench</a><a href="#today">Why runs feel the same</a><a href="#research">Research</a>
+    <a href="#rules">Rules</a><a href="#pipeline">Pipeline</a><a href="#flows">Flows</a><a href="#biomes">Biomes</a>
+    <a href="#bosses">Bosses</a><a href="#puzzles">Group puzzles</a><a href="#traps">Traps</a><a href="#coop">Co-op events</a>
+    <a href="#loot">Loot and pacing</a><a href="#omens">Omens</a><a href="#porting">Porting guide</a><a href="#roadmap">Roadmap</a>
+    <a href="#decisions">Decisions</a><a href="#source">Source</a>
+  </nav>
+</header>
+
+<!-- ======================================================== WORKBENCH -->
+<section id="bench" class="bench" aria-label="Live dungeon workbench">
+  <div class="controls">
+    <div class="field">
+      <label for="seed">Seed</label>
+      <input id="seed" type="number" min="0" max="4294967295" step="1" value="20261022">
+    </div>
+    <button id="reroll" class="primary" type="button">Enter a new delve</button>
+    <div class="field">
+      <span class="label" id="party-label">Party</span>
+      <div class="seg" role="group" aria-labelledby="party-label" id="party">
+        <button type="button" data-party="1" aria-pressed="false">1</button>
+        <button type="button" data-party="2" aria-pressed="false">2</button>
+        <button type="button" data-party="3" aria-pressed="false">3</button>
+        <button type="button" data-party="4" aria-pressed="true">4</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="flow">Flow</label>
+      <select id="flow"><option value="">Rolled by seed</option></select>
+    </div>
+    <div class="field">
+      <label for="biome">Biome</label>
+      <select id="biome"><option value="">Rolled by seed</option></select>
+    </div>
+    <div class="toggles" role="group" aria-label="Map layers">
+      <label><input id="t-graph" type="checkbox" checked> Flow graph</label>
+      <label><input id="t-ent" type="checkbox" checked> Contents</label>
+      <label><input id="t-dark" type="checkbox"> Torchlight only</label>
+    </div>
+  </div>
+
+  <div class="bench-grid">
+    <div class="map-frame" id="map-frame">
+      <canvas id="map" width="768" height="512" aria-label="Generated dungeon map"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="map-caption">
+        <span id="map-cap-left">96 × 64 authored tiles · 384 × 256 in the world</span>
+        <span id="map-cap-right"></span>
+      </div>
+    </div>
+
+    <aside class="card" aria-live="polite">
+      <div class="eyebrow">Quest board omen</div>
+      <div class="omen" id="omen"></div>
+      <dl class="facts" id="facts"></dl>
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px">Keys and locks</div>
+        <ul class="locks" id="locks"></ul>
+      </div>
+      <div class="pacing">
+        <div class="eyebrow" style="margin-bottom:6px">Pacing on the critical path</div>
+        <div class="pacing-wrap"><svg id="pacing" viewBox="0 0 360 132" role="img" aria-label="Threat per room along the critical path"></svg><div class="tip" id="ptip" hidden></div></div>
+        <p class="muted" style="font-size:12px;margin-top:4px">Threat = monster cost + traps + events, per room, entrance to exit.</p>
+      </div>
+      <div class="card-actions">
+        <button type="button" id="copy-json">Copy run JSON</button>
+        <button type="button" id="copy-link">Copy seed</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="legend" id="legend" aria-label="Map legend"></div>
+
+  <div class="section-head" style="margin-top:14px">
+    <h3>The next six delves</h3>
+    <p class="muted">The six seeds after this one, in order. Click one to load it into the workbench.</p>
+  </div>
+  <div class="gallery" id="gallery"></div>
+</section>
+
+<!-- ======================================================== TODAY -->
+<section id="today">
+  <div class="section-head">
+    <span class="eyebrow">Diagnosis</span>
+    <h2>Why every run feels the same</h2>
+    <p>The seed is not the problem. <code>buildDungeon</code> draws a fresh seed for every run. The problem is that every seed builds the same dungeon. These three maps come from today's real <code>generateDungeon</code> and <code>vault-run.json</code>, for seeds 11, 2024 and 90210:</p>
+  </div>
+  <div class="compare" id="compare"></div>
+  <div class="findings">
+    <div class="finding"><div class="n">1</div><h4>template per landmark</h4><p>Entrance, puzzle, boss and exit each have exactly one template. Every run starts in Cinder Gate, solves the Hall of Paired Levers, fights the Ember Warden in Warden Crucible, and leaves by Ember Stair.</p></div>
+    <div class="finding"><div class="n">⅔</div><h4>of the world is never used</h4><p><code>placeRooms</code> fills rooms left to right in reading order. In all three samples the rooms sit in rows 3 to 21 of 64, and the rest is solid rock. The start is always top-left and the boss always at the end of the second row.</p></div>
+    <div class="finding"><div class="n">0</div><h4>branches, loops or choices</h4><p>The run is one chain: entrance, the slots in fixed order, then the exit. Nobody can choose a road, take a shortcut, get lost, or decide to split up. That removes most of what darkness and proximity voice are for.</p></div>
+    <div class="finding"><div class="n">1</div><h4>lock, and any key opens it</h4><p>There is one locked door, in front of the exit room, and <code>interact</code> spends whatever key the player holds. That makes it impossible to have a second lock, such as a vault, without allowing sequence breaks.</p></div>
+  </div>
+</section>
+
+<!-- ======================================================== RESEARCH -->
+<section id="research">
+  <div class="section-head">
+    <span class="eyebrow">Research</span>
+    <h2>What the best dungeons do</h2>
+    <p>The games below are known for dungeons that stay interesting over hundreds of runs. Most of them rely on the same two ideas. First, the shape of the run is planned before any room is chosen. Second, rooms are hand-made, and the generator decides which ones appear and where. That also matches what <code>GAMEDESCRIPTION.md</code> asks for: dungeons "generated from large room templates".</p>
+  </div>
+  <div class="studies">
+    <article class="study">
+      <div class="game">Spelunky</div>
+      <p class="does">Lays a 4×4 grid of rooms, walks a guaranteed solution path from a top-row entrance to a bottom-row exit, then gives each room a hand-made template that fits its role (drop, landing, corridor, off-path). Parts of each template are randomised as well.</p>
+      <p class="take">Walk the critical path on a coarse grid first, then fill rooms by role. A solvable route exists by construction.</p>
+      <a class="src" href="https://gamedev.net/blogs/entry/2249558-the-full-spelunky-on-spelunky-xbla">Spelunky generation write-up</a>
+    </article>
+    <article class="study">
+      <div class="game">The Binding of Isaac</div>
+      <p class="does">Builds the floor plan on a grid, then assigns special rooms to dead ends, starting with the dead end farthest from the start. The boss gets the farthest one and the super secret room the next.</p>
+      <p class="take">Sort dead ends by distance and give the far ones the special rooms: vault, shrine, secret room. Distance makes them feel earned.</p>
+      <a class="src" href="https://boristhebrave.com/2020/09/12/dungeon-generation-in-binding-of-isaac">Boris the Brave on Isaac</a>
+    </article>
+    <article class="study">
+      <div class="game">Enter the Gungeon</div>
+      <p class="does">Each floor uses one of a handful of hand-made layout "flows" (4 to 8 per stage), each built around a feature such as a big loop or a multi-way fork. Rooms are hand-made. Combat rooms are spaced out with breather rooms, and chests sit behind longer one-way loops.</p>
+      <p class="take">Flows as content. A run's flow is chosen first and decides how many branches and loops it has and how the boss is locked.</p>
+      <a class="src" href="https://www.boristhebrave.com/2019/07/28/dungeon-generation-in-enter-the-gungeon">Boris the Brave on Gungeon</a>
+    </article>
+    <article class="study">
+      <div class="game">Unexplored</div>
+      <p class="does">Joris Dormans' cyclic generation builds levels from loops instead of trees. A cycle runs from the entrance to the goal, and its two arcs are shaped by a cycle type, such as a lock on one arc with its key on the other. Loops cut down on dead ends and backtracking.</p>
+      <p class="take">Add loops on purpose. In the dark, two routes to the same room give a party a reason to split and a way to get separated.</p>
+      <a class="src" href="https://www.boristhebrave.com/2021/04/10/dungeon-generation-in-unexplored/">Boris the Brave on Unexplored</a>
+    </article>
+    <article class="study">
+      <div class="game">Zelda, via Boss Keys</div>
+      <p class="does">Mark Brown's series charts each Zelda dungeon as a graph of rooms, locks and keys, and grades it by branching, player choice and backtracking. Ocarina of Time, for example, never lets you choose where to spend a key.</p>
+      <p class="take">Treat locks and keys as a graph, and check that graph on every run. Give each key a specific door so that a choice of where to spend it is real.</p>
+      <a class="src" href="https://www.boristhebrave.com/2021/02/27/lock-and-key-dungeons">Lock and key dungeons</a>
+    </article>
+    <article class="study">
+      <div class="game">Brogue</div>
+      <p class="does">"Machines" are small authored set pieces dropped into generated levels: a key on an altar where picking it up sets off a hazard, or reward rooms where items sit on caged altars and taking one closes the cages on the rest.</p>
+      <p class="take">Altars that offer two skill scrolls and cage the second once the party takes one. The party has to agree on which, out loud.</p>
+      <a class="src" href="https://brogue.fandom.com/wiki/Altar">Brogue wiki: altars</a>
+    </article>
+    <article class="study">
+      <div class="game">Dead Cells</div>
+      <p class="does">The team tried hand-made levels, found it too slow for a small team, and moved to a hybrid: hand-designed room chunks placed into a procedural layout. Runs feel familiar but are never the same.</p>
+      <p class="take">Keep hand-made templates for the rooms people remember (arenas, puzzles), and let procedural shapes (mazes, caverns) cover the filler.</p>
+      <a class="src" href="https://deepnight.net/tutorial/the-level-design-of-dead-cells-a-hybrid-approach/">Deepnight: Dead Cells level design</a>
+    </article>
+    <article class="study">
+      <div class="game">Deep Rock Galactic</div>
+      <p class="does">Missions can carry mutators. Warnings make a mission harder for a bigger payout; Anomalies change it in neutral or helpful ways. The game caps how many a mission can have, and they are shown before the mission starts.</p>
+      <p class="take">Omens: at most one warning and one anomaly per run, shown on the hub's quest board before the party readies up.</p>
+      <a class="src" href="https://deeprockgalactic.wiki.gg/wiki/Mutator">DRG wiki: mutators</a>
+    </article>
+    <article class="study">
+      <div class="game">Darkest Dungeon</div>
+      <p class="does">The light meter trades safety for profit. A bright torch means fewer ambushes and less stress; low light means more danger and better loot. Players snuff the torch on purpose in some rooms to raise the loot.</p>
+      <p class="take">The richest rooms are dark. Vaults get no lights, and a Dark Bargain lets the party put out its torches to improve a room's chests.</p>
+      <a class="src" href="https://darkestdungeon.wiki.gg/wiki/Light_meter">Darkest Dungeon wiki: light meter</a>
+    </article>
+    <article class="study">
+      <div class="game">Hades</div>
+      <p class="does">After a chamber is cleared, each exit door shows the reward behind it. A skull marks a harder room with a better reward. The player picks the reward before fighting for it.</p>
+      <p class="take">At a fork, the doors show what is beyond them. The party commits by standing on plates in front of a door, which reuses the hub's ready plates.</p>
+      <a class="src" href="https://shacknews.com/article/122186/door-symbol-meanings-hades">Hades door symbols</a>
+    </article>
+    <article class="study">
+      <div class="game">Keep Talking and Nobody Explodes</div>
+      <p class="does">The defuser sees the bomb and the experts see the manual. Neither can see what the other sees, so the game is mostly talking under pressure. Steel Crate's GDC talk covers designing puzzles to keep players talking.</p>
+      <p class="take">Puzzles where the clue is in one room and the controls are in another. Darkness and short voice range turn that into a real communication problem.</p>
+      <a class="src" href="https://gdcvault.com/play/1023113/Designing-Asymmetric-Gameplay-For-Keep">GDC: Designing Asymmetric Gameplay</a>
+    </article>
+  </div>
+</section>
+
+<!-- ======================================================== RULES -->
+<section id="rules">
+  <div class="section-head">
+    <span class="eyebrow">The design</span>
+    <h2>Six rules for our dungeons</h2>
+    <p>These come from combining the research with the game's pillars: lighting, looting and fighting, proximity voice, and roguelite progression.</p>
+  </div>
+  <div class="rules">
+    <div class="rule"><h3>Shape first, story second</h3><p>Walk the critical path, grow branches, add loops, then decide what each room is. Roles are assigned from the shape (distance, dead ends, loops), so the story always fits the map.</p></div>
+    <div class="rule"><h3>Validate every run</h3><p>A run that breaks an invariant is re-rolled from seed and attempt number, never shipped. In 6,000 test seeds, 3 needed a second attempt and none needed a third.</p></div>
+    <div class="rule"><h3>Content, not code</h3><p>Flows, biomes, bosses, puzzles, traps and omens are JSON under <code>content/</code>. A new flow or biome is a file and a restart, like a monster is today.</p></div>
+    <div class="rule"><h3>Darkness is the price of greed</h3><p>Vaults and secret rooms have no lights. Corridors are lit sparsely and deliberately. A shrine can trade your light for better loot. Torches are always a choice.</p></div>
+    <div class="rule"><h3>Every room asks the party something</h3><p>Fight, split up, talk, choose, hurry, or rest. A room that asks nothing is a corridor. Camps and shrines count, because they ask the party to agree.</p></div>
+    <div class="rule"><h3>Scale with the party</h3><p>The server knows the party size when the gate opens. Plates never outnumber players plus ballast stones, the Split Seal needs two players, and threat budgets scale from 0.8× for one player to 1.4× for four.</p></div>
+  </div>
+</section>
+
+<!-- ======================================================== PIPELINE -->
+<section id="pipeline">
+  <div class="section-head">
+    <span class="eyebrow">How a dungeon is built</span>
+    <h2>The seven-stage pipeline</h2>
+    <p>Each stage is a pure function of the seeded stream and the previous stage's output. Stage 1 reads the run seed directly, so a retry changes the layout but never the run's identity. Stages 2 to 7 read <code>mixSeed(seed, attempt)</code>.</p>
+  </div>
+  <ol class="pipeline">
+    <li><div class="step">1</div><div><h3>Recipe</h3><p>Pick the flow (weighted, filtered by party size), the biome, a boss from the biome's pool, and up to one warning and one anomaly omen.</p></div><div class="port">New: <code>generation/recipe.ts</code>. Reads <code>content/flows</code>, <code>content/biomes</code>, <code>content/omens</code>.</div></li>
+    <li><div class="step">2</div><div><h3>Layout</h3><p>Self-avoiding walk across a 6×4 grid of 16-tile cells for the critical path (entrance to boss to exit). Grow the flow's branches into free cells, then add loops between adjacent rooms that are at least three hops apart. The boss and exit never get loops or branches.</p></div><div class="port">Replaces <code>chooseTemplates</code> and <code>placeRooms</code> in <code>dungeonGenerator.ts</code>.</div></li>
+    <li><div class="step">3</div><div><h3>Roles, locks and keys</h3><p>Lock the boss according to the flow: a key, seals or a split seal. Put the key holder on the farthest dead end. Give other far dead ends a vault, shrine or secret room. Put a camp at about 60% of the path. Fill the rest from the biome's weights, with no room kind twice in a row and no trap right after the entrance.</p></div><div class="port">New: <code>generation/roles.ts</code>. Room kinds stay within today's enum until phase 2.</div></li>
+    <li><div class="step">4</div><div><h3>Room shapes</h3><p>A shape per role: hand-made templates (rotated and mirrored) or procedural shapes (pillared halls, octagons, braided mazes, cellular-automata caverns). Sockets sit at the midpoint of each side. A 0-1 BFS carves the fewest walls needed to connect all four sockets, and floor pockets nobody can reach are filled in.</p></div><div class="port">New: <code>generation/roomShapes.ts</code>. <code>loadContent</code> keeps rejecting templates whose sockets do not connect.</div></li>
+    <li><div class="step">5</div><div><h3>Carve</h3><p>Stamp each room into its cell with random jitter. Join neighbours socket to socket with a corridor that jogs once inside the gap. Rooms in adjacent cells always have at least 4 tiles between them.</p></div><div class="port">Replaces <code>carveCorridor</code>. The BFS router can stay as a fallback.</div></li>
+    <li><div class="step">6</div><div><h3>Populate</h3><p>Doors first, in the locked room's own socket. Then lights, spawns, the exit, monsters from a threat budget, key holders, loot and chests by role, traps, events, then puzzle plates and ballast stones. Corridor torches go every 7 tiles, filtered by the biome's light level and omens.</p></div><div class="port">Grows <code>populate</code>. Instances still come from <code>dungeonBuilder.ts</code>.</div></li>
+    <li><div class="step">7</div><div><h3>Validate</h3><p>Flood-fill the real tiles. With every lock closed, the boss room and vaults must be unreachable. Collecting keys and solving puzzles in any reachable order must reach the exit. Every room must be reachable at the end, and every entity must stand on floor. On failure, retry with attempt + 1, up to 40 times.</p></div><div class="port">New: <code>generation/validate.ts</code>, shared with <code>tests/server/generation.test.ts</code>.</div></li>
+  </ol>
+</section>
+
+<!-- ======================================================== FLOWS -->
+<section id="flows">
+  <div class="section-head">
+    <span class="eyebrow">Layout archetypes</span>
+    <h2>Five flows</h2>
+    <p>A flow sets the shape of a run before any room is chosen. Each thumbnail below was drawn by the generator with that flow forced, with the flow graph on. Numbers mark the critical path. Dashed amber edges are key locks, dashed violet edges are seals, and blue edges are loops.</p>
+  </div>
+  <div class="flows" id="flow-cards"></div>
+</section>
+
+<!-- ======================================================== BIOMES -->
+<section id="biomes">
+  <div class="section-head">
+    <span class="eyebrow">Themes</span>
+    <h2>Four biomes</h2>
+    <p>A biome is a content file. It lists the monster roster with threat costs, trap and puzzle pools, a boss pool, weights for room kinds, a light level and tint, a loot table and room names. Cinder Depths uses only content that ships today, so phase 1 needs no new art. The other three are proposals; each needs a monster set, wall and floor art, and a light tint.</p>
+  </div>
+  <div class="biomes" id="biome-cards"></div>
+</section>
+
+<!-- ======================================================== BOSSES -->
+<section id="bosses">
+  <div class="section-head">
+    <span class="eyebrow">The bottom of every run</span>
+    <h2>Bosses</h2>
+    <p>Every boss is a monster with <code>boss: true</code>, which already seals the exit until it falls (<code>bosses.ts</code>). Each design below adds one co-op mechanic that a single player can't easily handle alone. Each arena style is a room shape in stage 4.</p>
+  </div>
+  <div class="bosses">
+    <article class="boss">
+      <div class="name">Ember Warden</div>
+      <div><span class="chip live">live</span><span class="chip none">Cinder Depths</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Crucible: an octagon with four pillars and a fire at the centre.</dd>
+        <dt>Today</dt><dd>90 HP melee bruiser with an 800 ms wind-up and 1.4 reach.</dd>
+        <dt>Add</dt><dd>Below 50% health, each slam leaves a short-lived ember vent where it landed. The arena fills with hazards, so the party has to keep moving and calling out safe ground.</dd>
+        <dt>Co-op</dt><dd>One player draws the swing while the others hit from behind. The 120° hit cone (<code>hitArcCos</code> 0.5) rewards flanking.</dd>
+        <dt>Needs</dt><dd>Traps with a lifetime: the existing trap system plus <code>expiresAt</code>.</dd>
+      </dl>
+    </article>
+    <article class="boss">
+      <div class="name">The Lantern Eater</div>
+      <div><span class="chip proposed">proposed</span><span class="chip none">any biome</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Ring: four braziers around a central light.</dd>
+        <dt>Fight</dt><dd>It walks to the nearest lit brazier, puts it out, and heals. It can only be damaged while it stands in light.</dd>
+        <dt>Co-op</dt><dd>Torchbearers relight braziers and draw it into the light; fighters strike when it is lit. This is lighting as a combat mechanic.</dd>
+        <dt>Solo</dt><dd>Snuffed braziers relight on their own after 12 s.</dd>
+        <dt>Needs</dt><dd>A lightable brazier entity, and a damage gate that reads the lit tiles the server already computes.</dd>
+      </dl>
+    </article>
+    <article class="boss">
+      <div class="name">The Pale Twins</div>
+      <div><span class="chip proposed">proposed</span><span class="chip none">2+ players</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Nave: two long rows of pillars that block sight lines between the twins.</dd>
+        <dt>Fight</dt><dd>Two bodies. When one falls, the other raises it at half health after 8 s, unless both are down within that window.</dd>
+        <dt>Co-op</dt><dd>The party splits its damage and calls out health over voice ("mine's low, hold"). The pillars mean the halves can't see each other.</dd>
+        <dt>Needs</dt><dd>A boss group with a shared revive timer. The generator already places both bodies.</dd>
+      </dl>
+    </article>
+    <article class="boss">
+      <div class="name">The Drowned Bellwether</div>
+      <div><span class="chip proposed">proposed</span><span class="chip none">Drowned Crypt</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Nave with three bells on the pillars.</dd>
+        <dt>Fight</dt><dd>It rings a three-bell pattern to summon thralls. Ringing the bells back in the same order stuns it for 6 s. The pattern shows as light pulses on the bells, which only nearby players can see.</dd>
+        <dt>Co-op</dt><dd>Watchers call out the order, ringers run to the bells, and fighters hold off the thralls. It works like Keep Talking inside a boss fight.</dd>
+        <dt>Needs</dt><dd>A bell entity, a sequence puzzle state, and a stun state for monsters.</dd>
+      </dl>
+    </article>
+    <article class="boss">
+      <div class="name">The Sporemother</div>
+      <div><span class="chip proposed">proposed</span><span class="chip none">Fungal Hollow</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Ring: three pustules around a shielded core.</dd>
+        <dt>Fight</dt><dd>She does not move, and the core is shielded until all three pustules burst. Each pustule spawns Spore Puffs, and their clouds shrink the sight radius of anyone inside.</dd>
+        <dt>Co-op</dt><dd>The party splits across the arena. A player blinded by spores navigates by a teammate's voice.</dd>
+        <dt>Needs</dt><dd>A shielded state, and a sight debuff in an area (the reverse of <code>sightRadiusBonus</code>).</dd>
+      </dl>
+    </article>
+    <article class="boss">
+      <div class="name">The Gaoler</div>
+      <div><span class="chip proposed">proposed</span><span class="chip none">Bone Ossuary</span></div>
+      <dl>
+        <dt>Arena</dt><dd>Crucible with cell blocks for pillars.</dd>
+        <dt>Fight</dt><dd>It throws cages that root a player in place, then retreats through the cell blocks when hurt.</dd>
+        <dt>Co-op</dt><dd>Rescue. A caged player can't act until a teammate breaks the cage (three hits) or pulls the arena lever. A party that tunnels on the boss loses members.</dd>
+        <dt>Needs</dt><dd>A root status, and a flee behaviour for <code>monsterAi</code>.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<!-- ======================================================== PUZZLES -->
+<section id="puzzles">
+  <div class="section-head">
+    <span class="eyebrow">Group activities</span>
+    <h2>Group puzzles</h2>
+    <p>Today's puzzle system, plates held at once by different players (<code>puzzles.ts</code>), already does the hard part: the server assigns holders and tracks hold time. Most of the designs below are new plate layouts or a new kind of switch. Each one lists how it scales from one to four players, since the generator knows the party size.</p>
+  </div>
+  <div class="table-wrap">
+    <table class="wide">
+      <thead><tr><th>Puzzle</th><th>How it plays</th><th>Why it needs the group</th><th>Party scaling</th><th>Builds on</th></tr></thead>
+      <tbody>
+        <tr><td><b>Paired Levers</b><br><span class="chip live">live</span></td><td>Hold every plate at once for 5 s (1.5 s at most puzzle power).</td><td>Each plate needs a different player.</td><td>Plates = min(party, 2–3). A <b>Ballast Stone</b> (carried, with a stamina cost) can hold one plate, so a solo player can still solve it.</td><td><code>puzzles.ts</code>, carrying</td></tr>
+        <tr><td><b>Split Seal</b><br><span class="chip proposed">proposed</span></td><td>Two plates in rooms at least three rooms apart, held at the same moment. It opens the boss gate in the Split Seal flow.</td><td>The party has to split up in the dark and time it without seeing each other.</td><td>Two players or more. The flow is filtered out for a solo party.</td><td>plates; a <b>Speaking Tube</b> at each plate links voice between them</td></tr>
+        <tr><td><b>Brazier Relay</b><br><span class="chip proposed">proposed</span></td><td>Three braziers spread across a room. Light all three within 25 s of the first, using a carried torch.</td><td>Runners split up, or one runner gets a route called out by the others.</td><td>Time window +10 s for each missing player.</td><td>torch item, new brazier switch</td></tr>
+        <tr><td><b>Bell Sequence</b><br><span class="chip proposed">proposed</span></td><td>Glyph lamps in a gallery flash a four-note pattern, and the bells that answer it are in the next room.</td><td>The watcher sees the pattern but can't reach the bells; the ringer can't see the pattern. They have to talk.</td><td>Solo: a window between the rooms lets one player see both, at a run.</td><td>new bell switch, lit tiles</td></tr>
+        <tr><td><b>Counterweight Gate</b><br><span class="chip proposed">proposed</span></td><td>A portcullis stays open only while someone stands on its weight plate. A lever deep inside locks it open.</td><td>One player stays behind in the dark while the others go in. It separates the party, then reunites it.</td><td>Solo: a Ballast Stone on the plate.</td><td>door <code>open</code> tied to a plate</td></tr>
+        <tr><td><b>Seal Braziers</b><br><span class="chip proposed">proposed</span></td><td>One brazier at the end of every spoke. The boss gate opens when all are lit.</td><td>Spread out or walk a long way. The camp in the middle is the natural meeting point.</td><td>2 or 3 seals depending on the layout.</td><td>brazier switch, seal door lock</td></tr>
+        <tr><td><b>Idol Carry</b><br><span class="chip proposed">proposed</span></td><td>Carry a heavy idol from a vault to an altar. The carrier moves at half speed and monsters target them.</td><td>Escort duty: the carrier can't fight, and the others have to cover them.</td><td>Solo: put the idol down and fight, then pick it up again (with the lift stamina cost).</td><td>carrying (#34), stamina drain</td></tr>
+        <tr><td><b>Shadow Glyphs</b><br><span class="chip proposed">proposed</span></td><td>Glyphs on a wall show only inside a light radius. Lighting them reveals a code for a vault's levers.</td><td>One player holds the light while another reads the code aloud.</td><td>A flare lasts long enough for one player.</td><td>lit tiles (v24), flares</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== TRAPS -->
+<section id="traps">
+  <div class="section-head">
+    <span class="eyebrow">Hazards</span>
+    <h2>Traps</h2>
+    <p>The three live traps (Spike Plate, Ember Vent, Snare Wire) fit today's trap schema: radius, damage, resistance loss, stamina drain and rearm time. The proposals add four fields: <code>effect</code> (snuff, slow, alarm, root), <code>pattern</code> (a timed cycle), <code>projectile</code>, and <code>expiresAt</code>. They complement open issue #63, which asks for trap variety.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Trap</th><th>Effect</th><th>Tell and counterplay</th><th>Co-op angle</th><th>Schema</th></tr></thead>
+      <tbody>
+        <tr><td><b>Snuffer Vent</b></td><td>Puts out every torch in its radius for 8 s.</td><td>A soot ring on the floor. Step around it, or carry a flare.</td><td>The torchbearer has to call out "light going" before stepping over.</td><td><code>effect: "snuffTorch"</code></td></tr>
+        <tr><td><b>Pendulum Blade</b></td><td>Swings across a corridor on a fixed cycle. Heavy damage.</td><td>Rhythmic whoosh and a visible arc. Time the crossing.</td><td>Count each other through: "go… now".</td><td><code>pattern: { periodMs, activeMs }</code></td></tr>
+        <tr><td><b>Arrow Slit</b></td><td>Fires a bolt across a corridor when a plate is stepped on.</td><td>The slit is drawn in the wall. Find and avoid the plate.</td><td>One player draws fire while the rest cross.</td><td><code>projectile</code> (same shape as monster bolts)</td></tr>
+        <tr><td><b>Toll Bell</b></td><td>Wakes and alerts every monster in the room.</td><td>A tripwire to the bell. Step over it.</td><td>A stealth room the whole party has to cross quietly.</td><td><code>effect: "alarm"</code></td></tr>
+        <tr><td><b>Collapsing Floor</b></td><td>Single use. Damage and a stun. Later it drops the player into a pit room below.</td><td>Cracked tiles. It gives way on the second person.</td><td>Splits the party for real once pit rooms exist.</td><td>today's schema, no <code>rearmMs</code></td></tr>
+        <tr><td><b>Cage Trap</b></td><td>Roots the player until an ally interacts with the cage.</td><td>A bait chest in the middle of the room.</td><td>Rescue: it does nothing to a party that sticks together.</td><td><code>effect: "root"</code></td></tr>
+        <tr><td><b>Flood Grate</b></td><td>Slows movement by half and drains stamina while you stand in it.</td><td>Water sound and glints in torchlight.</td><td>Carry a downed ally across, or go the long way round.</td><td><code>effect: "slow"</code> + <code>staminaDrain</code></td></tr>
+        <tr><td><b>Spore Vent</b></td><td>Resistance loss and a smaller sight radius for 10 s.</td><td>A pulsing cap that puffs every few seconds.</td><td>A blinded player follows a teammate's voice.</td><td><code>resistanceLoss</code> + <code>effect: "blind"</code></td></tr>
+        <tr><td><b>Mimic Chest</b></td><td>A chest that bites when opened, then fights like a monster.</td><td>It breathes, which you only see in torchlight.</td><td>"Who's opening it?" Someone has to.</td><td>a monster that wears a chest sprite</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== COOP -->
+<section id="coop">
+  <div class="section-head">
+    <span class="eyebrow">Group activities</span>
+    <h2>Co-op events and fights</h2>
+    <p>These are room-level set pieces, similar to Brogue's machines. The generator places them by role. Several of them reuse systems built for the hub: ready plates, seats and emotes.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Event</th><th>What happens</th><th>Where the generator puts it</th><th>Reuses</th></tr></thead>
+      <tbody>
+        <tr><td><b>Hold the Line</b></td><td>The arena doors seal and 2 to 4 waves arrive. Monsters target a central brazier; if it goes out, the waves get stronger. Clearing it drops a vault chest, and the arena's Keeper drops a key when the flow says so.</td><td>Arena rooms, never before path depth 3.</td><td>door locks, monster spawns, lights</td></tr>
+        <tr><td><b>Door Vote</b></td><td>At a fork, each doorway shows an icon for what is beyond it: loot, a skull for danger, a shrine or unknown. The party commits by standing on that door's plates.</td><td>Junctions with three or more exits.</td><td>ready plates (#147)</td></tr>
+        <tr><td><b>Shrine Choice</b></td><td>An altar offers two skill scrolls. Taking one cages the other for the rest of the run.</td><td>Far dead ends. Guaranteed under the Scroll Cache omen.</td><td>skill scrolls (decision 0011)</td></tr>
+        <tr><td><b>Campfire Rest</b></td><td>When every standing player sits at the campfire for 10 s, everyone gets 15 resistance back, once per camp. Resistance decay pauses while they sit.</td><td>The path room at about 60%, or the hub room in Hearth and Spokes.</td><td>seats (#148), campfire light</td></tr>
+        <tr><td><b>Dark Bargain</b></td><td>A shrine candle asks for the party's light. If every torch in the room goes out for 20 s, the chests there improve by one tier, and monsters come for you in the dark.</td><td>Shrines and vault antechambers.</td><td>torches, lit tiles</td></tr>
+        <tr><td><b>Keybearer Hunt</b></td><td>An elite carries the vault key, runs when hurt, and calls for help. Chase it through loops in the dark.</td><td>A hall, cavern or maze away from the vault.</td><td>monster loot, flow field</td></tr>
+        <tr><td><b>Twin-lock Chest</b></td><td>Two keyholes. Two players interact within 1 s of each other.</td><td>Vaults and secret rooms.</td><td>chests (#88)</td></tr>
+        <tr><td><b>Speaking Tubes</b></td><td>Brass tubes link two far points. Anyone standing at one end is heard at full volume at the other.</td><td>Split Seal plates, and Bell Sequence rooms.</td><td>server-gated voice distances (decision 0012)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== LOOT -->
+<section id="loot">
+  <div class="section-head">
+    <span class="eyebrow">Loot and pacing</span>
+    <h2>Risk pays, and the curve rises</h2>
+    <p>Loot is placed according to what a room costs to clear. Threat comes from a budget, so depth and party size raise the danger without hand-tuning each room.</p>
+  </div>
+  <div class="code-grid">
+    <div>
+      <h4>Threat budget per room</h4>
+      <pre class="code">budget = base[role]
+       × (1 + 0.5 × depth)        // 0 at the entrance, 1 at the boss
+       × (0.6 + 0.2 × partySize)  // 0.8× solo … 1.4× for four
+       × omen.budgetMult          // Restless Dead: 1.4
+
+base = { hall 5, cavern 5, maze 3, vault 3,
+         trap 2, secret 2, arena 2 + waves, puzzle 1 }
+cost = { cinder-slime 1, ash-imp 1,
+         cinder-spitter 2, slag-charger 3,
+         elite or keeper 4, boss 12 }</pre>
+    </div>
+    <div>
+      <h4>Pacing rules</h4>
+      <div class="prose" style="font-size:14px;color:var(--parch-dim)">
+        <ul>
+          <li>No trap room right after the entrance, so the party gets its bearings first.</li>
+          <li>No room kind twice in a row on the critical path.</li>
+          <li>A camp at about 60% of the path, as a breather before the climb to the boss (from Gungeon's breather rooms).</li>
+          <li>Arenas only from three hops deep.</li>
+          <li>The boss is always last, and the exit is a dead end behind it.</li>
+          <li>The walk to the exit takes about 1.5 to 3 minutes of pure walking (p10 89 s, median 129 s, p90 181 s over 2,000 seeds). Fighting and exploring fill the rest of the 15 to 20 minute target.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Room</th><th>Light</th><th>Loot</th><th>The risk you pay</th></tr></thead>
+      <tbody>
+        <tr><td><b>Hall / Cavern</b></td><td>0–2 wall torches</td><td>0–2 consumables, 30% common chest</td><td>The biggest monster budgets</td></tr>
+        <tr><td><b>Maze</b></td><td>0–1 lost lantern</td><td>Common chest (90%) in its deepest nook</td><td>Getting lost, and ambushes at corners</td></tr>
+        <tr><td><b>Trap</b></td><td>0–1 red warning lamp</td><td>1 consumable, 50% common chest</td><td>3–5 traps</td></tr>
+        <tr><td><b>Vault</b></td><td>none</td><td>1–2 vault chests</td><td>A locked door, an elite with the key, and darkness</td></tr>
+        <tr><td><b>Secret</b></td><td>none</td><td>Vault chest</td><td>Finding the cracked wall</td></tr>
+        <tr><td><b>Shrine</b></td><td>1 candle</td><td>Choose 1 of 2 scrolls</td><td>The party has to agree, and the Dark Bargain</td></tr>
+        <tr><td><b>Arena</b></td><td>0–2 torches</td><td>Vault chest (80%)</td><td>Hold the Line waves</td></tr>
+        <tr><td><b>Boss</b></td><td>Arena fire</td><td>Vault chest and the boss's own drop</td><td>The boss</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== OMENS -->
+<section id="omens">
+  <div class="section-head">
+    <span class="eyebrow">Run modifiers</span>
+    <h2>Omens</h2>
+    <p>As in Deep Rock Galactic: at most one warning and one anomaly per run. In the reference generator a warning rolls 35% of the time and an anomaly 30%. The omen is written on the hub's quest board (a prop that already exists) before the party readies up, so the choice to go in is an informed one.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Omen</th><th>Type</th><th>Effect</th><th>Knob it turns</th></tr></thead>
+      <tbody>
+        <tr><td><b>Smothering Dark</b></td><td><span class="chip warning">warning</span></td><td>Half as many fixed lights, and their radius is ×0.8.</td><td>light pass, <code>lightMult</code> and <code>radiusMult</code></td></tr>
+        <tr><td><b>Restless Dead</b></td><td><span class="chip warning">warning</span></td><td>Threat budgets ×1.4.</td><td><code>budgetMult</code></td></tr>
+        <tr><td><b>Brittle Floors</b></td><td><span class="chip warning">warning</span></td><td>Collapsing floors along the corridors.</td><td>corridor traps</td></tr>
+        <tr><td><b>Short Fuse</b></td><td><span class="chip warning">warning</span></td><td>Resistance starts decaying after 6 minutes instead of 10.</td><td><code>RESISTANCE_DECAY_GRACE_MS</code> per run</td></tr>
+        <tr><td><b>Golden Hoard</b></td><td><span class="chip anomaly">anomaly</span></td><td>+35% chance for every chest roll.</td><td><code>chestBonus</code></td></tr>
+        <tr><td><b>Lantern Festival</b></td><td><span class="chip anomaly">anomaly</span></td><td>×1.6 lights. An easy run, good for new players.</td><td><code>lightMult</code></td></tr>
+        <tr><td><b>Echoing Halls</b></td><td><span class="chip anomaly">anomaly</span></td><td>Voice carries 1.5× farther.</td><td><code>VOICE_SILENCE_DISTANCE</code> per run</td></tr>
+        <tr><td><b>Scroll Cache</b></td><td><span class="chip anomaly">anomaly</span></td><td>A shrine is guaranteed.</td><td>roles pass</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== PORTING -->
+<section id="porting">
+  <div class="section-head">
+    <span class="eyebrow">Moving this into the game</span>
+    <h2>Porting guide</h2>
+    <p>The reference generator sticks to the repo's conventions so the port is mostly translation. It uses the same mulberry32 stream as <code>random.ts</code> and never calls <code>Math.random</code>. It works in authored tiles, and <code>scaleDungeon</code> runs afterwards unchanged. Light radii are world units. The map alphabet is still only <code>#</code> and <code>.</code>, so phase 1 needs no renderer or tile changes. Its output has the same shape as <code>BuiltDungeon</code>, plus a <code>graph</code> for debugging.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Reference function</th><th>Becomes</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>createRng</code></td><td><code>src/server/game/random.ts</code></td><td>Same stream. Add <code>chance(p)</code> and <code>weighted(entries)</code>. Keep <code>uuid()</code> for entity ids; the reference uses readable counters instead.</td></tr>
+        <tr><td><code>mixSeed</code></td><td><code>random.ts</code></td><td>Derives the stream for each retry. <code>session.seed</code> stays the run seed, and the attempt number is logged.</td></tr>
+        <tr><td><code>chooseRecipe</code></td><td><code>generation/recipe.ts</code></td><td>Reads the new <code>content/flows</code>, <code>content/biomes</code> and <code>content/omens</code>.</td></tr>
+        <tr><td><code>walkPath</code>, <code>buildGraph</code></td><td><code>generation/layout.ts</code></td><td>Grid constants (6×4 cells of 16) belong in the dungeon profile, not in code.</td></tr>
+        <tr><td><code>assignRoles</code></td><td><code>generation/roles.ts</code></td><td>Phase 1 maps <code>cavern</code> to <code>hall</code> and leaves out vault, shrine, secret and arena, so the <code>roomKind</code> enum stays the same.</td></tr>
+        <tr><td><code>SHAPES</code>, <code>repairSockets</code>, <code>transformTiles</code></td><td><code>generation/roomShapes.ts</code></td><td>Templates take priority. Procedural shapes are for maze, cavern and hall filler.</td></tr>
+        <tr><td><code>placeRooms</code>, <code>carve</code></td><td><code>dungeonGenerator.ts</code></td><td>Replaces the reading-order layout. Doors keep <code>size: 1</code> before scaling.</td></tr>
+        <tr><td><code>populate</code></td><td><code>dungeonGenerator.ts</code> + <code>dungeonBuilder.ts</code></td><td>Use <code>monsterInstance</code>, <code>lootInstance</code>, <code>chestInstance</code>, <code>trapInstance</code> and <code>puzzleInstance</code> as today.</td></tr>
+        <tr><td><code>validate</code></td><td><code>generation/validate.ts</code></td><td>Called by the generator and by <code>tests/server/generation.test.ts</code>.</td></tr>
+        <tr><td><code>generate({ partySize })</code></td><td><code>buildDungeon</code> request</td><td><code>startRun</code> passes <code>session.players.size</code>. This is the only new input.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="code-grid">
+    <div>
+      <h4>content/flows/long-loop.json</h4>
+      <pre class="code">{
+  "id": "long-loop",
+  "name": "The Long Loop",
+  "weight": 3,
+  "minParty": 1,
+  "path": { "min": 6, "max": 7 },
+  "branches": { "min": 1, "max": 2 },
+  "branchLength": { "min": 1, "max": 1 },
+  "loops": { "min": 2, "max": 3 },
+  "branchFrom": "any",
+  "bossLock": "key",
+  "keySource": "branch",
+  "vaultChance": 0.4
+}</pre>
+    </div>
+    <div>
+      <h4>content/biomes/cinder-depths.json</h4>
+      <pre class="code">{
+  "id": "cinder-depths",
+  "name": "Cinder Depths",
+  "theme": "stone",
+  "lightTint": "warm",
+  "light": 1,
+  "roster": [
+    { "typeId": "cinder-slime",   "cost": 1, "weight": 3 },
+    { "typeId": "ash-imp",        "cost": 1, "weight": 3 },
+    { "typeId": "cinder-spitter", "cost": 2, "weight": 2 },
+    { "typeId": "slag-charger",   "cost": 3, "weight": 1 }
+  ],
+  "traps": ["spike-plate", "ember-vent", "snare-wire"],
+  "puzzles": ["paired-levers"],
+  "bosses": ["ember-warden"],
+  "roomWeights": { "hall": 4, "maze": 2, "trap": 2 },
+  "lootTableId": "common-chest",
+  "names": { "hall": ["Ashen Hall", "Slag Gallery"] }
+}</pre>
+    </div>
+    <div>
+      <h4>content/dungeons/vault-run.json, v2</h4>
+      <pre class="code">{
+  "id": "vault-run",
+  "name": "The Vault Run",
+  "layout": "delve",
+  "grid": { "cols": 6, "rows": 4, "cell": 16, "margin": 2 },
+  "flows": ["gauntlet", "long-loop", "three-roads",
+            "hub-spokes", "split-seal"],
+  "biomes": ["cinder-depths"],
+  "omens": { "warningChance": 0.35, "anomalyChance": 0.3 },
+  "corridorLight": { "name": "Corridor Torch",
+                     "radius": 4.5, "everyTiles": 7 },
+  "exitDestination": "hub",
+  "maxAttempts": 40
+}</pre>
+    </div>
+    <div>
+      <h4>Template v2 fields (roomTemplateSchema)</h4>
+      <pre class="code">{
+  "id": "ossuary-cross",
+  "kind": "hall",
+  "tiles": [ "###########", "#.........#", "…" ],
+  // NEW: sockets at side midpoints; doorways derived.
+  "sockets": "midpoints",
+  // NEW: generator may rotate and mirror (odd sizes).
+  "transform": true,
+  // NEW: which biomes and flows may use it.
+  "biomes": ["bone-ossuary", "cinder-depths"],
+  "tags": ["pillared", "large"]
+}
+// Existing doorways[] stays valid for authored
+// templates that need custom openings.</pre>
+    </div>
+  </div>
+
+  <div class="section-head" style="margin-top:8px">
+    <h3>Protocol changes, in the order they are needed</h3>
+    <p class="muted">Each one is a breaking change and bumps <code>PROTOCOL_VERSION</code> from 36. Follow the <code>protocol-contract-change</code> skill.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Change</th><th>Shape</th><th>Why</th><th>Phase</th></tr></thead>
+      <tbody>
+        <tr><td><b>None</b></td><td>The grid layout, flows, loops, branches, procedural shapes and party scaling all fit today's wire.</td><td>Phase 1 ships on v36.</td><td>1</td></tr>
+        <tr><td><b>Typed keys</b></td><td><code>doorState.lock: { type: "key", keyItemId } | { type: "seal", puzzleId } | { type: "hidden" }</code>. <code>interact</code> spends only the matching key.</td><td>A vault and a boss door in the same run. Today any key opens any door.</td><td>2</td></tr>
+        <tr><td><b>Room kinds</b></td><td><code>roomKind</code> gains <code>camp</code>, <code>shrine</code>, <code>vault</code>, <code>secret</code>, <code>arena</code> and <code>cavern</code>.</td><td>Minimap headers, room tints, and the camp and shrine rules.</td><td>2</td></tr>
+        <tr><td><b>Switches</b></td><td><code>switchState { id, kind: "brazier" | "bell" | "lever", position, active }</code></td><td>Seal Braziers, Brazier Relay, Bell Sequence, the Lantern Eater.</td><td>3</td></tr>
+        <tr><td><b>Altars</b></td><td><code>altarState { id, position, offer: itemId[], taken: itemId | null }</code></td><td>Shrine Choice.</td><td>2</td></tr>
+        <tr><td><b>Run omens</b></td><td><code>hubState.nextRun: { flowName, biomeName, omens[] }</code>, rolled when the party enters the hub.</td><td>The quest board shows the omen before anyone readies up.</td><td>3</td></tr>
+        <tr><td><b>Trap effects</b></td><td><code>trapState.effect</code>, and a pattern phase on <code>trapPhase</code>.</td><td>Snuffer, Pendulum, Cage, Flood Grate.</td><td>4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-head" style="margin-top:8px">
+    <h3>Invariants to sweep in tests</h3>
+    <p class="muted">Extend the 120-seed sweep in <code>tests/server/generation.test.ts</code> to every party size from 1 to 4 and every flow. The reference passed 6,000 seeds (1,500 per party size) and catches both mutation tests: a key moved inside the boss room, and locks never placed.</p>
+  </div>
+  <div class="prose" style="max-width:none">
+    <ol style="columns: 2 320px; column-gap: 32px; display:block">
+      <li>Every spawn, monster, loot, chest, trap, plate, altar and exit is on open floor.</li>
+      <li>With every lock closed, no tile inside the boss room or a vault is reachable from spawn.</li>
+      <li>Collecting keys and solving puzzles in any reachable order opens a route to the exit.</li>
+      <li>Every room is reachable once all locks are open.</li>
+      <li>No puzzle needs more plates held than the party has players plus ballast stones.</li>
+      <li>Every key is reachable before the door it opens. This follows from 2 and 3, and is worth naming in the test.</li>
+      <li>The same seed and party size give byte-identical tiles and ids.</li>
+      <li>The boss and exit rooms have no extra connections: the exit is a dead end behind the boss.</li>
+      <li>Generation stays under 5 ms per run. The reference takes 1.6 ms in Node, and <code>npm run bench:tick</code> should not change, because generation happens once per run, not per tick.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======================================================== ROADMAP -->
+<section id="roadmap">
+  <div class="section-head">
+    <span class="eyebrow">Delivery</span>
+    <h2>Roadmap, in issue-sized steps</h2>
+    <p>Each bullet is roughly one GitHub issue for the <code>issue</code> and <code>ticket</code> skills. Phase 1 is backend only and changes no protocol, so it can start now, in parallel with HUD work.</p>
+  </div>
+  <div class="phases">
+    <div class="phase"><div class="ph">Phase 1<small>Shape</small></div><div><ul>
+      <li>Add <code>chance</code>, <code>weighted</code> and <code>mixSeed</code> to <code>random.ts</code>, with stream-compatibility tests.</li>
+      <li>Grid layout: critical path walk, branches and loops, replacing <code>placeRooms</code>.</li>
+      <li>Roles with today's room kinds. Boss lock = the existing locked door, moved from the exit room to the boss room.</li>
+      <li>Midpoint sockets, rotate and mirror for templates, plus procedural maze, cavern and hall shapes.</li>
+      <li>Author 12 to 15 new Cinder templates: 3 entrances, 3 exits, 2 boss arenas, 3 puzzle rooms, and halls.</li>
+      <li>Pass party size into generation. Scale puzzle plates and threat budgets.</li>
+      <li>Validation and retry loop, plus the sweep in tests.</li>
+    </ul><div class="proto">Protocol: none. Art: none.</div></div></div>
+    <div class="phase"><div class="ph">Phase 2<small>Locks and specials</small></div><div><ul>
+      <li>Typed keys and door locks (boss key and vault key).</li>
+      <li>New room kinds: vault, shrine, camp, secret, arena.</li>
+      <li>Shrine altars with a choice of two scrolls.</li>
+      <li>Campfire Rest (seats around the campfire).</li>
+      <li>Cracked walls for secret rooms.</li>
+    </ul><div class="proto">Protocol: typed locks, room kinds, altars. Art: altar, cracked wall, room tints.</div></div></div>
+    <div class="phase"><div class="ph">Phase 3<small>Flows and omens</small></div><div><ul>
+      <li>Flows as content, all five, with the Split Seal gated to parties of two or more.</li>
+      <li>Omens rolled when the party enters the hub and shown on the quest board.</li>
+      <li>Hold the Line arenas and Keepers.</li>
+      <li>Brazier switches, Seal Braziers, and Speaking Tubes.</li>
+    </ul><div class="proto">Protocol: switches, run omens. Art: brazier, tube, quest-board text.</div></div></div>
+    <div class="phase"><div class="ph">Phase 4<small>Biomes</small></div><div><ul>
+      <li>Biomes as content, then one biome per issue. Drowned Crypt first, because its roster reuses melee, ranged and charger behaviours.</li>
+      <li>New traps with effects (Snuffer Vent first, since it serves the lighting pillar).</li>
+      <li>Map themes for each biome, extending today's <code>stone</code> and <code>forest</code>.</li>
+    </ul><div class="proto">Protocol: trap effects. Art: walls, floors and a monster set per biome.</div></div></div>
+    <div class="phase"><div class="ph">Phase 5<small>Bosses and puzzles</small></div><div><ul>
+      <li>One boss per issue: Lantern Eater, Pale Twins, Bellwether, Sporemother, Gaoler.</li>
+      <li>One group puzzle per issue: Bell Sequence, Counterweight Gate, Idol Carry, Shadow Glyphs.</li>
+      <li>Door Vote at forks.</li>
+    </ul><div class="proto">Protocol: monster states (stun, shield, root) as each boss needs them.</div></div></div>
+  </div>
+</section>
+
+<!-- ======================================================== DECISIONS -->
+<section id="decisions">
+  <div class="section-head">
+    <span class="eyebrow">Opinion checkpoints</span>
+    <h2>Decisions for the owner</h2>
+    <p>Each comes with a recommendation. None of them blocks phase 1 except the first.</p>
+  </div>
+  <div class="decisions">
+    <div class="decision"><div class="q">Should the generator lay rooms out on a grid of cells with sockets at the side midpoints, instead of free placement?</div><div class="rec"><b>Recommend</b>Yes. The grid is what makes branches and loops cheap and safe: corridors stay inside the gap between two rooms, so they can't cross rooms or bypass locks. Most of the games studied here use a grid.</div></div>
+    <div class="decision"><div class="q">Should one run stay one floor, or should the exit offer a stair down?</div><div class="rec"><b>Recommend</b>One floor through phase 4. Then add a Descent option at the exit: go up and bank your loot, or go down one depth with harder budgets, better tables and a new biome. That is the roguelite push-your-luck, but it changes how a run saves (#122), so it should wait.</div></div>
+    <div class="decision"><div class="q">Should the map alphabet grow (water, chasms, bridges)?</div><div class="rec"><b>Recommend</b>Not yet. Everything in phases 1 to 3 is done with entities (doors, switches, plates, traps) on <code>#</code> and <code>.</code>. AGENTS.md calls a new tile character a coordinated content, collision, protocol and renderer change, so it should earn its place later, with pit rooms.</div></div>
+    <div class="decision"><div class="q">Should the omen be shown before the run or found inside?</div><div class="rec"><b>Recommend</b>Before, on the quest board. An informed "do we go in under Smothering Dark?" is a good conversation for friends in the hub. Biome and flow can stay hidden until the party is inside.</div></div>
+    <div class="decision"><div class="q">How should solo and duo parties handle puzzles built for four?</div><div class="rec"><b>Recommend</b>Ballast Stones plus scaling. The generator never asks for more plates than players, and spawns a carryable stone for each missing hand. Group-only content (Split Seal, Pale Twins) is filtered out below two players.</div></div>
+    <div class="decision"><div class="q">Should biome be per run or per depth?</div><div class="rec"><b>Recommend</b>Per run for now, with Cinder Depths only in phase 1. If Descent ships, switch to per depth so going down feels like going somewhere new.</div></div>
+  </div>
+</section>
+
+<!-- ======================================================== SOURCE -->
+<section id="source">
+  <div class="section-head">
+    <span class="eyebrow">Reference implementation</span>
+    <h2>Generator source</h2>
+    <p>This is the exact code the workbench runs: about 1,500 lines of plain JavaScript with no dependencies. The stage comments match the pipeline above. Copy it into a scratch file to port it, or load it in Node with <code>require()</code>; it exports <code>GEN</code> when <code>module</code> exists.</p>
+  </div>
+  <details class="source">
+    <summary><span>gen.js: GEN.generate({ seed, partySize, flowId, biomeId, mutatorIds })</span><button type="button" id="copy-src">Copy source</button></summary>
+    <pre class="code" id="src-view"></pre>
+  </details>
+
+  <div class="section-head">
+    <h3>Sources</h3>
+  </div>
+  <ul class="sources">
+    <li><a href="https://gamedev.net/blogs/entry/2249558-the-full-spelunky-on-spelunky-xbla">Spelunky level generation write-up</a>, GameDev.net</li>
+    <li><a href="https://www.boristhebrave.com/2019/07/28/dungeon-generation-in-enter-the-gungeon">Dungeon Generation in Enter the Gungeon</a>, Boris the Brave</li>
+    <li><a href="https://www.gamedeveloper.com/design/q-a-the-guns-and-dungeons-of-i-enter-the-gungeon-i-">Q&amp;A: The guns and dungeons of Enter the Gungeon</a>, Game Developer</li>
+    <li><a href="https://boristhebrave.com/2020/09/12/dungeon-generation-in-binding-of-isaac">Dungeon Generation in Binding of Isaac</a>, Boris the Brave</li>
+    <li><a href="https://bindingofisaacrebirth.wiki.gg/wiki/Level_Generation">Level Generation</a>, Binding of Isaac Rebirth wiki</li>
+    <li><a href="https://www.boristhebrave.com/2021/04/10/dungeon-generation-in-unexplored/">Dungeon Generation in Unexplored</a>, Boris the Brave</li>
+    <li><a href="https://www.gamedeveloper.com/design/unexplored-s-secret-cyclic-dungeon-generation-">Unexplored's secret: cyclic dungeon generation</a>, Game Developer</li>
+    <li><a href="https://www.boristhebrave.com/2021/02/27/lock-and-key-dungeons">Lock and Key Dungeons</a>, Boris the Brave</li>
+    <li><a href="https://zeldauniverse.net/2017/01/26/explore-zelda-dungeon-design-in-mark-browns-youtube-series-boss-keys/">Mark Brown's Boss Keys series</a>, Zelda Universe</li>
+    <li><a href="https://brogue.fandom.com/wiki/Altar">Altar</a> and <a href="https://brogue.wiki/wiki/Level_generation">Level generation</a>, Brogue wikis</li>
+    <li><a href="https://deepnight.net/tutorial/the-level-design-of-dead-cells-a-hybrid-approach/">The Level Design of Dead Cells: a hybrid approach</a>, Deepnight</li>
+    <li><a href="https://deeprockgalactic.wiki.gg/wiki/Mutator">Mutator</a>, <a href="https://deeprockgalactic.wiki.gg/wiki/Warning">Warning</a>, <a href="https://deeprockgalactic.wiki.gg/wiki/Anomaly">Anomaly</a>, Deep Rock Galactic wiki</li>
+    <li><a href="https://darkestdungeon.wiki.gg/wiki/Light_meter">Light Meter</a>, Darkest Dungeon wiki</li>
+    <li><a href="https://shacknews.com/article/122186/door-symbol-meanings-hades">Hades door symbol meanings</a>, Shacknews; <a href="https://hades.fandom.com/wiki/Chambers_and_Encounters">Chambers and Encounters</a>, Hades wiki</li>
+    <li><a href="https://gdcvault.com/play/1023113/Designing-Asymmetric-Gameplay-For-Keep">Designing Asymmetric Gameplay for Keep Talking and Nobody Explodes</a>, GDC Vault</li>
+  </ul>
+</section>
+
+<footer>
+  Reference generator v2 · written against DudesNDungeons at commit f0079c8 (protocol v36) · the "today" maps are real output of <code>generateDungeon</code> with <code>vault-run.json</code>.
+  Proposed monsters, traps, puzzles and bosses are marked <span class="chip proposed">proposed</span>; everything marked <span class="chip live">live</span> exists in <code>content/</code> today.
+</footer>
+</div>
+
+<script id="gen-src">
+/* =====================================================================================
+ * DELVE GENERATOR v2 - reference implementation
+ *
+ * Port target: src/server/game/generation/ (see "Porting guide" in this document).
+ * A pure function of (seed, partySize, overrides). Nothing here calls Math.random.
+ * Units are authored tiles, exactly like dungeonGenerator.ts: scaleDungeon() multiplies the
+ * finished result by TILE_SCALE afterwards. Light radii are world units, as in content/.
+ *
+ * Stages, in order:
+ *   1. recipe   - flow, biome, boss, omens drawn from the run seed
+ *   2. layout   - critical path walk on a 6x4 cell grid, then branches, then loops
+ *   3. roles    - entrance/boss/exit fixed; locks and keys; specials on dead ends; fill by biome
+ *   4. rooms    - a shape per role, sockets at side midpoints, connectivity repaired
+ *   5. carve    - rooms stamped into cells, corridors joined socket to socket
+ *   6. populate - lights, monsters, loot, chests, traps, puzzles, doors, spawns, exit
+ *   7. validate - tile-level lock-and-key flood fill; on failure, retry with attempt + 1
+ * ===================================================================================== */
+const GEN = (() => {
+  const TILE_SCALE = 4;
+  const PLAYER_MOVE_SPEED = 6;
+  const COLS = 6;
+  const ROWS = 4;
+  const CELL = 16;
+  const CELL_MARGIN = 2;
+  const WIDTH = COLS * CELL;
+  const HEIGHT = ROWS * CELL;
+  const WALL = "#";
+  const FLOOR = ".";
+  const DIRS = [
+    { x: 1, y: 0, side: "east" },
+    { x: -1, y: 0, side: "west" },
+    { x: 0, y: 1, side: "south" },
+    { x: 0, y: -1, side: "north" },
+  ];
+  const OPPOSITE = { north: "south", south: "north", east: "west", west: "east" };
+  const MAX_ATTEMPTS = 40;
+
+  // ---------------------------------------------------------------- rng
+  // mulberry32, byte-for-byte the stream in src/server/game/random.ts.
+  function createRng(seed) {
+    let state = seed >>> 0;
+    const next = () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+      let t = state;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const int = (min, max) => min + Math.floor(next() * (max - min + 1));
+    return {
+      next,
+      int,
+      chance: (p) => (p >= 1 ? true : p <= 0 ? false : next() < p),
+      pick: (items) => {
+        if (items.length === 0) throw new Error("Cannot pick from an empty list");
+        return items[int(0, items.length - 1)];
+      },
+      shuffle: (items) => {
+        const copy = [...items];
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+          const j = int(0, i);
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      },
+      weighted: (entries) => {
+        const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+        let roll = next() * total;
+        for (const entry of entries) {
+          roll -= entry.weight;
+          if (roll < 0) return entry;
+        }
+        return entries[entries.length - 1];
+      },
+    };
+  }
+
+  /** A child seed, so a retry re-rolls the layout without changing the run's recipe. */
+  function mixSeed(seed, salt) {
+    let h = (seed ^ Math.imul((salt + 0x9e3779b9) >>> 0, 0x85ebca6b)) >>> 0;
+    h ^= h >>> 13;
+    h = Math.imul(h, 0xc2b2ae35) >>> 0;
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+
+  // ---------------------------------------------------------------- catalog (content/ shaped)
+  const CATALOG = {
+    flows: [
+      {
+        id: "gauntlet", name: "The Gauntlet", weight: 3, minParty: 1,
+        blurb: "One long road with a few side pockets. The key is a puzzle's reward.",
+        path: [7, 8], branches: [1, 2], branchLen: [1, 2], loops: [0, 0],
+        branchFrom: "any", bossLock: "key", keySource: "puzzle", vaultChance: 0.35,
+        source: "Spelunky's guaranteed solution path",
+      },
+      {
+        id: "long-loop", name: "The Long Loop", weight: 3, minParty: 1,
+        blurb: "Two routes circle to the boss. Split up, or lose each other in the dark.",
+        path: [6, 7], branches: [1, 2], branchLen: [1, 1], loops: [2, 3],
+        branchFrom: "any", bossLock: "key", keySource: "branch", vaultChance: 0.4,
+        source: "Unexplored's cyclic generation",
+      },
+      {
+        id: "three-roads", name: "The Three Roads", weight: 2, minParty: 1,
+        blurb: "A short spine with three deep branches. A guardian in one holds the key.",
+        path: [4, 5], branches: [3, 3], branchLen: [2, 3], loops: [0, 1],
+        branchFrom: "any", bossLock: "key", keySource: "arena", vaultChance: 0.7,
+        source: "Enter the Gungeon's fork flows",
+      },
+      {
+        id: "hub-spokes", name: "The Hearth and Spokes", weight: 2, minParty: 1,
+        blurb: "A camp at the centre. Light the seal at the end of every spoke.",
+        path: [4, 4], branches: [3, 3], branchLen: [1, 2], loops: [0, 0],
+        branchFrom: "hub", hubIndex: 2, bossLock: "seals", keySource: "seals", vaultChance: 0.2,
+        source: "Zelda's multi-key dungeons",
+      },
+      {
+        id: "split-seal", name: "The Split Seal", weight: 2, minParty: 2,
+        blurb: "Two plates, rooms apart, held at once. The party must split to go on.",
+        path: [5, 6], branches: [2, 2], branchLen: [2, 3], loops: [0, 1],
+        branchFrom: "any", bossLock: "split-seal", keySource: "split", vaultChance: 0.3,
+        source: "We Were Here and Keep Talking's split information",
+      },
+    ],
+
+    biomes: [
+      {
+        id: "cinder-depths", name: "Cinder Depths", status: "live", lightTint: "warm",
+        blurb: "Furnace tunnels under the hub. Built from the content that ships today.",
+        floor: "#3b2a20", glow: "#f08a48",
+        roster: [
+          { id: "cinder-slime", name: "Cinder Slime", cost: 1, weight: 3, live: true },
+          { id: "ash-imp", name: "Ash Imp", cost: 1, weight: 3, live: true },
+          { id: "cinder-spitter", name: "Cinder Spitter", cost: 2, weight: 2, live: true },
+          { id: "slag-charger", name: "Slag Charger", cost: 3, weight: 1, live: true },
+        ],
+        traps: ["spike-plate", "ember-vent", "snare-wire"],
+        puzzles: ["paired-levers", "brazier-relay"],
+        bosses: ["ember-warden", "lantern-eater", "pale-twins"],
+        rooms: { hall: 4, maze: 2, cavern: 1, trap: 2 },
+        light: 1,
+        loot: [
+          { itemId: "minor-tonic", weight: 3 }, { itemId: "warding-salve", weight: 2 },
+          { itemId: "stamina-draught", weight: 2 }, { itemId: "flare", weight: 2 },
+          { itemId: "travelers-torch", weight: 1 }, { itemId: "smelling-salts", weight: 1 },
+        ],
+        names: {
+          entrance: ["Cinder Gate", "Ash Stair"], exit: ["Ember Stair", "Chimney Climb"],
+          hall: ["Ashen Hall", "Slag Gallery", "Bellows Nave", "Clinker Hall", "Soot Chapel"],
+          maze: ["Sunken Maze", "Flue Warren", "Ducts of Ash"], cavern: ["Magma Gut", "Cooling Pocket"],
+          trap: ["Collapsing Span", "Vent Run", "Spike Gallery"],
+          puzzle: ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"],
+          camp: ["Banked Hearth"], shrine: ["Shrine of the Kiln"], vault: ["Slag Vault"],
+          secret: ["Cracked Flue"], arena: ["Quench Pit"],
+        },
+      },
+      {
+        id: "drowned-crypt", name: "Drowned Crypt", status: "proposed", lightTint: "cold",
+        blurb: "Flooded burial vaults. Sound carries; bells wake the dead.",
+        floor: "#1f2b31", glow: "#7fc4c9",
+        roster: [
+          { id: "grave-leech", name: "Grave Leech", cost: 1, weight: 3 },
+          { id: "drowned-thrall", name: "Drowned Thrall", cost: 2, weight: 2 },
+          { id: "bell-wraith", name: "Bell Wraith", cost: 2, weight: 2 },
+          { id: "crypt-crawler", name: "Crypt Crawler", cost: 3, weight: 1 },
+        ],
+        traps: ["flood-grate", "spike-plate", "toll-bell"],
+        puzzles: ["bell-sequence", "paired-levers"],
+        bosses: ["drowned-bellwether", "pale-twins", "lantern-eater"],
+        rooms: { hall: 3, maze: 3, cavern: 1, trap: 2 },
+        light: 0.8,
+        loot: [
+          { itemId: "minor-tonic", weight: 3 }, { itemId: "warding-salve", weight: 3 },
+          { itemId: "flare", weight: 2 }, { itemId: "smelling-salts", weight: 1 },
+        ],
+        names: {
+          entrance: ["Lych Gate", "Tide Steps"], exit: ["Bell Tower Stair", "Drain Shaft"],
+          hall: ["Flooded Nave", "Ossuary Aisle", "Hall of Urns", "Drowned Chapel"],
+          maze: ["Catacomb Rows", "The Niches"], cavern: ["Sinkhole"], trap: ["Grate Walk", "Toll Corridor"],
+          puzzle: ["Bell Loft", "Lock of Tides"], camp: ["Dry Crypt"], shrine: ["Saint's Alcove"],
+          vault: ["Reliquary"], secret: ["Bricked Tomb"], arena: ["Baptistry"],
+        },
+      },
+      {
+        id: "fungal-hollow", name: "Fungal Hollow", status: "proposed", lightTint: "green",
+        blurb: "Caves lit only by glowcaps. Spores eat your torchlight.",
+        floor: "#22291c", glow: "#9bd46a",
+        roster: [
+          { id: "spore-puff", name: "Spore Puff", cost: 1, weight: 3 },
+          { id: "lamp-moth", name: "Lamp Moth", cost: 1, weight: 2 },
+          { id: "mycelid-creeper", name: "Mycelid Creeper", cost: 2, weight: 2 },
+          { id: "cap-brute", name: "Cap Brute", cost: 3, weight: 1 },
+        ],
+        traps: ["spore-vent", "snare-wire", "puffball"],
+        puzzles: ["brazier-relay", "counterweight-gate"],
+        bosses: ["sporemother", "lantern-eater"],
+        rooms: { cavern: 5, hall: 1, maze: 1, trap: 1 },
+        light: 0.6,
+        loot: [
+          { itemId: "minor-tonic", weight: 2 }, { itemId: "stamina-draught", weight: 3 },
+          { itemId: "flare", weight: 3 }, { itemId: "travelers-torch", weight: 1 },
+        ],
+        names: {
+          entrance: ["Root Mouth", "Damp Steps"], exit: ["Lightwell", "Root Climb"],
+          hall: ["Gill Hall", "Mycel Chamber"], maze: ["Hyphae Tangle", "Rootwork"],
+          cavern: ["Glowcap Grotto", "Spore Hollow", "Dripping Cave", "Puffball Field"],
+          trap: ["Vent Fields", "Vine Throat"], puzzle: ["Garden of Lamps", "Root Gate"],
+          camp: ["Dry Ledge"], shrine: ["Mother's Ring"], vault: ["Seed Vault"],
+          secret: ["Moss Curtain"], arena: ["Bloom Pit"],
+        },
+      },
+      {
+        id: "bone-ossuary", name: "Bone Ossuary", status: "proposed", lightTint: "warm",
+        blurb: "A prison built of the dead. Blades swing on a clock; the Gaoler keeps the keys.",
+        floor: "#2c2824", glow: "#e3cf9a",
+        roster: [
+          { id: "rattling-dead", name: "Rattling Dead", cost: 1, weight: 3 },
+          { id: "hollow-hound", name: "Hollow Hound", cost: 2, weight: 1 },
+          { id: "ossuary-archer", name: "Ossuary Archer", cost: 2, weight: 2 },
+          { id: "bone-knight", name: "Bone Knight", cost: 3, weight: 1 },
+        ],
+        traps: ["pendulum-blade", "collapsing-floor", "spike-plate"],
+        puzzles: ["counterweight-gate", "paired-levers", "bell-sequence"],
+        bosses: ["the-gaoler", "pale-twins"],
+        rooms: { hall: 3, maze: 2, trap: 3 },
+        light: 0.9,
+        loot: [
+          { itemId: "minor-tonic", weight: 3 }, { itemId: "warding-salve", weight: 2 },
+          { itemId: "smelling-salts", weight: 2 }, { itemId: "arrow", weight: 2 },
+        ],
+        names: {
+          entrance: ["Turnkey's Gate", "Charnel Steps"], exit: ["Pardon Stair", "Bone Lift"],
+          hall: ["Hall of Skulls", "Cell Block", "Femur Gallery"], maze: ["The Stacks", "Cell Warren"],
+          trap: ["Blade Walk", "Rotten Floor", "Gibbet Row"], puzzle: ["Counterweight Hall", "Chain Room"],
+          camp: ["Warden's Mess"], shrine: ["Chapel of Bones"], vault: ["Evidence Room"],
+          secret: ["Loose Bricks"], arena: ["Yard"],
+        },
+      },
+    ],
+
+    bosses: {
+      "ember-warden": { name: "Ember Warden", status: "live", minParty: 1, arena: "crucible", room: "Warden Crucible" },
+      "lantern-eater": { name: "The Lantern Eater", status: "proposed", minParty: 1, arena: "ring", room: "The Snuffed Ring" },
+      "pale-twins": { name: "The Pale Twins", status: "proposed", minParty: 2, arena: "nave", room: "Mirror Nave" },
+      "drowned-bellwether": { name: "The Drowned Bellwether", status: "proposed", minParty: 1, arena: "nave", room: "Sunken Belfry" },
+      sporemother: { name: "The Sporemother", status: "proposed", minParty: 1, arena: "ring", room: "Brood Chamber" },
+      "the-gaoler": { name: "The Gaoler", status: "proposed", minParty: 1, arena: "crucible", room: "Gaoler's Keep" },
+    },
+
+    mutators: [
+      { id: "smothering-dark", name: "Smothering Dark", type: "warning", lightMult: 0.5, radiusMult: 0.8 },
+      { id: "restless-dead", name: "Restless Dead", type: "warning", budgetMult: 1.4 },
+      { id: "brittle-floors", name: "Brittle Floors", type: "warning", corridorTraps: true },
+      { id: "short-fuse", name: "Short Fuse", type: "warning", decayGraceMs: 6 * 60_000 },
+      { id: "golden-hoard", name: "Golden Hoard", type: "anomaly", chestBonus: 0.35 },
+      { id: "lantern-festival", name: "Lantern Festival", type: "anomaly", lightMult: 1.6 },
+      { id: "echoing-halls", name: "Echoing Halls", type: "anomaly", voiceRangeMult: 1.5 },
+      { id: "scroll-cache", name: "Scroll Cache", type: "anomaly", shrine: true },
+    ],
+  };
+
+  const ROOM_DIMS = {
+    entrance: [[9, 7], [11, 7], [9, 9]],
+    exit: [[9, 7], [7, 9], [9, 9]],
+    boss: [[11, 11]],
+    camp: [[9, 9], [11, 9]],
+    shrine: [[7, 7], [9, 9]],
+    vault: [[9, 7], [7, 9]],
+    secret: [[7, 7]],
+    puzzle: [[11, 9], [11, 11], [9, 11], [11, 7]],
+    arena: [[11, 11]],
+    hall: [[9, 7], [11, 9], [11, 11], [9, 9], [11, 7]],
+    maze: [[11, 11], [11, 9], [9, 11]],
+    cavern: [[11, 11], [11, 9], [9, 11]],
+    trap: [[11, 7], [7, 11], [11, 9]],
+  };
+
+  /** Hand-authored templates, in the content/ format. Odd sizes so sockets survive rotation. */
+  const TEMPLATES = {
+    "paired-levers": {
+      role: "puzzle",
+      tiles: [
+        "###########",
+        "#...###...#",
+        "#...###...#",
+        "#.........#",
+        "#...###...#",
+        "#...###...#",
+        "###########",
+      ],
+    },
+    "ossuary-cross": {
+      role: "hall",
+      tiles: [
+        "###########",
+        "#.........#",
+        "#.##...##.#",
+        "#.##...##.#",
+        "#.........#",
+        "#.........#",
+        "#.........#",
+        "#.##...##.#",
+        "#.##...##.#",
+        "#.........#",
+        "###########",
+      ],
+    },
+    "collapsing-span": {
+      role: "trap",
+      tiles: [
+        "###########",
+        "#.........#",
+        "#.##...##.#",
+        "#.........#",
+        "#.##...##.#",
+        "#.........#",
+        "###########",
+      ],
+    },
+  };
+
+  const ROLE_SHAPES = {
+    entrance: ["plain", "octagon"],
+    exit: ["plain", "octagon"],
+    boss: ["arena"],
+    camp: ["octagon", "plain"],
+    shrine: ["octagon", "cross"],
+    vault: ["plain", "pillars"],
+    secret: ["plain"],
+    puzzle: ["partition", "template:paired-levers", "plain"],
+    arena: ["octagon-pillars"],
+    hall: ["plain", "pillars", "block", "cross", "ring", "template:ossuary-cross"],
+    maze: ["maze"],
+    cavern: ["cavern"],
+    trap: ["alcoves", "template:collapsing-span", "plain"],
+  };
+
+  // ---------------------------------------------------------------- small helpers
+  const key = (x, y) => `${x},${y}`;
+  const inGrid = (c, r) => c >= 0 && r >= 0 && c < COLS && r < ROWS;
+  const sum = (items, fn) => items.reduce((total, item) => total + fn(item), 0);
+
+  // ---------------------------------------------------------------- 1. recipe
+  function chooseRecipe(seed, partySize, overrides) {
+    const rng = createRng(seed);
+    const flows = CATALOG.flows.filter((flow) => flow.minParty <= partySize);
+    const flow =
+      flows.find((f) => f.id === overrides.flowId) ?? rng.weighted(flows);
+    const biome =
+      CATALOG.biomes.find((b) => b.id === overrides.biomeId) ?? rng.pick(CATALOG.biomes);
+    const bossIds = biome.bosses.filter((id) => CATALOG.bosses[id].minParty <= partySize);
+    const bossId = rng.pick(bossIds);
+    const mutators = [];
+    const warnings = CATALOG.mutators.filter((m) => m.type === "warning");
+    const anomalies = CATALOG.mutators.filter((m) => m.type === "anomaly");
+    if (rng.chance(0.35)) mutators.push(rng.pick(warnings));
+    if (rng.chance(0.3)) mutators.push(rng.pick(anomalies));
+    if (overrides.mutatorIds) {
+      mutators.length = 0;
+      for (const id of overrides.mutatorIds) {
+        const found = CATALOG.mutators.find((m) => m.id === id);
+        if (found) mutators.push(found);
+      }
+    }
+    return { flow, biome, bossId, boss: { id: bossId, ...CATALOG.bosses[bossId] }, mutators };
+  }
+
+  function mutatorValue(recipe, field, fallback) {
+    let value = fallback;
+    for (const mutator of recipe.mutators) {
+      if (mutator[field] === undefined) continue;
+      value = typeof mutator[field] === "number" && typeof fallback === "number" ? value * mutator[field] : mutator[field];
+    }
+    return value;
+  }
+
+  // ---------------------------------------------------------------- 2. layout
+  function walkPath(rng, length) {
+    const start = { c: rng.int(0, COLS - 1), r: rng.int(0, ROWS - 1) };
+    const path = [start];
+    const used = new Set([key(start.c, start.r)]);
+    let budget = 4000;
+
+    const step = () => {
+      if (path.length === length) return true;
+      if ((budget -= 1) <= 0) return false;
+      const here = path[path.length - 1];
+      for (const dir of rng.shuffle(DIRS)) {
+        const next = { c: here.c + dir.x, r: here.r + dir.y };
+        if (!inGrid(next.c, next.r) || used.has(key(next.c, next.r))) continue;
+        used.add(key(next.c, next.r));
+        path.push(next);
+        if (step()) return true;
+        path.pop();
+        used.delete(key(next.c, next.r));
+      }
+      return false;
+    };
+
+    return step() ? path : null;
+  }
+
+  function buildGraph(rng, recipe) {
+    const { flow } = recipe;
+    const pathLength = rng.int(flow.path[0], flow.path[1]);
+    const cells = walkPath(rng, pathLength + 1);
+    if (!cells) return null;
+
+    const nodes = [];
+    const edges = [];
+    const byCell = new Map();
+    const addNode = (cell, extra) => {
+      const node = { id: nodes.length, cell, role: null, pathIndex: -1, branch: -1, ...extra };
+      nodes.push(node);
+      byCell.set(key(cell.c, cell.r), node);
+      return node;
+    };
+    const addEdge = (a, b, kind = "open") => edges.push({ a: a.id, b: b.id, kind });
+
+    cells.forEach((cell, index) => {
+      const node = addNode(cell, { pathIndex: index });
+      if (index > 0) addEdge(nodes[index - 1], node);
+    });
+    const boss = nodes[pathLength - 1];
+    const exit = nodes[pathLength];
+    boss.role = "boss";
+    exit.role = "exit";
+    nodes[0].role = "entrance";
+
+    const freeNeighbors = (node) =>
+      DIRS.map((d) => ({ c: node.cell.c + d.x, r: node.cell.r + d.y })).filter(
+        (cell) => inGrid(cell.c, cell.r) && !byCell.has(key(cell.c, cell.r)),
+      );
+
+    const branchCount = rng.int(flow.branches[0], flow.branches[1]);
+    const hub = flow.hubIndex !== undefined ? nodes[flow.hubIndex] : null;
+    for (let b = 0; b < branchCount; b += 1) {
+      const anchors = nodes.filter(
+        (node) => node !== boss && node !== exit && node.branch === -1 && freeNeighbors(node).length > 0,
+      );
+      if (anchors.length === 0) break;
+      let anchor = rng.pick(anchors);
+      if (flow.branchFrom === "hub" && hub) {
+        if (freeNeighbors(hub).length > 0) anchor = hub;
+        else {
+          const near = anchors.filter((n) => Math.abs(n.cell.c - hub.cell.c) + Math.abs(n.cell.r - hub.cell.r) === 1);
+          if (near.length > 0) anchor = rng.pick(near);
+        }
+      }
+      const length = rng.int(flow.branchLen[0], flow.branchLen[1]);
+      let previous = anchor;
+      for (let i = 0; i < length; i += 1) {
+        const options = freeNeighbors(previous);
+        if (options.length === 0) break;
+        const node = addNode(rng.pick(options), { branch: b });
+        addEdge(previous, node);
+        previous = node;
+      }
+    }
+
+    const graph = { nodes, edges, pathLength, byCell };
+    const loopCount = rng.int(flow.loops[0], flow.loops[1]);
+    if (loopCount > 0) {
+      const candidates = [];
+      for (const node of nodes) {
+        for (const dir of DIRS) {
+          const other = byCell.get(key(node.cell.c + dir.x, node.cell.r + dir.y));
+          if (!other || other.id <= node.id) continue;
+          if ([node, other].some((n) => n === boss || n === exit)) continue;
+          if (edges.some((e) => (e.a === node.id && e.b === other.id) || (e.a === other.id && e.b === node.id))) continue;
+          if (hops(graph, node.id)[other.id] < 3) continue;
+          candidates.push([node, other]);
+        }
+      }
+      for (const [a, b] of rng.shuffle(candidates).slice(0, loopCount)) {
+        // Re-check: an earlier loop may have shortened this pair's distance.
+        if (hops(graph, a.id)[b.id] >= 3) addEdge(a, b, "loop");
+      }
+    }
+    return graph;
+  }
+
+  function neighborsOf(graph, id) {
+    const out = [];
+    for (const edge of graph.edges) {
+      if (edge.a === id) out.push(edge.b);
+      else if (edge.b === id) out.push(edge.a);
+    }
+    return out;
+  }
+
+  function hops(graph, from) {
+    const dist = { [from]: 0 };
+    const queue = [from];
+    while (queue.length > 0) {
+      const id = queue.shift();
+      for (const next of neighborsOf(graph, id)) {
+        if (dist[next] !== undefined) continue;
+        dist[next] = dist[id] + 1;
+        queue.push(next);
+      }
+    }
+    return dist;
+  }
+
+  const edgeBetween = (graph, a, b) =>
+    graph.edges.find((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+
+  // ---------------------------------------------------------------- 3. roles, locks, keys
+  function assignRoles(rng, graph, recipe, partySize) {
+    const { flow, biome } = recipe;
+    const { nodes, pathLength } = graph;
+    const entrance = nodes[0];
+    const boss = nodes[pathLength - 1];
+    const dist = hops(graph, entrance.id);
+    const degree = (node) => neighborsOf(graph, node.id).length;
+    const plan = { keys: [], locks: [], puzzles: [], events: [], keyHolders: [] };
+
+    const deadEnds = () =>
+      nodes
+        .filter((n) => !n.role && degree(n) === 1)
+        .sort((a, b) => dist[b.id] - dist[a.id] || a.id - b.id);
+    const unassigned = (filter = () => true) => nodes.filter((n) => !n.role && filter(n));
+    const takeDeadEnd = () => deadEnds()[0] ?? null;
+    const middlePath = () =>
+      unassigned((n) => n.pathIndex >= 1 && n.pathIndex <= pathLength - 2).sort(
+        (a, b) => Math.abs(a.pathIndex - pathLength / 2) - Math.abs(b.pathIndex - pathLength / 2),
+      )[0] ?? null;
+
+    const bossEdge = edgeBetween(graph, nodes[pathLength - 2].id, boss.id);
+
+    if (flow.hubIndex !== undefined) nodes[flow.hubIndex].role = "camp";
+
+    if (flow.bossLock === "key") {
+      const holder = takeDeadEnd() ?? middlePath();
+      if (!holder) return null;
+      if (flow.keySource === "puzzle") {
+        holder.role = "puzzle";
+        plan.puzzles.push({ nodeId: holder.id, typeId: rng.pick(biome.puzzles), rewardKeyId: "boss-key", group: null });
+      } else if (flow.keySource === "arena") {
+        holder.role = "arena";
+        plan.keyHolders.push({ nodeId: holder.id, keyId: "boss-key", via: "guardian" });
+        plan.events.push({ nodeId: holder.id, type: "hold-the-line" });
+      } else {
+        holder.role = rng.weighted(
+          Object.entries(biome.rooms).filter(([role]) => role !== "hall").map(([role, weight]) => ({ role, weight })),
+        ).role;
+        plan.keyHolders.push({ nodeId: holder.id, keyId: "boss-key", via: "loot" });
+      }
+      bossEdge.kind = "locked";
+      bossEdge.lock = { type: "key", keyId: "boss-key" };
+    } else if (flow.bossLock === "seals") {
+      const seals = [];
+      while (seals.length < 3) {
+        const next = takeDeadEnd() ?? unassigned((n) => n.pathIndex === -1)[0] ?? null;
+        if (!next) break;
+        next.role = "puzzle";
+        seals.push(next);
+      }
+      while (seals.length < 2) {
+        const next = middlePath();
+        if (!next) return null;
+        next.role = "puzzle";
+        seals.push(next);
+      }
+      for (const seal of seals) plan.puzzles.push({ nodeId: seal.id, typeId: "seal-brazier", rewardKeyId: null, group: "boss-seal" });
+      bossEdge.kind = "sealed";
+      bossEdge.lock = { type: "seal", group: "boss-seal" };
+    } else if (flow.bossLock === "split-seal") {
+      const options = unassigned((n) => n.role === null);
+      let best = null;
+      for (const a of options) {
+        const fromA = hops(graph, a.id);
+        for (const b of options) {
+          if (b.id <= a.id) continue;
+          if (!best || fromA[b.id] > best.gap) best = { a, b, gap: fromA[b.id] };
+        }
+      }
+      if (!best || best.gap < 3) return null;
+      best.a.role = "puzzle";
+      best.b.role = "puzzle";
+      plan.puzzles.push({ nodeId: best.a.id, typeId: "split-seal", rewardKeyId: null, group: "boss-seal", splitWith: best.b.id });
+      bossEdge.kind = "sealed";
+      bossEdge.lock = { type: "seal", group: "boss-seal" };
+    }
+
+    // Optional vault on a far dead end, opened by a key an elite carries elsewhere.
+    if (rng.chance(flow.vaultChance)) {
+      const vault = takeDeadEnd();
+      if (vault) {
+        vault.role = "vault";
+        const into = edgeBetween(graph, neighborsOf(graph, vault.id)[0], vault.id);
+        into.kind = "locked";
+        into.lock = { type: "key", keyId: "vault-key" };
+        plan.vaultId = vault.id;
+      }
+    }
+
+    const shrineChance = recipe.mutators.some((m) => m.shrine) ? 1 : 0.5;
+    if (rng.chance(shrineChance)) {
+      const shrine = takeDeadEnd() ?? (shrineChance === 1 ? unassigned((n) => n.pathIndex === -1)[0] : null);
+      if (shrine) shrine.role = "shrine";
+    }
+    if (rng.chance(0.4)) {
+      const secret = takeDeadEnd();
+      if (secret) {
+        secret.role = "secret";
+        const into = edgeBetween(graph, neighborsOf(graph, secret.id)[0], secret.id);
+        into.kind = "secret";
+      }
+    }
+    if (pathLength >= 5 && flow.hubIndex === undefined) {
+      const index = Math.max(2, Math.min(pathLength - 2, Math.round(pathLength * 0.6)));
+      const camp = nodes[index];
+      if (!camp.role) camp.role = "camp";
+    }
+
+    // Everything left is filled by the biome's weights, keeping the critical path varied.
+    const pool = Object.entries(biome.rooms).map(([role, weight]) => ({ role, weight }));
+    let arenas = nodes.filter((n) => n.role === "arena").length;
+    const order = [...nodes].sort(
+      (a, b) => (a.pathIndex === -1 ? 99 : a.pathIndex) - (b.pathIndex === -1 ? 99 : b.pathIndex) || a.id - b.id,
+    );
+    let previous = null;
+    for (const node of order) {
+      if (node.role) {
+        previous = node.role;
+        continue;
+      }
+      let options = pool.filter((entry) => entry.role !== previous);
+      if (node.pathIndex === 1) options = options.filter((entry) => entry.role !== "trap");
+      if (arenas === 0 && dist[node.id] >= 3) options = [...options, { role: "arena", weight: 0.8 }];
+      if (options.length === 0) options = pool;
+      node.role = rng.weighted(options).role;
+      if (node.role === "arena") {
+        arenas += 1;
+        plan.events.push({ nodeId: node.id, type: "hold-the-line" });
+      }
+      previous = node.role;
+    }
+
+    if (plan.vaultId !== undefined) {
+      const carriers = nodes.filter(
+        (n) => ["hall", "cavern", "maze", "arena", "trap"].includes(n.role) && n.id !== plan.vaultId && !plan.keyHolders.some((k) => k.nodeId === n.id),
+      );
+      if (carriers.length === 0) return null;
+      const carrier = rng.pick(carriers);
+      plan.keyHolders.push({ nodeId: carrier.id, keyId: "vault-key", via: "elite" });
+    }
+
+    plan.partySize = partySize;
+    return plan;
+  }
+
+  // ---------------------------------------------------------------- 4. room shapes
+  function blankRoom(w, h) {
+    return Array.from({ length: h }, (_, y) =>
+      Array.from({ length: w }, (_, x) => (x === 0 || y === 0 || x === w - 1 || y === h - 1 ? WALL : FLOOR)),
+    );
+  }
+
+  function socketsOf(w, h) {
+    const cx = Math.floor(w / 2);
+    const cy = Math.floor(h / 2);
+    return {
+      north: { wall: { x: cx, y: 0 }, inward: { x: cx, y: 1 } },
+      south: { wall: { x: cx, y: h - 1 }, inward: { x: cx, y: h - 2 } },
+      west: { wall: { x: 0, y: cy }, inward: { x: 1, y: cy } },
+      east: { wall: { x: w - 1, y: cy }, inward: { x: w - 2, y: cy } },
+    };
+  }
+
+  const interior = (g, fn) => {
+    for (let y = 1; y < g.length - 1; y += 1) for (let x = 1; x < g[0].length - 1; x += 1) fn(x, y);
+  };
+
+  const SHAPES = {
+    plain: () => {},
+    pillars: (g) => {
+      interior(g, (x, y) => {
+        if (x % 4 === 3 && y % 4 === 3 && x < g[0].length - 2 && y < g.length - 2) g[y][x] = WALL;
+      });
+    },
+    block: (g) => {
+      const w = g[0].length;
+      const h = g.length;
+      const bw = Math.max(1, Math.floor(w / 3));
+      const bh = Math.max(1, Math.floor(h / 3));
+      const x0 = Math.floor((w - bw) / 2);
+      const y0 = Math.floor((h - bh) / 2);
+      for (let y = y0; y < y0 + bh; y += 1) for (let x = x0; x < x0 + bw; x += 1) g[y][x] = WALL;
+    },
+    cross: (g) => {
+      const w = g[0].length;
+      const h = g.length;
+      const cw = Math.floor((w - 3) / 2) - 1;
+      const ch = Math.floor((h - 3) / 2) - 1;
+      interior(g, (x, y) => {
+        const left = x <= cw;
+        const right = x >= w - 1 - cw;
+        const top = y <= ch;
+        const bottom = y >= h - 1 - ch;
+        if ((left || right) && (top || bottom)) g[y][x] = WALL;
+      });
+    },
+    ring: (g) => {
+      const w = g[0].length;
+      const h = g.length;
+      for (let y = 3; y < h - 3; y += 1) for (let x = 3; x < w - 3; x += 1) g[y][x] = WALL;
+    },
+    octagon: (g) => {
+      const w = g[0].length;
+      const h = g.length;
+      const cut = Math.max(1, Math.floor(Math.min(w, h) / 4));
+      interior(g, (x, y) => {
+        const dx = Math.min(x, w - 1 - x);
+        const dy = Math.min(y, h - 1 - y);
+        if (dx + dy <= cut) g[y][x] = WALL;
+      });
+    },
+    "octagon-pillars": (g) => {
+      SHAPES.octagon(g);
+      const w = g[0].length;
+      const h = g.length;
+      for (const [x, y] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) g[y][x] = WALL;
+    },
+    arena: (g, rng, ctx) => {
+      const w = g[0].length;
+      const h = g.length;
+      const style = ctx.arena;
+      if (style === "crucible") {
+        SHAPES.octagon(g);
+        for (const [x, y] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) g[y][x] = WALL;
+      } else if (style === "nave") {
+        interior(g, (x, y) => {
+          if ((x === 3 || x === w - 4) && y % 2 === 0 && y > 1 && y < h - 2) g[y][x] = WALL;
+        });
+      } else {
+        SHAPES.octagon(g);
+        const cx = Math.floor(w / 2);
+        const cy = Math.floor(h / 2);
+        for (const [dx, dy] of [[-2, -2], [2, -2], [-2, 2], [2, 2], [0, -3], [0, 3], [-3, 0], [3, 0]]) {
+          if (Math.abs(dx) + Math.abs(dy) === 3) continue; // leave the four approaches open
+          g[cy + dy][cx + dx] = WALL;
+        }
+      }
+    },
+    partition: (g, rng) => {
+      const w = g[0].length;
+      const h = g.length;
+      const cx = Math.floor(w / 2);
+      const gap = rng.int(1, h - 2);
+      for (let y = 1; y < h - 1; y += 1) {
+        if (Math.abs(y - gap) <= 0 || y === Math.floor(h / 2)) continue;
+        g[y][cx] = WALL;
+      }
+    },
+    alcoves: (g) => {
+      const w = g[0].length;
+      const h = g.length;
+      const horizontal = w >= h;
+      interior(g, (x, y) => {
+        if (horizontal && (y === 2 || y === h - 3) && x % 2 === 0 && x > 1 && x < w - 2) g[y][x] = WALL;
+        if (!horizontal && (x === 2 || x === w - 3) && y % 2 === 0 && y > 1 && y < h - 2) g[y][x] = WALL;
+      });
+    },
+    maze: (g, rng) => {
+      const w = g[0].length;
+      const h = g.length;
+      interior(g, (x, y) => (g[y][x] = WALL));
+      const stack = [{ x: 1, y: 1 }];
+      g[1][1] = FLOOR;
+      while (stack.length > 0) {
+        const here = stack[stack.length - 1];
+        const options = rng.shuffle(DIRS).filter((d) => {
+          const nx = here.x + d.x * 2;
+          const ny = here.y + d.y * 2;
+          return nx > 0 && ny > 0 && nx < w - 1 && ny < h - 1 && g[ny][nx] === WALL;
+        });
+        if (options.length === 0) {
+          stack.pop();
+          continue;
+        }
+        const d = options[0];
+        g[here.y + d.y][here.x + d.x] = FLOOR;
+        g[here.y + d.y * 2][here.x + d.x * 2] = FLOOR;
+        stack.push({ x: here.x + d.x * 2, y: here.y + d.y * 2 });
+      }
+      // Braid a few dead ends, so the maze has loops to lose each other in.
+      interior(g, (x, y) => {
+        if (g[y][x] !== WALL) return;
+        const horizontal = g[y][x - 1] === FLOOR && g[y][x + 1] === FLOOR;
+        const vertical = g[y - 1]?.[x] === FLOOR && g[y + 1]?.[x] === FLOOR;
+        if ((horizontal || vertical) && rng.chance(0.12)) g[y][x] = FLOOR;
+      });
+    },
+    cavern: (g, rng) => {
+      const w = g[0].length;
+      const h = g.length;
+      interior(g, (x, y) => (g[y][x] = rng.chance(0.42) ? WALL : FLOOR));
+      for (let pass = 0; pass < 4; pass += 1) {
+        const copy = g.map((row) => [...row]);
+        interior(g, (x, y) => {
+          let walls = 0;
+          for (let dy = -1; dy <= 1; dy += 1)
+            for (let dx = -1; dx <= 1; dx += 1) if (copy[y + dy][x + dx] === WALL) walls += 1;
+          g[y][x] = walls >= 5 ? WALL : FLOOR;
+        });
+      }
+      g[Math.floor(h / 2)][Math.floor(w / 2)] = FLOOR;
+    },
+  };
+
+  function transformTiles(rows, rng) {
+    let grid = rows.map((row) => [...row]);
+    const turns = rng.int(0, 3);
+    for (let t = 0; t < turns; t += 1) {
+      const h = grid.length;
+      const w = grid[0].length;
+      grid = Array.from({ length: w }, (_, y) => Array.from({ length: h }, (_, x) => grid[h - 1 - x][y]));
+    }
+    if (rng.chance(0.5)) grid = grid.map((row) => [...row].reverse());
+    return grid;
+  }
+
+  /** Floor tiles reachable from `start`, 4-connected. */
+  function floodRoom(g, start) {
+    const seen = new Set([key(start.x, start.y)]);
+    const queue = [start];
+    while (queue.length > 0) {
+      const { x, y } = queue.shift();
+      for (const d of DIRS) {
+        const nx = x + d.x;
+        const ny = y + d.y;
+        if (g[ny]?.[nx] !== FLOOR || seen.has(key(nx, ny))) continue;
+        seen.add(key(nx, ny));
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    return seen;
+  }
+
+  /**
+   * Makes all four sockets reach one another through the room, carving the fewest walls (0-1 BFS),
+   * then fills any floor pocket nobody can reach. Content validation does the same check as a
+   * hard error for hand-authored templates; procedural shapes repair themselves here.
+   */
+  function repairSockets(g) {
+    const w = g[0].length;
+    const h = g.length;
+    const sockets = Object.values(socketsOf(w, h));
+    for (const s of sockets) g[s.inward.y][s.inward.x] = FLOOR;
+    const root = sockets[0].inward;
+    for (const s of sockets.slice(1)) {
+      const reached = floodRoom(g, root);
+      if (reached.has(key(s.inward.x, s.inward.y))) continue;
+      const cost = new Map([[key(s.inward.x, s.inward.y), 0]]);
+      const from = new Map();
+      const deque = [s.inward];
+      let goal = null;
+      while (deque.length > 0) {
+        const here = deque.shift();
+        if (reached.has(key(here.x, here.y))) {
+          goal = here;
+          break;
+        }
+        for (const d of DIRS) {
+          const nx = here.x + d.x;
+          const ny = here.y + d.y;
+          if (nx < 1 || ny < 1 || nx > w - 2 || ny > h - 2) continue;
+          const step = g[ny][nx] === WALL ? 1 : 0;
+          const total = cost.get(key(here.x, here.y)) + step;
+          if (cost.has(key(nx, ny)) && cost.get(key(nx, ny)) <= total) continue;
+          cost.set(key(nx, ny), total);
+          from.set(key(nx, ny), here);
+          if (step === 0) deque.unshift({ x: nx, y: ny });
+          else deque.push({ x: nx, y: ny });
+        }
+      }
+      for (let p = goal; p; p = from.get(key(p.x, p.y))) g[p.y][p.x] = FLOOR;
+    }
+    const reached = floodRoom(g, root);
+    interior(g, (x, y) => {
+      if (g[y][x] === FLOOR && !reached.has(key(x, y))) g[y][x] = WALL;
+    });
+    return reached.size;
+  }
+
+  function shapeRoom(rng, role, recipe) {
+    const options = ROLE_SHAPES[role];
+    const choice = rng.pick(options);
+    if (choice.startsWith("template:")) {
+      const template = TEMPLATES[choice.slice(9)];
+      const g = transformTiles(template.tiles, rng);
+      repairSockets(g);
+      return { grid: g, shape: choice };
+    }
+    const [w, h] = rng.pick(ROOM_DIMS[role]);
+    for (let tries = 0; tries < 6; tries += 1) {
+      const g = blankRoom(w, h);
+      SHAPES[choice](g, rng, { arena: recipe.boss.arena });
+      const floor = repairSockets(g);
+      if (choice !== "cavern" || floor >= (w - 2) * (h - 2) * 0.45) return { grid: g, shape: choice };
+    }
+    const g = blankRoom(w, h);
+    repairSockets(g);
+    return { grid: g, shape: "plain" };
+  }
+
+  // ---------------------------------------------------------------- 5. carve
+  class World {
+    constructor() {
+      this.rows = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => WALL));
+    }
+    get(x, y) {
+      return this.rows[y]?.[x] ?? WALL;
+    }
+    set(x, y, tile) {
+      if (x <= 0 || y <= 0 || x >= WIDTH - 1 || y >= HEIGHT - 1) return;
+      this.rows[y][x] = tile;
+    }
+    toTiles() {
+      return this.rows.map((row) => row.join(""));
+    }
+  }
+
+  function placeRooms(rng, graph, recipe) {
+    const rooms = [];
+    for (const node of graph.nodes) {
+      const { grid, shape } = shapeRoom(rng, node.role, recipe);
+      const w = grid[0].length;
+      const h = grid.length;
+      const x = node.cell.c * CELL + rng.int(CELL_MARGIN, CELL - CELL_MARGIN - w);
+      const y = node.cell.r * CELL + rng.int(CELL_MARGIN, CELL - CELL_MARGIN - h);
+      const names = node.role === "boss" ? [recipe.boss.room] : recipe.biome.names[node.role] ?? [node.role];
+      rooms.push({
+        id: `room-${node.id}`,
+        nodeId: node.id,
+        kind: node.role,
+        name: rng.pick(names),
+        shape,
+        x, y, width: w, height: h,
+        grid,
+        pathIndex: node.pathIndex,
+        sockets: socketsOf(w, h),
+        usedSockets: [],
+      });
+    }
+    // Two rooms of one biome can roll the same name; number the repeats.
+    const seen = {};
+    for (const room of rooms) {
+      seen[room.name] = (seen[room.name] ?? 0) + 1;
+      if (seen[room.name] > 1) room.name = `${room.name} ${["", "", "II", "III", "IV", "V"][seen[room.name]] ?? seen[room.name]}`;
+    }
+    return rooms;
+  }
+
+  function carve(rng, world, graph, rooms) {
+    for (const room of rooms) {
+      room.grid.forEach((row, ly) => row.forEach((tile, lx) => world.set(room.x + lx, room.y + ly, tile)));
+    }
+    const corridors = [];
+    for (const edge of graph.edges) {
+      const a = rooms[edge.a];
+      const b = rooms[edge.b];
+      const ca = graph.nodes[edge.a].cell;
+      const cb = graph.nodes[edge.b].cell;
+      const dir = DIRS.find((d) => d.x === cb.c - ca.c && d.y === cb.r - ca.r);
+      const sa = a.sockets[dir.side].wall;
+      const sb = b.sockets[OPPOSITE[dir.side]].wall;
+      a.usedSockets.push(dir.side);
+      b.usedSockets.push(OPPOSITE[dir.side]);
+      const from = { x: a.x + sa.x, y: a.y + sa.y };
+      const to = { x: b.x + sb.x, y: b.y + sb.y };
+      const tiles = [];
+      const open = (x, y) => {
+        world.set(x, y, FLOOR);
+        tiles.push({ x, y });
+      };
+      if (dir.x !== 0) {
+        const lo = Math.min(from.x, to.x);
+        const hi = Math.max(from.x, to.x);
+        const jog = rng.int(lo + 1, hi - 1);
+        for (let x = Math.min(from.x, jog); x <= Math.max(from.x, jog); x += 1) open(x, from.y);
+        for (let y = Math.min(from.y, to.y); y <= Math.max(from.y, to.y); y += 1) open(jog, y);
+        for (let x = Math.min(jog, to.x); x <= Math.max(jog, to.x); x += 1) open(x, to.y);
+      } else {
+        const lo = Math.min(from.y, to.y);
+        const hi = Math.max(from.y, to.y);
+        const jog = rng.int(lo + 1, hi - 1);
+        for (let y = Math.min(from.y, jog); y <= Math.max(from.y, jog); y += 1) open(from.x, y);
+        for (let x = Math.min(from.x, to.x); x <= Math.max(from.x, to.x); x += 1) open(x, jog);
+        for (let y = Math.min(jog, to.y); y <= Math.max(jog, to.y); y += 1) open(to.x, y);
+      }
+      corridors.push({ edge, from, to, tiles });
+    }
+    return corridors;
+  }
+
+  // ---------------------------------------------------------------- 6. populate
+  function roomFloor(room, world, reserved) {
+    const clear = new Set();
+    for (const side of room.usedSockets) {
+      const inward = room.sockets[side].inward;
+      for (let dy = -1; dy <= 1; dy += 1)
+        for (let dx = -1; dx <= 1; dx += 1) clear.add(key(room.x + inward.x + dx, room.y + inward.y + dy));
+    }
+    const tiles = [];
+    for (let y = room.y + 1; y < room.y + room.height - 1; y += 1) {
+      for (let x = room.x + 1; x < room.x + room.width - 1; x += 1) {
+        if (world.get(x, y) !== FLOOR || clear.has(key(x, y)) || reserved.has(key(x, y))) continue;
+        tiles.push({ x, y });
+      }
+    }
+    return tiles;
+  }
+
+  const pickOr = (rng, items) => (items.length > 0 ? rng.pick(items) : null);
+  const centerOf = (room) => ({ x: room.x + Math.floor(room.width / 2), y: room.y + Math.floor(room.height / 2) });
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  function nearest(tiles, point) {
+    let best = null;
+    for (const tile of tiles) if (!best || distance(tile, point) < distance(best, point)) best = tile;
+    return best;
+  }
+
+  /** Farthest-point sampling: spreads `count` picks across `tiles`. Deterministic given the first pick. */
+  function spread(rng, tiles, count) {
+    if (tiles.length === 0) return [];
+    const picks = [rng.pick(tiles)];
+    while (picks.length < count && picks.length < tiles.length) {
+      let best = null;
+      let bestGap = -1;
+      for (const tile of tiles) {
+        const gap = Math.min(...picks.map((p) => distance(p, tile)));
+        if (gap > bestGap) {
+          best = tile;
+          bestGap = gap;
+        }
+      }
+      picks.push(best);
+    }
+    return picks;
+  }
+
+  function wallHugging(tiles, world) {
+    return tiles.filter((t) => DIRS.some((d) => world.get(t.x + d.x, t.y + d.y) === WALL));
+  }
+
+  function populate(rng, world, graph, rooms, corridors, plan, recipe, partySize) {
+    const { biome, boss: bossDef } = recipe;
+    const reserved = new Set();
+    const claim = (tile) => {
+      if (tile) reserved.add(key(tile.x, tile.y));
+      return tile;
+    };
+    const out = {
+      lights: [], monsters: [], loot: [], chests: [], traps: [], puzzles: [],
+      doors: [], exits: [], spawnPoints: [], events: [], altars: [],
+    };
+    let ids = 0;
+    const id = (prefix) => `${prefix}-${(ids += 1)}`;
+
+    const lightMult = mutatorValue(recipe, "lightMult", 1) * biome.light;
+    const radiusMult = mutatorValue(recipe, "radiusMult", 1);
+    const budgetMult = mutatorValue(recipe, "budgetMult", 1);
+    const chestBonus = recipe.mutators.reduce((s, m) => s + (m.chestBonus ?? 0), 0);
+    const partyMult = 0.6 + 0.2 * partySize;
+    const tint = biome.lightTint;
+
+    const addLight = (tile, name, radius, extra = {}) => {
+      if (!claim(tile)) return;
+      out.lights.push({ id: id("light"), name, position: tile, radius: +(radius * radiusMult).toFixed(2), tint, ...extra });
+    };
+    const lightCount = (base) => {
+      let n = 0;
+      for (let i = 0; i < base; i += 1) if (rng.chance(Math.min(1, lightMult * 0.85))) n += 1;
+      if (lightMult > 1.2 && rng.chance(lightMult - 1)) n += 1;
+      return n;
+    };
+
+    // Doors first: they sit in the locked room's own socket, so nothing else may land there.
+    for (const edge of graph.edges) {
+      if (edge.kind !== "locked" && edge.kind !== "sealed" && edge.kind !== "secret") continue;
+      const innerId = ["boss", "vault", "secret"].includes(graph.nodes[edge.a].role) ? edge.a : edge.b;
+      const outerId = innerId === edge.a ? edge.b : edge.a;
+      const inner = rooms[innerId];
+      const ci = graph.nodes[innerId].cell;
+      const co = graph.nodes[outerId].cell;
+      const dir = DIRS.find((d) => d.x === co.c - ci.c && d.y === co.r - ci.r);
+      const socket = inner.sockets[dir.side].wall;
+      const position = { x: inner.x + socket.x, y: inner.y + socket.y };
+      claim(position);
+      out.doors.push({
+        id: id("door"),
+        position,
+        size: 1,
+        open: edge.kind === "secret",
+        locked: edge.kind === "locked",
+        lock: edge.kind === "secret" ? { type: "hidden" } : edge.lock,
+        roomId: inner.id,
+      });
+    }
+
+    const intensity = new Map();
+    const bump = (room, amount) => intensity.set(room.id, (intensity.get(room.id) ?? 0) + amount);
+
+    for (const room of rooms) {
+      const node = graph.nodes[room.nodeId];
+      const floor = () => roomFloor(room, world, reserved);
+      const depth = room.pathIndex >= 0 ? room.pathIndex / graph.pathLength : 0.6;
+      const role = room.kind;
+
+      // Lights.
+      if (role === "entrance") addLight(nearest(floor(), centerOf(room)), "Gate Brazier", 7);
+      else if (role === "exit") addLight(nearest(floor(), centerOf(room)), "Stair Beacon", 7);
+      else if (role === "boss") addLight(nearest(floor(), centerOf(room)), "Arena Fire", 7.5, { fixture: "campfire", flicker: 0.4 });
+      else if (role === "camp") addLight(nearest(floor(), centerOf(room)), "Campfire", 6, { fixture: "campfire", flicker: 0.5 });
+      else if (role === "shrine") addLight(nearest(floor(), centerOf(room)), "Shrine Candle", 4);
+      else if (["hall", "cavern", "arena"].includes(role)) {
+        for (const tile of spread(rng, wallHugging(floor(), world), lightCount(2))) addLight(tile, "Wall Torch", 5);
+      } else if (role === "maze" || role === "trap") {
+        for (const tile of spread(rng, wallHugging(floor(), world), lightCount(1)))
+          addLight(tile, role === "trap" ? "Warning Lamp" : "Lost Lantern", 4.5, role === "trap" ? { tint: "red" } : {});
+      }
+
+      if (role === "entrance") {
+        const c = centerOf(room);
+        const tiles = floor().sort((a, b) => distance(a, c) - distance(b, c) || a.y - b.y || a.x - b.x);
+        out.spawnPoints = tiles.slice(1, 5).map(claim);
+      }
+
+      if (role === "exit") {
+        const used = room.sockets[room.usedSockets[0]].inward;
+        const entry = { x: room.x + used.x, y: room.y + used.y };
+        const tiles = floor().sort((a, b) => distance(b, entry) - distance(a, entry) || a.y - b.y);
+        out.exits.push({ id: id("exit"), position: claim(tiles[0]), destination: "hub", sealed: true });
+      }
+
+      // Monsters, from a threat budget that grows with depth and party size.
+      const BASE_BUDGET = { hall: 5, cavern: 5, maze: 3, trap: 2, vault: 3, secret: 2, puzzle: 1, arena: 2 };
+      let budget = Math.round((BASE_BUDGET[role] ?? 0) * (1 + 0.5 * depth) * partyMult * budgetMult);
+      while (budget > 0) {
+        const affordable = biome.roster.filter((m) => m.cost <= budget);
+        if (affordable.length === 0) break;
+        const type = rng.weighted(affordable);
+        const tile = claim(pickOr(rng, floor()));
+        if (!tile) break;
+        out.monsters.push({ id: id("mon"), typeId: type.id, name: type.name, position: tile, roomId: room.id, cost: type.cost });
+        bump(room, type.cost);
+        budget -= type.cost;
+      }
+
+      if (role === "boss") {
+        const tile = claim(nearest(floor(), { x: centerOf(room).x, y: centerOf(room).y - 2 }));
+        out.monsters.push({ id: id("mon"), typeId: bossDef.id, name: bossDef.name, position: tile, roomId: room.id, boss: true, cost: 12 });
+        if (bossDef.id === "pale-twins") {
+          const twin = claim(nearest(floor(), { x: centerOf(room).x, y: centerOf(room).y + 2 }));
+          out.monsters.push({ id: id("mon"), typeId: bossDef.id, name: `${bossDef.name} (second)`, position: twin, roomId: room.id, boss: true, cost: 0 });
+        }
+        bump(room, 12);
+        out.chests.push({ id: id("chest"), lootTableId: "vault-chest", position: claim(pickOr(rng, floor())), locked: false, roomId: room.id });
+      }
+
+      // Key holders: loot on the floor, or carried by a guardian or elite.
+      for (const holder of plan.keyHolders.filter((k) => k.nodeId === node.id)) {
+        if (holder.via === "loot") {
+          const tiles = floor();
+          const c = centerOf(room);
+          const far = tiles.sort((a, b) => distance(b, c) - distance(a, c))[0];
+          out.loot.push({ id: id("loot"), itemId: holder.keyId, position: claim(far), roomId: room.id, key: true });
+        } else {
+          const tile = claim(nearest(floor(), centerOf(room)));
+          const base = biome.roster[biome.roster.length - 1];
+          out.monsters.push({
+            id: id("mon"), typeId: base.id, name: `${holder.via === "guardian" ? "Keeper" : "Elite"} ${base.name}`,
+            position: tile, roomId: room.id, elite: true, carries: holder.keyId, cost: 4,
+          });
+          bump(room, 4);
+        }
+      }
+
+      // Loot and chests by role.
+      const consumable = () => rng.weighted(biome.loot).itemId;
+      const dropLoot = (count) => {
+        for (let i = 0; i < count; i += 1) {
+          const tile = claim(pickOr(rng, floor()));
+          if (tile) out.loot.push({ id: id("loot"), itemId: consumable(), position: tile, roomId: room.id });
+        }
+      };
+      const dropChest = (table, chance, locked = false) => {
+        if (!rng.chance(Math.min(1, chance + chestBonus))) return;
+        const tiles = floor();
+        // Prefer a nook: the floor tile with the most walls round it.
+        const nooks = tiles.sort((a, b) => wallCount(world, b) - wallCount(world, a));
+        const tile = claim(nooks[rng.int(0, Math.min(3, nooks.length - 1))] ?? null);
+        if (tile) out.chests.push({ id: id("chest"), lootTableId: table, position: tile, locked, roomId: room.id });
+      };
+      if (role === "hall" || role === "cavern") { dropLoot(rng.int(0, 2)); dropChest("common-chest", 0.3); }
+      if (role === "maze") { dropLoot(rng.int(0, 1)); dropChest("common-chest", 0.9); }
+      if (role === "trap") { dropLoot(1); dropChest("common-chest", 0.5); }
+      if (role === "vault") { dropChest("vault-chest", 1); dropChest("vault-chest", 0.7); }
+      if (role === "secret") dropChest("vault-chest", 1);
+      if (role === "arena") dropChest("vault-chest", 0.8);
+      if (role === "camp") dropLoot(1);
+      if (role === "shrine") {
+        const tile = claim(nearest(floor(), { x: centerOf(room).x, y: centerOf(room).y - 1 }));
+        out.altars.push({ id: id("altar"), position: tile, roomId: room.id, offer: ["iron-will-scroll", "lever-sense-scroll"], pick: 1 });
+      }
+
+      // Traps.
+      const trapCount = role === "trap" ? rng.int(3, 5) : role === "hall" && rng.chance(0.25) ? 1 : 0;
+      for (let i = 0; i < trapCount; i += 1) {
+        const tile = claim(pickOr(rng, floor()));
+        if (!tile) break;
+        out.traps.push({ id: id("trap"), typeId: rng.pick(biome.traps), position: tile, roomId: room.id });
+        bump(room, 0.7);
+      }
+
+      // Events.
+      for (const event of plan.events.filter((e) => e.nodeId === node.id)) {
+        out.events.push({ type: event.type, roomId: room.id, waves: 2 + Math.min(2, Math.floor(depth * 3)) });
+        bump(room, 5);
+      }
+    }
+
+    // Puzzles.
+    for (const spec of plan.puzzles) {
+      const room = rooms[spec.nodeId];
+      if (spec.typeId === "split-seal") {
+        const other = rooms[spec.splitWith];
+        const plates = [room, other].map((r) => claim(nearest(roomFloor(r, world, reserved), centerOf(r))));
+        out.puzzles.push({ id: id("puzzle"), typeId: "split-seal", plates, roomIds: [room.id, other.id], group: spec.group, ballast: 0 });
+        for (const r of [room, other]) bump(r, 1);
+        for (const plate of plates) out.lights.push({ id: id("light"), name: "Seal Sconce", position: plate, radius: 4.5, tint });
+        continue;
+      }
+      if (spec.typeId === "seal-brazier") {
+        const plate = claim(nearest(roomFloor(room, world, reserved), centerOf(room)));
+        out.puzzles.push({ id: id("puzzle"), typeId: "seal-brazier", plates: [plate], roomIds: [room.id], group: spec.group, ballast: 0 });
+        bump(room, 1);
+        continue;
+      }
+      const plateCount = Math.max(2, Math.min(partySize, spec.typeId === "paired-levers" ? 2 : 3));
+      const plates = spread(rng, roomFloor(room, world, reserved), plateCount).map(claim);
+      const ballast = Math.max(0, plateCount - partySize);
+      out.puzzles.push({
+        id: id("puzzle"), typeId: spec.typeId, plates, roomIds: [room.id], group: spec.group,
+        rewardKeyId: spec.rewardKeyId, ballast,
+      });
+      for (let i = 0; i < ballast; i += 1) {
+        const tile = claim(pickOr(rng, roomFloor(room, world, reserved)));
+        if (tile) out.loot.push({ id: id("loot"), itemId: "ballast-stone", position: tile, roomId: room.id });
+      }
+      for (const plate of plates) out.lights.push({ id: id("light"), name: "Lever Sconce", position: plate, radius: 4.5, tint });
+      bump(room, 1);
+    }
+
+    // Corridor lights and, under Brittle Floors, corridor traps.
+    const corridorTraps = recipe.mutators.some((m) => m.corridorTraps);
+    for (const corridor of corridors) {
+      corridor.tiles.forEach((tile, index) => {
+        if (reserved.has(key(tile.x, tile.y))) return;
+        if (index % 7 === 3 && rng.chance(Math.min(1, 0.7 * lightMult))) {
+          claim(tile);
+          out.lights.push({ id: id("light"), name: "Corridor Torch", position: tile, radius: +(4.5 * radiusMult).toFixed(2), tint });
+        } else if (corridorTraps && index % 9 === 5 && !isSocketTile(tile, rooms)) {
+          claim(tile);
+          out.traps.push({ id: id("trap"), typeId: "collapsing-floor", position: tile, roomId: null });
+        }
+      });
+    }
+
+    out.intensity = intensity;
+    return out;
+  }
+
+  function isSocketTile(tile, rooms) {
+    return rooms.some((room) =>
+      Object.values(room.sockets).some((s) => room.x + s.wall.x === tile.x && room.y + s.wall.y === tile.y),
+    );
+  }
+
+  function wallCount(world, t) {
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) if (world.get(t.x + dx, t.y + dy) === WALL) n += 1;
+    return n;
+  }
+
+  // ---------------------------------------------------------------- 7. validate
+  function floodWorld(world, start, blocked) {
+    const seen = new Map([[key(start.x, start.y), 0]]);
+    const queue = [start];
+    while (queue.length > 0) {
+      const here = queue.shift();
+      const d = seen.get(key(here.x, here.y));
+      for (const dir of DIRS) {
+        const nx = here.x + dir.x;
+        const ny = here.y + dir.y;
+        const k = key(nx, ny);
+        if (seen.has(k) || world.get(nx, ny) !== FLOOR || blocked.has(k)) continue;
+        seen.set(k, d + 1);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    return seen;
+  }
+
+  /**
+   * The invariants tests/server/generation.test.ts should sweep across seeds:
+   *  - every spawn, entity, plate and exit is on open floor;
+   *  - with every lock closed, neither the boss room nor a vault can be entered;
+   *  - collecting keys and solving puzzles in any reachable order opens a route to the exit;
+   *  - every room is reachable once everything is open;
+   *  - no puzzle needs more plates held than the party has players plus ballast stones.
+   */
+  function validate(world, rooms, pop, partySize, expectedDoors) {
+    const errors = [];
+    const spawn = pop.spawnPoints[0];
+    if (!spawn || pop.spawnPoints.length < Math.min(4, partySize)) errors.push("not enough spawn points");
+    if (pop.exits.length !== 1 || !pop.exits[0].position) errors.push("no exit");
+    if (errors.length > 0) return errors;
+
+    const all = [
+      ...pop.monsters, ...pop.loot, ...pop.chests, ...pop.traps, ...pop.exits, ...pop.altars,
+      ...pop.spawnPoints.map((p) => ({ position: p })),
+    ];
+    for (const entity of all) {
+      if (!entity.position || world.get(entity.position.x, entity.position.y) !== FLOOR) errors.push("entity off floor");
+    }
+    for (const puzzle of pop.puzzles) {
+      if (puzzle.plates.some((p) => !p || world.get(p.x, p.y) !== FLOOR)) errors.push("plate off floor");
+      if (puzzle.typeId !== "seal-brazier" && puzzle.plates.length > partySize + puzzle.ballast) errors.push("puzzle needs more players than the party has");
+    }
+
+    const doorTiles = new Map(pop.doors.map((d) => [key(d.position.x, d.position.y), d]));
+    const closedSet = (opened) =>
+      new Set([...doorTiles].filter(([, d]) => d.lock.type !== "hidden" && !opened.has(d.id)).map(([k]) => k));
+    const insideReach = (reach, roomId) => {
+      const room = rooms.find((r) => r.id === roomId);
+      for (let y = room.y + 1; y < room.y + room.height - 1; y += 1)
+        for (let x = room.x + 1; x < room.x + room.width - 1; x += 1) if (reach.has(key(x, y))) return true;
+      return false;
+    };
+
+    const locked0 = floodWorld(world, spawn, closedSet(new Set()));
+    // Checked from the rooms, not the doors, so a lock that was never placed is caught too.
+    for (const room of rooms) {
+      if ((room.kind === "boss" || room.kind === "vault") && insideReach(locked0, room.id)) {
+        errors.push(`${room.kind} reachable with every lock closed`);
+      }
+    }
+    if (pop.doors.length !== expectedDoors) errors.push(`expected ${expectedDoors} doors, placed ${pop.doors.length}`);
+    for (const door of pop.doors) {
+      if (door.lock.type === "hidden") continue;
+      if (insideReach(locked0, door.roomId)) errors.push(`lock bypassed: ${door.roomId}`);
+    }
+
+    const opened = new Set();
+    const keys = new Set();
+    const solved = new Set();
+    let reach = locked0;
+    for (let guard = 0; guard < 20; guard += 1) {
+      let changed = false;
+      for (const item of pop.loot) if (item.key && reach.has(key(item.position.x, item.position.y)) && !keys.has(item.itemId)) { keys.add(item.itemId); changed = true; }
+      for (const m of pop.monsters) if (m.carries && reach.has(key(m.position.x, m.position.y)) && !keys.has(m.carries)) { keys.add(m.carries); changed = true; }
+      for (const p of pop.puzzles) {
+        if (solved.has(p.id) || !p.plates.every((t) => reach.has(key(t.x, t.y)))) continue;
+        solved.add(p.id);
+        if (p.rewardKeyId) keys.add(p.rewardKeyId);
+        changed = true;
+      }
+      for (const d of pop.doors) {
+        if (opened.has(d.id)) continue;
+        const ready =
+          (d.lock.type === "key" && keys.has(d.lock.keyId)) ||
+          (d.lock.type === "seal" && pop.puzzles.filter((p) => p.group === d.lock.group).every((p) => solved.has(p.id)));
+        if (ready) { opened.add(d.id); changed = true; }
+      }
+      if (!changed) break;
+      reach = floodWorld(world, spawn, closedSet(opened));
+    }
+    const exit = pop.exits[0].position;
+    if (!reach.has(key(exit.x, exit.y))) errors.push("exit unreachable after keys and puzzles");
+    for (const room of rooms) if (!insideReach(reach, room.id)) errors.push(`room unreachable: ${room.id}`);
+    return errors;
+  }
+
+  // ---------------------------------------------------------------- metrics, story
+  function routeMetrics(world, pop, rooms, graph) {
+    const spawn = pop.spawnPoints[0];
+    const open = new Set();
+    const distFrom = (p) => floodWorld(world, p, open);
+    const stops = [];
+    for (const item of pop.loot) if (item.key && item.itemId === "boss-key") stops.push(item.position);
+    for (const m of pop.monsters) if (m.carries === "boss-key") stops.push(m.position);
+    for (const p of pop.puzzles) if (p.rewardKeyId === "boss-key" || p.group === "boss-seal") stops.push(...p.plates);
+    const bossDoor = pop.doors.find((d) => rooms.find((r) => r.id === d.roomId)?.kind === "boss");
+    let here = spawn;
+    let tiles = 0;
+    const remaining = [...stops];
+    while (remaining.length > 0) {
+      const field = distFrom(here);
+      remaining.sort((a, b) => (field.get(key(a.x, a.y)) ?? 1e9) - (field.get(key(b.x, b.y)) ?? 1e9));
+      const next = remaining.shift();
+      tiles += field.get(key(next.x, next.y)) ?? 0;
+      here = next;
+    }
+    for (const target of [bossDoor?.position, pop.exits[0].position].filter(Boolean)) {
+      const field = distFrom(here);
+      tiles += field.get(key(target.x, target.y)) ?? 0;
+      here = target;
+    }
+    const worldUnits = tiles * TILE_SCALE;
+    let floorTiles = 0;
+    for (const row of world.rows) for (const t of row) if (t === FLOOR) floorTiles += 1;
+    return { routeTiles: tiles, walkSeconds: Math.round(worldUnits / PLAYER_MOVE_SPEED), floorTiles };
+  }
+
+  function describeLocks(rooms, pop, plan, recipe) {
+    const nameOf = (roomId) => rooms.find((r) => r.id === roomId)?.name ?? "?";
+    const steps = [];
+    const bossRoom = rooms.find((r) => r.kind === "boss");
+    for (const door of pop.doors) {
+      if (door.lock.type === "key") {
+        const loot = pop.loot.find((l) => l.itemId === door.lock.keyId);
+        const carrier = pop.monsters.find((m) => m.carries === door.lock.keyId);
+        const puzzle = pop.puzzles.find((p) => p.rewardKeyId === door.lock.keyId);
+        const label = door.lock.keyId === "boss-key" ? "Boss Key" : "Vault Key";
+        let from = "";
+        if (loot) from = `lies in ${nameOf(loot.roomId)}`;
+        if (carrier) from = `carried by the ${carrier.name} in ${nameOf(carrier.roomId)}`;
+        if (puzzle) from = `reward for solving ${nameOf(puzzle.roomIds[0])}`;
+        steps.push({ label, from, opens: nameOf(door.roomId), critical: door.roomId === bossRoom.id });
+      } else if (door.lock.type === "seal") {
+        const group = pop.puzzles.filter((p) => p.group === door.lock.group);
+        const where = [...new Set(group.flatMap((p) => p.roomIds))].map(nameOf);
+        const label = group[0]?.typeId === "split-seal" ? "Split Seal" : `${group.length} Seal Braziers`;
+        const from = group[0]?.typeId === "split-seal"
+          ? `hold the plates in ${where.join(" and ")} at the same time`
+          : `light every brazier: ${where.join(", ")}`;
+        steps.push({ label, from, opens: nameOf(door.roomId), critical: true });
+      } else if (door.lock.type === "hidden") {
+        steps.push({ label: "Cracked wall", from: "look for it beside a corridor", opens: nameOf(door.roomId), critical: false });
+      }
+    }
+    steps.push({ label: "Exit", from: `sealed until ${recipe.boss.name} falls`, opens: nameOf(rooms.find((r) => r.kind === "exit").id), critical: true });
+    return steps.sort((a, b) => Number(b.critical) - Number(a.critical));
+  }
+
+  function omen(recipe) {
+    const warnings = recipe.mutators.filter((m) => m.type === "warning").map((m) => m.name);
+    const anomalies = recipe.mutators.filter((m) => m.type === "anomaly").map((m) => m.name);
+    let text = `${recipe.flow.name} beneath the ${recipe.biome.name}. ${recipe.boss.name} waits at the bottom.`;
+    if (warnings.length) text += ` Beware: ${warnings.join(", ")}.`;
+    if (anomalies.length) text += ` Fortune: ${anomalies.join(", ")}.`;
+    return text;
+  }
+
+  // ---------------------------------------------------------------- entry point
+  function generate({ seed, partySize = 4, flowId = null, biomeId = null, mutatorIds = null }) {
+    seed >>>= 0;
+    const recipe = chooseRecipe(seed, partySize, { flowId, biomeId, mutatorIds });
+    const failures = [];
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      const rng = createRng(mixSeed(seed, attempt));
+      const graph = buildGraph(rng, recipe);
+      if (!graph) { failures.push("layout"); continue; }
+      const plan = assignRoles(rng, graph, recipe, partySize);
+      if (!plan) { failures.push("roles"); continue; }
+      const rooms = placeRooms(rng, graph, recipe);
+      const world = new World();
+      const corridors = carve(rng, world, graph, rooms);
+      let pop;
+      let errors;
+      try {
+        pop = populate(rng, world, graph, rooms, corridors, plan, recipe, partySize);
+        errors = validate(world, rooms, pop, partySize, graph.edges.filter((e) => e.kind !== "open" && e.kind !== "loop").length);
+      } catch (error) {
+        // A room too cramped for what it was asked to hold. Re-roll the layout, never ship it.
+        errors = [`populate: ${error.message}`];
+      }
+      if (errors.length > 0) { failures.push(errors[0]); continue; }
+
+      const metrics = routeMetrics(world, pop, rooms, graph);
+      const pathRooms = rooms.filter((r) => r.pathIndex >= 0).sort((a, b) => a.pathIndex - b.pathIndex);
+      return {
+        seed, attempt, partySize, failures,
+        recipe: {
+          flow: recipe.flow, biome: recipe.biome, boss: recipe.boss, mutators: recipe.mutators,
+        },
+        omen: omen(recipe),
+        map: { width: WIDTH, height: HEIGHT, tiles: world.toTiles() },
+        rooms: rooms.map(({ grid, sockets, usedSockets, ...room }) => room),
+        graph: {
+          nodes: graph.nodes.map((n) => ({ id: n.id, cell: n.cell, role: n.role, pathIndex: n.pathIndex })),
+          edges: graph.edges.map((e) => ({ ...e })),
+          pathLength: graph.pathLength,
+        },
+        corridors: corridors.map((c) => ({ kind: c.edge.kind, tiles: c.tiles })),
+        ...pop,
+        intensity: pathRooms.map((room) => ({ roomId: room.id, name: room.name, kind: room.kind, value: +(pop.intensity.get(room.id) ?? 0).toFixed(1) })),
+        locks: describeLocks(rooms, pop, plan, recipe),
+        metrics: { ...metrics, rooms: rooms.length, monsters: pop.monsters.length, chests: pop.chests.length, lights: pop.lights.length },
+      };
+    }
+    throw new Error(`seed ${seed}: no valid dungeon in ${MAX_ATTEMPTS} attempts (${failures.join("; ")})`);
+  }
+
+  return { generate, createRng, mixSeed, CATALOG, TILE_SCALE, WIDTH, HEIGHT, COLS, ROWS, CELL };
+})();
+
+if (typeof module !== "undefined") module.exports = GEN;
+
+</script>
+
+<script>
+const CURRENT_MAPS = [{"seed":11,"tiles":["################################################################################################","################################################################################################","################################################################################################","###.......#####............#####............###.....#.......#####.........#####...#####...######","###...........#............#####............###.#.#.#.#####.#####.##...##.#####...#####...######","###.......###......####....###......####....###.#.#.....#...###...........................######","###.......#####....####........#....####........#.#####.#.#.###.#.##...##.#.###...#####...######","###############............#####............#####.....#.#.#.###.#.........#.###...#####...######","###############............#####............#########.#...#.###.###########.####################","#################################################.........#.................####################","#############################################################.##################################","################..............................................##################################","################.###############################################################################","################.###############################################################################","################.###############################################################################","###............#.###...........#####.......#####################################################","###............#.###...........###.........#####################################################","###....####....#.#.................#.......#####################################################","###....####........#...........#################################################################","###............#####...........#################################################################","###............#################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################"],"rooms":[{"name":"Cinder Gate","kind":"entrance","x":2,"y":2,"width":9,"height":6},{"name":"Ashen Hall","kind":"hall","x":14,"y":2,"width":14,"height":8},{"name":"Ashen Hall","kind":"hall","x":31,"y":2,"width":14,"height":8},{"name":"Sunken Maze","kind":"maze","x":48,"y":2,"width":13,"height":9},{"name":"Collapsing Span","kind":"trap","x":64,"y":2,"width":11,"height":7},{"name":"Hall of Paired Levers","kind":"puzzle","x":78,"y":2,"width":13,"height":7},{"name":"Ashen Hall","kind":"hall","x":2,"y":14,"width":14,"height":8},{"name":"Warden Crucible","kind":"boss","x":19,"y":14,"width":13,"height":7},{"name":"Ember Stair","kind":"exit","x":35,"y":14,"width":9,"height":5}]},{"seed":2024,"tiles":["################################################################################################","################################################################################################","################################################################################################","###.......#####............#####............###.....#.......#####.........#####...#####...######","###...........#............#####............###.#.#.#.#####.#####.##...##.#####...#####...######","###.......###......####....###......####....###.#.#.....#...###...........................######","###.......#####....####........#....####........#.#####.#.#.###.#.##...##.#.###...#####...######","###############............#####............#####.....#.#.#.###.#.........#.###...#####...######","###############............#####............#########.#...#.###.###########.####################","#################################################.........#.................####################","#############################################################.##################################","#############.................................................##################################","#############.##################################################################################","#############.##################################################################################","#############.##################################################################################","###.........#.###.........#####...........#####.......##########################################","###.##...##.#.###.##...##.#####...........###.........##########################################","###...........................................#.......##########################################","###.##...##.#####.##...##.#####...........######################################################","###.........#####.........#####...........######################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################"],"rooms":[{"name":"Cinder Gate","kind":"entrance","x":2,"y":2,"width":9,"height":6},{"name":"Ashen Hall","kind":"hall","x":14,"y":2,"width":14,"height":8},{"name":"Ashen Hall","kind":"hall","x":31,"y":2,"width":14,"height":8},{"name":"Sunken Maze","kind":"maze","x":48,"y":2,"width":13,"height":9},{"name":"Collapsing Span","kind":"trap","x":64,"y":2,"width":11,"height":7},{"name":"Hall of Paired Levers","kind":"puzzle","x":78,"y":2,"width":13,"height":7},{"name":"Collapsing Span","kind":"trap","x":2,"y":14,"width":11,"height":7},{"name":"Collapsing Span","kind":"trap","x":16,"y":14,"width":11,"height":7},{"name":"Warden Crucible","kind":"boss","x":30,"y":14,"width":13,"height":7},{"name":"Ember Stair","kind":"exit","x":46,"y":14,"width":9,"height":5}]},{"seed":90210,"tiles":["################################################################################################","################################################################################################","################################################################################################","###.......#####............#####............#####.........#####.........#####...#####...########","###...........#............#####............#####.##...##.#####.##...##.#####...#####...########","###.......###......####....###......####....###.........................................########","###.......#####....####........#....####........#.##...##.#####.##...##.#.###...#####...########","###############............#####............#####.........#####.........#.###...#####...########","###############............#####............#############################.######################","#############################################.............................######################","#############.................................##################################################","#############.##################################################################################","#############.##################################################################################","#############.##################################################################################","###.........#.###.........#####...........#####.......##########################################","###.##...##.#.###.##...##.#####...........###.........##########################################","###...........................................#.......##########################################","###.##...##.#####.##...##.#####...........######################################################","###.........#####.........#####...........######################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################","################################################################################################"],"rooms":[{"name":"Cinder Gate","kind":"entrance","x":2,"y":2,"width":9,"height":6},{"name":"Ashen Hall","kind":"hall","x":14,"y":2,"width":14,"height":8},{"name":"Ashen Hall","kind":"hall","x":31,"y":2,"width":14,"height":8},{"name":"Collapsing Span","kind":"trap","x":48,"y":2,"width":11,"height":7},{"name":"Collapsing Span","kind":"trap","x":62,"y":2,"width":11,"height":7},{"name":"Hall of Paired Levers","kind":"puzzle","x":76,"y":2,"width":13,"height":7},{"name":"Collapsing Span","kind":"trap","x":2,"y":13,"width":11,"height":7},{"name":"Collapsing Span","kind":"trap","x":16,"y":13,"width":11,"height":7},{"name":"Warden Crucible","kind":"boss","x":30,"y":13,"width":13,"height":7},{"name":"Ember Stair","kind":"exit","x":46,"y":13,"width":9,"height":5}]}];
+</script>
+
+<script>
+(() => {
+  const $ = (selector) => document.querySelector(selector);
+  const W = GEN.WIDTH;
+  const H = GEN.HEIGHT;
+
+  const ROLE = {
+    entrance: { label: "Entrance", color: "#6fbf8a" },
+    hall: { label: "Hall", color: "#a08d6c" },
+    cavern: { label: "Cavern", color: "#8c9a5a" },
+    maze: { label: "Maze", color: "#6f86b5" },
+    trap: { label: "Trap", color: "#e0703a" },
+    puzzle: { label: "Puzzle", color: "#8fa8d6" },
+    arena: { label: "Arena", color: "#c2551d" },
+    camp: { label: "Camp", color: "#f0a83c" },
+    shrine: { label: "Shrine", color: "#b49ad8" },
+    vault: { label: "Vault", color: "#e8c66a" },
+    secret: { label: "Secret", color: "#7d7466" },
+    boss: { label: "Boss", color: "#d9786a" },
+    exit: { label: "Exit", color: "#f7d58a" },
+  };
+  const C = {
+    rock: "#08090b", wallEdge: "#3a3b3f", wallLit: "#55534e", corridor: "#2a2620",
+    parch: "#f2ead3", parchDim: "#c9b184", mute: "#978d77", torch: "#f0a83c", gold: "#e8c66a",
+    ember: "#e0703a", blood: "#d9786a", seal: "#b49ad8", sky: "#8fa8d6", moss: "#6fbf8a",
+  };
+
+  const hexToRgb = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const mix = (a, b, t) => {
+    const x = hexToRgb(a);
+    const y = hexToRgb(b);
+    return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(",")})`;
+  };
+
+  // ------------------------------------------------------------ drawing
+  function roomIndex(run) {
+    const index = new Int16Array(W * H).fill(-1);
+    run.rooms.forEach((room, i) => {
+      for (let y = room.y; y < room.y + room.height; y += 1)
+        for (let x = room.x; x < room.x + room.width; x += 1) index[y * W + x] = i;
+    });
+    return index;
+  }
+
+  function drawMap(canvas, run, opts) {
+    const px = opts.px;
+    canvas.width = W * px;
+    canvas.height = H * px;
+    const ctx = canvas.getContext("2d");
+    const tiles = run.map.tiles;
+    const index = roomIndex(run);
+    const base = run.recipe?.biome?.floor ?? "#3b2a20";
+    const floorOf = {};
+    for (const [kind, role] of Object.entries(ROLE)) floorOf[kind] = mix(base, role.color, opts.tint ?? 0.42);
+
+    ctx.fillStyle = C.rock;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const isFloor = (x, y) => tiles[y]?.[x] === ".";
+    for (let y = 0; y < H; y += 1) {
+      for (let x = 0; x < W; x += 1) {
+        if (isFloor(x, y)) {
+          const r = index[y * W + x];
+          ctx.fillStyle = r >= 0 ? floorOf[run.rooms[r].kind] ?? base : mix(base, C.parchDim, 0.12);
+          ctx.fillRect(x * px, y * px, px, px);
+        } else {
+          let near = false;
+          for (let dy = -1; dy <= 1 && !near; dy += 1)
+            for (let dx = -1; dx <= 1; dx += 1) if (isFloor(x + dx, y + dy)) { near = true; break; }
+          if (near) {
+            ctx.fillStyle = C.wallEdge;
+            ctx.fillRect(x * px, y * px, px, px);
+          }
+        }
+      }
+    }
+    // A thin floor grid at large sizes, so the authored tile is readable.
+    if (px >= 6) {
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      for (let y = 0; y < H; y += 1)
+        for (let x = 0; x < W; x += 1) if (isFloor(x, y)) ctx.fillRect(x * px, y * px + px - 1, px, 1);
+    }
+
+    const center = (p) => [(p.x + 0.5) * px, (p.y + 0.5) * px];
+
+    if (opts.entities && run.lights) {
+      for (const light of run.lights) {
+        const [cx, cy] = center(light.position);
+        const r = Math.max(px * 1.2, (light.radius / GEN.TILE_SCALE) * px * 1.6);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        const col = light.tint === "red" ? "224,112,58" : light.tint === "cold" ? "127,196,201" : light.tint === "green" ? "155,212,106" : "240,168,60";
+        g.addColorStop(0, `rgba(${col},0.55)`);
+        g.addColorStop(1, `rgba(${col},0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Doors always draw: they are the shape of the run.
+    for (const door of run.doors ?? []) {
+      const x = door.position.x * px;
+      const y = door.position.y * px;
+      const color = door.lock?.type === "seal" ? C.seal : door.lock?.type === "hidden" ? C.mute : C.torch;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, px, px);
+      if (px >= 4) {
+        ctx.fillStyle = C.rock;
+        ctx.fillRect(x + px * 0.38, y + px * 0.25, px * 0.24, px * 0.5);
+      }
+    }
+
+    if (opts.entities) {
+      const dot = (p, color, size, shape = "square") => {
+        const [cx, cy] = center(p);
+        const s = Math.max(1.5, px * size);
+        ctx.fillStyle = color;
+        if (shape === "diamond") {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - s);
+          ctx.lineTo(cx + s, cy);
+          ctx.lineTo(cx, cy + s);
+          ctx.lineTo(cx - s, cy);
+          ctx.closePath();
+          ctx.fill();
+        } else if (shape === "ring") {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1, px * 0.18);
+          ctx.beginPath();
+          ctx.arc(cx, cy, s, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (shape === "x") {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1, px * 0.2);
+          ctx.beginPath();
+          ctx.moveTo(cx - s, cy - s); ctx.lineTo(cx + s, cy + s);
+          ctx.moveTo(cx + s, cy - s); ctx.lineTo(cx - s, cy + s);
+          ctx.stroke();
+        } else {
+          ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
+        }
+      };
+      for (const trap of run.traps ?? []) dot(trap.position, C.ember, 0.28, "x");
+      for (const puzzle of run.puzzles ?? []) for (const plate of puzzle.plates) dot(plate, C.sky, 0.36, "ring");
+      for (const chest of run.chests ?? []) dot(chest.position, C.gold, 0.3);
+      for (const altar of run.altars ?? []) dot(altar.position, C.seal, 0.34, "diamond");
+      for (const item of run.loot ?? []) {
+        if (item.key) dot(item.position, C.torch, 0.42, "diamond");
+        else if (item.itemId === "ballast-stone") dot(item.position, C.mute, 0.3);
+        else dot(item.position, C.parchDim, 0.16);
+      }
+      for (const m of run.monsters ?? []) {
+        if (m.boss) { dot(m.position, C.blood, 0.75, "diamond"); dot(m.position, C.blood, 1.15, "ring"); }
+        else if (m.elite) { dot(m.position, C.ember, 0.3, "diamond"); dot(m.position, C.torch, 0.62, "ring"); }
+        else dot(m.position, C.blood, 0.22, "diamond");
+      }
+      for (const p of run.spawnPoints ?? []) dot(p, C.moss, 0.22);
+      for (const exit of run.exits ?? []) { dot(exit.position, "#f7d58a", 0.42); dot(exit.position, "#f7d58a", 0.85, "ring"); }
+    }
+
+    if (opts.dark) {
+      const shade = document.createElement("canvas");
+      shade.width = canvas.width;
+      shade.height = canvas.height;
+      const s = shade.getContext("2d");
+      s.fillStyle = "rgba(3,3,5,0.95)";
+      s.fillRect(0, 0, shade.width, shade.height);
+      s.globalCompositeOperation = "destination-out";
+      const reveal = (p, radius) => {
+        const [cx, cy] = center(p);
+        const r = (radius / GEN.TILE_SCALE) * px;
+        const g = s.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, "rgba(0,0,0,1)");
+        g.addColorStop(0.7, "rgba(0,0,0,0.85)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        s.fillStyle = g;
+        s.beginPath();
+        s.arc(cx, cy, r, 0, Math.PI * 2);
+        s.fill();
+      };
+      for (const light of run.lights ?? []) reveal(light.position, light.radius);
+      (run.spawnPoints ?? []).slice(0, run.partySize ?? 4).forEach((p) => reveal(p, 6));
+      for (const m of run.monsters ?? []) if (m.boss) reveal(m.position, 5.5);
+      ctx.drawImage(shade, 0, 0);
+    }
+
+    if (opts.graph && run.graph) {
+      const roomCenter = (nodeId) => {
+        const room = run.rooms[nodeId];
+        return [(room.x + room.width / 2) * px, (room.y + room.height / 2) * px];
+      };
+      const style = {
+        open: [C.parch, [], 0.55], loop: [C.sky, [], 0.9], locked: [C.torch, [px * 0.9, px * 0.6], 1],
+        sealed: [C.seal, [px * 0.9, px * 0.6], 1], secret: [C.mute, [px * 0.3, px * 0.5], 0.9],
+      };
+      ctx.lineCap = "round";
+      for (const edge of run.graph.edges) {
+        const [color, dash, alpha] = style[edge.kind] ?? style.open;
+        const [x1, y1] = roomCenter(edge.a);
+        const [x2, y2] = roomCenter(edge.b);
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = C.rock;
+        ctx.lineWidth = Math.max(2, px * 0.75);
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, px * 0.32);
+        ctx.setLineDash(dash);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      for (const node of run.graph.nodes) {
+        const [x, y] = roomCenter(node.id);
+        const r = Math.max(3, px * (node.pathIndex >= 0 ? 1.25 : 0.85));
+        ctx.fillStyle = C.rock;
+        ctx.beginPath(); ctx.arc(x, y, r + Math.max(1, px * 0.25), 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = ROLE[node.role]?.color ?? C.parch;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        if (node.pathIndex >= 0 && px >= 3) {
+          ctx.fillStyle = C.rock;
+          ctx.font = `700 ${Math.round(r * 1.25)}px "JetBrains Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(node.pathIndex + 1), x, y + r * 0.06);
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ workbench state
+  const state = { seed: 20261022, party: 4, flowId: "", biomeId: "", graph: true, entities: true, dark: false };
+  let current = null;
+
+  const flowSel = $("#flow");
+  for (const flow of GEN.CATALOG.flows) flowSel.add(new Option(`${flow.name}${flow.minParty > 1 ? " (2+)" : ""}`, flow.id));
+  const biomeSel = $("#biome");
+  for (const biome of GEN.CATALOG.biomes) biomeSel.add(new Option(`${biome.name}${biome.status === "live" ? " · live" : ""}`, biome.id));
+
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const statusChip = (status) => `<span class="chip ${status}">${status}</span>`;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  function generate(seed) {
+    return GEN.generate({ seed, partySize: state.party, flowId: state.flowId || null, biomeId: state.biomeId || null });
+  }
+
+  function render() {
+    try {
+      current = generate(state.seed);
+    } catch (error) {
+      $("#omen").textContent = `This seed could not be built: ${error.message}`;
+      return;
+    }
+    const run = current;
+    drawMap($("#map"), run, { px: 8, graph: state.graph, entities: state.entities, dark: state.dark });
+    $("#omen").textContent = run.omen;
+    const omens = run.recipe.mutators.length
+      ? run.recipe.mutators.map((m) => `<span class="chip ${m.type}">${esc(m.name)}</span>`).join("")
+      : `<span class="chip none">no omen</span>`;
+    $("#facts").innerHTML = `
+      <dt>Flow</dt><dd>${esc(run.recipe.flow.name)} <span class="muted">· ${esc(run.recipe.flow.source)}</span></dd>
+      <dt>Biome</dt><dd>${esc(run.recipe.biome.name)} ${statusChip(run.recipe.biome.status)}</dd>
+      <dt>Boss</dt><dd>${esc(run.recipe.boss.name)} ${statusChip(run.recipe.boss.status)}</dd>
+      <dt>Omens</dt><dd>${omens}</dd>
+      <dt>Rooms</dt><dd>${run.metrics.rooms} rooms · ${plural(run.graph.edges.filter((e) => e.kind === "loop").length, "loop")} · ${run.monsters.length} monsters · ${run.chests.length} chests · ${run.lights.length} lights</dd>
+      <dt>Route</dt><dd>${fmtTime(run.metrics.walkSeconds)} of walking on the intended route <span class="muted">(${run.metrics.routeTiles} tiles × 4 ÷ 6 u/s)</span></dd>`;
+    const glyph = (label) => (label.includes("Seal") ? C.seal : label === "Exit" ? "#f7d58a" : label.startsWith("Cracked") ? C.mute : C.torch);
+    $("#locks").innerHTML = run.locks
+      .map((l) => `<li><span class="glyph" style="background:${glyph(l.label)}"></span><span><span class="what">${esc(l.label)}</span> <span class="how">${esc(l.from)}, opens <b>${esc(l.opens)}</b>.</span></span></li>`)
+      .join("");
+    $("#map-cap-right").textContent = `seed ${run.seed} · party of ${run.partySize}${run.attempt ? ` · built on attempt ${run.attempt + 1}` : ""}`;
+    $("#seed").value = String(run.seed);
+    drawPacing(run);
+    renderGallery();
+  }
+
+  // ------------------------------------------------------------ pacing chart
+  function drawPacing(run) {
+    const svg = $("#pacing");
+    const data = run.intensity;
+    const Wv = 360, Hv = 132, left = 26, right = 6, top = 10, bottom = 24;
+    const max = Math.max(4, Math.ceil(Math.max(...data.map((d) => d.value)) / 4) * 4);
+    const plotW = Wv - left - right;
+    const plotH = Hv - top - bottom;
+    const slot = plotW / data.length;
+    const barW = Math.max(6, Math.min(26, slot - 6));
+    const y = (v) => top + plotH - (v / max) * plotH;
+    let out = "";
+    for (const t of [0, max / 2, max]) {
+      out += `<line x1="${left}" x2="${Wv - right}" y1="${y(t)}" y2="${y(t)}" stroke="#2c3138" stroke-width="1"/>`;
+      out += `<text x="${left - 6}" y="${y(t) + 3.5}" text-anchor="end" font-size="9.5" fill="#978d77" font-family="JetBrains Mono, monospace">${t}</text>`;
+    }
+    data.forEach((d, i) => {
+      const x = left + slot * i + (slot - barW) / 2;
+      const h = Math.max(0, y(0) - y(d.value));
+      const r = Math.min(4, barW / 2, h);
+      const color = d.kind === "boss" ? "#d9786a" : "#f0a83c";
+      if (h > 0) {
+        out += `<path d="M${x},${y(0)} V${y(d.value) + r} Q${x},${y(d.value)} ${x + r},${y(d.value)} H${x + barW - r} Q${x + barW},${y(d.value)} ${x + barW},${y(d.value) + r} V${y(0)} Z" fill="${color}"/>`;
+      } else {
+        out += `<rect x="${x}" y="${y(0) - 1.5}" width="${barW}" height="1.5" fill="#978d77"/>`;
+      }
+      out += `<text x="${x + barW / 2}" y="${Hv - 9}" text-anchor="middle" font-size="9.5" fill="#c9b184" font-family="JetBrains Mono, monospace">${i + 1}</text>`;
+      out += `<rect class="hit" data-i="${i}" x="${left + slot * i}" y="${top}" width="${slot}" height="${plotH + 14}" fill="transparent"/>`;
+    });
+    const bossIndex = data.findIndex((d) => d.kind === "boss");
+    if (bossIndex >= 0) {
+      const bx = left + slot * bossIndex + slot / 2;
+      out += `<text x="${Math.min(bx, Wv - right - 14)}" y="${y(data[bossIndex].value) - 4}" text-anchor="middle" font-size="9.5" fill="#f2ead3" font-family="JetBrains Mono, monospace">boss</text>`;
+    }
+    svg.innerHTML = out;
+    const tip = $("#ptip");
+    svg.querySelectorAll(".hit").forEach((el) => {
+      el.addEventListener("mouseenter", () => {
+        const d = data[Number(el.dataset.i)];
+        tip.innerHTML = `<b>${esc(d.name)}</b>${esc(ROLE[d.kind]?.label ?? d.kind)} · threat ${d.value}`;
+        tip.hidden = false;
+        const box = svg.getBoundingClientRect();
+        const bar = el.getBoundingClientRect();
+        tip.style.left = `${Math.min(box.width - 150, Math.max(0, bar.left - box.left))}px`;
+        tip.style.top = `-6px`;
+        tip.style.transform = "translateY(-100%)";
+      });
+      el.addEventListener("mouseleave", () => (tip.hidden = true));
+    });
+  }
+
+  // ------------------------------------------------------------ map hover
+  const mapEl = $("#map");
+  const tip = $("#tip");
+  mapEl.addEventListener("mousemove", (event) => {
+    if (!current) return;
+    const rect = mapEl.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * W);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * H);
+    const room = current.rooms.find((r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height);
+    const isFloor = current.map.tiles[y]?.[x] === ".";
+    if (!room && !isFloor) { tip.hidden = true; return; }
+    if (room) {
+      const monsters = current.monsters.filter((m) => m.roomId === room.id);
+      const boss = monsters.find((m) => m.boss);
+      const chests = current.chests.filter((c) => c.roomId === room.id).length;
+      const traps = current.traps.filter((t) => t.roomId === room.id).length;
+      const bits = [
+        boss ? boss.name : monsters.length ? `${monsters.length} monster${monsters.length > 1 ? "s" : ""}` : "no monsters",
+        chests ? `${chests} chest${chests > 1 ? "s" : ""}` : null,
+        traps ? `${traps} trap${traps > 1 ? "s" : ""}` : null,
+        room.shape ? `shape: ${room.shape}` : null,
+      ].filter(Boolean);
+      tip.innerHTML = `<b>${esc(room.name)}</b>${esc(ROLE[room.kind]?.label ?? room.kind)}${room.pathIndex >= 0 ? ` · path room ${room.pathIndex + 1}` : " · side room"}<br>${esc(bits.join(" · "))}`;
+    } else {
+      tip.innerHTML = `<b>Corridor</b>4 world tiles wide`;
+    }
+    tip.hidden = false;
+    const frame = $("#map-frame").getBoundingClientRect();
+    const left = event.clientX - frame.left + 14;
+    tip.style.left = `${Math.min(left, frame.width - 200)}px`;
+    tip.style.top = `${event.clientY - frame.top + 14}px`;
+  });
+  mapEl.addEventListener("mouseleave", () => (tip.hidden = true));
+
+  // ------------------------------------------------------------ gallery
+  function renderGallery() {
+    const host = $("#gallery");
+    host.innerHTML = "";
+    for (let i = 1; i <= 6; i += 1) {
+      const seed = (state.seed + i) >>> 0;
+      let run;
+      try { run = generate(seed); } catch { continue; }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "thumb";
+      button.setAttribute("aria-label", `Load seed ${seed}`);
+      const canvas = document.createElement("canvas");
+      drawMap(canvas, run, { px: 2, graph: false, entities: false, dark: false, tint: 0.55 });
+      button.append(canvas);
+      const t1 = document.createElement("div");
+      t1.className = "t1";
+      t1.textContent = run.recipe.flow.name;
+      const t2 = document.createElement("div");
+      t2.className = "t2";
+      t2.textContent = `${run.recipe.biome.name} · ${run.recipe.boss.name} · ${run.metrics.rooms} rooms · seed ${seed}`;
+      button.append(t1, t2);
+      button.addEventListener("click", () => {
+        state.seed = seed;
+        render();
+        $("#bench").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      });
+      host.append(button);
+    }
+  }
+
+  // ------------------------------------------------------------ legend
+  const legendItems = [
+    ...["entrance", "hall", "cavern", "maze", "trap", "puzzle", "arena", "camp", "shrine", "vault", "secret", "boss", "exit"].map(
+      (k) => `<span><i class="sw" style="background:${ROLE[k].color}"></i>${ROLE[k].label}</span>`,
+    ),
+    `<span><i class="sw" style="background:${C.torch}"></i>Key door / key</span>`,
+    `<span><i class="sw" style="background:${C.seal}"></i>Seal door</span>`,
+    `<span><i class="sw" style="background:${C.blood}"></i>Monster / boss</span>`,
+    `<span><i class="sw" style="background:${C.gold}"></i>Chest</span>`,
+    `<span><i class="sw" style="background:${C.ember}"></i>Trap</span>`,
+    `<span><i class="sw" style="border:2px solid ${C.sky}"></i>Plate</span>`,
+    `<span><i class="sw" style="background:${C.moss}"></i>Spawn</span>`,
+  ];
+  $("#legend").innerHTML = legendItems.join("");
+
+  // ------------------------------------------------------------ static sections
+  function renderCompare() {
+    const host = $("#compare");
+    for (const sample of CURRENT_MAPS) {
+      const fig = document.createElement("figure");
+      const canvas = document.createElement("canvas");
+      drawMap(canvas, { map: { tiles: sample.tiles }, rooms: sample.rooms, recipe: { biome: { floor: "#3b2a20" } } }, { px: 3, graph: false, entities: false, tint: 0.5 });
+      const cap = document.createElement("figcaption");
+      cap.innerHTML = `<b>seed ${sample.seed}</b> · ${sample.rooms.map((r) => esc(r.name)).join(" → ")}`;
+      fig.append(canvas, cap);
+      host.append(fig);
+    }
+  }
+
+  const FLOW_SEEDS = { gauntlet: 4417, "long-loop": 3001, "three-roads": 5150, "hub-spokes": 777, "split-seal": 2468 };
+  function renderFlows() {
+    const host = $("#flow-cards");
+    for (const flow of GEN.CATALOG.flows) {
+      const run = GEN.generate({ seed: FLOW_SEEDS[flow.id] ?? 1, partySize: 4, flowId: flow.id, biomeId: "cinder-depths", mutatorIds: [] });
+      const card = document.createElement("article");
+      card.className = "flow";
+      const canvas = document.createElement("canvas");
+      drawMap(canvas, run, { px: 4, graph: true, entities: false, tint: 0.5 });
+      const range = (r) => (r[0] === r[1] ? `${r[0]}` : `${r[0]}–${r[1]}`);
+      const lock = { key: "boss key", seals: "seal braziers", "split-seal": "split seal" }[flow.bossLock];
+      card.innerHTML = `<div class="row"><h3>${esc(flow.name)}</h3><span class="eyebrow">${flow.minParty > 1 ? "2+ players" : "any party"}</span></div>`;
+      card.append(canvas);
+      const p = document.createElement("p");
+      p.textContent = flow.blurb;
+      const stats = document.createElement("div");
+      stats.className = "stats";
+      stats.textContent = `path ${range(flow.path)} · branches ${range(flow.branches)} × ${range(flow.branchLen)} · loops ${range(flow.loops)} · lock: ${lock} · vault ${Math.round(flow.vaultChance * 100)}%`;
+      const src = document.createElement("div");
+      src.className = "muted";
+      src.style.fontSize = "12px";
+      src.textContent = `From ${flow.source}`;
+      card.append(p, stats, src);
+      host.append(card);
+    }
+  }
+
+  function renderBiomes() {
+    const host = $("#biome-cards");
+    for (const biome of GEN.CATALOG.biomes) {
+      const card = document.createElement("article");
+      card.className = "biome";
+      const bosses = biome.bosses.map((id) => GEN.CATALOG.bosses[id].name).join(", ");
+      const rooms = Object.entries(biome.rooms).map(([k, v]) => `${ROLE[k]?.label ?? k} ${v}`).join(" · ");
+      card.innerHTML = `
+        <div class="swatches"><i style="background:${biome.floor}"></i><i style="background:${biome.glow}"></i><i style="background:${mix(biome.floor, biome.glow, 0.4)}"></i></div>
+        <div class="name" style="color:${biome.glow}">${esc(biome.name)}</div>
+        <div>${statusChip(biome.status)}<span class="chip none">light ×${biome.light}</span><span class="chip none">${esc(biome.lightTint)} tint</span></div>
+        <p style="font-size:14px;color:var(--parch-dim)">${esc(biome.blurb)}</p>
+        <dl>
+          <dt>Roster (threat cost)</dt><dd>${biome.roster.map((m) => `${esc(m.name)} ${m.cost}`).join(" · ")}</dd>
+          <dt>Traps</dt><dd>${biome.traps.join(", ")}</dd>
+          <dt>Puzzles</dt><dd>${biome.puzzles.join(", ")}</dd>
+          <dt>Bosses</dt><dd>${esc(bosses)}</dd>
+          <dt>Room weights</dt><dd>${esc(rooms)}</dd>
+        </dl>`;
+      host.append(card);
+    }
+  }
+
+  // ------------------------------------------------------------ copy helpers
+  const toast = (text) => {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = text;
+    document.body.append(el);
+    setTimeout(() => el.remove(), 1800);
+  };
+  const copy = (text, done) => {
+    try {
+      navigator.clipboard.writeText(text).then(() => toast(done), () => toast("Copy was blocked here. Select the text and copy it by hand."));
+    } catch {
+      toast("Copy was blocked here. Select the text and copy it by hand.");
+    }
+  };
+  $("#copy-json").addEventListener("click", () => copy(JSON.stringify(current, null, 2), "Run JSON copied"));
+  $("#copy-link").addEventListener("click", () => copy(`seed ${current.seed}, party ${current.partySize}${state.flowId ? `, flow ${state.flowId}` : ""}${state.biomeId ? `, biome ${state.biomeId}` : ""}`, "Seed copied"));
+  const source = document.getElementById("gen-src").textContent.trim();
+  $("#src-view").textContent = source;
+  $("#copy-src").addEventListener("click", (event) => { event.preventDefault(); copy(source, "Generator source copied"); });
+
+  // ------------------------------------------------------------ controls
+  $("#reroll").addEventListener("click", () => {
+    state.seed = Math.floor(Math.random() * 0xffffffff) >>> 0;
+    render();
+  });
+  $("#seed").addEventListener("change", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value)) { state.seed = Math.max(0, Math.floor(value)) >>> 0; render(); }
+  });
+  document.querySelectorAll("#party button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.party = Number(button.dataset.party);
+      document.querySelectorAll("#party button").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      if (state.party < 2 && state.flowId === "split-seal") { state.flowId = ""; flowSel.value = ""; }
+      render();
+    });
+  });
+  flowSel.addEventListener("change", () => {
+    state.flowId = flowSel.value;
+    const flow = GEN.CATALOG.flows.find((f) => f.id === state.flowId);
+    if (flow && flow.minParty > state.party) {
+      state.party = flow.minParty;
+      document.querySelectorAll("#party button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.party) === state.party)));
+    }
+    render();
+  });
+  biomeSel.addEventListener("change", () => { state.biomeId = biomeSel.value; render(); });
+  $("#t-graph").addEventListener("change", (e) => { state.graph = e.target.checked; render(); });
+  $("#t-ent").addEventListener("change", (e) => { state.entities = e.target.checked; render(); });
+  $("#t-dark").addEventListener("change", (e) => { state.dark = e.target.checked; render(); });
+
+  try {
+    const saved = JSON.parse(localStorage.getItem("ddb-view") ?? "null");
+    if (saved && typeof saved === "object") {
+      if (typeof saved.dark === "boolean") { state.dark = saved.dark; $("#t-dark").checked = saved.dark; }
+    }
+  } catch { /* storage unavailable: defaults are fine */ }
+  $("#t-dark").addEventListener("change", () => {
+    try { localStorage.setItem("ddb-view", JSON.stringify({ dark: state.dark })); } catch { /* ignore */ }
+  });
+
+  renderCompare();
+  renderFlows();
+  renderBiomes();
+  render();
+})();
+</script>
