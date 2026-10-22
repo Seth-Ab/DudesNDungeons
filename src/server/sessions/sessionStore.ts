@@ -45,6 +45,7 @@ import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
+import { RoomSaveStore } from "../saves/roomSaveStore.js";
 import type { PartyVault } from "../vaults/partyVault.js";
 import { VaultStore } from "../vaults/vaultStore.js";
 
@@ -250,6 +251,8 @@ export interface SessionStoreOptions {
    * `src/server/index.ts` supplies the file-backed one.
    */
   vaults?: VaultStore;
+  /** Where room saves live (decision 0015). In-memory by default, like `vaults`. */
+  saves?: RoomSaveStore;
 }
 
 function defaultRoomCode(): RoomCode {
@@ -270,6 +273,8 @@ function defaultRoomCode(): RoomCode {
 export class SessionStore {
   /** Party vaults by room code. Public so the server can flush them when they change. */
   readonly vaults: VaultStore;
+  /** Room saves by room code. Public for the same reason as `vaults`. */
+  readonly saves: RoomSaveStore;
   readonly #sessions = new Map<RoomCode, Session>();
   /** Reverse index so socket events, which only carry a player id, resolve in constant time. */
   readonly #sessionByPlayer = new Map<PlayerId, RoomCode>();
@@ -295,14 +300,16 @@ export class SessionStore {
     this.#emptySessionTtlMs = options.emptySessionTtlMs ?? EMPTY_SESSION_TTL_MS;
     this.#dungeon = options.dungeon ?? {};
     this.vaults = options.vaults ?? new VaultStore();
+    this.saves = options.saves ?? new RoomSaveStore();
   }
 
   /**
-   * A new room with an empty vault. A code whose vault is saved counts as taken even with no live
-   * session, so a new room is never handed another party's vault.
+   * A new room with an empty vault. A code whose vault or room save is kept counts as taken even
+   * with no live session, so a new room is never handed another party's vault or characters.
    */
   createSession(): Session {
-    const taken = (code: RoomCode): boolean => this.#sessions.has(code) || this.vaults.has(code);
+    const taken = (code: RoomCode): boolean =>
+      this.#sessions.has(code) || this.vaults.has(code) || this.saves.has(code);
     let roomCode = this.#createRoomCode();
     for (let attempt = 0; taken(roomCode); attempt += 1) {
       if (attempt >= 50) {

@@ -16,7 +16,7 @@ This repository is currently at planning/scaffold stage. Keep new source code or
 - `src/server/` for authoritative dungeon state, sessions, WebSocket networking, and voice signaling.
 - `src/shared/` for protocol messages, shared game utilities, constants, and TypeScript types.
 - `content/` for editable game data such as dungeons, items, monsters, and player skills.
-- `data/` for persistent server state: player profiles and party vaults. Gitignored and created on demand.
+- `data/` for persistent server state: player profiles, party vaults, and room saves. Gitignored and created on demand.
 - `assets/` for sprites, maps, audio, and UI media. Pixel art is authored as text under `assets/sprites/source/` and baked to a PNG; see `assets/sprites/README.md`.
 - `tests/` for automated coverage split into `client`, `server`, `shared`, and `e2e`.
 - `docs/` for architecture notes and decision records.
@@ -36,6 +36,12 @@ render the authoritative snapshot; they must not locally advance the run lifecyc
 The party vault belongs to the room code in `src/server/vaults/`, shared by reference with the
 session playing it. Anything that mutates one must call `markVaultChanged`, so it is written to
 `data/vaults.json` and resent to the party.
+
+Room saves (decision 0015) live in `src/server/saves/`, one per room code in `data/rooms.json`: the
+party's characters for the life of the room, and the run in progress while there is one. A save is
+a copy of a session, never shared by reference; it changes only through `RoomSaveStore.put`,
+`clearRun` or `delete`. Store time in a save as a duration, never a clock reading, so a saved run's
+timers pause until it is continued.
 
 It also owns roguelite profiles: what a player has unlocked (and a legacy, read-only bank) belongs
 to a profile in `src/server/profiles/`, not to a session, and a client may never send one. A client holds one

@@ -28,6 +28,11 @@ export interface Rng {
    * credentials; resume tokens and room codes still come from `node:crypto`.
    */
   uuid(): string;
+  /**
+   * The stream's position as a 32-bit integer. `createRng(rng.state())` continues exactly where this
+   * one is, which is how a saved run keeps rolling the drops it would have rolled.
+   */
+  state(): number;
 }
 
 export function createRng(seed: number): Rng {
@@ -56,6 +61,7 @@ export function createRng(seed: number): Rng {
   return {
     next,
     int,
+    state: () => state,
 
     uuid() {
       // Version 4, variant 1: the literal "4" and the 8-b nibble are what make it parse as a v4.
