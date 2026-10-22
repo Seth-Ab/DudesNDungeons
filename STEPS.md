@@ -12,7 +12,7 @@ Ask before moving past these points.
 
 Resolved, with answers recorded in `PROGRESS.md`: visual style, movement model, combat model,
 voice behavior, party size, death and loss, hybrid combat direction, carry capacity, identity for
-progression, target run length, and world tile scale.
+progression, target run length, world tile scale, and run saves.
 
 ## Backend Dev
 
@@ -123,12 +123,21 @@ an existing slot still works during a run.
   stacks converts to coin only after the player confirms. Milestone achievements grant special
   skills.
 - Never trust a client-sent profile, inventory, or unlock. The client asks; the server decides.
+- Save each room's party and its run in progress under `data/`, so a run survives quitting and
+  restarts: members' characters for the life of the room, the run state autosaved, on "Save and
+  quit", when the party empties and at shutdown, and cleared on an escape or a wipe. Any subset of
+  the party can continue from the room code; nobody new joins mid-run.
 
 Owner decisions (progression economy, issue #23): coin from runs, milestone achievements and rare
 monster drops are the three sources of skills; skills stack to a per-skill `maxStacks`, may require
 other skills, and replace tiered upgrades; a maxed scroll converts to coin behind a confirmation; and
 unlocks survive content changes while new content shows up locked. See
 `docs/decisions/0014-progression-economy.md`; the work is split across #213-#217.
+
+Owner decisions (run saves, issue #122): a save belongs to the room code and outlives runs; a save
+can't undo a death or wipe; an absent member's carry is lost if the run ends without them; timers
+and the run clock pause while saved; saves expire after 7 days. See
+`docs/decisions/0015-run-saves.md`; the work is split across #232-#235.
 
 ### 12. Traps, Puzzles, Bosses, and Carrying
 
@@ -255,6 +264,8 @@ Owner decisions (HUD Torch & Tally, issue #160): unseen allies stay in the party
 - Render the hub, the dungeon entrance, the torch supply, and storage.
 - Add the flow for starting a run, escaping, and dying.
 - Show what a player is carrying and what they banked on the way out.
+- Add "Save and quit" during a run and a lobby prompt to continue a room's saved run or start fresh
+  after a confirmation (decision 0015).
 
 ### 10. Skills and Progression UI
 
