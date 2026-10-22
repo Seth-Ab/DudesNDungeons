@@ -2,6 +2,7 @@ import { MILESTONE_STATS } from "../../shared/constants/game.js";
 import type {
   ErrorCode,
   PartyRosterEntry,
+  SavedRunCard,
   ServerMessage,
   WardrobeEntry,
 } from "../../shared/protocol/index.js";
@@ -162,6 +163,11 @@ export interface SessionView {
    * view otherwise reset to the lobby's, so it is null for a player who left or never joined.
    */
   savedQuitRoomCode: string | null;
+  /**
+   * The runs this device's profile can continue, as the server listed them for the lobby. Null until
+   * the server has answered; an empty list means it answered and there are none.
+   */
+  savedRuns: SavedRunCard[] | null;
 }
 
 export type SkillShopEntry = Extract<ServerMessage, { type: "skillShopStock" }>["entries"][number];
@@ -206,6 +212,7 @@ export const initialSessionView: SessionView = {
   wardrobeNotice: null,
   saveQuitNotice: null,
   savedQuitRoomCode: null,
+  savedRuns: null,
 };
 
 /**
@@ -314,6 +321,9 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         players: view.players.filter((player) => player.id !== message.playerId),
         partyRoster: view.partyRoster.filter((entry) => entry.playerId !== message.playerId),
       };
+
+    case "savedRuns":
+      return { ...view, savedRuns: message.runs };
 
     // The session client closes the socket on this; the reducer only returns the view to the lobby's.
     case "savedAndQuit":

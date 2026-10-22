@@ -409,8 +409,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v47, the version that added savedAndQuit", () => {
-    expect(PROTOCOL_VERSION).toBe(47);
+  it("is on protocol v48, the version that added the saved-run list", () => {
+    expect(PROTOCOL_VERSION).toBe(48);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1340,5 +1340,59 @@ describe("map ground on the wire", () => {
     expect(mapDiscoverySchema.safeParse(props()).success).toBe(true);
     expect(mapDiscoverySchema.safeParse(props("north")).success).toBe(true);
     expect(mapDiscoverySchema.safeParse(props("west")).success).toBe(false);
+  });
+});
+
+describe("the saved-run list", () => {
+  const SECRET = "0123456789abcdef0123456789abcdef";
+  const CHARACTER = {
+    name: "Alpha",
+    appearance: { body: "girl", skinTone: "tan", hairStyle: "bun", hairColor: "silver" },
+    partyColor: "ember",
+  } as const;
+
+  it("accepts a listSavedRuns carrying only a profile secret", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "listSavedRuns", profileSecret: SECRET })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "listSavedRuns" })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "listSavedRuns", profileSecret: "nope" })).ok).toBe(false);
+    expect(
+      parseClientMessage(JSON.stringify({ type: "listSavedRuns", profileSecret: SECRET, roomCode: "BCDFGH" })).ok,
+    ).toBe(false);
+  });
+
+  it("round-trips a savedRuns list of cards", () => {
+    const message: ServerMessage = {
+      type: "savedRuns",
+      runs: [
+        {
+          roomCode: "BCDFGH",
+          dungeonName: "Ember Vault",
+          character: CHARACTER,
+          teammates: [{ ...CHARACTER, name: "Beta", partyColor: "moss" }],
+          playedMs: 34 * 60_000,
+          lastPlayedAt: 1_700_000_000_000,
+        },
+      ],
+    };
+
+    const result = parseServerMessage(serializeServerMessage(message));
+    expect(result.ok && result.message).toEqual(message);
+  });
+
+  it("refuses a card with an appearance id off the shared lists", () => {
+    const message = {
+      type: "savedRuns",
+      runs: [
+        {
+          roomCode: "BCDFGH",
+          dungeonName: null,
+          character: { ...CHARACTER, appearance: { ...CHARACTER.appearance, hairColor: "chartreuse" } },
+          teammates: [],
+          playedMs: 0,
+          lastPlayedAt: 0,
+        },
+      ],
+    };
+    expect(parseServerMessage(JSON.stringify(message)).ok).toBe(false);
   });
 });

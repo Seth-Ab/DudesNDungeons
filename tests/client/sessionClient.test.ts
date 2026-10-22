@@ -795,3 +795,76 @@ describe("saving and quitting a run", () => {
     expect(selfOf(resumed)?.position).toEqual(savedAt);
   });
 });
+
+describe("the lobby's Continue list", () => {
+  /** A host and a guest in the dungeon, the guest then saved and quit, so the room's run is saved. */
+  async function savedRun() {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    await until(host, inSession);
+    await design(host);
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    await until(guest, inSession);
+    await design(guest);
+
+    host.setReady(true);
+    guest.setReady(true);
+    const session = server.store.getSession(roomCode);
+    const entrance = session?.dungeon.exits[0];
+    if (!session || !entrance) throw new Error("expected a hub entrance");
+    await untilServer(() => [...session.players.values()].every((player) => player.ready));
+    const hostPlayer = session.players.get(host.view.selfId!);
+    if (hostPlayer) hostPlayer.position = { ...entrance.position };
+    host.interact(entrance.id);
+    await until(guest, (view) => view.location === "dungeon");
+
+    guest.saveAndQuit();
+    await until(guest, (view) => view.savedQuitRoomCode !== null);
+    return { host, guest, roomCode };
+  }
+
+  it("lists the run for the member who saved and quit, with their character and teammates", async () => {
+    const { guest, roomCode } = await savedRun();
+
+    expect(guest.view.savedRuns).toBeNull();
+    guest.requestSavedRuns();
+    const view = await until(guest, (v) => v.savedRuns !== null);
+
+    expect(view.savedRuns).toHaveLength(1);
+    const [card] = view.savedRuns!;
+    expect(card?.roomCode).toBe(roomCode);
+    expect(card?.character).toMatchObject({ name: "Beta", appearance: LOOK });
+    expect(card?.teammates.map((teammate) => teammate.name)).toEqual(["Alpha"]);
+  });
+
+  it("continues the run from the card without a design screen", async () => {
+    const { guest, roomCode } = await savedRun();
+    guest.requestSavedRuns();
+    await until(guest, (v) => v.savedRuns !== null);
+
+    guest.join(roomCode, "Beta", "continue");
+    const view = await until(guest, (v) => inSession(v) && v.location === "dungeon");
+
+    expect(view.needsAppearance).toBe(false);
+    expect(selfOf(view)?.appearance).toEqual(LOOK);
+  });
+
+  it("lists nothing for a device with no profile, and for a profile that was not in the run", async () => {
+    await savedRun();
+
+    const fresh = newClient();
+    fresh.requestSavedRuns();
+    expect((await until(fresh, (v) => v.savedRuns !== null)).savedRuns).toEqual([]);
+
+    // A profile the server knows but that never played in the saved room.
+    const stranger = newClient();
+    const strangerRoom = await stranger.createRoom();
+    stranger.join(strangerRoom, "Gamma");
+    await until(stranger, inSession);
+    stranger.leave();
+    stranger.requestSavedRuns();
+    expect((await until(stranger, (v) => v.savedRuns !== null)).savedRuns).toEqual([]);
+  });
+});

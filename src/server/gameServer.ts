@@ -14,6 +14,7 @@ import {
   serializeServerMessage,
   type ClientMessageType,
   type ErrorCode,
+  type SavedRunCard,
   type ServerMessage,
 } from "../shared/protocol/index.js";
 import type { PlayerId, PlayerState, ProfileId } from "../shared/types/core.js";
@@ -45,6 +46,8 @@ import { saveAndQuit } from "./game/saveAndQuit.js";
 import { shareDiscoveredMaps } from "./game/mapSharing.js";
 import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
+import { gameContent } from "./content/loadContent.js";
+import { savedRunCardsFor } from "./saves/savedRunList.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
 import { saveRoom, touchRoomSave } from "./saves/roomSaving.js";
@@ -232,6 +235,23 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     profiles.flush();
     store.vaults.flush();
     store.saves.flush();
+  }
+
+  /**
+   * The Continue list for a profile. A live hub with players has already dropped any run it held
+   * (see `SessionStore.join`), and only a room with no session can lapse, so those are not offered.
+   */
+  function savedRunsFor(profileId: ProfileId): SavedRunCard[] {
+    const offerable = store.saves.all().filter((save) => {
+      const live = store.getSession(save.roomCode);
+      return live === undefined || live.location === "dungeon" || live.players.size === 0;
+    });
+    return savedRunCardsFor(
+      offerable,
+      profileId,
+      gameContent(),
+      (save) => store.getSession(save.roomCode) === undefined && store.saves.isExpired(save),
+    );
   }
 
   /** Writes the room's save from its session. `forget` drops a leaver's run entry; see `saveRoom`. */
@@ -463,6 +483,17 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           `[session] ${session.roomCode}: ${player.name} ${resumed ? "resumed" : "joined"} ` +
             `(${session.players.size}/${MAX_PARTY_SIZE})`,
         );
+        return;
+      }
+
+      if (message.type === "listSavedRuns") {
+        if (playerId !== null) {
+          sendError(socket, "alreadyInSession", "This connection has already joined a dungeon");
+          return;
+        }
+        // An unknown secret is a fresh device, which has no saves rather than a reason to refuse.
+        const profile = profiles.find(message.profileSecret);
+        send(socket, { type: "savedRuns", runs: profile === null ? [] : savedRunsFor(profile.id) });
         return;
       }
 

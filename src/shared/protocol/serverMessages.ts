@@ -10,6 +10,7 @@ import {
   milestoneStatsSchema,
   milestoneViewSchema,
   partyColorSchema,
+  playerAppearanceSchema,
   playerIdSchema,
   playerNameSchema,
   playerStateSchema,
@@ -181,6 +182,34 @@ export const playerLeftSchema = z.object({
   type: z.literal("playerLeft"),
   playerId: playerIdSchema,
   reason: playerLeftReasonSchema,
+});
+
+/** A character on a saved-run card: enough to draw their head and name them. */
+export const savedRunCharacterSchema = z.object({
+  name: playerNameSchema,
+  appearance: playerAppearanceSchema,
+  partyColor: partyColorSchema,
+});
+
+/**
+ * One run the requesting profile can continue. Built by the server from the room save, never from
+ * anything the client holds. `dungeonName` is null for a save made before dungeons were recorded.
+ * `playedMs` is the requester's own time in the run and `lastPlayedAt` an epoch in milliseconds.
+ */
+export const savedRunCardSchema = z.object({
+  roomCode: roomCodeSchema,
+  dungeonName: z.string().min(1).nullable(),
+  character: savedRunCharacterSchema,
+  teammates: z.array(savedRunCharacterSchema),
+  playedMs: z.number().nonnegative(),
+  lastPlayedAt: z.number().nonnegative(),
+});
+export type SavedRunCard = z.infer<typeof savedRunCardSchema>;
+
+/** The answer to `listSavedRuns`, most recently played first. Sent to the asker alone. */
+export const savedRunsSchema = z.object({
+  type: z.literal("savedRuns"),
+  runs: z.array(savedRunCardSchema),
 });
 
 /**
@@ -401,6 +430,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   progressionUpdatedSchema,
   playerJoinedSchema,
   playerLeftSchema,
+  savedRunsSchema,
   savedAndQuitSchema,
   saveAndQuitRefusedSchema,
   playerConnectionChangedSchema,

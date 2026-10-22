@@ -256,6 +256,7 @@ const lobby = createLobby({
     }
   },
   onJoinRoom: (roomCode, playerName, savedRun) => client.join(roomCode, playerName, savedRun ?? null),
+  onRequestSavedRuns: () => client.requestSavedRuns(),
 });
 
 // Between the lobby and the hub, for a slot that has no character yet.

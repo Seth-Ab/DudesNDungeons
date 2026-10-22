@@ -104,6 +104,8 @@ Continuing (#235, protocol v46) resolves two details the decision left open. A j
 
 Save and quit and the lobby prompt (#232, protocol v47) add two messages the decision did not list: `savedAndQuit { roomCode }`, sent to the quitter when `saveAndQuit` is accepted, and `saveAndQuitRefused { reason }` when it is refused (`inCombat`, `notPermitted`). Without the first the client could not tell success from silence, because the server stops sending to a player it has taken out of the room. The second replaces the `actionRejected` refusal from #234, which the client could only tell apart from other refusals by guessing.
 
+The Continue list (#135, protocol v48) is built by the server: `listSavedRuns` carries only the profile secret, and the answer holds one card per save whose run has an entry for that profile, so a listed save is always one the Continue button can enter. Saved appearance ids are checked against the shared lists when a look is put back, one field at a time, and a retired id becomes that list's first entry. A run records its `dungeonId` so the card can name the dungeon; saves from before that still load and show no name. There is no depth on a card, because a run has no depth.
+
 ## Consequences
 
 - The room code becomes the single party identity for the vault, characters and the current run.

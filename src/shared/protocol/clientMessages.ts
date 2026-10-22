@@ -39,6 +39,18 @@ export const joinSessionSchema = z.object({
   savedRun: z.enum(["continue", "discard"]).nullish(),
 });
 
+/**
+ * Asks for the saved runs the profile named by `profileSecret` can continue, before joining any
+ * room. Answered with `savedRuns`; an unknown secret is answered with an empty list, since a fresh
+ * device has no saves. Refused with `alreadyInSession` once joined.
+ */
+export const listSavedRunsSchema = z
+  .object({
+    type: z.literal("listSavedRuns"),
+    profileSecret: profileSecretSchema,
+  })
+  .strict();
+
 export const leaveSessionSchema = z.object({
   type: z.literal("leaveSession"),
 });
@@ -241,6 +253,7 @@ export const voiceSignalMessageSchema = z.object({
 
 export const clientMessageSchema = z.discriminatedUnion("type", [
   joinSessionSchema,
+  listSavedRunsSchema,
   leaveSessionSchema,
   saveAndQuitSchema,
   setReadySchema,

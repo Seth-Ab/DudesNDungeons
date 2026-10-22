@@ -2393,3 +2393,63 @@ button:disabled {
 .hud__vault-entry button {
   font-size: 0.72rem;
 }
+
+/* The Continue list: one card per saved run this profile can enter. */
+.lobby__continue {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lobby__continue[hidden] {
+  display: none;
+}
+
+.lobby__continue h3 {
+  margin: 0;
+  color: #caa85a;
+  font-size: 1rem;
+}
+
+.lobby__cards {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lobby__card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid #4a4030;
+  border-radius: 6px;
+}
+
+.lobby__card-details {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lobby__card-details small {
+  color: #d8ceb1;
+  font-size: 0.78rem;
+}
+
+.lobby__portrait,
+.lobby__head {
+  image-rendering: pixelated;
+}
+
+.lobby__heads {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.lobby__card-continue {
+  width: auto;
+}
