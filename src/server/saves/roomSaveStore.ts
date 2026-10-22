@@ -47,6 +47,8 @@ export class RoomSaveStore {
   readonly #byRoomCode = new Map<RoomCode, RoomSave>();
   readonly #storage: RoomSaveStorage;
   readonly contentVersion: string;
+  readonly #now: () => number;
+  readonly #ttlMs: number;
   #revision = 0;
   #persistedRevision = 0;
 
@@ -54,8 +56,10 @@ export class RoomSaveStore {
     this.#storage = storage;
     this.contentVersion = options.contentVersion ?? contentVersion(gameContent());
 
-    const now = (options.now ?? Date.now)();
-    const ttlMs = options.ttlMs ?? ROOM_SAVE_TTL_MS;
+    this.#now = options.now ?? Date.now;
+    this.#ttlMs = options.ttlMs ?? ROOM_SAVE_TTL_MS;
+    const now = this.#now();
+    const ttlMs = this.#ttlMs;
     const stored = this.#storage.read()?.rooms ?? [];
 
     for (const save of stored) {
@@ -83,6 +87,11 @@ export class RoomSaveStore {
   get(roomCode: RoomCode): RoomSave | undefined {
     const save = this.#byRoomCode.get(roomCode);
     return save === undefined ? undefined : structuredClone(save);
+  }
+
+  /** True when `save` was last played longer ago than the expiry, as of now. */
+  isExpired(save: RoomSave): boolean {
+    return this.#now() - save.lastPlayedAt > this.#ttlMs;
   }
 
   /** Replaces the room's save with a copy of `save`. */

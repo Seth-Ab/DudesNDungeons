@@ -98,6 +98,10 @@ Filed on 2026-10-21, in dependency order:
 
 #135 then restores appearance from the members and adds the lobby Continue list.
 
+## Implementation Notes
+
+Continuing (#235, protocol v46) resolves two details the decision left open. A join into a room with a saved run needs an entry in the run, not only membership in the room, because a member who was never in the run would otherwise be a new player in it. A returning member of any room with a save arrives with their saved look, in the hub as well as the dungeon, since a continued player who had to redesign would lose their position.
+
 ## Consequences
 
 - The room code becomes the single party identity for the vault, characters and the current run.

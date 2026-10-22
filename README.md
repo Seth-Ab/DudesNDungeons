@@ -148,6 +148,7 @@ Two consequences worth knowing:
 - One profile plays one party at a time. A second join with the same secret is refused with
   `profileInUse` while the first slot is live, including a slot held open for a disconnected player
   until its 60-second grace window closes. That is what stops one bank being spent twice.
+- A room code whose save (`data/rooms.json`) holds a run can only be rejoined by the profiles in it. `joinSession` carries an optional `savedRun`: without it a member is answered `savedRunExists`; `continue` restores the run (a join by any other profile, or with no secret, is refused with `notSaveMember`); `discard` deletes the room's save but keeps its vault, and is refused with `notPermitted` while another member is connected.
 - `data/profiles.json` is refused rather than ignored when it cannot be parsed, because starting
   with an empty store would overwrite everything on the first save.
 
