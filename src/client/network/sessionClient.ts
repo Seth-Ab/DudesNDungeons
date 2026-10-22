@@ -95,8 +95,6 @@ export function createSessionClient(options: SessionClientOptions) {
    * action line. A purchase is settled by `progressionUpdated`, an equip by a snapshot wearing it.
    */
   let wardrobePending: { kind: "buy" } | { kind: "equip"; slot: CosmeticSlot; id: string | null } | null = null;
-  /** Set when Save and quit is sent and cleared by its outcome, so a refusal shows in the camp menu. */
-  let saveQuitPending = false;
   let retryIndex = 0;
   /**
    * What to rejoin with after an unexpected drop. Null once the player leaves deliberately.
@@ -163,7 +161,6 @@ export function createSessionClient(options: SessionClientOptions) {
     if (parsed.message.type === "savedAndQuit") {
       // The server took this player out of the room and keeps their place in the save, so the token
       // names nothing and there is nothing to reconnect to.
-      saveQuitPending = false;
       tokenStore.clear(parsed.message.roomCode);
       pending = null;
       socket?.close();
@@ -179,17 +176,6 @@ export function createSessionClient(options: SessionClientOptions) {
     }
 
     const next = applyServerMessage(view, parsed.message);
-    if (
-      saveQuitPending &&
-      parsed.message.type === "actionRejected" &&
-      parsed.message.sequence === null &&
-      (parsed.message.reason === "inCombat" || parsed.message.reason === "notPermitted")
-    ) {
-      // A refused Save and quit is shown beside the button and changes nothing else.
-      saveQuitPending = false;
-      update({ ...next, saveQuitNotice: rejectionMessage(parsed.message.reason) });
-      return;
-    }
     const maxedRefusal = parsed.message.type === "actionRejected" && parsed.message.reason === "skillMaxed";
     if (buyPending && parsed.message.type === "actionRejected") {
       // A purchase refusal is shown in the shop panel; a maxed scroll is not a conversion offer here.
@@ -324,10 +310,10 @@ export function createSessionClient(options: SessionClientOptions) {
 
     /**
      * Leaves the run keeping its carry and position in the room save. Success arrives as
-     * `savedAndQuit`; a refusal (`inCombat`, `notPermitted`) as `saveQuitNotice`.
+     * `savedAndQuit`; a refusal (`inCombat`, `notPermitted`) as `saveAndQuitRefused`, shown as
+     * `saveQuitNotice`.
      */
     saveAndQuit(): boolean {
-      saveQuitPending = true;
       if (view.saveQuitNotice !== null) update({ ...view, saveQuitNotice: null });
       return send({ type: "saveAndQuit" });
     },

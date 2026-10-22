@@ -240,7 +240,7 @@ describe("saveAndQuit over the socket", () => {
 
     alpha.client.send({ type: "saveAndQuit" });
 
-    const rejected = await alpha.client.waitFor("actionRejected");
+    const rejected = await alpha.client.waitFor("saveAndQuitRefused");
     expect(rejected.reason).toBe("inCombat");
     expect(session.players.has(alpha.joined.playerId)).toBe(true);
   });
@@ -251,7 +251,7 @@ describe("saveAndQuit over the socket", () => {
 
     alpha.client.send({ type: "saveAndQuit" });
 
-    expect((await alpha.client.waitFor("actionRejected")).reason).toBe("notPermitted");
+    expect((await alpha.client.waitFor("saveAndQuitRefused")).reason).toBe("notPermitted");
     expect(server.store.getSession(roomCode)?.players.size).toBe(1);
   });
 
@@ -266,7 +266,7 @@ describe("saveAndQuit over the socket", () => {
 
     beta.client.send({ type: "saveAndQuit" });
 
-    expect((await beta.client.waitFor("actionRejected")).reason).toBe("notPermitted");
+    expect((await beta.client.waitFor("saveAndQuitRefused")).reason).toBe("notPermitted");
     expect(session.players.has(beta.joined.playerId)).toBe(true);
   });
 

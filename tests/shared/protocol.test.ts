@@ -413,6 +413,15 @@ describe("appearance contract", () => {
     expect(PROTOCOL_VERSION).toBe(47);
   });
 
+  it("round-trips a refused Save and quit with its reason", () => {
+    for (const reason of ["inCombat", "notPermitted"] as const) {
+      const message: ServerMessage = { type: "saveAndQuitRefused", reason };
+      const result = parseServerMessage(serializeServerMessage(message));
+      expect(result.ok && result.message).toEqual(message);
+    }
+    expect(parseServerMessage(JSON.stringify({ type: "saveAndQuitRefused", reason: "nope" })).ok).toBe(false);
+  });
+
   it("ships the id lists the design fixed", () => {
     expect(BODY_TYPES).toEqual(["guy", "girl"]);
     expect(SKIN_TONES).toEqual(["porcelain", "fair", "olive", "tan", "brown", "deep"]);

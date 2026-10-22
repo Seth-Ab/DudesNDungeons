@@ -9,6 +9,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
+import { rejectionMessage } from "../../src/client/state/runFlow.js";
 import { isTileLit } from "../../src/client/state/litTiles.js";
 import type { DungeonSnapshot, PlayerState, RunState } from "../../src/shared/types/core.js";
 
@@ -661,6 +662,24 @@ describe("saving and quitting", () => {
     });
 
     expect(view).toEqual({ ...initialSessionView, savedQuitRoomCode: "BCDFGH" });
+  });
+
+  it("shows a refusal beside the button and keeps the player in the run", () => {
+    const inRun = { ...initialSessionView, phase: "inSession" as const, roomCode: "BCDFGH" };
+
+    const view = applyServerMessage(inRun, { type: "saveAndQuitRefused", reason: "inCombat" });
+
+    expect(view.saveQuitNotice).toBe(rejectionMessage("inCombat"));
+    expect(view.phase).toBe("inSession");
+    expect(view.savedQuitRoomCode).toBeNull();
+  });
+
+  it("leaves the Save and quit notice alone for any other refusal", () => {
+    const inRun = { ...initialSessionView, phase: "inSession" as const, roomCode: "BCDFGH" };
+
+    const view = applyServerMessage(inRun, { type: "actionRejected", sequence: null, reason: "notPermitted" });
+
+    expect(view.saveQuitNotice).toBeNull();
   });
 
   it.each(["savedRunExists", "notSaveMember", "notPermitted"] as const)(

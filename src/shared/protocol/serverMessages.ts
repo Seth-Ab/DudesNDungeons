@@ -193,6 +193,15 @@ export const savedAndQuitSchema = z.object({
   roomCode: z.string(),
 });
 
+/**
+ * Sent only to a player whose `saveAndQuit` was refused (`inCombat`, `notPermitted`). It is its own
+ * message, not an `actionRejected`, so the client never mistakes another refusal for this one.
+ */
+export const saveAndQuitRefusedSchema = z.object({
+  type: z.literal("saveAndQuitRefused"),
+  reason: rejectionReasonSchema,
+});
+
 /** A party member dropped or came back while keeping their slot. Not a join and not a leave. */
 export const playerConnectionChangedSchema = z.object({
   type: z.literal("playerConnectionChanged"),
@@ -393,6 +402,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   playerJoinedSchema,
   playerLeftSchema,
   savedAndQuitSchema,
+  saveAndQuitRefusedSchema,
   playerConnectionChangedSchema,
   playerReadyChangedSchema,
   partyRosterSchema,

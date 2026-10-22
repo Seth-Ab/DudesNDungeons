@@ -319,6 +319,14 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
     case "savedAndQuit":
       return { ...initialSessionView, phase: "offline", savedQuitRoomCode: message.roomCode };
 
+    // Shown beside the camp menu's button; the player stays in the run.
+    case "saveAndQuitRefused":
+      return {
+        ...view,
+        lastAction: rejectionMessage(message.reason),
+        saveQuitNotice: rejectionMessage(message.reason),
+      };
+
     // A drop is not a departure: the player keeps their slot for the server's grace window.
     case "playerConnectionChanged":
       return {

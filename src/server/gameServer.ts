@@ -501,7 +501,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (message.type === "saveAndQuit") {
         const quit = saveAndQuit(store, playerId, now(), wallNow());
         if (!quit.ok) {
-          send(socket, { type: "actionRejected", sequence: null, reason: quit.reason });
+          send(socket, { type: "saveAndQuitRefused", reason: quit.reason });
           return;
         }
 
