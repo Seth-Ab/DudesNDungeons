@@ -102,6 +102,7 @@ describe("connection and error labels", () => {
   it("hides notImplemented errors and shows the rest", () => {
     expect(actionableError(view())).toBe("");
     expect(actionableError(view({ lastError: { code: "notImplemented", message: "later" } }))).toBe("");
+    expect(actionableError(view({ lastError: { code: "savedRunExists", message: "ask" } }))).toBe("");
     expect(actionableError(view({ lastError: { code: "rateLimited", message: "No." } }))).toBe("No.");
   });
 });

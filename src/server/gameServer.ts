@@ -507,6 +507,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
 
         store.saves.flush();
         const { member } = quit;
+        // Told before the socket is forgotten, so the client knows the save took and where to rejoin.
+        send(socket, { type: "savedAndQuit", roomCode: member.session.roomCode });
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);

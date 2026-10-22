@@ -726,3 +726,72 @@ describe("the hub skill shop", () => {
     await until(alpha, (view) => view.skillShop.map((entry) => entry.itemId).join() === after.join());
   });
 });
+
+describe("saving and quitting a run", () => {
+  /** A host and a guest in the dungeon, both with a look. */
+  async function partyInDungeon() {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    await until(host, inSession);
+    await design(host);
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    const guestView = await until(guest, inSession);
+    await design(guest);
+
+    host.setReady(true);
+    guest.setReady(true);
+    const session = server.store.getSession(roomCode);
+    const entrance = session?.dungeon.exits[0];
+    if (!session || !entrance) throw new Error("expected a hub entrance");
+    await untilServer(() => [...session.players.values()].every((player) => player.ready));
+    const hostPlayer = session.players.get(host.view.selfId!);
+    if (hostPlayer) hostPlayer.position = { ...entrance.position };
+    host.interact(entrance.id);
+    await until(guest, (view) => view.location === "dungeon");
+    return { host, guest, guestId: guestView.selfId!, roomCode, session };
+  }
+
+  it("returns the quitter to the lobby with the room code, and the party sees them leave", async () => {
+    const { host, guest, guestId, roomCode } = await partyInDungeon();
+
+    guest.saveAndQuit();
+
+    const view = await until(guest, (v) => v.savedQuitRoomCode !== null);
+    expect(view.savedQuitRoomCode).toBe(roomCode);
+    expect(view.phase).toBe("offline");
+    expect(view.players).toEqual([]);
+    await until(host, (v) => !v.players.some((p) => p.id === guestId));
+  });
+
+  it("shows the server's refusal beside the button and keeps the player in the run", async () => {
+    const { guest, session } = await partyInDungeon();
+    const player = session.players.get(guest.view.selfId!);
+    if (!player) throw new Error("expected the player");
+    player.lastCombatAt = performance.now();
+
+    guest.saveAndQuit();
+
+    const view = await until(guest, (v) => v.saveQuitNotice !== null);
+    expect(view.saveQuitNotice).toBe(rejectionMessage("inCombat"));
+    expect(view.phase).toBe("inSession");
+    expect(view.savedQuitRoomCode).toBeNull();
+  });
+
+  it("asks before rejoining a saved run, then continues it where the player left", async () => {
+    const { guest, roomCode, session } = await partyInDungeon();
+    const savedAt = { ...session.players.get(guest.view.selfId!)!.position };
+
+    guest.saveAndQuit();
+    await until(guest, (v) => v.savedQuitRoomCode !== null);
+
+    guest.join(roomCode, "Beta");
+    const asked = await until(guest, (v) => v.lastError?.code === "savedRunExists");
+    expect(asked.phase).toBe("connected");
+
+    guest.join(roomCode, "Beta", "continue");
+    const resumed = await until(guest, (v) => inSession(v) && v.location === "dungeon");
+    expect(selfOf(resumed)?.position).toEqual(savedAt);
+  });
+});

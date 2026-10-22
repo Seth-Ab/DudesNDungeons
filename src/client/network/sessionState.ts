@@ -155,6 +155,13 @@ export interface SessionView {
   wardrobe: WardrobeEntry[];
   /** The refusal to show inside the wardrobe for the last buy or equip, or null. Set by the session client. */
   wardrobeNotice: string | null;
+  /** The refusal to show beside Save and quit in the camp menu, or null. Set by the session client. */
+  saveQuitNotice: string | null;
+  /**
+   * The room the player just saved and quit, for the lobby to fill in. Set by `savedAndQuit` on a
+   * view otherwise reset to the lobby's, so it is null for a player who left or never joined.
+   */
+  savedQuitRoomCode: string | null;
 }
 
 export type SkillShopEntry = Extract<ServerMessage, { type: "skillShopStock" }>["entries"][number];
@@ -197,6 +204,8 @@ export const initialSessionView: SessionView = {
   shopNotice: null,
   wardrobe: [],
   wardrobeNotice: null,
+  saveQuitNotice: null,
+  savedQuitRoomCode: null,
 };
 
 /**
@@ -210,6 +219,9 @@ const JOIN_REJECTIONS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   "alreadyInSession",
   "runInProgress",
   "profileInUse",
+  "notSaveMember",
+  "savedRunExists",
+  "notPermitted",
 ]);
 
 function replacePlayer(
@@ -302,6 +314,10 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         players: view.players.filter((player) => player.id !== message.playerId),
         partyRoster: view.partyRoster.filter((entry) => entry.playerId !== message.playerId),
       };
+
+    // The session client closes the socket on this; the reducer only returns the view to the lobby's.
+    case "savedAndQuit":
+      return { ...initialSessionView, phase: "offline", savedQuitRoomCode: message.roomCode };
 
     // A drop is not a departure: the player keeps their slot for the server's grace window.
     case "playerConnectionChanged":

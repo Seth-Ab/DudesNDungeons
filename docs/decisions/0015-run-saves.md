@@ -102,6 +102,8 @@ Filed on 2026-10-21, in dependency order:
 
 Continuing (#235, protocol v46) resolves two details the decision left open. A join into a room with a saved run needs an entry in the run, not only membership in the room, because a member who was never in the run would otherwise be a new player in it. A returning member of any room with a save arrives with their saved look, in the hub as well as the dungeon, since a continued player who had to redesign would lose their position.
 
+Save and quit and the lobby prompt (#232, protocol v47) add one message the decision did not list: `savedAndQuit { roomCode }`, sent to the quitter when `saveAndQuit` is accepted. Without it the client could not tell success from silence, because the server stops sending to a player it has taken out of the room.
+
 ## Consequences
 
 - The room code becomes the single party identity for the vault, characters and the current run.

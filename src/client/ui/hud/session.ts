@@ -5,6 +5,7 @@ import { createButton, createStat } from "./dom.js";
 interface SessionOptions {
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
+  onSaveAndQuit: () => void;
   onOpenControls: () => void;
 }
 
@@ -28,6 +29,13 @@ export function createSession(options: SessionOptions) {
   hubReadyButton.className = "hud__hub-ready";
   hubReadyButton.hidden = true;
   const leaveButton = createButton("Leave", options.onLeave);
+  // Only in the dungeon: the hub has no run to save, and the server refuses it there.
+  const saveQuitButton = createButton("Save and quit", options.onSaveAndQuit);
+  saveQuitButton.hidden = true;
+  const saveQuitNotice = document.createElement("p");
+  saveQuitNotice.className = "camp-menu__refusal";
+  saveQuitNotice.setAttribute("role", "status");
+  saveQuitNotice.hidden = true;
   const controlsButton = createButton("Controls", options.onOpenControls);
 
   return {
@@ -36,6 +44,8 @@ export function createSession(options: SessionOptions) {
     positionElement: position.element,
     readyButton,
     leaveButton,
+    saveQuitButton,
+    saveQuitNotice,
     controlsButton,
     hubReadyButton,
 
@@ -49,10 +59,20 @@ export function createSession(options: SessionOptions) {
       position.value.textContent = text;
     },
 
-    update(view: ControlsView, selfReady: boolean | null, inHub: boolean) {
+    update(
+      view: ControlsView,
+      selfReady: boolean | null,
+      inHub: boolean,
+      inDungeon: boolean,
+      refusal: string | null,
+    ) {
       readyButton.disabled = view.sessionControlsDisabled;
       hubReadyButton.disabled = view.sessionControlsDisabled;
       leaveButton.disabled = view.sessionControlsDisabled;
+      saveQuitButton.disabled = view.sessionControlsDisabled;
+      saveQuitButton.hidden = !inDungeon;
+      saveQuitNotice.textContent = refusal ?? "";
+      saveQuitNotice.hidden = !inDungeon || refusal === null;
       hubReadyButton.hidden = !inHub;
       if (selfReady !== null && selfReady !== ready) ready = selfReady;
       readyButton.textContent = readyLabel(ready);

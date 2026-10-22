@@ -183,6 +183,16 @@ export const playerLeftSchema = z.object({
   reason: playerLeftReasonSchema,
 });
 
+/**
+ * Sent only to a player whose `saveAndQuit` was accepted, after which the server no longer treats
+ * the socket as a party member. The client returns to the lobby with `roomCode` filled in to
+ * rejoin with. The rest of the party is told with `playerLeft`.
+ */
+export const savedAndQuitSchema = z.object({
+  type: z.literal("savedAndQuit"),
+  roomCode: z.string(),
+});
+
 /** A party member dropped or came back while keeping their slot. Not a join and not a leave. */
 export const playerConnectionChangedSchema = z.object({
   type: z.literal("playerConnectionChanged"),
@@ -382,6 +392,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   progressionUpdatedSchema,
   playerJoinedSchema,
   playerLeftSchema,
+  savedAndQuitSchema,
   playerConnectionChangedSchema,
   playerReadyChangedSchema,
   partyRosterSchema,

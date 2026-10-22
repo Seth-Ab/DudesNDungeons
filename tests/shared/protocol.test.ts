@@ -409,8 +409,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v46, the version that added savedRun to joinSession", () => {
-    expect(PROTOCOL_VERSION).toBe(46);
+  it("is on protocol v47, the version that added savedAndQuit", () => {
+    expect(PROTOCOL_VERSION).toBe(47);
   });
 
   it("ships the id lists the design fixed", () => {

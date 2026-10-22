@@ -647,3 +647,32 @@ describe("progression", () => {
     expect(rejoined.progression).toBeNull();
   });
 });
+
+describe("saving and quitting", () => {
+  it("returns the view to the lobby's, remembering the room to rejoin", () => {
+    const inRun = applyServerMessage(initialSessionView, {
+      type: "playerJoined",
+      player: player(SELF_ID),
+    });
+
+    const view = applyServerMessage({ ...inRun, phase: "inSession", roomCode: "BCDFGH" }, {
+      type: "savedAndQuit",
+      roomCode: "BCDFGH",
+    });
+
+    expect(view).toEqual({ ...initialSessionView, savedQuitRoomCode: "BCDFGH" });
+  });
+
+  it.each(["savedRunExists", "notSaveMember", "notPermitted"] as const)(
+    "treats %s as a refused join, so the lobby is usable again",
+    (code) => {
+      const view = applyServerMessage(
+        { ...initialSessionView, phase: "joining" },
+        { type: "sessionError", code, message: "no" },
+      );
+
+      expect(view.phase).toBe("connected");
+      expect(inParty(view)).toBe(false);
+    },
+  );
+});

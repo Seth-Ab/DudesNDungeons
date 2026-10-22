@@ -45,6 +45,8 @@ export interface ProfileSecretStore {
   write(secret: string): void;
 }
 
+export type SavedRunChoice = "continue" | "discard";
+
 export interface SessionClientOptions {
   /** Origin for REST calls, e.g. `http://localhost:8080`. */
   httpUrl: string;
@@ -93,9 +95,15 @@ export function createSessionClient(options: SessionClientOptions) {
    * action line. A purchase is settled by `progressionUpdated`, an equip by a snapshot wearing it.
    */
   let wardrobePending: { kind: "buy" } | { kind: "equip"; slot: CosmeticSlot; id: string | null } | null = null;
+  /** Set when Save and quit is sent and cleared by its outcome, so a refusal shows in the camp menu. */
+  let saveQuitPending = false;
   let retryIndex = 0;
-  /** What to rejoin with after an unexpected drop. Null once the player leaves deliberately. */
-  let pending: { roomCode: string; playerName: string } | null = null;
+  /**
+   * What to rejoin with after an unexpected drop. Null once the player leaves deliberately.
+   * `savedRun` answers a saved-run prompt and is dropped once joined, so a later reconnect resumes
+   * the slot instead of repeating, or discarding, the choice.
+   */
+  let pending: { roomCode: string; playerName: string; savedRun: SavedRunChoice | null } | null = null;
 
   function update(next: SessionView): void {
     view = next;
@@ -112,7 +120,7 @@ export function createSessionClient(options: SessionClientOptions) {
     return true;
   }
 
-  function sendJoin(roomCode: string, playerName: string): void {
+  function sendJoin(roomCode: string, playerName: string, savedRun: SavedRunChoice | null): void {
     const resumeToken = tokenStore.read(roomCode);
     const profileSecret = profileSecretStore.read();
     send({
@@ -124,6 +132,7 @@ export function createSessionClient(options: SessionClientOptions) {
       // Omitted rather than sent as null when this device has no profile yet, so the server reads
       // it as "issue me one" rather than having to treat an empty credential as absent.
       ...(profileSecret === null ? {} : { profileSecret }),
+      ...(savedRun === null ? {} : { savedRun }),
     });
   }
 
@@ -148,6 +157,19 @@ export function createSessionClient(options: SessionClientOptions) {
         profileSecretStore.write(parsed.message.profileSecret);
       }
       retryIndex = 0;
+      pending.savedRun = null;
+    }
+
+    if (parsed.message.type === "savedAndQuit") {
+      // The server took this player out of the room and keeps their place in the save, so the token
+      // names nothing and there is nothing to reconnect to.
+      saveQuitPending = false;
+      tokenStore.clear(parsed.message.roomCode);
+      pending = null;
+      socket?.close();
+      socket = null;
+      update(applyServerMessage(view, parsed.message));
+      return;
     }
 
     if (parsed.message.type === "voiceSignalRelay") {
@@ -157,6 +179,17 @@ export function createSessionClient(options: SessionClientOptions) {
     }
 
     const next = applyServerMessage(view, parsed.message);
+    if (
+      saveQuitPending &&
+      parsed.message.type === "actionRejected" &&
+      parsed.message.sequence === null &&
+      (parsed.message.reason === "inCombat" || parsed.message.reason === "notPermitted")
+    ) {
+      // A refused Save and quit is shown beside the button and changes nothing else.
+      saveQuitPending = false;
+      update({ ...next, saveQuitNotice: rejectionMessage(parsed.message.reason) });
+      return;
+    }
     const maxedRefusal = parsed.message.type === "actionRejected" && parsed.message.reason === "skillMaxed";
     if (buyPending && parsed.message.type === "actionRejected") {
       // A purchase refusal is shown in the shop panel; a maxed scroll is not a conversion offer here.
@@ -191,7 +224,7 @@ export function createSessionClient(options: SessionClientOptions) {
       setPhase("connected");
       if (pending) {
         setPhase("joining");
-        sendJoin(pending.roomCode, pending.playerName);
+        sendJoin(pending.roomCode, pending.playerName, pending.savedRun);
       }
     });
 
@@ -265,14 +298,14 @@ export function createSessionClient(options: SessionClientOptions) {
       return body.roomCode;
     },
 
-    join(roomCode: string, playerName: string): void {
-      pending = { roomCode, playerName };
+    join(roomCode: string, playerName: string, savedRun: SavedRunChoice | null = null): void {
+      pending = { roomCode, playerName, savedRun };
       retryIndex = 0;
       update({ ...view, lastError: null });
 
       if (socket && socket.readyState === OPEN) {
         setPhase("joining");
-        sendJoin(roomCode, playerName);
+        sendJoin(roomCode, playerName, savedRun);
         return;
       }
       openSocket();
@@ -287,6 +320,16 @@ export function createSessionClient(options: SessionClientOptions) {
       socket?.close();
       socket = null;
       update({ ...initialSessionView, phase: "offline" });
+    },
+
+    /**
+     * Leaves the run keeping its carry and position in the room save. Success arrives as
+     * `savedAndQuit`; a refusal (`inCombat`, `notPermitted`) as `saveQuitNotice`.
+     */
+    saveAndQuit(): boolean {
+      saveQuitPending = true;
+      if (view.saveQuitNotice !== null) update({ ...view, saveQuitNotice: null });
+      return send({ type: "saveAndQuit" });
     },
 
     setReady(ready: boolean): boolean {

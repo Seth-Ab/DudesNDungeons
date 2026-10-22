@@ -215,6 +215,7 @@ describe("saveAndQuit over the socket", () => {
 
     beta.client.send({ type: "saveAndQuit" });
 
+    expect((await beta.client.waitFor("savedAndQuit")).roomCode).toBe(roomCode);
     const left = await alpha.client.waitFor("playerLeft");
     expect(left.playerId).toBe(beta.joined.playerId);
     expect(session.players.has(beta.joined.playerId)).toBe(false);
