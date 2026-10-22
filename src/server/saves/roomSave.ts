@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  BODY_TYPES,
+  HAIR_COLORS,
+  HAIR_STYLES,
+  PARTY_COLORS,
+  SKIN_TONES,
+} from "../../shared/constants/appearance.js";
 import { PROTOCOL_VERSION } from "../../shared/constants/game.js";
 import {
   dungeonStateSchema,
@@ -9,8 +16,11 @@ import {
   roomCodeSchema,
   vector2Schema,
   type DungeonMapState,
+  type PartyColor,
+  type PlayerAppearance,
   type ProfileId,
 } from "../../shared/types/core.js";
+import { DEFAULT_DUNGEON_ID } from "../game/dungeonState.js";
 import { createRng } from "../game/random.js";
 import { createDiscoveredGrid } from "../game/tileGrid.js";
 import { timeInDungeon } from "../game/vitals.js";
@@ -50,6 +60,29 @@ export const persistedMemberSchema = z.object({
   partyColor: z.string().min(1),
 });
 export type PersistedMember = z.infer<typeof persistedMemberSchema>;
+
+/**
+ * A member's look as the shared lists have it today. Each field that names an id since removed from
+ * its list falls back to that list's first entry, so one retired hair style costs a member that
+ * field and not the character (#135).
+ */
+export function resolveAppearance(saved: PersistedMember["appearance"]): PlayerAppearance {
+  return {
+    body: pickId(BODY_TYPES, saved.body),
+    skinTone: pickId(SKIN_TONES, saved.skinTone),
+    hairStyle: pickId(HAIR_STYLES, saved.hairStyle),
+    hairColor: pickId(HAIR_COLORS, saved.hairColor),
+  };
+}
+
+/** A member's party colour, or null when it has since left the list, so the caller assigns a free one. */
+export function resolvePartyColor(saved: string): PartyColor | null {
+  return (PARTY_COLORS as readonly string[]).includes(saved) ? (saved as PartyColor) : null;
+}
+
+function pickId<T extends string>(list: readonly T[], saved: string): T {
+  return (list as readonly string[]).includes(saved) ? (saved as T) : list[0]!;
+}
 
 const durationSchema = z.number().nonnegative();
 const durationsByIdSchema = z.record(entityIdSchema, durationSchema);
@@ -100,6 +133,11 @@ export const persistedRunSchema = z.object({
   protocolVersion: z.number().int().nonnegative(),
   tick: z.number().int().nonnegative(),
   seed: z.number().int().nullable(),
+  /**
+   * Content id of the dungeon, for the lobby's Continue list. Optional so runs saved before it was
+   * recorded still load; their card simply has no dungeon name.
+   */
+  dungeonId: z.string().min(1).optional(),
   /** The whole server-side world, projectiles excepted: they are dropped on save. */
   dungeon: dungeonStateSchema,
   spawnPoints: z.array(vector2Schema).min(1),
@@ -233,6 +271,7 @@ export function captureRun(
     protocolVersion: PROTOCOL_VERSION,
     tick: session.tick,
     seed: session.seed,
+    dungeonId: session.runDungeon.dungeonId ?? DEFAULT_DUNGEON_ID,
     dungeon: { ...structuredClone(session.dungeon), projectiles: [] },
     spawnPoints: structuredClone(session.spawnPoints),
     lootRngState: session.lootRng.state(),

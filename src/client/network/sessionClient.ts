@@ -96,6 +96,8 @@ export function createSessionClient(options: SessionClientOptions) {
    */
   let wardrobePending: { kind: "buy" } | { kind: "equip"; slot: CosmeticSlot; id: string | null } | null = null;
   let retryIndex = 0;
+  /** Set when the lobby asked for its Continue list before a socket was open to ask on. */
+  let savedRunsWanted = false;
   /**
    * What to rejoin with after an unexpected drop. Null once the player leaves deliberately.
    * `savedRun` answers a saved-run prompt and is dropped once joined, so a later reconnect resumes
@@ -132,6 +134,16 @@ export function createSessionClient(options: SessionClientOptions) {
       ...(profileSecret === null ? {} : { profileSecret }),
       ...(savedRun === null ? {} : { savedRun }),
     });
+  }
+
+  /** Asks for the Continue list, or settles on an empty one when this device has no profile yet. */
+  function sendListSavedRuns(): void {
+    const profileSecret = profileSecretStore.read();
+    if (profileSecret === null) {
+      update({ ...view, savedRuns: [] });
+      return;
+    }
+    send({ type: "listSavedRuns", profileSecret });
   }
 
   function handleMessage(raw: unknown): void {
@@ -211,12 +223,18 @@ export function createSessionClient(options: SessionClientOptions) {
       if (pending) {
         setPhase("joining");
         sendJoin(pending.roomCode, pending.playerName, pending.savedRun);
+      } else if (savedRunsWanted) {
+        savedRunsWanted = false;
+        sendListSavedRuns();
       }
     });
 
     next.addEventListener("message", (event) => handleMessage(event.data));
 
     next.addEventListener("close", () => {
+      // A socket the client already let go of (leaving, saving and quitting) reports its close late,
+      // possibly after the lobby opened a new one to ask for its Continue list. That is not this one.
+      if (socket !== next) return;
       socket = null;
       // No pending session means the player left on purpose, so staying closed is correct.
       if (!pending) {
@@ -282,6 +300,24 @@ export function createSessionClient(options: SessionClientOptions) {
       }
       const body = (await response.json()) as { roomCode: string };
       return body.roomCode;
+    },
+
+    /**
+     * Asks the server which saved runs this device's profile can continue; the answer lands in
+     * `view.savedRuns`. Opens the socket if the lobby has none yet, so it needs no join first.
+     */
+    requestSavedRuns(): void {
+      if (socket && socket.readyState === OPEN) {
+        sendListSavedRuns();
+        return;
+      }
+      if (profileSecretStore.read() === null) {
+        sendListSavedRuns();
+        return;
+      }
+      savedRunsWanted = true;
+      // A socket still connecting will ask when it opens; a second one would orphan it.
+      if (!socket) openSocket();
     },
 
     join(roomCode: string, playerName: string, savedRun: SavedRunChoice | null = null): void {

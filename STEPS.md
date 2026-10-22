@@ -266,6 +266,8 @@ Owner decisions (HUD Torch & Tally, issue #160): unseen allies stay in the party
 - Show what a player is carrying and what they banked on the way out.
 - Add "Save and quit" during a run and a lobby prompt to continue a room's saved run or start fresh
   after a confirmation (decision 0015).
+- Add a lobby Continue list of the saved runs the player belongs to, each card showing their
+  character, room, time played and teammates (decision 0015).
 
 ### 10. Skills and Progression UI
 

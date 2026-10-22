@@ -1,5 +1,5 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
-import { DEFAULT_APPEARANCE, PARTY_COLORS } from "../../shared/constants/appearance.js";
+import { PARTY_COLORS } from "../../shared/constants/appearance.js";
 import {
   EMPTY_SESSION_TTL_MS,
   MAX_PARTY_SIZE,
@@ -28,7 +28,6 @@ import type {
   SessionId,
   Vector2,
 } from "../../shared/types/core.js";
-import { playerAppearanceSchema } from "../../shared/types/core.js";
 import {
   buildDungeon,
   findSpawnPoint,
@@ -46,7 +45,12 @@ import type { MonsterPost } from "../game/monsterAi.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
-import { restoreRun, restoreRunPlayer, type PersistedMember } from "../saves/roomSave.js";
+import {
+  resolveAppearance,
+  resolvePartyColor,
+  restoreRun,
+  restoreRunPlayer,
+} from "../saves/roomSave.js";
 import { RoomSaveStore } from "../saves/roomSaveStore.js";
 import type { PartyVault } from "../vaults/partyVault.js";
 import { VaultStore } from "../vaults/vaultStore.js";
@@ -507,10 +511,9 @@ export class SessionStore {
     // A member skips the designer: their saved character is put back, and so is their party colour
     // when it is still free.
     const member = save?.members.find((candidate) => candidate.profileId === request.profile?.id);
+    const savedColor = member === undefined ? null : resolvePartyColor(member.partyColor);
     const partyColor =
-      member !== undefined && isPartyColor(member.partyColor) && !colorInUse(session, member.partyColor)
-        ? member.partyColor
-        : freePartyColor(session);
+      savedColor !== null && !colorInUse(session, savedColor) ? savedColor : freePartyColor(session);
     if (partyColor === undefined) {
       return { ok: false, code: "sessionFull", message: "This dungeon is full" };
     }
@@ -538,7 +541,7 @@ export class SessionStore {
       readyPlateId: null,
       readyFromPlate: false,
       declinedPlateId: null,
-      appearance: member === undefined ? null : restoredLook(member),
+      appearance: member === undefined ? null : resolveAppearance(member.appearance),
       partyColor,
       profile: request.profile ?? request.createProfile(),
       discoveredTiles: new Uint8Array(0),
@@ -703,19 +706,6 @@ export class SessionStore {
 
 function colorInUse(session: Session, color: PartyColor): boolean {
   return [...session.players.values()].some((player) => player.partyColor === color);
-}
-
-function isPartyColor(color: string): color is PartyColor {
-  return (PARTY_COLORS as readonly string[]).includes(color);
-}
-
-/**
- * A member's saved look, or the default one when an id in it has since left the shared lists. The
- * saved look is kept loose on disk so a content change cannot make a save unreadable.
- */
-function restoredLook(member: PersistedMember): PlayerAppearance {
-  const parsed = playerAppearanceSchema.safeParse(member.appearance);
-  return parsed.success ? parsed.data : { ...DEFAULT_APPEARANCE };
 }
 
 /**

@@ -1,12 +1,25 @@
 import { ROOM_CODE_LENGTH } from "../../shared/constants/game.js";
+import type { SavedRunCard } from "../../shared/protocol/index.js";
 import type { SavedRunChoice } from "../network/sessionClient.js";
 import type { SessionView } from "../network/sessionState.js";
+import { createCharacterPreview, type PreviewPose } from "../rendering/characterPreview.js";
+import { NO_COSMETIC_LOOK, type CharacterLook } from "../rendering/characters.js";
 import { saveConfirmation } from "../state/saveQuit.js";
+import { savedRunDetails, savedRunTitle } from "../state/savedRuns.js";
 
 interface LobbyOptions {
   onCreateRoom: (playerName: string) => void;
   onJoinRoom: (roomCode: string, playerName: string, savedRun?: SavedRunChoice) => void;
+  /** Asks the server for this profile's Continue list; the answer arrives on `SessionView.savedRuns`. */
+  onRequestSavedRuns?: () => void;
 }
+
+const STAND: PreviewPose = { facing: "down", mirror: false, pose: "stand", blinking: false };
+/** The head and the hair above it: frame rows 3 to 16, as the design screen's hair tiles. */
+const HEAD_CROP = { fromRow: 3, rows: 14 };
+const HEAD_WIDTH = 16;
+const PORTRAIT_SCALE = 3;
+const TEAMMATE_SCALE = 2;
 
 export function createLobby(options: LobbyOptions) {
   const element = document.createElement("section");
@@ -110,6 +123,45 @@ export function createLobby(options: LobbyOptions) {
     nameInput.focus();
   });
 
+  // The server's list of runs this profile can continue, one card each. Hidden while empty.
+  const continueList = document.createElement("section");
+  continueList.className = "lobby__continue";
+  continueList.setAttribute("aria-labelledby", "lobby-continue-title");
+  continueList.hidden = true;
+  const continueTitle = document.createElement("h3");
+  continueTitle.id = "lobby-continue-title";
+  continueTitle.textContent = "Continue a saved run";
+  const cards = document.createElement("ul");
+  cards.className = "lobby__cards";
+  continueList.append(continueTitle, cards);
+
+  const continueButtons: HTMLButtonElement[] = [];
+  const portraits: { canvas: HTMLCanvasElement; look: CharacterLook; scale: number }[] = [];
+  const preview = createCharacterPreview(() => paintPortraits());
+  let listRequested = false;
+
+  function paintPortraits(): void {
+    for (const { canvas, look, scale } of portraits) {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      preview.draw(ctx, look, STAND, 0, 0, scale, HEAD_CROP);
+    }
+  }
+
+  function headCanvas(character: SavedRunCard["character"], scale: number, className: string): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.className = className;
+    canvas.width = HEAD_WIDTH * scale;
+    canvas.height = HEAD_CROP.rows * scale;
+    canvas.title = character.name;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", character.name);
+    const look = { ...character.appearance, partyColor: character.partyColor, ...NO_COSMETIC_LOOK } as CharacterLook;
+    portraits.push({ canvas, look, scale });
+    return canvas;
+  }
+
   const form = document.createElement("form");
   form.className = "lobby__form";
   form.append(nameInput, codeInput, joinButton);
@@ -183,8 +235,59 @@ export function createLobby(options: LobbyOptions) {
     codeInput.focus();
   });
 
-  panel.append(heading, saved, form, createButton, prompt, message);
+  panel.append(heading, saved, continueList, form, createButton, prompt, message);
   element.append(panel);
+
+  /** The list last drawn, so a view update that did not change it does not rebuild the cards. */
+  let drawnRuns: readonly SavedRunCard[] | null = null;
+
+  function showSavedRuns(runs: readonly SavedRunCard[] | null): void {
+    if (runs === drawnRuns) return;
+    drawnRuns = runs;
+    portraits.length = 0;
+    continueButtons.length = 0;
+    cards.replaceChildren();
+    continueList.hidden = runs === null || runs.length === 0;
+    const now = Date.now();
+
+    for (const run of runs ?? []) {
+      const item = document.createElement("li");
+      item.className = "lobby__card";
+
+      const details = document.createElement("div");
+      details.className = "lobby__card-details";
+      const title = document.createElement("b");
+      title.textContent = savedRunTitle(run.character.name, run.dungeonName);
+      const info = document.createElement("small");
+      info.textContent = savedRunDetails(run, now);
+      details.append(title, info);
+
+      if (run.teammates.length > 0) {
+        const heads = document.createElement("div");
+        heads.className = "lobby__heads";
+        for (const teammate of run.teammates) heads.append(headCanvas(teammate, TEAMMATE_SCALE, "lobby__head"));
+        details.append(heads);
+      }
+
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "lobby__card-continue";
+      go.textContent = "Continue";
+      go.addEventListener("click", () => {
+        // Typing a name is optional here: the card already names the character.
+        const name = playerName() || run.character.name;
+        message.textContent = "Joining...";
+        hideSaved();
+        codeInput.value = run.roomCode;
+        options.onJoinRoom(run.roomCode, name, "continue");
+      });
+      continueButtons.push(go);
+
+      item.append(headCanvas(run.character, PORTRAIT_SCALE, "lobby__portrait"), details, go);
+      cards.append(item);
+    }
+    paintPortraits();
+  }
 
   /** The saved-and-quit room already filled in, so a later view update does not refill it. */
   let handledQuitRoom: string | null = null;
@@ -203,7 +306,17 @@ export function createLobby(options: LobbyOptions) {
       element.hidden = view.phase === "inSession";
       joinButton.disabled = busy;
       createButton.disabled = busy;
-      for (const button of [continueButton, startFreshButton, discardButton]) button.disabled = busy;
+      for (const button of [continueButton, startFreshButton, discardButton, ...continueButtons]) {
+        button.disabled = busy;
+      }
+
+      // Asked once the lobby shows with no session, and again after each return to it.
+      if (view.phase === "inSession") listRequested = false;
+      else if (view.phase === "offline" && !listRequested) {
+        listRequested = true;
+        options.onRequestSavedRuns?.();
+      }
+      showSavedRuns(view.savedRuns);
 
       if (view.savedQuitRoomCode !== handledQuitRoom) {
         handledQuitRoom = view.savedQuitRoomCode;

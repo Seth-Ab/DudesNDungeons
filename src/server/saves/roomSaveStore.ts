@@ -89,6 +89,11 @@ export class RoomSaveStore {
     return save === undefined ? undefined : structuredClone(save);
   }
 
+  /** Copies of every save, for building a profile's Continue list. */
+  all(): RoomSave[] {
+    return [...this.#byRoomCode.values()].map((save) => structuredClone(save));
+  }
+
   /** True when `save` was last played longer ago than the expiry, as of now. */
   isExpired(save: RoomSave): boolean {
     return this.#now() - save.lastPlayedAt > this.#ttlMs;
