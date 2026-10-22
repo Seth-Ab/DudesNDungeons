@@ -213,6 +213,11 @@ const hud = createHud({
     lobby.setMessage("You left the dungeon.");
     lobby.focus();
   },
+  onSaveAndQuit: () => {
+    const sent = client.saveAndQuit();
+    if (!sent) hud.setActionStatus("No connection");
+    return sent;
+  },
   onAttack: () => performAction("attack"),
   onAction: (action) => performAction(action),
   onUseSlot: (slot) => useInventorySlot(slot),
@@ -250,7 +255,7 @@ const lobby = createLobby({
       lobby.setMessage(error instanceof Error ? error.message : "Could not create a dungeon.");
     }
   },
-  onJoinRoom: (roomCode, playerName) => client.join(roomCode, playerName),
+  onJoinRoom: (roomCode, playerName, savedRun) => client.join(roomCode, playerName, savedRun ?? null),
 });
 
 // Between the lobby and the hub, for a slot that has no character yet.

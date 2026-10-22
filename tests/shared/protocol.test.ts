@@ -409,8 +409,17 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v46, the version that added savedRun to joinSession", () => {
-    expect(PROTOCOL_VERSION).toBe(46);
+  it("is on protocol v47, the version that added savedAndQuit", () => {
+    expect(PROTOCOL_VERSION).toBe(47);
+  });
+
+  it("round-trips a refused Save and quit with its reason", () => {
+    for (const reason of ["inCombat", "notPermitted"] as const) {
+      const message: ServerMessage = { type: "saveAndQuitRefused", reason };
+      const result = parseServerMessage(serializeServerMessage(message));
+      expect(result.ok && result.message).toEqual(message);
+    }
+    expect(parseServerMessage(JSON.stringify({ type: "saveAndQuitRefused", reason: "nope" })).ok).toBe(false);
   });
 
   it("ships the id lists the design fixed", () => {

@@ -501,12 +501,14 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       if (message.type === "saveAndQuit") {
         const quit = saveAndQuit(store, playerId, now(), wallNow());
         if (!quit.ok) {
-          send(socket, { type: "actionRejected", sequence: null, reason: quit.reason });
+          send(socket, { type: "saveAndQuitRefused", reason: quit.reason });
           return;
         }
 
         store.saves.flush();
         const { member } = quit;
+        // Told before the socket is forgotten, so the client knows the save took and where to rejoin.
+        send(socket, { type: "savedAndQuit", roomCode: member.session.roomCode });
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);

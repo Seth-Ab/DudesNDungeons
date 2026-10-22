@@ -9,6 +9,7 @@ import {
   selfOf,
   type SessionView,
 } from "../../src/client/network/sessionState.js";
+import { rejectionMessage } from "../../src/client/state/runFlow.js";
 import { isTileLit } from "../../src/client/state/litTiles.js";
 import type { DungeonSnapshot, PlayerState, RunState } from "../../src/shared/types/core.js";
 
@@ -646,4 +647,51 @@ describe("progression", () => {
 
     expect(rejoined.progression).toBeNull();
   });
+});
+
+describe("saving and quitting", () => {
+  it("returns the view to the lobby's, remembering the room to rejoin", () => {
+    const inRun = applyServerMessage(initialSessionView, {
+      type: "playerJoined",
+      player: player(SELF_ID),
+    });
+
+    const view = applyServerMessage({ ...inRun, phase: "inSession", roomCode: "BCDFGH" }, {
+      type: "savedAndQuit",
+      roomCode: "BCDFGH",
+    });
+
+    expect(view).toEqual({ ...initialSessionView, savedQuitRoomCode: "BCDFGH" });
+  });
+
+  it("shows a refusal beside the button and keeps the player in the run", () => {
+    const inRun = { ...initialSessionView, phase: "inSession" as const, roomCode: "BCDFGH" };
+
+    const view = applyServerMessage(inRun, { type: "saveAndQuitRefused", reason: "inCombat" });
+
+    expect(view.saveQuitNotice).toBe(rejectionMessage("inCombat"));
+    expect(view.phase).toBe("inSession");
+    expect(view.savedQuitRoomCode).toBeNull();
+  });
+
+  it("leaves the Save and quit notice alone for any other refusal", () => {
+    const inRun = { ...initialSessionView, phase: "inSession" as const, roomCode: "BCDFGH" };
+
+    const view = applyServerMessage(inRun, { type: "actionRejected", sequence: null, reason: "notPermitted" });
+
+    expect(view.saveQuitNotice).toBeNull();
+  });
+
+  it.each(["savedRunExists", "notSaveMember", "notPermitted"] as const)(
+    "treats %s as a refused join, so the lobby is usable again",
+    (code) => {
+      const view = applyServerMessage(
+        { ...initialSessionView, phase: "joining" },
+        { type: "sessionError", code, message: "no" },
+      );
+
+      expect(view.phase).toBe("connected");
+      expect(inParty(view)).toBe(false);
+    },
+  );
 });

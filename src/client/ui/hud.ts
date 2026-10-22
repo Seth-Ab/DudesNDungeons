@@ -66,6 +66,7 @@ interface HudOptions {
   onToggleDeafen: () => void;
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
+  onSaveAndQuit: () => boolean;
   onAttack: () => void;
   onAction: (action: GameplayAction) => void;
   onUseSlot: (slot: number) => void;
@@ -108,6 +109,7 @@ export function createHud(options: HudOptions) {
       closeCamp();
       options.onLeave();
     },
+    onSaveAndQuit: options.onSaveAndQuit,
     onOpenControls: () => {
       closeCamp();
       options.onOpenControls();
@@ -161,7 +163,7 @@ export function createHud(options: HudOptions) {
   skillsButton.setAttribute("aria-haspopup", "dialog");
 
   const camp = createCampMenu([
-    { title: "Party", elements: [session.readyButton, session.leaveButton] },
+    { title: "Party", elements: [session.readyButton, session.leaveButton, session.saveQuitButton, session.saveQuitNotice] },
     { title: "Camp", elements: [skillsButton, stashButton, session.controlsButton] },
     { title: "Voice", elements: [voice.statusElement, voice.meterElement, ...voice.buttons] },
   ]);
@@ -477,7 +479,13 @@ export function createHud(options: HudOptions) {
 
       session.setConnection(connectionLabel(view));
       session.setRoom(roomCodeLabel(view));
-      session.update(controls, self ? self.ready : null, hubReadyVisible(view));
+      session.update(
+        controls,
+        self ? self.ready : null,
+        hubReadyVisible(view),
+        view.location === "dungeon",
+        view.saveQuitNotice,
+      );
       voice.setInSession(!controls.sessionControlsDisabled);
       campAvailable = view.phase === "inSession" && self !== null && self.appearance !== null;
       if (!campAvailable) {

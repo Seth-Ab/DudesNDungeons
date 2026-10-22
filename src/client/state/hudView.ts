@@ -71,10 +71,12 @@ export function roomCodeLabel(view: SessionView): string {
 
 /**
  * `notImplemented` is the expected answer for actions the backend has not built yet, so it is not
- * something to alarm a player with.
+ * something to alarm a player with. `savedRunExists` is a question the lobby's prompt asks, so it
+ * is not also an error toast.
  */
 export function actionableError(view: SessionView): string {
-  return view.lastError && view.lastError.code !== "notImplemented" ? view.lastError.message : "";
+  const code = view.lastError?.code;
+  return view.lastError && code !== "notImplemented" && code !== "savedRunExists" ? view.lastError.message : "";
 }
 
 export function positionLabel(position: { x: number; y: number }): string {

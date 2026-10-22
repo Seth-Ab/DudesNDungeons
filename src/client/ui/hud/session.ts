@@ -1,10 +1,13 @@
 import type { ControlsView } from "../../state/hudView.js";
 import { readyLabel } from "../../state/hudView.js";
+import { saveQuitButtonLabel, saveQuitStillPending } from "../../state/saveQuit.js";
 import { createButton, createStat } from "./dom.js";
 
 interface SessionOptions {
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
+  /** Returns false when the intent could not be sent, so the button can come back. */
+  onSaveAndQuit: () => boolean;
   onOpenControls: () => void;
 }
 
@@ -28,6 +31,24 @@ export function createSession(options: SessionOptions) {
   hubReadyButton.className = "hud__hub-ready";
   hubReadyButton.hidden = true;
   const leaveButton = createButton("Leave", options.onLeave);
+  // Only in the dungeon: the hub has no run to save, and the server refuses it there.
+  // Pending from the click until the server answers: a refusal or the return to the lobby ends it.
+  let saveQuitPending = false;
+  const saveQuitButton = createButton(saveQuitButtonLabel(false), () => {
+    saveQuitPending = true;
+    saveQuitButton.textContent = saveQuitButtonLabel(true);
+    saveQuitButton.disabled = true;
+    if (!options.onSaveAndQuit()) {
+      saveQuitPending = false;
+      saveQuitButton.textContent = saveQuitButtonLabel(false);
+      saveQuitButton.disabled = false;
+    }
+  });
+  saveQuitButton.hidden = true;
+  const saveQuitNotice = document.createElement("p");
+  saveQuitNotice.className = "camp-menu__refusal";
+  saveQuitNotice.setAttribute("role", "status");
+  saveQuitNotice.hidden = true;
   const controlsButton = createButton("Controls", options.onOpenControls);
 
   return {
@@ -36,6 +57,8 @@ export function createSession(options: SessionOptions) {
     positionElement: position.element,
     readyButton,
     leaveButton,
+    saveQuitButton,
+    saveQuitNotice,
     controlsButton,
     hubReadyButton,
 
@@ -49,10 +72,22 @@ export function createSession(options: SessionOptions) {
       position.value.textContent = text;
     },
 
-    update(view: ControlsView, selfReady: boolean | null, inHub: boolean) {
+    update(
+      view: ControlsView,
+      selfReady: boolean | null,
+      inHub: boolean,
+      inDungeon: boolean,
+      refusal: string | null,
+    ) {
       readyButton.disabled = view.sessionControlsDisabled;
       hubReadyButton.disabled = view.sessionControlsDisabled;
       leaveButton.disabled = view.sessionControlsDisabled;
+      saveQuitPending = saveQuitStillPending(saveQuitPending, refusal, inDungeon);
+      saveQuitButton.textContent = saveQuitButtonLabel(saveQuitPending);
+      saveQuitButton.disabled = view.sessionControlsDisabled || saveQuitPending;
+      saveQuitButton.hidden = !inDungeon;
+      saveQuitNotice.textContent = refusal ?? "";
+      saveQuitNotice.hidden = !inDungeon || refusal === null;
       hubReadyButton.hidden = !inHub;
       if (selfReady !== null && selfReady !== ready) ready = selfReady;
       readyButton.textContent = readyLabel(ready);
