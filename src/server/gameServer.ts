@@ -212,10 +212,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     send(socket, wardrobeCatalogMessage(session));
   }
 
-  /** Writes whatever an action changed: a profile, the vault, or both. No-ops when nothing did. */
+  /** Writes whatever an action changed: a profile, the vault, a room save. No-ops when nothing did. */
   function flushPersistent(): void {
     profiles.flush();
     store.vaults.flush();
+    store.saves.flush();
   }
 
   function sendSnapshot(session: Session, playerId: PlayerId, roster: readonly PlayerState[]): void {

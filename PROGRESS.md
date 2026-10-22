@@ -59,8 +59,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
   earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
   (issue #84) and client WebRTC
   proximity voice (issue #27), closing Frontend step 5.
-- Next recommended step: run saves, starting with the room save format and store (#233), then
-  #234, #235 and #232; otherwise a wider item catalog, combat depth,
+- Next recommended step: run saves, starting with the save triggers and Save and quit (#234), then
+  #235 and #232; otherwise a wider item catalog, combat depth,
   and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
 - Current blocker: GitHub branch protection cannot be enabled for this private repository on the
@@ -349,7 +349,12 @@ full catalog, the shop and UI remain. Milestones landed under protocol v41 (#215
   and on close. Since #126 the carry goes to the party vault instead, persisted per room code in
   `data/vaults.json` on the same flushes; `profile.bankedItems` is a read-only legacy list.
 - [ ] Persist each room's party and run in progress so a run can be saved and continued across
-  quitting and restarts. Decided in decision 0015 (#122); split into #233, #234 and #235.
+  quitting and restarts. Decided in decision 0015 (#122); split into #233, #234 and #235. The
+  format and store are in (#233): `src/server/saves/` keeps a `RoomSave` per room code in
+  `data/rooms.json` (members, plus a run captured by `captureRun` and put back by `restoreRun` and
+  `restoreRunPlayer`, timers as durations), deletes saves unplayed for 7 days, clears a run saved
+  under another `contentVersion` or protocol, and reserves its room code. Nothing writes saves yet:
+  triggers are #234 and continuing #235.
 - [ ] Add skills with server-resolved effects. The first slice is live: Iron Will can spawn as rare
   boss-room loot, provisional skills survive reconnect but not a failed extraction, and the shared
   effect resolver drives resistance, attack damage, skill stacks, and torch sight. Stacking and
@@ -592,6 +597,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
+- 2026-10-21: Room save format and store in `data/rooms.json`, with run state captured and restored as durations, a saveable loot stream, and a content version (#233, no protocol change).
 - 2026-10-21: Run saves decided (#122): a save per room code that outlives runs, autosave and "Save and quit", no undoing a death or wipe, 7-day expiry, in decision 0015; follow-ups #232-#235.
 - 2026-10-21: Weapon trails drawn inside the swing's resolved reach and arc, and torch flames recoloured without touching the light, as two new wardrobe slots (#138, protocol v44).
 - 2026-10-21: Hats, cloaks and outfit dyes owned on the profile, bought at a Wardrobe stall or earned by milestones, worn in the hub and drawn for the whole party (#137, protocol v43).
