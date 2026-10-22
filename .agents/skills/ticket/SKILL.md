@@ -93,8 +93,13 @@ client consumers, migration-safe content changes, tests, and durable documentati
 - Do not fold opportunistic refactors, dependency upgrades, or neighboring tickets into the branch.
 
 For visible gameplay changes, inspect the result in a browser when practical and capture the
-screenshot or recording expected by the PR template. If visual verification is unavailable, say so
-truthfully in the PR.
+screenshots or recordings expected by the PR template. Save them outside the repo tree (for example
+the scratchpad or `test-results/`) as PNGs (or `.webm` for motion) with descriptive names such as
+`party-vault-host-after-withdrawal.png`, and publish them in step 7. A visible change is any change
+to rendering, HUD, menus, sprites, or what a player sees; a spec that writes screenshots counts as
+a capture only once the files are published. "Captured locally" or "not committed" is not a
+substitute: reviewers cannot see those files. If visual verification is truly unavailable, say why
+in the PR.
 
 ## 5. Verify Before Committing
 
@@ -130,10 +135,34 @@ must include:
 
 - a concise summary of the behavior changed;
 - the exact verification commands and results;
-- screenshots or recordings for visible changes, or an explicit reason they are absent;
+- screenshots or recordings for visible changes, published as below, or `N/A` with the reason the
+  change is not visual (do not write `N/A` for a visible change, and do not say they exist only
+  locally);
 - backend/frontend contract, networking, persistence, and security notes when relevant;
 - `Closes #<issue-number>` so GitHub closes the issue only after merge;
 - remaining limitations or intentionally out-of-scope work.
+
+### Publishing screenshots
+
+`gh` cannot upload attachments, so host images on a dedicated assets branch that holds only images
+and is never merged. Do this before `gh pr create` so the body can link them:
+
+```bash
+git worktree add --orphan -b assets/issue-<n>-screenshots ../assets-<n>
+cp <captures> ../assets-<n>/
+git -C ../assets-<n> add . && git -C ../assets-<n> -c user.name=... -c user.email=... commit -m "Add screenshots for issue #<n>"
+git -C ../assets-<n> push -u origin assets/issue-<n>-screenshots
+git worktree remove ../assets-<n>
+```
+
+Use the repository's configured git identity for the commit. If `--orphan` is unsupported, use a
+temporary clone and `git checkout --orphan` instead. Never add images to the ticket branch.
+
+Embed them with raw URLs, which work for anyone because the repository is public:
+`![caption](https://raw.githubusercontent.com/Seth-Ab/DudesNDungeons/assets/issue-<n>-screenshots/<file>.png)`.
+Use a two-column table for before/after or host/guest views, and a plain link for `.webm`. After the
+PR is open, confirm each URL returns 200 (`curl -sI <url>`) and the images render in the PR body.
+Leave the assets branch in place; it is not part of the PR.
 
 Read the created PR back to verify its base, head, body, issue link, and URL. Watch required checks.
 If a check fails because of the change, fix it on the same branch, rerun the relevant local checks,
