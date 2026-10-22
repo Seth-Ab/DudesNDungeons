@@ -85,6 +85,11 @@ describe("parseClientMessage", () => {
     expect(withAmount.ok && "coin" in withAmount.message).toBe(false);
   });
 
+  it("accepts a bare saveAndQuit and refuses one that carries anything", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "saveAndQuit" })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "saveAndQuit", position: { x: 1, y: 1 } })).ok).toBe(false);
+  });
+
   it("accepts a purchase that names only the stock entry, and refuses a client-sent price", () => {
     const itemId = "iron-will-scroll";
 
@@ -377,8 +382,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v44, the version that added the trail and flame cosmetic slots", () => {
-    expect(PROTOCOL_VERSION).toBe(44);
+  it("is on protocol v45, the version that added saveAndQuit", () => {
+    expect(PROTOCOL_VERSION).toBe(45);
   });
 
   it("ships the id lists the design fixed", () => {

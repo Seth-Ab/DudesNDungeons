@@ -5,6 +5,7 @@ import {
   MAX_CLIENT_MESSAGE_BYTES,
   MAX_PARTY_SIZE,
   PROTOCOL_VERSION,
+  RUN_AUTOSAVE_INTERVAL_MS,
   SERVER_TICK_MS,
   SERVER_TICK_RATE_HZ,
 } from "../shared/constants/game.js";
@@ -15,7 +16,7 @@ import {
   type ErrorCode,
   type ServerMessage,
 } from "../shared/protocol/index.js";
-import type { PlayerId, PlayerState } from "../shared/types/core.js";
+import type { PlayerId, PlayerState, ProfileId } from "../shared/types/core.js";
 import { EMOTE_BURST, EMOTE_REFILL_PER_SECOND } from "../shared/constants/emotes.js";
 import { dropCarry, liftPlayer } from "./game/carrying.js";
 import { resolvePlayerAttack, simulate } from "./game/combat.js";
@@ -40,11 +41,13 @@ import { resolvePuzzles } from "./game/puzzles.js";
 import { resolveReadyPlates } from "./game/readyPlates.js";
 import { resolveTraps } from "./game/traps.js";
 import { partyWiped, returnToHub } from "./game/runLifecycle.js";
+import { saveAndQuit } from "./game/saveAndQuit.js";
 import { shareDiscoveredMaps } from "./game/mapSharing.js";
 import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
 import { runStateFor } from "./game/vitals.js";
 import { toProfileState } from "./profiles/profile.js";
 import { ProfileStore } from "./profiles/profileStore.js";
+import { saveRoom, touchRoomSave } from "./saves/roomSaving.js";
 import { SessionStore, partyRosterOf, rosterOf, toPlayerState, type Session, type SessionPlayer } from "./sessions/sessionStore.js";
 import { resolveSignalTarget, SignalRateLimiter, signalRelayFor } from "./voice/signalRelay.js";
 
@@ -73,6 +76,7 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "liftPlayer",
   "dropCarry",
   "emote",
+  "saveAndQuit",
 ]);
 
 const DEFAULT_SWEEP_INTERVAL_MS = 5_000;
@@ -90,6 +94,13 @@ export interface GameServerOptions {
   profiles?: ProfileStore;
   tickIntervalMs?: number;
   sweepIntervalMs?: number;
+  /** How often a room in the dungeon is saved. Defaults to `RUN_AUTOSAVE_INTERVAL_MS`. */
+  autosaveIntervalMs?: number;
+  /**
+   * Wall clock in ms, which dates a room save so it can expire. Distinct from `now`: a save outlives
+   * the process, and a monotonic reading means nothing after a restart. Defaults to `Date.now`.
+   */
+  wallNow?: () => number;
   /**
    * A tick that takes at least this long, in the clock of `now`, is logged. Defaults to half the
    * 50 ms tick budget, which leaves room to notice a trend before players feel it.
@@ -125,10 +136,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const profiles = options.profiles ?? new ProfileStore();
   const tickIntervalMs = options.tickIntervalMs ?? SERVER_TICK_MS;
   const sweepIntervalMs = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
+  const autosaveIntervalMs = options.autosaveIntervalMs ?? RUN_AUTOSAVE_INTERVAL_MS;
   const slowTickMs = options.slowTickMs ?? DEFAULT_SLOW_TICK_MS;
   const allowedOrigin = options.allowedOrigin ?? "*";
   const log = options.log ?? true;
   const now = options.now ?? (() => performance.now());
+  const wallNow = options.wallNow ?? Date.now;
 
   const socketsByPlayer = new Map<PlayerId, WebSocket>();
   const signalLimiter = new SignalRateLimiter();
@@ -147,6 +160,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const lastVaultSent = new Map<PlayerId, number>();
   /** The run count whose shop stock each player last received, so it is resent only after a run ends. */
   const lastStockSent = new Map<PlayerId, number>();
+  /** Dungeon parties whose save was written when they emptied, so the sweep does not write it again. */
+  const savedWhenEmpty = new WeakSet<Session>();
   /** When a slow tick was last logged, or null before the first. */
   let lastSlowTickLoggedAt: number | null = null;
 
@@ -217,6 +232,20 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     profiles.flush();
     store.vaults.flush();
     store.saves.flush();
+  }
+
+  /** Writes the room's save from its session. `forget` drops a leaver's run entry; see `saveRoom`. */
+  function saveSessionRoom(session: Session, forget?: ProfileId): void {
+    saveRoom(session, store.saves, now(), wallNow(), forget === undefined ? {} : { forget });
+    store.saves.flush();
+  }
+
+  /** The party has emptied out of a run: nobody connected is left to autosave it, so write it now. */
+  function saveEmptiedRun(session: Session): void {
+    if (session.location !== "dungeon" || savedWhenEmpty.has(session)) return;
+    if ([...session.players.values()].some((player) => player.connected)) return;
+    savedWhenEmpty.add(session);
+    saveSessionRoom(session);
   }
 
   function sendSnapshot(session: Session, playerId: PlayerId, roster: readonly PlayerState[]): void {
@@ -381,6 +410,9 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         const { session, player, resumed } = joined;
         playerId = player.id;
         socketsByPlayer.set(player.id, socket);
+        savedWhenEmpty.delete(session);
+        // Joining a room with a save counts as playing it, which keeps the save from expiring.
+        touchRoomSave(store.saves, session.roomCode, wallNow());
 
         // Names the profile after whoever is playing it now, and dates it, so an operator reading
         // the file can tell a live profile from one abandoned months ago.
@@ -456,7 +488,38 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
             reason: "left",
           });
           note(`[session] ${member.session.roomCode}: ${member.player.name} left`);
+          // Leaving abandons the run, so the save forgets this player's carry (their character stays).
+          if (member.session.location === "dungeon") {
+            saveSessionRoom(member.session, member.player.profile.id);
+            saveEmptiedRun(member.session);
+          }
         }
+        return;
+      }
+
+      if (message.type === "saveAndQuit") {
+        const quit = saveAndQuit(store, playerId, now(), wallNow());
+        if (!quit.ok) {
+          send(socket, { type: "actionRejected", sequence: null, reason: quit.reason });
+          return;
+        }
+
+        store.saves.flush();
+        const { member } = quit;
+        socketsByPlayer.delete(playerId);
+        lastProgressionSent.delete(playerId);
+        lastRosterSent.delete(playerId);
+        lastVaultSent.delete(playerId);
+        lastStockSent.delete(playerId);
+        signalLimiter.forget(playerId);
+        emoteLimiter.forget(playerId);
+        playerId = null;
+
+        // Everyone else sees them leave the way they would for `leaveSession`.
+        broadcast(member.session, { type: "playerLeft", playerId: member.player.id, reason: "left" });
+        note(`[session] ${member.session.roomCode}: ${member.player.name} saved and quit`);
+        // The quitter's entry is already saved; this only covers the last connected member going.
+        saveEmptiedRun(member.session);
         return;
       }
 
@@ -467,6 +530,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           return;
         }
 
+        // A designed character is a room member from now on, so the room save learns of them now.
+        saveSessionRoom(set.member.session);
         // No message of its own: the next tick's snapshots carry the look to the whole party.
         note(`[session] ${set.member.session.roomCode}: ${set.member.player.name} designed a character`);
         return;
@@ -735,6 +800,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
           connected: false,
         });
         note(`[session] ${member.session.roomCode}: ${member.player.name} disconnected, holding slot`);
+        saveEmptiedRun(member.session);
       }
     });
 
@@ -801,7 +867,15 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     }
   }, tickIntervalMs);
 
+  const autosaveTimer = setInterval(() => {
+    for (const session of store.listSessions()) {
+      if (session.location === "dungeon" && session.players.size > 0) saveSessionRoom(session);
+    }
+  }, autosaveIntervalMs);
+
   const sweepTimer = setInterval(() => {
+    // Before the sweep drops a timed-out player or an emptied session, so what it forgets is saved.
+    for (const session of store.listSessions()) saveEmptiedRun(session);
     // The safety net under the targeted flushes above, for any change they did not cover.
     flushPersistent();
 
@@ -845,7 +919,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     close() {
       clearInterval(tickTimer);
       clearInterval(sweepTimer);
-      // Last chance to save: after this the timers are gone and nothing else will write.
+      clearInterval(autosaveTimer);
+      // Last chance to save: after this the timers are gone and nothing else will write. Every run
+      // in progress is written first, so a restart loses at most what happened since this call.
+      for (const session of store.listSessions()) {
+        if (session.location === "dungeon") saveRoom(session, store.saves, now(), wallNow());
+      }
       flushPersistent();
       for (const socket of socketsByPlayer.values()) socket.terminate();
       for (const socket of wss.clients) socket.terminate();

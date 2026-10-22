@@ -79,6 +79,8 @@ export const rejectionReasonSchema = z.enum([
   "alreadyOwned",
   /** Equipping a cosmetic the profile does not own. */
   "notOwned",
+  /** A `saveAndQuit` from a player who took or dealt damage lately, or has a monster closing on them. */
+  "inCombat",
 ]);
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 

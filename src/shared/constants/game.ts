@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 44;
+export const PROTOCOL_VERSION = 45;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -257,6 +257,15 @@ export const PROFILE_SECRET_LENGTH = 32;
  * a caller could grow the session map without bound just by asking for codes.
  */
 export const EMPTY_SESSION_TTL_MS = 10 * 60_000;
+
+/** How often a room in the dungeon writes its run to its room save (decision 0015). */
+export const RUN_AUTOSAVE_INTERVAL_MS = 45_000;
+
+/**
+ * How long after a player took or dealt damage `saveAndQuit` is refused for them. A monster
+ * winding up or charging at them refuses it for as long as that lasts, beyond this.
+ */
+export const SAVE_QUIT_COMBAT_GRACE_MS = 5_000;
 
 export const MAX_VOICE_SIGNAL_LENGTH = 8192;
 

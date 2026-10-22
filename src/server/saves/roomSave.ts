@@ -355,6 +355,7 @@ export function restoreRunPlayer(
   player.declinedPlateId = null;
   player.nextMoveAt = null;
   player.nextAttackAt = null;
+  player.lastCombatAt = null;
 }
 
 function remaining(times: ReadonlyMap<string, number>, now: number): Record<string, number> {

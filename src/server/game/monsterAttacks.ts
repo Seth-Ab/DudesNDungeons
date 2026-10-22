@@ -9,7 +9,7 @@ import { isDown } from "./dungeonState.js";
 import { recordDummyHit } from "./dummies.js";
 import { damageMonster } from "./monsterDamage.js";
 import { contentForSession } from "./progression.js";
-import { damagePlayer } from "./vitals.js";
+import { damagePlayer, markCombat } from "./vitals.js";
 
 type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
 
@@ -44,9 +44,11 @@ function hitPlayer(
   attackerId: EntityId,
   player: SessionPlayer,
   damage: number,
+  now: number,
 ): AttackEvent {
   // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
   const dealt = damagePlayer(player, damage, contentForSession(session));
+  markCombat(player, now);
   return {
     type: "attackResolved",
     attackerId,
@@ -130,7 +132,7 @@ export function advanceProjectiles(session: Session, elapsedMs: number, now: num
         }
       }
       if (struck) {
-        events.push(hitPlayer(session, run.ownerId, struck, run.damage));
+        events.push(hitPlayer(session, run.ownerId, struck, run.damage, now));
         spent = true;
       }
     }
@@ -169,6 +171,8 @@ function strikeWithArrow(
 
   if (monster && monsterGap <= dummyGap) {
     const dealt = damageMonster(session, monster, run.damage);
+    const owner = session.players.get(run.ownerId);
+    if (owner) markCombat(owner, now);
     return {
       type: "attackResolved",
       attackerId: run.ownerId,
@@ -258,7 +262,7 @@ export function advanceCharge(
     const touched = targets.find((player) => distance(next, player.position) <= CHARGE_CONTACT_RANGE);
     if (touched) {
       finish();
-      return [hitPlayer(session, monster.id, touched, stats.damage)];
+      return [hitPlayer(session, monster.id, touched, stats.damage, now)];
     }
 
     if (!isOpen(session.dungeon, [], next, undefined, monster)) {
