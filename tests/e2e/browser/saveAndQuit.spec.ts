@@ -74,14 +74,33 @@ test.describe("Save and quit", () => {
       await openCampMenu(guest);
       await expect(saveAndQuit(guest)).toBeVisible();
       await guest.screenshot({ path: testInfo.outputPath("camp-menu-save-and-quit.png") });
+      // The answer can beat a poll on localhost, so record the button's states as they happen.
+      await guest.evaluate(`(() => {
+        window.saveQuitStates = [];
+        const button = [...document.querySelectorAll(".camp-menu button")].find((b) =>
+          /Save and quit|Saving/.test(b.textContent ?? ""),
+        );
+        if (!button) throw new Error("no Save and quit button");
+        new MutationObserver(() => window.saveQuitStates.push(button.textContent + ":" + button.disabled)).observe(
+          button,
+          { childList: true, attributes: true, characterData: true, subtree: true },
+        );
+      })()`);
       await saveAndQuit(guest).click();
       const lobby = guest.locator(".lobby");
       await expect(lobby).toBeVisible();
+      const states = await guest.evaluate<string[]>("window.saveQuitStates");
+      expect(states).toContain("Saving...:true");
+      const saved = lobby.getByRole("status").filter({ hasText: "Run saved" });
+      await expect(saved).toContainText(roomCode);
+      await expect(saved).toContainText("Join dungeon");
+      await guest.screenshot({ path: testInfo.outputPath("save-confirmation.png") });
       await expect(guest.getByPlaceholder(/Room code/)).toHaveValue(roomCode);
       await expect(host.locator(".hud__frame", { hasText: "Sam" })).toHaveCount(0);
 
       // Rejoining a saved room asks first.
       await guest.getByRole("button", { name: "Join dungeon" }).click();
+      await expect(saved).toBeHidden();
       const prompt = lobby.getByRole("group", { name: "This room has a saved run" });
       await expect(prompt).toBeVisible();
       await guest.screenshot({ path: testInfo.outputPath("saved-room-prompt.png") });

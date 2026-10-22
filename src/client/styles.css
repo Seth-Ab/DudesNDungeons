@@ -932,6 +932,37 @@ button:disabled {
   gap: 0.5rem;
 }
 
+/* The success after Save and quit: green, where the prompt above is gold and errors are orange. */
+.lobby__saved {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid #7fb069;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgb(127 176 105 / 12%);
+}
+
+.lobby__saved[hidden] {
+  display: none;
+}
+
+.lobby__saved h3,
+.lobby__saved p {
+  margin: 0;
+}
+
+.lobby__saved h3 {
+  color: #9fd08a;
+  font-size: 1rem;
+}
+
+.lobby__saved p {
+  color: #d8ceb1;
+  font-size: 0.85rem;
+}
+
 .lobby__message {
   margin: 0.8rem 0 0;
   min-height: 1.2rem;

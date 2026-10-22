@@ -1,11 +1,13 @@
 import type { ControlsView } from "../../state/hudView.js";
 import { readyLabel } from "../../state/hudView.js";
+import { saveQuitButtonLabel, saveQuitStillPending } from "../../state/saveQuit.js";
 import { createButton, createStat } from "./dom.js";
 
 interface SessionOptions {
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
-  onSaveAndQuit: () => void;
+  /** Returns false when the intent could not be sent, so the button can come back. */
+  onSaveAndQuit: () => boolean;
   onOpenControls: () => void;
 }
 
@@ -30,7 +32,18 @@ export function createSession(options: SessionOptions) {
   hubReadyButton.hidden = true;
   const leaveButton = createButton("Leave", options.onLeave);
   // Only in the dungeon: the hub has no run to save, and the server refuses it there.
-  const saveQuitButton = createButton("Save and quit", options.onSaveAndQuit);
+  // Pending from the click until the server answers: a refusal or the return to the lobby ends it.
+  let saveQuitPending = false;
+  const saveQuitButton = createButton(saveQuitButtonLabel(false), () => {
+    saveQuitPending = true;
+    saveQuitButton.textContent = saveQuitButtonLabel(true);
+    saveQuitButton.disabled = true;
+    if (!options.onSaveAndQuit()) {
+      saveQuitPending = false;
+      saveQuitButton.textContent = saveQuitButtonLabel(false);
+      saveQuitButton.disabled = false;
+    }
+  });
   saveQuitButton.hidden = true;
   const saveQuitNotice = document.createElement("p");
   saveQuitNotice.className = "camp-menu__refusal";
@@ -69,7 +82,9 @@ export function createSession(options: SessionOptions) {
       readyButton.disabled = view.sessionControlsDisabled;
       hubReadyButton.disabled = view.sessionControlsDisabled;
       leaveButton.disabled = view.sessionControlsDisabled;
-      saveQuitButton.disabled = view.sessionControlsDisabled;
+      saveQuitPending = saveQuitStillPending(saveQuitPending, refusal, inDungeon);
+      saveQuitButton.textContent = saveQuitButtonLabel(saveQuitPending);
+      saveQuitButton.disabled = view.sessionControlsDisabled || saveQuitPending;
       saveQuitButton.hidden = !inDungeon;
       saveQuitNotice.textContent = refusal ?? "";
       saveQuitNotice.hidden = !inDungeon || refusal === null;

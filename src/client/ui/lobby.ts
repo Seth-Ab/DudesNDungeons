@@ -1,6 +1,7 @@
 import { ROOM_CODE_LENGTH } from "../../shared/constants/game.js";
 import type { SavedRunChoice } from "../network/sessionClient.js";
 import type { SessionView } from "../network/sessionState.js";
+import { saveConfirmation } from "../state/saveQuit.js";
 
 interface LobbyOptions {
   onCreateRoom: (playerName: string) => void;
@@ -86,6 +87,29 @@ export function createLobby(options: LobbyOptions) {
 
   prompt.append(promptTitle, promptText, promptActions);
 
+  // Shown after Save and quit, and kept until the player joins, creates a room or dismisses it, so
+  // the success is not a line of text that the next error can overwrite.
+  const saved = document.createElement("div");
+  saved.className = "lobby__saved";
+  saved.setAttribute("role", "status");
+  saved.setAttribute("aria-live", "polite");
+  const savedTitle = document.createElement("h3");
+  const savedText = document.createElement("p");
+  const savedDismiss = document.createElement("button");
+  savedDismiss.type = "button";
+  savedDismiss.className = "lobby__secondary lobby__saved-dismiss";
+  savedDismiss.textContent = "Dismiss";
+  saved.append(savedTitle, savedText, savedDismiss);
+  saved.hidden = true;
+
+  const hideSaved = (): void => {
+    saved.hidden = true;
+  };
+  savedDismiss.addEventListener("click", () => {
+    hideSaved();
+    nameInput.focus();
+  });
+
   const form = document.createElement("form");
   form.className = "lobby__form";
   form.append(nameInput, codeInput, joinButton);
@@ -111,12 +135,14 @@ export function createLobby(options: LobbyOptions) {
     }
 
     message.textContent = "Joining...";
+    hideSaved();
     options.onJoinRoom(roomCode, playerName());
   });
 
   createButton.addEventListener("click", () => {
     if (!requireName()) return;
     message.textContent = "Creating a dungeon...";
+    hideSaved();
     options.onCreateRoom(playerName());
   });
 
@@ -142,6 +168,7 @@ export function createLobby(options: LobbyOptions) {
   const rejoin = (savedRun: SavedRunChoice): void => {
     if (!requireName()) return;
     message.textContent = "Joining...";
+    hideSaved();
     options.onJoinRoom(codeInput.value.trim(), playerName(), savedRun);
   };
 
@@ -156,7 +183,7 @@ export function createLobby(options: LobbyOptions) {
     codeInput.focus();
   });
 
-  panel.append(heading, form, createButton, prompt, message);
+  panel.append(heading, saved, form, createButton, prompt, message);
   element.append(panel);
 
   /** The saved-and-quit room already filled in, so a later view update does not refill it. */
@@ -182,7 +209,11 @@ export function createLobby(options: LobbyOptions) {
         handledQuitRoom = view.savedQuitRoomCode;
         if (handledQuitRoom !== null) {
           codeInput.value = handledQuitRoom;
-          message.textContent = "Your run is saved. Join again to continue it.";
+          message.textContent = "";
+          const confirmation = saveConfirmation(handledQuitRoom);
+          savedTitle.textContent = confirmation.title;
+          savedText.textContent = confirmation.text;
+          saved.hidden = false;
         }
       }
 

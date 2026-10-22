@@ -214,7 +214,9 @@ const hud = createHud({
     lobby.focus();
   },
   onSaveAndQuit: () => {
-    if (!client.saveAndQuit()) hud.setActionStatus("No connection");
+    const sent = client.saveAndQuit();
+    if (!sent) hud.setActionStatus("No connection");
+    return sent;
   },
   onAttack: () => performAction("attack"),
   onAction: (action) => performAction(action),

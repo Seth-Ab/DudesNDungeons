@@ -628,7 +628,7 @@ Complete on `feature/hub-run-flow`.
 
 One line per change; read the linked pull request for detail.
 
-- 2026-10-22: Save and quit in the camp menu and the lobby's saved-room prompt, with a `savedAndQuit` acknowledgement from the server (#232, protocol v47).
+- 2026-10-22: Save and quit in the camp menu and the lobby's saved-room prompt, with a `savedAndQuit` acknowledgement from the server, a "Run saved" banner in the lobby that stays until the player acts, and a "Saving..." button while Save and quit is pending (#232, protocol v47).
 - 2026-10-21: Continue a saved run from its room code after a restart: `savedRun` on `joinSession`, `notSaveMember`, `savedRunExists` and `notPermitted` errors, discarding a save, and members returning with their saved look (#235, protocol v46).
 - 2026-10-21: Room saves written on member changes, autosave, an emptied party and shutdown, cleared by an escape or a wipe, and a `saveAndQuit` intent refused in combat (#234, protocol v45).
 - 2026-10-21: Room save format and store in `data/rooms.json`, with run state captured and restored as durations, a saveable loot stream, and a content version (#233, no protocol change).

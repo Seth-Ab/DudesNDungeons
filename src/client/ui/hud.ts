@@ -66,7 +66,7 @@ interface HudOptions {
   onToggleDeafen: () => void;
   onToggleReady: (ready: boolean) => void;
   onLeave: () => void;
-  onSaveAndQuit: () => void;
+  onSaveAndQuit: () => boolean;
   onAttack: () => void;
   onAction: (action: GameplayAction) => void;
   onUseSlot: (slot: number) => void;
