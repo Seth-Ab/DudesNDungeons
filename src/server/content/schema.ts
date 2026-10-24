@@ -22,6 +22,7 @@ import {
   SEAT_FACINGS,
   STALL_TINTS,
 } from "../../shared/constants/scenery.js";
+import { midpointDoorways } from "../game/generation/roomShapes.js";
 
 /**
  * The contract for everything under `content/`.
@@ -558,20 +559,60 @@ export const chestSpawnRuleSchema = spawnCountSchema.and(
   }),
 );
 
-export const roomTemplateSchema = z.object({
-  id: contentIdSchema,
-  name: z.string().min(1),
-  kind: roomKindSchema,
-  /** Rows of `#` (wall) and `.` (floor). Every row must be the same length. */
-  tiles: z.array(z.string().regex(/^[#.]+$/)).min(1),
-  doorways: z.array(doorwaySchema).min(1),
-  lights: z.array(templateLightSchema).default([]),
-  monsters: z.array(monsterSpawnRuleSchema).default([]),
-  loot: z.array(lootSpawnRuleSchema).default([]),
-  traps: z.array(trapSpawnRuleSchema).default([]),
-  puzzles: z.array(puzzleSpawnRuleSchema).default([]),
-  chests: z.array(chestSpawnRuleSchema).default([]),
-});
+export const roomTemplateSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    kind: roomKindSchema,
+    /** Rows of `#` (wall) and `.` (floor). Every row must be the same length. */
+    tiles: z.array(z.string().regex(/^[#.]+$/)).min(1),
+    /**
+     * Free-form openings, for a template that needs them somewhere other than the side midpoints.
+     * Required unless `sockets` is set, in which case they are derived from it.
+     */
+    doorways: z.array(doorwaySchema).default([]),
+    /** `midpoints` puts one socket at the middle of each side, so the grid generator can join it. */
+    sockets: z.literal("midpoints").optional(),
+    /** The generator may rotate and mirror this template. Needs `sockets` and odd tile sizes. */
+    transform: z.boolean().default(false),
+    /** Biomes allowed to use this template. Empty means any. */
+    biomes: z.array(contentIdSchema).default([]),
+    tags: z.array(z.string().min(1)).default([]),
+    lights: z.array(templateLightSchema).default([]),
+    monsters: z.array(monsterSpawnRuleSchema).default([]),
+    loot: z.array(lootSpawnRuleSchema).default([]),
+    traps: z.array(trapSpawnRuleSchema).default([]),
+    puzzles: z.array(puzzleSpawnRuleSchema).default([]),
+    chests: z.array(chestSpawnRuleSchema).default([]),
+  })
+  .superRefine((template, context) => {
+    if (template.sockets === undefined && template.doorways.length === 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["doorways"], message: "needs a doorway, or sockets: \"midpoints\"" });
+    }
+    if (template.transform && template.sockets === undefined) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["transform"], message: "needs sockets: \"midpoints\"" });
+    }
+    if (template.sockets !== undefined && template.doorways.length > 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["doorways"], message: "are derived from sockets; set one or the other" });
+    }
+    if (template.transform) {
+      const width = template.tiles[0]?.length ?? 0;
+      if (width % 2 === 0 || template.tiles.length % 2 === 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["tiles"],
+          message: "must have an odd width and height to be transformed, so sockets stay on side midpoints",
+        });
+      }
+    }
+  })
+  .transform((template) => ({
+    ...template,
+    doorways:
+      template.sockets === "midpoints"
+        ? midpointDoorways(template.tiles[0]?.length ?? 0, template.tiles.length)
+        : template.doorways,
+  }));
 export type RoomTemplate = z.infer<typeof roomTemplateSchema>;
 
 /**
