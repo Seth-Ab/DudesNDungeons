@@ -18,6 +18,8 @@ import {
   doorOrientation,
   itemSprite,
   propSprite,
+  THEME_LIGHT_TINTS,
+  type LightGlowTint,
   type SpriteName,
 } from "./tiles.js";
 import {
@@ -74,6 +76,13 @@ const figureWidth = PLAYER_RADIUS * 2;
 
 /** How far a seated figure is drawn below where it sits, in world units, so it reads as sitting. */
 const SEATED_DROP = 0.2;
+
+/** A dungeon torch's halo by tint: centre, middle and rim colour stops. Warm is the original fire. */
+const DUNGEON_GLOWS: Readonly<Record<LightGlowTint, readonly [string, string, string]>> = {
+  warm: ["rgba(240, 168, 60, 0.26)", "rgba(194, 85, 29, 0.10)", "rgba(123, 31, 20, 0)"],
+  cold: ["rgba(120, 190, 215, 0.26)", "rgba(50, 110, 150, 0.10)", "rgba(20, 50, 90, 0)"],
+  green: ["rgba(155, 212, 106, 0.26)", "rgba(70, 140, 60, 0.10)", "rgba(30, 80, 40, 0)"],
+};
 
 const colors = {
   floor: "#2d3033",
@@ -653,9 +662,10 @@ export function createCanvasRenderer(
       gradient.addColorStop(0.5, red ? "rgba(190, 40, 30, 0.14)" : "rgba(235, 135, 50, 0.16)");
       gradient.addColorStop(1, red ? "rgba(120, 20, 20, 0)" : "rgba(160, 70, 30, 0)");
     } else {
-      gradient.addColorStop(0, "rgba(240, 168, 60, 0.26)");
-      gradient.addColorStop(0.5, "rgba(194, 85, 29, 0.10)");
-      gradient.addColorStop(1, "rgba(123, 31, 20, 0)");
+      const glow = DUNGEON_GLOWS[THEME_LIGHT_TINTS[scene.dungeon.map.theme ?? "stone"]];
+      gradient.addColorStop(0, glow[0]);
+      gradient.addColorStop(0.5, glow[1]);
+      gradient.addColorStop(1, glow[2]);
     }
 
     ctx.save();

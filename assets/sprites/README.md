@@ -47,6 +47,10 @@ and not the other fails the bake rather than drawing a hole in the floor.
   `forest-fill` and `forest-edge-*` exactly as the stone ones are. `tiles.ts` names each theme's
   prefixes in `THEME_SPRITES`; the forest shares the stone floor, which the hub covers with ground.
   `forest-edge-s` is empty: the canopy overhang below carries that edge instead.
+- `crypt-*`, `fungal-*` and `ossuary-*`: the biome themes' walls (`<theme>-0` to `-15`, composed from
+  `<theme>-fill` and `-edge-*` like the stone ones) and their floors, `<theme>-floor-0` to `-3`.
+  Crypt is drowned blue-grey with damp sheens, fungal is mossy earth with glowing spores, and ossuary
+  is pale bone pressed into brown masonry. Their palette uses punctuation and Greek or Cyrillic letters, since the Latin ones ran out.
 - Ground, for a map's `ground` grid (see `content/README.md`): `cobble-0` to `cobble-3`,
   `grass-0` to `grass-2` and `dirt-0` to `dirt-1`. Grass and dirt pick a variant from a weighted
   hash, like the flagstones. Cobble picks by checkerboard: even tiles take `cobble-0` or `-1` and

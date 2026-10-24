@@ -55,6 +55,25 @@ const FLOOR_WEIGHTS: readonly number[] = [24, 3, 3, 2];
 export const THEME_SPRITES: Readonly<Record<MapTheme, { wall: string; floor: string; overhang?: string }>> = {
   stone: { wall: "wall", floor: "floor" },
   forest: { wall: "forest", floor: "floor", overhang: "forest-overhang" },
+  crypt: { wall: "crypt", floor: "crypt-floor" },
+  fungal: { wall: "fungal", floor: "fungal-floor" },
+  ossuary: { wall: "ossuary", floor: "ossuary-floor" },
+};
+
+/** The tint of the light a theme's torches cast: a warm fire, a cold drowned glow, or spore green. */
+export type LightGlowTint = "warm" | "cold" | "green";
+
+/**
+ * Which glow a dungeon's lights are drawn with, by map theme. Presentation only: the client picks it
+ * from the theme the snapshot already carries, so no light state or protocol field is involved, and
+ * what the lightmap reveals is still the server's.
+ */
+export const THEME_LIGHT_TINTS: Readonly<Record<MapTheme, LightGlowTint>> = {
+  stone: "warm",
+  forest: "warm",
+  crypt: "cold",
+  fungal: "green",
+  ossuary: "warm",
 };
 
 /** How many variants each ground kind picks between. Must match the authored `<kind>-N` sprites. */

@@ -143,7 +143,7 @@ export function generateDelve(
       });
       built = {
         dungeon: {
-          map: { id: definition.id, name: definition.name, width, height, originX: 0, originY: 0, tiles: [...world.tiles] },
+          map: { id: definition.id, name: definition.name, width, height, originX: 0, originY: 0, tiles: [...world.tiles], theme: biome.theme },
           rooms: roomStates,
           monsters: populated.monsters,
           projectiles: [],
