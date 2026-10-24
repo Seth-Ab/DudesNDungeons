@@ -82,7 +82,7 @@ Lighting is a core pillar, so it belongs on the server. A client that receives t
 - Move room templates, monster stats, and item definitions out of `src/server/game/` literals and into `content/`, which exists for exactly this and is still empty.
 - Make a room a first-class thing with an id, bounds, a template, lighting, and contents. Nothing in the model currently knows what a room is, and visibility, boss gating, and generation all need one.
 - Key monsters by a type id rather than by display name, which is what `MONSTER_STATS` uses today.
-- Generate a dungeon by stitching large templates together: sparse halls, mazes, trap rooms, cooperative puzzle rooms, boss rooms, and one exit room that returns the party to the hub.
+- Generate a dungeon by stitching large templates together (the chain layout described here is superseded by the grid layout of Backend 14, decision 0016): sparse halls, mazes, trap rooms, cooperative puzzle rooms, boss rooms, and one exit room that returns the party to the hub.
 - Scatter loot, monsters, and light sources by per-template rules from a seeded random source, so a generated run can be replayed exactly in a test.
 - Keep generation server-side. The client learns the map by exploring it.
 
@@ -159,7 +159,7 @@ Taken out of order, before steps 10-12, because the first playable demo showed t
 
 ### 14. Dungeon Generator v2
 
-Design: `docs/design/dungeon-design-bible.html`; decisions in `docs/decisions/0016-dungeon-generator-v2.md`. Each bullet is roughly one issue. Content beyond Phase 1 is a menu the owner pulls from.
+Design: `docs/design/dungeon-design-bible.html`; decisions and the shipped pipeline in `docs/decisions/0016-dungeon-generator-v2.md`. Each bullet is roughly one issue. Content beyond Phase 1 is a menu the owner pulls from. Phase 1 is done: `vault-run` is a `delve` profile.
 
 - Phase 1, Shape: seeded `chance`, `weighted` and `mixSeed`; a 6x4 grid layout with a critical path, branches and loops replacing `placeRooms`; midpoint sockets with rotated and mirrored templates and procedural maze, cavern and hall shapes; 12 to 15 new Cinder Depths templates; party size passed into generation to scale plates and threat; a validation and retry loop. No protocol or art changes.
 - Phase 2, Locks and specials: typed keys and door locks; vault, shrine, camp, secret and arena rooms; shrine altars; campfire rest; cracked walls.

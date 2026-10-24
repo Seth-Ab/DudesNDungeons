@@ -54,7 +54,13 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   A template gives `doorways` by hand, or `sockets: "midpoints"` for one doorway at the middle of
   each side (then omit `doorways`). `transform: true` lets the generator rotate and mirror it, and
   needs `sockets` and an odd width and height so the sockets stay on side midpoints. Optional
-  `biomes` (empty means any) and `tags` describe where it may be used.
+  `biomes` (empty means any) and `tags` describe where it may be used. A `delve` run uses only
+  templates whose `biomes` name the run's biome, only odd-sized ones, and only those that fit the
+  cell inside its margin; otherwise (and half the time anyway) a room gets a procedural shape.
+  The Cinder Depths set (`transform: true`, `sockets: "midpoints"`, `biomes: ["cinder-depths"]`)
+  is 14 templates: entrances `ash-stair`, `slag-landing`, `bellows-porch`; exits `chimney-climb`,
+  `flue-ascent`, `soot-shaft`; boss `slag-pit`; puzzles `furnace-lock`, `brazier-court`,
+  `lever-gallery`; halls `slag-gallery`, `bellows-nave`; maze `flue-warren`; trap `vent-run`.
 - `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
   `theme` (`stone`, the default, or `forest`, which draws walls as woodland, with its canopy
   overhanging the floor beside it) and a `props` list of
@@ -94,27 +100,30 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   character outside `gcd.`. Grass draws a ragged fringe onto the cobble or dirt beside it, so
   boundaries need no art of their own; the hub is the example. Ground scales with the map, so each
   character covers a `TILE_SCALE` block, and reaches a client with the tiles it describes.
-- `flows/` and `biomes/`: the two halves of a `delve` run (decision 0016). Nothing builds a `delve`
-  run yet, so these are validated content only.
+- `flows/` and `biomes/`: the two halves of a `delve` run (decision 0016); `vault-run` draws one of each per run.
   A **flow** is the shape of a run: `weight` (relative odds), `minParty` (smallest party it may be
   drawn for), inclusive `{ min, max }` ranges for `path` (rooms on the critical path), `branches`,
   `branchLength` and `loops`, `branchFrom` (`any` path room, or `hub`, which also needs `hubIndex`),
   `bossLock`, `keySource` and `vaultChance` (0 to 1). `bossLock` is `key`, `seals` or `split-seal`,
   but only the locks in `GENERATOR_BOSS_LOCKS` (`schema.ts`) can be built, today `key` with a
   `keySource` of `puzzle`, `branch` or `arena`; any other lock, or a key source that lock cannot use,
-  fails loading. `gauntlet`, `long-loop` and `three-roads` ship.
+  fails loading. `gauntlet`, `long-loop` and `three-roads` ship. A run draws its flow weighted among the profile's
+  flows with `minParty` at most the party size, from the run seed alone.
   A **biome** is what a run looks and fights like: `theme` and `lightTint`, `light` (a multiplier on
   light radii), a `roster` of `{ typeId, cost, weight }` (cost is spent against a room's threat
   budget; bosses are not allowed here), `traps` and `puzzles` pools, a `bosses` pool (each must be
   a `boss: true` monster), `roomWeights` by room kind, a `lootTableId`, and `names` by room kind.
   An unknown monster, trap, puzzle, boss, loot table or room kind fails startup naming the file and
-  field. `cinder-depths` is the only biome and the only live one.
+  field. `cinder-depths` is the only biome and the only one a `delve` run draws.
 - A `delve` dungeon profile (`layout: "delve"`) sits in `dungeons/` beside `authored` and
   `generated`: `grid` (`cols`, `rows`, `cell` in authored tiles, `margin`), the `flows` and
   `biomes` a run draws from by id, `maxAttempts` generation attempts (each retry reads `mixSeed(seed, attempt)`, and the run fails
   naming its seed when none validates), an optional `corridorLight` and an `exitDestination`. Every id must exist, and at least one listed flow must have `minParty` of 1 so
   a solo party has a run. `vault-run` is a `delve` profile; `ember-vault` stays the pinned authored map
-  that tests build on.
+  that tests build on. The `delve` pipeline is seven stages (recipe, layout, roles, room shapes,
+  carve, populate, validate); see decision 0016. A generation that fails any invariant is discarded
+  and retried, so a bad flow or template shows up as an error naming the seed rather than an
+  unfinishable run.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
   profiles and skill scrolls.
 
