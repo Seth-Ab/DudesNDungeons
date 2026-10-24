@@ -6,7 +6,9 @@ import {
   minimapAllies,
   minimapIcons,
   minimapPoint,
-  minimapRoomName,
+  minimapRoomHeader,
+  minimapRoomKindAt,
+  MINIMAP_KIND_TINTS,
   minimapTile,
   minimapViewport,
   minimapWorldKey,
@@ -44,16 +46,24 @@ function fillTiles(context: Context, view: SessionView, viewport: MinimapViewpor
   const y0 = first(viewport.top);
   const x1 = Math.min(map.width, Math.ceil(viewport.left + viewport.tilesAcross));
   const y1 = Math.min(map.height, Math.ceil(viewport.top + viewport.tilesAcross));
+  const rooms = view.dungeon?.rooms ?? [];
+  const tileKey = (x: number, y: number): string => {
+    const kind = minimapTile(map, x, y);
+    if (kind !== "floor") return kind;
+    const room = minimapRoomKindAt(rooms, x, y);
+    return room && MINIMAP_KIND_TINTS[room] ? `floor:${room}` : "floor";
+  };
 
   for (let y = y0; y < y1; y++) {
     // One rectangle per run of like tiles keeps a large explored map cheap to draw.
     let runStart = x0;
-    let runKind = minimapTile(map, x0, y);
+    let runKind = tileKey(x0, y);
     for (let x = x0 + 1; x <= x1; x++) {
-      const kind = x < x1 ? minimapTile(map, x, y) : null;
+      const kind = x < x1 ? tileKey(x, y) : null;
       if (kind === runKind) continue;
       if (runKind !== "unknown") {
-        context.fillStyle = runKind === "wall" ? WALL_COLOR : FLOOR_COLOR;
+        const tint = runKind.startsWith("floor:") ? MINIMAP_KIND_TINTS[runKind.slice(6) as keyof typeof MINIMAP_KIND_TINTS] : undefined;
+        context.fillStyle = runKind === "wall" ? WALL_COLOR : (tint ?? FLOOR_COLOR);
         const from = minimapPoint(viewport, runStart, y);
         const to = minimapPoint(viewport, x, y + 1);
         // Rounded outwards so neighbouring runs meet without hairline gaps.
@@ -240,13 +250,15 @@ export function createMinimap() {
     element.hidden = !show;
     if (!show || !context || !view || !map || !self || !position) return;
 
-    const name = minimapRoomName(view, position);
+    const name = minimapRoomHeader(view, position);
     if (roomName.textContent !== name) roomName.textContent = name;
 
     const tile = tileOf(position);
     const allies = minimapAllies(view);
     const icons = minimapIcons(map, markers);
     const signature = [
+      name,
+      view.dungeon?.rooms.length ?? 0,
       tile.x,
       tile.y,
       self.facing.x,

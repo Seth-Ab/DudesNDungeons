@@ -215,6 +215,23 @@ describe("the delve generator", () => {
     }
   });
 
+  it("places the new room kinds when a biome weights them, and the run still generates", () => {
+    const biome = content.biomes.get(delveProfile.biomes[0]!)!;
+    const weighted = {
+      ...content,
+      biomes: new Map(content.biomes).set(biome.id, {
+        ...biome,
+        roomWeights: { hall: 2, cavern: 2, arena: 2, camp: 2, shrine: 2 },
+      }),
+    };
+    const kinds = new Set<string>();
+    for (let seed = 0; seed < 12; seed += 1) {
+      const built = generateDungeon(delveProfile, weighted, seed, 4);
+      for (const room of built.dungeon.rooms) kinds.add(room.kind);
+    }
+    for (const kind of ["cavern", "arena", "camp", "shrine"]) expect(kinds).toContain(kind);
+  });
+
   it("builds a different layout for different seeds", () => {
     const layouts = new Set<string>();
     for (let seed = 0; seed < 50; seed += 1) {

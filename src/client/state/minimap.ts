@@ -4,6 +4,8 @@ import type {
   DungeonMapState,
   ExitState,
   PlayerState,
+  RoomKind,
+  RoomState,
   Vector2,
 } from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
@@ -144,6 +146,61 @@ export function minimapRoomName(view: SessionView, position: Vector2 | null): st
   if (!dungeon) return "-";
   const room = position ? roomAt(dungeon.rooms, position) : null;
   return room?.name ?? (dungeon.map.name || "-");
+}
+
+/** What each room kind is called in the header. Every kind is named, so a new one fails to compile here. */
+export const MINIMAP_KIND_LABELS: Readonly<Record<RoomKind, string>> = {
+  entrance: "Entrance",
+  hall: "Hall",
+  maze: "Maze",
+  trap: "Trap room",
+  puzzle: "Puzzle",
+  boss: "Boss",
+  exit: "Exit",
+  corridor: "Corridor",
+  vault: "Vault",
+  shop: "Shop",
+  wardrobe: "Wardrobe",
+  camp: "Camp",
+  shrine: "Shrine",
+  secret: "Secret",
+  arena: "Arena",
+  cavern: "Cavern",
+};
+
+/**
+ * Floor colour per room kind. Kinds that read as plain stone have none and keep the floor colour;
+ * the rest are told apart by hue, and the header names the kind for anyone who cannot.
+ */
+export const MINIMAP_KIND_TINTS: Readonly<Partial<Record<RoomKind, string>>> = {
+  boss: "#4a2626",
+  camp: "#3a3320",
+  shrine: "#2c3350",
+  secret: "#3a2848",
+  arena: "#4a3020",
+  cavern: "#24352a",
+  vault: "#40381f",
+};
+
+/** The kind of the discovered room covering a tile, or null outside every discovered room. */
+export function minimapRoomKindAt(rooms: readonly RoomState[], tileX: number, tileY: number): RoomKind | null {
+  const room = rooms.find(
+    (candidate) =>
+      tileX >= candidate.x &&
+      tileX < candidate.x + candidate.width &&
+      tileY >= candidate.y &&
+      tileY < candidate.y + candidate.height,
+  );
+  return room?.kind ?? null;
+}
+
+/** The header text: the room's name, then its kind unless the name already says it. */
+export function minimapRoomHeader(view: SessionView, position: Vector2 | null): string {
+  const name = minimapRoomName(view, position);
+  const room = view.location === "dungeon" && view.dungeon && position ? roomAt(view.dungeon.rooms, position) : null;
+  if (!room) return name;
+  const label = MINIMAP_KIND_LABELS[room.kind];
+  return name.toLowerCase().includes(label.toLowerCase()) ? name : `${name} · ${label}`;
 }
 
 export interface RememberedChest {

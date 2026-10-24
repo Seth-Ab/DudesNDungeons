@@ -36,6 +36,11 @@ const SHAPES: Readonly<Partial<Record<RoomKind, { shapes: readonly RoomShapeId[]
   hall: { shapes: ["pillars", "block", "cross", "ring", "octagon", "alcoves", "cavern"], sizes: [9, 11] },
   maze: { shapes: ["maze"], sizes: [9, 11] },
   trap: { shapes: ["partition", "alcoves", "plain"], sizes: [9, 11] },
+  cavern: { shapes: ["cavern"], sizes: [9, 11] },
+  arena: { shapes: ["plain", "ring", "octagon"], sizes: [11] },
+  camp: { shapes: ["plain", "octagon"], sizes: [7, 9] },
+  shrine: { shapes: ["plain", "pillars", "octagon"], sizes: [7, 9] },
+  secret: { shapes: ["plain", "alcoves"], sizes: [7] },
 };
 
 /** Chance a room is a hand-authored template, when one of its kind fits the cell. */
