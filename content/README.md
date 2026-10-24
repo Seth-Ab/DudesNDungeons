@@ -124,6 +124,14 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   carve, populate, validate); see decision 0016. A generation that fails any invariant is discarded
   and retried, so a bad flow or template shows up as an error naming the seed rather than an
   unfinishable run.
+- `omens/`: run modifiers (decision 0016). A `delve` run rolls at most one `warning` (35%) and one
+  `anomaly` (30%) from its seed, so the same seed always gets the same omens; a profile may set its
+  own `omens` chances. An omen sets `name`, `type`, a one-line `description` and at least one knob:
+  `lightMult` (how many fixed lights), `radiusMult` (light radius), `budgetMult` (threat budgets),
+  `chestBonus` (added to every chest roll's chance), `corridorTraps` (a single-use trap id dropped
+  along the corridors) or `shrine` (a guaranteed skill scroll in a side room). `overrides`
+  (`decayGraceMs`, `voiceRangeMult`) are run-scoped rules the generator ignores. `smothering-dark`,
+  `restless-dead`, `brittle-floors`, `golden-hoard`, `lantern-festival` and `scroll-cache` ship.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
   profiles and skill scrolls.
 

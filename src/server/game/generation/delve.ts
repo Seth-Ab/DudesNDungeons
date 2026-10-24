@@ -3,7 +3,7 @@
  * validate, for a `delve` profile.
  *
  * Stage 1 reads the run seed directly, so a retry changes the layout but never the run's flow or
- * biome. Stages 2 to 7 read `mixSeed(seed, attempt)`. An attempt that fails a stage, or whose
+ * biome, or its omens. Stages 2 to 7 read `mixSeed(seed, attempt)`. An attempt that fails a stage, or whose
  * result fails validation, is thrown away and the next one starts from a new stream; after the
  * profile's `maxAttempts` the generator throws, naming the seed so the run can be reproduced.
  * Everything is a pure function of the seed and party size, so the same pair always builds the same
@@ -11,11 +11,12 @@
  */
 import type { RoomState } from "../../../shared/types/core.js";
 import type { GameContent } from "../../content/loadContent.js";
-import type { BiomeDefinition, DelveDungeon, FlowDefinition, RoomKind, RoomTemplate } from "../../content/schema.js";
+import type { BiomeDefinition, DelveDungeon, FlowDefinition, OmenDefinition, RoomKind, RoomTemplate } from "../../content/schema.js";
 import type { BuiltDungeon } from "../dungeonBuilder.js";
 import { createRng, mixSeed, type Rng } from "../random.js";
 import { carveDungeon } from "./carve.js";
 import { generateLayout } from "./layout.js";
+import { chooseOmens, omenEffects, rollOmens } from "./omens.js";
 import { populateDungeon } from "./populate.js";
 import { assignRoles } from "./roles.js";
 import {
@@ -40,12 +41,19 @@ const SHAPES: Readonly<Partial<Record<RoomKind, { shapes: readonly RoomShapeId[]
 /** Chance a room is a hand-authored template, when one of its kind fits the cell. */
 const TEMPLATE_CHANCE = 0.5;
 
+/** Forces parts of the recipe, for a test or a tool that replays a particular run. */
+export interface DelveOverrides {
+  /** Omen ids to use instead of rolling. An empty list means no omens. */
+  readonly omens?: readonly string[];
+}
+
 function recipe(
   definition: DelveDungeon,
   content: GameContent,
   seed: number,
   partySize: number,
-): { flow: FlowDefinition; biome: BiomeDefinition } {
+  overrides: DelveOverrides,
+): { flow: FlowDefinition; biome: BiomeDefinition; omens: OmenDefinition[] } {
   const rng = createRng(seed);
   const flows = definition.flows
     .map((id) => content.flows.get(id)!)
@@ -53,7 +61,10 @@ function recipe(
   if (flows.length === 0) throw new Error(`Dungeon "${definition.id}" has no flow a party of ${partySize} can play`);
   const flow = rng.weighted(flows);
   const biome = content.biomes.get(rng.pick(definition.biomes))!;
-  return { flow, biome };
+  // Last, so the flow and biome a seed draws are the same whether or not omens exist.
+  const rolled = rollOmens(rng, definition, content);
+  const omens = overrides.omens ? chooseOmens(overrides.omens, content) : rolled;
+  return { flow, biome, omens };
 }
 
 function roomTiles(
@@ -87,8 +98,10 @@ export function generateDelve(
   content: GameContent,
   seed: number,
   partySize: number,
+  overrides: DelveOverrides = {},
 ): BuiltDungeon {
-  const { flow, biome } = recipe(definition, content, seed, partySize);
+  const { flow, biome, omens } = recipe(definition, content, seed, partySize, overrides);
+  const effects = omenEffects(omens);
   const { grid } = definition;
   const failures: string[] = [];
 
@@ -113,7 +126,7 @@ export function generateDelve(
 
     let built: BuiltDungeon;
     try {
-      const populated = populateDungeon(rng, { graph, plan, world, biome, content, partySize });
+      const populated = populateDungeon(rng, { graph, plan, world, biome, content, partySize, omens: effects });
       const width = grid.cols * grid.cell;
       const height = grid.rows * grid.cell;
       const roomStates: RoomState[] = world.rooms.map((room) => {
@@ -146,6 +159,7 @@ export function generateDelve(
         },
         spawnPoints: populated.spawnPoints,
         seed,
+        omens: omens.map((omen) => omen.id),
       };
     } catch (error) {
       // A room too cramped for what it was asked to hold: re-roll the layout, never ship it.

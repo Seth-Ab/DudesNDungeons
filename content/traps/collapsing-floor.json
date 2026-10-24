@@ -1,0 +1,7 @@
+{
+  "id": "collapsing-floor",
+  "name": "Collapsing Floor",
+  "radius": 1.4,
+  "damage": 10,
+  "staminaDrain": 30
+}

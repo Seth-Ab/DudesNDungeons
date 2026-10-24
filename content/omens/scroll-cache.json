@@ -1,0 +1,7 @@
+{
+  "id": "scroll-cache",
+  "name": "Scroll Cache",
+  "type": "anomaly",
+  "description": "A skill scroll waits in a side room.",
+  "shrine": true
+}
