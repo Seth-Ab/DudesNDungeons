@@ -1,9 +1,10 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { gameContent, loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
 import { monsterTypeSchema } from "../../src/server/content/schema.js";
+import { buildDungeon } from "../../src/server/game/dungeonState.js";
 
 const roots: string[] = [];
 
@@ -798,5 +799,139 @@ describe("ready plate content", () => {
 
   it("refuses a plate without an id", () => {
     expect(() => loadContent(strip({ readyPlates: [{ x: 1, y: 1 }] }))).toThrow(/readyPlates/);
+  });
+});
+
+describe("flow and biome content", () => {
+  /** A copy of the shipped content with some files added or replaced, so references stay valid. */
+  function shippedWith(files: Record<string, unknown>): string {
+    const root = mkdtempSync(join(tmpdir(), "dnd-content-"));
+    roots.push(root);
+    cpSync(resolveContentRoot(), root, { recursive: true });
+    for (const [path, body] of Object.entries(files)) {
+      const file = join(root, path);
+      mkdirSync(join(file, ".."), { recursive: true });
+      writeFileSync(file, JSON.stringify(body));
+    }
+    return root;
+  }
+
+  const biome = () => structuredClone(gameContent().biomes.get("cinder-depths")!);
+  const flow = () => structuredClone(gameContent().flows.get("gauntlet")!);
+  const DELVE = {
+    id: "delve-run",
+    name: "Delve Run",
+    layout: "delve",
+    grid: { cols: 6, rows: 4, cell: 16, margin: 2 },
+    flows: ["gauntlet", "long-loop", "three-roads"],
+    biomes: ["cinder-depths"],
+    maxAttempts: 40,
+    exitDestination: "hub",
+  };
+
+  it("ships Cinder Depths and the three key-lock flows", () => {
+    const content = gameContent();
+
+    expect([...content.flows.keys()].sort()).toEqual(["gauntlet", "long-loop", "three-roads"]);
+    expect([...content.biomes.keys()]).toEqual(["cinder-depths"]);
+    expect(content.flows.get("long-loop")).toMatchObject({
+      path: { min: 6, max: 7 },
+      loops: { min: 2, max: 3 },
+      bossLock: "key",
+      keySource: "branch",
+    });
+    expect(content.biomes.get("cinder-depths")?.roster.map((entry) => entry.typeId)).toContain("slag-charger");
+    expect(content.dungeons.get("vault-run")?.layout).toBe("generated");
+  });
+
+  it("loads a delve profile that names real flows and biomes", () => {
+    const content = loadContent(shippedWith({ "dungeons/delve-run.json": DELVE }));
+
+    expect(content.dungeons.get("delve-run")).toMatchObject({
+      layout: "delve",
+      grid: { cols: 6, rows: 4, cell: 16, margin: 2 },
+      maxAttempts: 40,
+    });
+  });
+
+  it("will not build a delve profile until the generator can", () => {
+    const content = loadContent(shippedWith({ "dungeons/delve-run.json": DELVE }));
+
+    expect(() => buildDungeon({ content, dungeonId: "delve-run", seed: 1 })).toThrow(/delve layout/);
+  });
+
+  it.each([
+    ["monster", { roster: [{ typeId: "ghost", cost: 1, weight: 1 }] }, /bad\.json field roster\.0\.typeId names unknown monster "ghost"/],
+    ["trap", { traps: ["spike-plate", "lava-pit"] }, /bad\.json field traps\.1 names unknown trap "lava-pit"/],
+    ["puzzle", { puzzles: ["riddle"] }, /bad\.json field puzzles\.0 names unknown puzzle "riddle"/],
+    ["boss", { bosses: ["ghost"] }, /bad\.json field bosses\.0 names unknown monster "ghost"/],
+    ["loot table", { lootTableId: "no-such-table" }, /bad\.json field lootTableId names unknown loot table "no-such-table"/],
+    ["room kind", { roomWeights: { hall: 1, lava: 2 } }, /bad\.json is not valid content.*roomWeights/s],
+    ["room name kind", { names: { lava: ["Magma Gut"] } }, /bad\.json is not valid content.*names/s],
+  ])("rejects a biome naming an unknown %s", (_label, change, message) => {
+    const root = shippedWith({ "biomes/bad.json": { ...biome(), id: "bad", ...change } });
+
+    expect(() => loadContent(root)).toThrow(message);
+  });
+
+  it("keeps bosses out of the roster and ordinary monsters out of the boss pool", () => {
+    const rosterBoss = { ...biome(), id: "bad", roster: [{ typeId: "ember-warden", cost: 3, weight: 1 }] };
+    expect(() => loadContent(shippedWith({ "biomes/bad.json": rosterBoss }))).toThrow(
+      /bad\.json field roster\.0\.typeId names boss "ember-warden"/,
+    );
+
+    const poolImp = { ...biome(), id: "bad", bosses: ["ash-imp"] };
+    expect(() => loadContent(shippedWith({ "biomes/bad.json": poolImp }))).toThrow(
+      /bad\.json field bosses\.0 names "ash-imp", which is not a boss/,
+    );
+  });
+
+  it("refuses a flow whose boss lock no generator stage supports", () => {
+    const seals = { ...flow(), id: "bad", bossLock: "seals", keySource: "seals" };
+    expect(() => loadContent(shippedWith({ "flows/bad.json": seals }))).toThrow(
+      /bad\.json field bossLock asks for "seals", which no generator stage supports/,
+    );
+
+    const unknown = { ...flow(), id: "bad", bossLock: "moat" };
+    expect(() => loadContent(shippedWith({ "flows/bad.json": unknown }))).toThrow(
+      /bad\.json is not valid content.*bossLock/s,
+    );
+  });
+
+  it("refuses a key lock fed by a source that cannot place a key", () => {
+    const split = { ...flow(), id: "bad", keySource: "split" };
+
+    expect(() => loadContent(shippedWith({ "flows/bad.json": split }))).toThrow(
+      /bad\.json field keySource "split" cannot open a "key" lock/,
+    );
+  });
+
+  it("refuses a flow with an inverted range or a hub flow with no hub", () => {
+    const inverted = { ...flow(), id: "bad", path: { min: 8, max: 7 } };
+    expect(() => loadContent(shippedWith({ "flows/bad.json": inverted }))).toThrow(/bad\.json is not valid content.*path/s);
+
+    const hub = { ...flow(), id: "bad", branchFrom: "hub" };
+    expect(() => loadContent(shippedWith({ "flows/bad.json": hub }))).toThrow(/bad\.json is not valid content.*hubIndex/s);
+  });
+
+  it("refuses a delve profile naming a flow or biome that does not exist", () => {
+    const flows = { ...DELVE, flows: ["gauntlet", "no-such-flow"] };
+    expect(() => loadContent(shippedWith({ "dungeons/delve-run.json": flows }))).toThrow(
+      /delve-run\.json field flows\.1 names unknown flow "no-such-flow"/,
+    );
+
+    const biomes = { ...DELVE, biomes: ["no-such-biome"] };
+    expect(() => loadContent(shippedWith({ "dungeons/delve-run.json": biomes }))).toThrow(
+      /delve-run\.json field biomes\.0 names unknown biome "no-such-biome"/,
+    );
+  });
+
+  it("refuses a delve profile a solo party cannot play", () => {
+    const group = { ...flow(), id: "group-only", minParty: 2 };
+    const profile = { ...DELVE, flows: ["group-only"] };
+
+    expect(() => loadContent(shippedWith({ "flows/group-only.json": group, "dungeons/delve-run.json": profile }))).toThrow(
+      /delve-run\.json field flows has no flow a party of one can play/,
+    );
   });
 });

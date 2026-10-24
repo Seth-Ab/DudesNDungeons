@@ -6,7 +6,10 @@ import { scalePoint } from "../game/scale.js";
 import { READY_PLATE_SIZE, TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SIZES, SEAT_FACING_VECTORS } from "../../shared/constants/scenery.js";
 import {
+  GENERATOR_BOSS_LOCKS,
+  biomeDefinitionSchema,
   dungeonDefinitionSchema,
+  flowDefinitionSchema,
   itemDefinitionSchema,
   lootTableDefinitionSchema,
   milestoneDefinitionSchema,
@@ -17,7 +20,9 @@ import {
   skillDefinitionSchema,
   puzzleTypeSchema,
   trapTypeSchema,
+  type BiomeDefinition,
   type DungeonDefinition,
+  type FlowDefinition,
   type ItemDefinition,
   type LootTableDefinition,
   type MilestoneDefinition,
@@ -56,6 +61,17 @@ export interface GameContent {
   lootTables: ReadonlyMap<string, LootTableDefinition>;
   templates: ReadonlyMap<string, RoomTemplate>;
   dungeons: ReadonlyMap<string, DungeonDefinition>;
+  /** The shapes a `delve` run may take: path, branches, loops and what locks the boss. */
+  flows: ReadonlyMap<string, FlowDefinition>;
+  /** What a `delve` run looks and fights like: roster, pools, light and room names. */
+  biomes: ReadonlyMap<string, BiomeDefinition>;
+}
+
+/** The file each flow, biome and dungeon came from, so a reference error can name it. */
+interface ContentSources {
+  flows: ReadonlyMap<string, string>;
+  biomes: ReadonlyMap<string, string>;
+  dungeons: ReadonlyMap<string, string>;
 }
 
 /**
@@ -102,6 +118,7 @@ function readJsonFiles(directory: string): { file: string; data: unknown }[] {
 function loadCollection<T extends { id: string }>(
   directory: string,
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  sources?: Map<string, string>,
 ): Map<string, T> {
   const entries = new Map<string, T>();
 
@@ -118,6 +135,7 @@ function loadCollection<T extends { id: string }>(
       throw new Error(`${file} reuses the content id "${result.data.id}"`);
     }
     entries.set(result.data.id, result.data);
+    sources?.set(result.data.id, file);
   }
 
   return entries;
@@ -230,7 +248,7 @@ function readyPlateTiles(plate: { x: number; y: number }): { x: number; y: numbe
   return [...ys].flatMap((y) => [...xs].map((x) => ({ x, y })));
 }
 
-function validateReferences(content: GameContent): void {
+function validateReferences(content: GameContent, sources: ContentSources): void {
   for (const item of content.items.values()) {
     if (item.kind !== "weapon" || item.weapon.kind !== "ranged") continue;
     if (content.items.get(item.weapon.ammoItemId)?.kind !== "ammo") {
@@ -270,6 +288,47 @@ function validateReferences(content: GameContent): void {
   }
 
   validateSkillPrerequisites(content.skills);
+
+  for (const flow of content.flows.values()) {
+    const file = sources.flows.get(flow.id);
+    const keySources = GENERATOR_BOSS_LOCKS[flow.bossLock];
+    if (!keySources) {
+      throw new Error(`${file} field bossLock asks for "${flow.bossLock}", which no generator stage supports`);
+    }
+    if (!keySources.includes(flow.keySource)) {
+      throw new Error(
+        `${file} field keySource "${flow.keySource}" cannot open a "${flow.bossLock}" lock; use ${keySources.join(" or ")}`,
+      );
+    }
+  }
+
+  for (const biome of content.biomes.values()) {
+    const file = sources.biomes.get(biome.id);
+    for (const [index, entry] of biome.roster.entries()) {
+      const type = content.monsters.get(entry.typeId);
+      if (!type) {
+        throw new Error(`${file} field roster.${index}.typeId names unknown monster "${entry.typeId}"`);
+      }
+      // A boss seals the exit wherever it stands, so it can only come from the boss pool.
+      if (type.boss) {
+        throw new Error(`${file} field roster.${index}.typeId names boss "${entry.typeId}"; list it under bosses`);
+      }
+    }
+    for (const [index, id] of biome.traps.entries()) {
+      if (!content.traps.has(id)) throw new Error(`${file} field traps.${index} names unknown trap "${id}"`);
+    }
+    for (const [index, id] of biome.puzzles.entries()) {
+      if (!content.puzzles.has(id)) throw new Error(`${file} field puzzles.${index} names unknown puzzle "${id}"`);
+    }
+    for (const [index, id] of biome.bosses.entries()) {
+      const type = content.monsters.get(id);
+      if (!type) throw new Error(`${file} field bosses.${index} names unknown monster "${id}"`);
+      if (!type.boss) throw new Error(`${file} field bosses.${index} names "${id}", which is not a boss`);
+    }
+    if (!content.lootTables.has(biome.lootTableId)) {
+      throw new Error(`${file} field lootTableId names unknown loot table "${biome.lootTableId}"`);
+    }
+  }
 
   for (const milestone of content.milestones.values()) {
     const skill = content.skills.get(milestone.skillId);
@@ -373,6 +432,21 @@ function validateReferences(content: GameContent): void {
 
   for (const dungeon of content.dungeons.values()) {
     const label = `Dungeon "${dungeon.id}"`;
+
+    if (dungeon.layout === "delve") {
+      const file = sources.dungeons.get(dungeon.id);
+      for (const [index, id] of dungeon.flows.entries()) {
+        if (!content.flows.has(id)) throw new Error(`${file} field flows.${index} names unknown flow "${id}"`);
+      }
+      for (const [index, id] of dungeon.biomes.entries()) {
+        if (!content.biomes.has(id)) throw new Error(`${file} field biomes.${index} names unknown biome "${id}"`);
+      }
+      // A solo party draws from this list too, so it needs a flow that does not ask for company.
+      if (!dungeon.flows.some((id) => content.flows.get(id)!.minParty <= 1)) {
+        throw new Error(`${file} field flows has no flow a party of one can play`);
+      }
+      continue;
+    }
 
     if (dungeon.layout === "authored") {
       assertRectangular(label, dungeon.tiles);
@@ -517,6 +591,7 @@ function validateReferences(content: GameContent): void {
 }
 
 export function loadContent(contentRoot = resolveContentRoot()): GameContent {
+  const sources = { flows: new Map<string, string>(), biomes: new Map<string, string>(), dungeons: new Map<string, string>() };
   const content: GameContent = {
     monsters: loadCollection(join(contentRoot, "monsters"), monsterTypeSchema),
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
@@ -528,10 +603,12 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     puzzles: loadCollection(join(contentRoot, "puzzles"), puzzleTypeSchema),
     lootTables: loadCollection(join(contentRoot, "loot-tables"), lootTableDefinitionSchema),
     templates: loadCollection(join(contentRoot, "dungeons", "templates"), roomTemplateSchema),
-    dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema),
+    dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema, sources.dungeons),
+    flows: loadCollection(join(contentRoot, "flows"), flowDefinitionSchema, sources.flows),
+    biomes: loadCollection(join(contentRoot, "biomes"), biomeDefinitionSchema, sources.biomes),
   };
 
-  validateReferences(content);
+  validateReferences(content, sources);
   return content;
 }
 

@@ -50,6 +50,11 @@ export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
   const definition = content.dungeons.get(dungeonId);
   if (!definition) throw new Error(`No dungeon content with id "${dungeonId}"`);
 
+  // A `delve` profile is content only until the generator learns to build it (decision 0016).
+  if (definition.layout === "delve") {
+    throw new Error(`Dungeon "${dungeonId}" uses the delve layout, which the generator cannot build yet`);
+  }
+
   const built =
     definition.layout === "authored"
       ? buildAuthoredDungeon(definition, content)

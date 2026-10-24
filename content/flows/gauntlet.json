@@ -1,0 +1,14 @@
+{
+  "id": "gauntlet",
+  "name": "The Gauntlet",
+  "weight": 3,
+  "minParty": 1,
+  "path": { "min": 7, "max": 8 },
+  "branches": { "min": 1, "max": 2 },
+  "branchLength": { "min": 1, "max": 2 },
+  "loops": { "min": 0, "max": 0 },
+  "branchFrom": "any",
+  "bossLock": "key",
+  "keySource": "puzzle",
+  "vaultChance": 0.35
+}
