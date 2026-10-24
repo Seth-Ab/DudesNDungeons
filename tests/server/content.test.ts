@@ -311,6 +311,86 @@ describe("rejecting bad content", () => {
     expect(() => loadContent(root)).toThrow(/do not connect through its own floor/);
   });
 
+  it("derives doorways from midpoint sockets and keeps the v2 fields", () => {
+    const root = contentRoot({
+      "dungeons/templates/crossing.json": {
+        id: "crossing",
+        name: "Crossing",
+        kind: "hall",
+        tiles: ["#######", "#.....#", "#.....#", "#.....#", "#.....#", "#.....#", "#######"],
+        sockets: "midpoints",
+        transform: true,
+        biomes: ["cinder-depths"],
+        tags: ["large"],
+      },
+    });
+
+    const template = loadContent(root).templates.get("crossing");
+    expect(template?.doorways).toEqual([
+      { x: 3, y: 0, side: "north" },
+      { x: 3, y: 6, side: "south" },
+      { x: 0, y: 3, side: "west" },
+      { x: 6, y: 3, side: "east" },
+    ]);
+    expect(template).toMatchObject({ transform: true, biomes: ["cinder-depths"], tags: ["large"] });
+  });
+
+  it("defaults the v2 fields on a template that only has doorways", () => {
+    const template = loadContent().templates.values().next().value!;
+    expect(template.sockets).toBeUndefined();
+    expect(template.transform).toBe(false);
+    expect(template.biomes).toEqual([]);
+    expect(template.tags).toEqual([]);
+  });
+
+  it("refuses a template with neither doorways nor sockets", () => {
+    const root = contentRoot({
+      "dungeons/templates/closed.json": { id: "closed", name: "Closed", kind: "hall", tiles: ["###", "#.#", "###"] },
+    });
+
+    expect(() => loadContent(root)).toThrow(/needs a doorway, or sockets/);
+  });
+
+  it("refuses to transform an even-sized or doorway-only template", () => {
+    const even = contentRoot({
+      "dungeons/templates/even.json": {
+        id: "even",
+        name: "Even",
+        kind: "hall",
+        tiles: ["####", "#..#", "#..#", "####"],
+        sockets: "midpoints",
+        transform: true,
+      },
+    });
+    expect(() => loadContent(even)).toThrow(/odd width and height/);
+
+    const doorways = contentRoot({
+      "dungeons/templates/free.json": {
+        id: "free",
+        name: "Free",
+        kind: "hall",
+        tiles: ["###", "#.#", "###"],
+        doorways: [{ x: 0, y: 1, side: "west" }],
+        transform: true,
+      },
+    });
+    expect(() => loadContent(doorways)).toThrow(/needs sockets/);
+  });
+
+  it("refuses midpoint sockets that do not connect through the template's own floor", () => {
+    const root = contentRoot({
+      "dungeons/templates/walled.json": {
+        id: "walled",
+        name: "Walled",
+        kind: "maze",
+        tiles: ["#######", "#..#..#", "#..#..#", "#..#..#", "#..#..#", "#..#..#", "#######"],
+        sockets: "midpoints",
+      },
+    });
+
+    expect(() => loadContent(root)).toThrow(/(do not connect|no floor beside)/);
+  });
+
   it("refuses a generated profile asking for a room kind no template provides", () => {
     const root = contentRoot({
       "dungeons/templates/gate.json": {

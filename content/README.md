@@ -51,6 +51,10 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
   and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
+  A template gives `doorways` by hand, or `sockets: "midpoints"` for one doorway at the middle of
+  each side (then omit `doorways`). `transform: true` lets the generator rotate and mirror it, and
+  needs `sockets` and an odd width and height so the sockets stay on side midpoints. Optional
+  `biomes` (empty means any) and `tags` describe where it may be used.
 - `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
   `theme` (`stone`, the default, or `forest`, which draws walls as woodland, with its canopy
   overhanging the floor beside it) and a `props` list of

@@ -439,6 +439,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Decide the design before building it: grid layout, one floor, `#`/`.` alphabet, omens on the quest board, small-party scaling, one biome per run, content as a menu (decision 0016, issue #243).
 - [x] Add flow and biome content (issue #245, 2026-10-23): `content/flows/` (`gauntlet`, `long-loop`, `three-roads`), `content/biomes/` (`cinder-depths`), a `delve` dungeon profile layout, and load-time reference checks. `vault-run` stays `generated`; nothing builds a `delve` run yet.
+- [x] Add room sockets, template transforms and procedural room shapes (issue #248, 2026-10-23): `src/server/game/generation/roomShapes.ts` with midpoint sockets, rotate and mirror for `transform` templates, ten procedural shapes (plain, pillars, block, cross, ring, octagon, partition, alcoves, braided maze, cavern), a 0-1 BFS socket repair and pocket fill, and a cavern retry that falls back to plain. `roomTemplateSchema` gains optional `sockets: "midpoints"` (derives `doorways`), `transform`, `biomes` and `tags`; existing templates load unchanged. Nothing in the generator calls the shapes yet; the grid layout and carve issues do.
 - [ ] Rest of Phase 1 Shape and later phases: not started; issues are filed per bullet in `STEPS.md` Backend 14.
 
 ## Frontend Dev Progress
