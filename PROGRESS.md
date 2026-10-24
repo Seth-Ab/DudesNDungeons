@@ -439,6 +439,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Decide the design before building it: grid layout, one floor, `#`/`.` alphabet, omens on the quest board, small-party scaling, one biome per run, content as a menu (decision 0016, issue #243).
 - [x] Add flow and biome content (issue #245, 2026-10-23): `content/flows/` (`gauntlet`, `long-loop`, `three-roads`), `content/biomes/` (`cinder-depths`), a `delve` dungeon profile layout, and load-time reference checks. `vault-run` stays `generated`; nothing builds a `delve` run yet.
+- [x] Add the layout stage (issue #246, 2026-10-23): `src/server/game/generation/layout.ts` `generateLayout(rng, flow, grid)` walks a self-avoiding critical path across the grid, grows the flow's branches, then adds loops between rooms at least three hops apart; the boss and exit get none, and it returns null when the path cannot fit or the flow's minimum branches or loops cannot be placed, for the caller to retry with `mixSeed`. Not wired into `generateDungeon` yet.
 - [ ] Rest of Phase 1 Shape and later phases: not started; issues are filed per bullet in `STEPS.md` Backend 14.
 
 ## Frontend Dev Progress
@@ -640,6 +641,7 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+- 2026-10-23: Generator v2 layout stage: critical path, branches and loops on the grid (#246).
 - 2026-10-23: Dungeon generator v2 design decided (decision 0016, #243); the series is Backend 14 in `STEPS.md`, documentation only.
 - 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48).
 One line per change; read the linked pull request for detail.
