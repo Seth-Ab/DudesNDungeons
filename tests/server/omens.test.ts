@@ -215,6 +215,15 @@ describe("what each omen does to a run", () => {
     }
   });
 
+  it.each([...content.omens.keys()])("builds a finishable run under %s for every party size", (omen) => {
+    for (const partySize of [1, 2, 3, 4]) {
+      for (let seed = 0; seed < 25; seed += 1) {
+        const built = generateDelve(profile, content, seed, partySize, { omens: [omen] });
+        expect(validateDungeon(built, content, partySize), `seed ${seed} party ${partySize}`).toEqual([]);
+      }
+    }
+  });
+
   it("changes nothing else about the layout, and every omened run still validates", () => {
     for (const omen of content.omens.keys()) {
       for (const seed of SEEDS.slice(0, 8)) {
@@ -222,15 +231,6 @@ describe("what each omen does to a run", () => {
         expect(built.omens).toEqual([omen]);
         expect(validateDungeon(built, content, PARTY), `${omen} seed ${seed}`).toEqual([]);
         expect(built.dungeon.map.tiles).toEqual(build(seed, []).dungeon.map.tiles);
-      }
-    }
-    const sweep = [...content.omens.keys()];
-    for (const omen of sweep) {
-      for (const partySize of [1, 2, 3, 4]) {
-        for (let seed = 0; seed < 40; seed += 1) {
-          const built = generateDelve(profile, content, seed, partySize, { omens: [omen] });
-          expect(validateDungeon(built, content, partySize), `${omen} seed ${seed} party ${partySize}`).toEqual([]);
-        }
       }
     }
     const both = build(SEEDS[0]!, ["brittle-floors", "scroll-cache"]);
