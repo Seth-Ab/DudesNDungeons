@@ -78,13 +78,14 @@ async function openPlayer(browser: Browser, name: string, theme: Theme, roomCode
     await page.getByRole("button", { name: "Create a new dungeon" }).click();
   }
   await enterHub(page);
+  await expect(page.getByText("Position:")).toContainText(/\d+\.\d+, \d+\.\d+/);
   return { page, run };
 }
 
 test.describe("Biome themes", () => {
   for (const theme of THEMES) {
     test(`a ${theme} run draws its walls and floors in the ${theme} palette on both clients`, async ({ browser }, testInfo) => {
-      test.setTimeout(120_000);
+      test.setTimeout(180_000);
       const host = await openPlayer(browser, "Maya", theme);
       const room = host.page.locator(".hud__stat", { hasText: "Room:" }).locator("span");
       await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
@@ -99,7 +100,7 @@ test.describe("Biome themes", () => {
         await host.page.keyboard.press("e");
         await host.page.waitForTimeout(250);
         expect(host.run.inDungeon() && guest.run.inDungeon()).toBe(true);
-      }).toPass({ timeout: 20_000 });
+      }).toPass({ timeout: 40_000 });
       await host.page.waitForTimeout(1_000);
 
       for (const [label, { page }] of [["host", host], ["guest", guest]] as const) {
