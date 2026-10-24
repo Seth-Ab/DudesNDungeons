@@ -58,7 +58,7 @@ describe("visibility frames", () => {
   });
 
   it("carries a bank on the viewer's own entry and on no teammate's", () => {
-    const tonic = { id: "55555555-5555-4555-8555-555555555555", name: "Key", kind: "key" as const };
+    const tonic = { id: "55555555-5555-4555-8555-555555555555", name: "Key", kind: "key" as const, itemId: "copper-key" };
     const viewer = testPlayer("viewer", { position: at(2, 2) });
     const nearby = testPlayer("nearby", { position: at(2, 2, 1) });
     viewer.profile.bankedItems.push({ ...tonic });
@@ -196,7 +196,7 @@ describe("line of sight", () => {
         position: { x: 5.5, y: 3.5 },
         size: 4,
         open: false,
-        locked: true,
+        lock: { type: "key", keyItemId: "copper-key" },
       },
     ];
 
@@ -375,7 +375,7 @@ describe("player-to-player sight (#61)", () => {
     ["closed", false],
     ["open", true],
   ])("gives the same answer from both ends around corners and a %s door", (_label, open) => {
-    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open, locked: false };
+    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open, lock: null };
     // Nobody stands inside a closed door.
     const positions = floorPositions(ROOMS_AND_CORRIDOR, (x, y) => !open && coversTile(door, x, y));
     const session = world(ROOMS_AND_CORRIDOR, []);
@@ -491,7 +491,7 @@ describe("player-to-player sight (#61)", () => {
   });
 
   it("hides a player at once when a door closes between them, despite the margin", () => {
-    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open: true, locked: false };
+    const door = { id: DOOR_ID, position: { x: 9.5, y: 3.5 }, size: 2, open: true, lock: null };
     const near = testPlayer("near", { position: { x: 7, y: 3.5 } });
     // Just past the door's far edge, well inside the margin around the door's own tiles.
     const far = testPlayer("far", { position: { x: 11.4, y: 3.5 } });
@@ -870,7 +870,7 @@ describe("lit tiles in snapshots", () => {
         position: { x: 5.5, y: 3.5 },
         size: 4,
         open: false,
-        locked: true,
+        lock: { type: "key", keyItemId: "copper-key" },
       },
     ];
     viewer.discoveredTiles = new Uint8Array(0);

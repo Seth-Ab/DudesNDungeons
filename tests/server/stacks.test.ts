@@ -98,7 +98,7 @@ describe("ammo content", () => {
       roots.push(root);
       const files: Record<string, unknown> = {
         "items/test-arrow.json": arrow,
-        "items/test-key.json": { id: "test-key", name: "Key", kind: "key" },
+        "items/test-key.json": { id: "test-key", name: "Key", kind: "key", itemId: "copper-key" },
         "dungeons/keep.json": {
           id: "keep",
           name: "Keep",
@@ -330,14 +330,14 @@ describe("saved profiles", () => {
   it("loads banks written before stacks existed, and reads a stack without a count as one", () => {
     const parsed = profileFileSchema.parse(
       profile([
-        { id: FIRST, name: "Copper Key", kind: "key" },
+        { id: FIRST, name: "Copper Key", kind: "key", itemId: "copper-key" },
         { id: SECOND, name: "Minor Tonic", ...TONIC_FIELDS },
         { id: THIRD, name: "Arrows", kind: "ammo", itemId: "arrow" },
       ]),
     );
 
     expect(parsed.profiles[0]?.bankedItems).toEqual([
-      { id: FIRST, name: "Copper Key", kind: "key" },
+      { id: FIRST, name: "Copper Key", kind: "key", itemId: "copper-key" },
       { id: SECOND, name: "Minor Tonic", ...TONIC_FIELDS },
       arrows(THIRD, 1),
     ]);

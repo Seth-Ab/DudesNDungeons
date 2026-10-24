@@ -13,7 +13,7 @@ const door: DoorState = {
   position: { x: 5.5, y: 5.5 },
   size: TILE_SCALE,
   open: false,
-  locked: true,
+  lock: { type: "key", keyItemId: "copper-key" },
 };
 
 describe("reaching a doorway", () => {

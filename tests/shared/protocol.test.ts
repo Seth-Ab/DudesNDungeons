@@ -23,6 +23,9 @@ import {
   type ServerMessage,
 } from "../../src/shared/protocol/index.js";
 import {
+  doorLockSchema,
+  doorStateSchema,
+  inventoryItemSchema,
   lightSourceStateSchema,
   mapDiscoverySchema,
   type PlayerState,
@@ -375,6 +378,36 @@ describe("parseClientMessage", () => {
   });
 });
 
+describe("typed door locks", () => {
+  const DOOR_ID = "88888888-8888-4888-8888-888888888888";
+
+  it("refuses an interact that names a key, however it is spelled", () => {
+    for (const extra of [{ keyItemId: "boss-key" }, { keyId: DOOR_ID }, { itemId: DOOR_ID }]) {
+      const result = parseClientMessage(JSON.stringify({ type: "playerInteract", targetId: DOOR_ID, ...extra }));
+
+      expect(result.ok).toBe(false);
+    }
+    expect(parseClientMessage(JSON.stringify({ type: "playerInteract", targetId: DOOR_ID })).ok).toBe(true);
+  });
+
+  it("parses each lock shape, and a key that predates typed keys counts as the generic key", () => {
+    expect(doorLockSchema.parse({ type: "key", keyItemId: "boss-key" })).toEqual({ type: "key", keyItemId: "boss-key" });
+    expect(doorLockSchema.parse({ type: "seal", groupId: "arena" })).toEqual({ type: "seal", groupId: "arena" });
+    expect(doorLockSchema.parse({ type: "hidden" })).toEqual({ type: "hidden" });
+    expect(inventoryItemSchema.parse({ id: DOOR_ID, name: "Copper Key", kind: "key" })).toMatchObject({ itemId: "copper-key" });
+  });
+
+  it("rejects a malformed lock and the old boolean", () => {
+    for (const lock of [{ type: "key" }, { type: "seal" }, { type: "padlock" }, true, false, "key"]) {
+      expect(doorLockSchema.safeParse(lock).success).toBe(false);
+    }
+    const door = { id: DOOR_ID, position: { x: 1, y: 1 }, size: 1, open: false };
+    expect(doorStateSchema.safeParse({ ...door, locked: true }).success).toBe(false);
+    expect(doorStateSchema.safeParse({ ...door, lock: null }).success).toBe(true);
+    expect(doorStateSchema.safeParse({ ...door, lock: { type: "key", keyItemId: "boss-key" } }).success).toBe(true);
+  });
+});
+
 describe("appearance contract", () => {
   const LOOK = { body: "girl", skinTone: "olive", hairStyle: "ponytail", hairColor: "ginger" };
 
@@ -409,8 +442,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v48, the version that added the saved-run list", () => {
-    expect(PROTOCOL_VERSION).toBe(49);
+  it("is on protocol v50, the version that added typed door locks", () => {
+    expect(PROTOCOL_VERSION).toBe(50);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -773,7 +806,7 @@ describe("party vault contract", () => {
 
   it("round-trips the vault's contents, including an empty vault", () => {
     const items = [
-      { id: itemId, name: "Copper Key", kind: "key" },
+      { id: itemId, name: "Copper Key", kind: "key", itemId: "copper-key" },
       { id: TARGET_ID, name: "Arrows", kind: "ammo", itemId: "arrow", count: 12 },
     ];
     for (const message of [{ type: "partyVault", items }, { type: "partyVault", items: [] }]) {
@@ -785,7 +818,7 @@ describe("party vault contract", () => {
 
   it("rejects a vault without its list or with a malformed item", () => {
     expect(parse({ type: "partyVault" }).ok).toBe(false);
-    expect(parse({ type: "partyVault", items: [{ id: "nope", name: "Key", kind: "key" }] }).ok).toBe(false);
+    expect(parse({ type: "partyVault", items: [{ id: "nope", name: "Key", kind: "key", itemId: "copper-key" }] }).ok).toBe(false);
   });
 });
 
@@ -1050,6 +1083,7 @@ describe("parseServerMessage", () => {
             id: SESSION_ID,
             name: "Copper Key",
             kind: "key",
+            itemId: "copper-key",
             position: { x: 1, y: 1 },
             pickedUp: false,
           },

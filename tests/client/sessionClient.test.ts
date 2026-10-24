@@ -354,7 +354,7 @@ describe("character appearance", () => {
 });
 
 describe("roguelite profiles", () => {
-  const KEY = { id: "33333333-3333-4333-8333-333333333333", name: "Copper Key", kind: "key" as const };
+  const KEY = { id: "33333333-3333-4333-8333-333333333333", name: "Copper Key", kind: "key" as const, itemId: "copper-key" };
 
   /**
    * Replaces the running server with a fresh one over the same profile storage, which is what a

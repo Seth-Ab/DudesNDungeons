@@ -470,6 +470,12 @@ function validateReferences(content: GameContent, sources: ContentSources): void
     if (dungeon.layout === "authored") {
       assertRectangular(label, dungeon.tiles);
 
+      for (const door of dungeon.doors) {
+        if (door.lock?.type === "key" && content.items.get(door.lock.keyItemId)?.kind !== "key") {
+          throw new Error(`${label} locks a door with "${door.lock.keyItemId}", which is not a key item`);
+        }
+      }
+
       const width = dungeon.tiles[0]?.length ?? 0;
       if (
         dungeon.ground &&

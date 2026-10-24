@@ -113,7 +113,7 @@ describe("persisting profiles", () => {
           bankedItems: [
             { id: "11111111-1111-4111-8111-111111111111", name: "Minor Tonic", kind: "tonic" },
             { id: "22222222-2222-4222-8222-222222222222", name: "Warding Salve", kind: "ward" },
-            { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
+            { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key", itemId: "copper-key" },
           ],
           skillStacks: {},
           runsEscaped: 0,
@@ -145,7 +145,7 @@ describe("persisting profiles", () => {
         icon: "ward",
         useOn: "self",
       },
-      { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key" },
+      { id: "44444444-4444-4444-8444-444444444444", name: "Copper Key", kind: "key", itemId: "copper-key" },
     ]);
     expect(() => profileFileSchema.parse({ ...file, profiles: [{ ...file.profiles[0], bankedItems: [{ id: "x", name: "?", kind: "constructor" }] }] })).toThrow();
   });
@@ -172,7 +172,7 @@ describe("persisting profiles", () => {
 
     const before = newStore(storage);
     const { profile, secret } = before.create("Grix");
-    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" });
+    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key", itemId: "copper-key" });
     profile.skillStacks["iron-will"] = 2;
     profile.runsEscaped = 3;
     markProfileChanged(profile);
@@ -184,7 +184,7 @@ describe("persisting profiles", () => {
 
     expect(restored).not.toBeNull();
     expect(restored?.id).toBe(profile.id);
-    expect(restored?.bankedItems).toEqual([{ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" }]);
+    expect(restored?.bankedItems).toEqual([{ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key", itemId: "copper-key" }]);
     expect(restored?.skillStacks).toEqual({ "iron-will": 2 });
     expect(restored?.runsEscaped).toBe(3);
     // A profile read back has nothing outstanding to write until something changes it again.
@@ -195,7 +195,7 @@ describe("persisting profiles", () => {
     const storage = createMemoryProfileStorage();
     const before = newStore(storage);
     const { profile, secret } = before.create("Grix");
-    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" });
+    profile.bankedItems.push({ id: "11111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key", itemId: "copper-key" });
     markProfileChanged(profile);
     before.flush();
 

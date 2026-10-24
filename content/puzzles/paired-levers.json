@@ -5,5 +5,5 @@
   "holdMs": 5000,
   "minHoldMs": 1500,
   "holdReductionMsPerPower": 1000,
-  "rewardItemId": "copper-key"
+  "rewardItemId": "boss-key"
 }

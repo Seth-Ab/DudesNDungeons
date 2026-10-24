@@ -143,6 +143,8 @@ export function lootInstance(item: ItemDefinition, position: Vector2, id: string
       return { ...instance, kind: item.kind, itemId: item.id, weaponKind: item.weapon.kind };
     case "ammo":
       return { ...instance, kind: item.kind, itemId: item.id, count: Math.min(count, item.maxStack) };
+    case "key":
+      return { ...instance, kind: item.kind, itemId: item.id };
     default:
       return { ...instance, kind: item.kind };
   }
@@ -227,7 +229,7 @@ export function buildAuthoredDungeon(
     // One authored tile. Widened along with everything else when the dungeon is scaled.
     size: 1,
     open: false,
-    locked: placed.locked,
+    lock: placed.lock,
   }));
 
   const exits: ExitState[] = definition.exits.map((placed) => ({

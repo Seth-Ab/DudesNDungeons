@@ -120,6 +120,7 @@ describe("Ballast Stone on a plate", () => {
       id: `fill-${index}`,
       name: "Copper Key",
       kind: "key" as const,
+      itemId: "copper-key",
     }));
     expect(pickupItem(session, player.id, STONE_ID)).toEqual({ ok: false, reason: "notPermitted" });
     expect(player.stamina).toBe(100);

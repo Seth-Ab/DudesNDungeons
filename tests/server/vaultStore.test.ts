@@ -21,7 +21,7 @@ const ROOM = "BCDFGH";
 const OTHER_ROOM = "JKLMNP";
 
 const TONIC: InventoryItem = { id: "11111111-1111-4111-8111-111111111111", name: "Minor Tonic", ...TONIC_FIELDS };
-const KEY: InventoryItem = { id: "22222222-2222-4222-8222-222222222222", name: "Copper Key", kind: "key" };
+const KEY: InventoryItem = { id: "22222222-2222-4222-8222-222222222222", name: "Copper Key", kind: "key", itemId: "copper-key" };
 
 /** A store that hands out the room codes given, in order, so a test can name the room it gets. */
 function sessionStore(storage: VaultStorage, codes: string[] = [ROOM]) {

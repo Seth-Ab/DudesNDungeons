@@ -408,7 +408,7 @@ describe("the arrow in flight", () => {
 
   it("stops at a closed door and passes an open one", () => {
     const closed = laneSession();
-    closed.dungeon.doors = [{ id: "d", position: { x: 8, y: 1 }, size: 1, open: false, locked: false }];
+    closed.dungeon.doors = [{ id: "d", position: { x: 8, y: 1 }, size: 1, open: false, lock: null }];
     const monster = monsterAt(closed, 12);
     shoot(closed, BOW.drawMs);
     const events = fly(closed, 1000 + BOW.drawMs, 2000);
@@ -416,7 +416,7 @@ describe("the arrow in flight", () => {
     expect(monster.health).toBe(loadContent().monsters.get("ash-imp")!.maxHealth);
 
     const open = laneSession();
-    open.dungeon.doors = [{ id: "d", position: { x: 8, y: 1 }, size: 1, open: true, locked: false }];
+    open.dungeon.doors = [{ id: "d", position: { x: 8, y: 1 }, size: 1, open: true, lock: null }];
     monsterAt(open, 12);
     shoot(open, BOW.drawMs);
     expect(fly(open, 1000 + BOW.drawMs, 2000)).toHaveLength(1);

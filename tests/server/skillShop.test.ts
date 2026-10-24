@@ -291,6 +291,7 @@ describe("buying a scroll", () => {
         id: `f0000000-0000-4000-8000-00000000000${index}`,
         name: "Copper Key",
         kind: "key",
+        itemId: "copper-key",
       }));
       const player = shopper({ inventory: filler });
 

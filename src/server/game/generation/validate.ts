@@ -92,7 +92,7 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   if (!arrivesLit) errors.push("the first spawn point is outside every light");
   if (errors.length > 0) return errors;
 
-  const lockedDoors = dungeon.doors.filter((door) => door.locked);
+  const lockedDoors = dungeon.doors.filter((door) => door.lock !== null);
   const closed = (opened: ReadonlySet<string>): Set<string> =>
     new Set(lockedDoors.filter((door) => !opened.has(door.id)).map((door) => key(door.position)));
 
@@ -107,14 +107,16 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   const opened = new Set<string>();
   const gathered = new Set<string>();
   const solved = new Set<string>();
-  let keys = 0;
+  /** Keys in hand and not yet spent, by content id; a door takes only the key its lock names. */
+  const keys = new Map<string, number>();
+  const addKey = (keyItemId: string): void => void keys.set(keyItemId, (keys.get(keyItemId) ?? 0) + 1);
   let reach = sealed;
   for (let round = 0; round <= dungeon.loot.length + dungeon.puzzles.length + lockedDoors.length; round += 1) {
     let changed = false;
     for (const loot of dungeon.loot) {
       if (loot.kind !== "key" || gathered.has(loot.id) || !reach.has(key(loot.position))) continue;
       gathered.add(loot.id);
-      keys += 1;
+      addKey(loot.itemId);
       changed = true;
     }
     for (const puzzle of dungeon.puzzles) {
@@ -124,15 +126,20 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
       if (puzzle.plates.length > partySize + stones) {
         errors.push(`puzzle ${puzzle.typeId} needs ${puzzle.plates.length} plates held by ${partySize} players and ${stones} stones`);
       }
-      if (content.items.get(content.puzzles.get(puzzle.typeId)?.rewardItemId ?? "")?.kind === "key") keys += 1;
+      const reward = content.items.get(content.puzzles.get(puzzle.typeId)?.rewardItemId ?? "");
+      if (reward?.kind === "key") addKey(reward.id);
       changed = true;
     }
-    while (keys > opened.size) {
+    for (;;) {
       const next = lockedDoors.find(
         (door) =>
-          !opened.has(door.id) && STEPS.some((step) => reach.has(key({ x: door.position.x + step.x, y: door.position.y + step.y }))),
+          !opened.has(door.id) &&
+          door.lock?.type === "key" &&
+          (keys.get(door.lock.keyItemId) ?? 0) > 0 &&
+          STEPS.some((step) => reach.has(key({ x: door.position.x + step.x, y: door.position.y + step.y }))),
       );
-      if (!next) break;
+      if (!next || next.lock?.type !== "key") break;
+      keys.set(next.lock.keyItemId, (keys.get(next.lock.keyItemId) ?? 0) - 1);
       opened.add(next.id);
       changed = true;
       reach = flood(tiles, spawn, closed(opened));

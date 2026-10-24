@@ -1,5 +1,11 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 49;
+export const PROTOCOL_VERSION = 50;
+
+/**
+ * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors
+ * name their own key; only this one is spent on a chest.
+ */
+export const GENERIC_KEY_ITEM_ID = "copper-key";
 
 export const MAX_PARTY_SIZE = 4;
 

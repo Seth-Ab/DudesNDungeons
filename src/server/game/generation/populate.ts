@@ -43,7 +43,7 @@ import { midpointSockets, type RoomSide } from "./roomShapes.js";
 const FLOOR = ".";
 
 /** What opens the boss door when the key is not a puzzle's reward. */
-export const BOSS_KEY_ITEM_ID = "copper-key";
+export const BOSS_KEY_ITEM_ID = "boss-key";
 /** Chest table for the boss room, and for any chest the design calls a vault chest. */
 const BOSS_CHEST_TABLE = "vault-chest";
 
@@ -302,7 +302,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     sideToward(graph, plan.bossLock.to, plan.bossLock.from)
   ].wall;
   const doorTile = claim({ x: bossRoom.x + doorSocket.x, y: bossRoom.y + doorSocket.y })!;
-  out.doors.push({ id: rng.uuid(), position: { ...doorTile }, size: 1, open: false, locked: true });
+  out.doors.push({ id: rng.uuid(), position: { ...doorTile }, size: 1, open: false, lock: { type: "key", keyItemId: BOSS_KEY_ITEM_ID } });
 
   const roster = [...biome.roster];
 

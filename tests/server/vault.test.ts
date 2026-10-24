@@ -21,7 +21,7 @@ function tonic(id: string): InventoryItem {
 
 const TONIC_A = tonic("c0000000-0000-4000-8000-000000000001");
 const TONIC_B = tonic("c0000000-0000-4000-8000-000000000002");
-const KEY: InventoryItem = { id: "c0000000-0000-4000-8000-000000000003", name: "Copper Key", kind: "key" };
+const KEY: InventoryItem = { id: "c0000000-0000-4000-8000-000000000003", name: "Copper Key", kind: "key", itemId: "copper-key" };
 const SCROLL: InventoryItem = {
   id: "c0000000-0000-4000-8000-000000000004",
   name: "Scroll of Iron Will",

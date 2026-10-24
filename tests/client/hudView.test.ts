@@ -6,6 +6,7 @@ import { initialSessionView, type SessionView } from "../../src/client/network/s
 import {
   actionableError,
   actionPrompt,
+  doorPromptText,
   heldView,
   hotbarView,
   barView,
@@ -503,7 +504,7 @@ describe("rebound keys", () => {
   it("show in the action prompt for doors, exits, and loot", () => {
     setBinding("interact", "x");
     setBinding("pickup", "g");
-    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, locked: false };
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, lock: null };
     const doorView = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
     expect(actionPrompt(doorView, self, origin)?.keyHint).toBe("X");
 
@@ -614,7 +615,7 @@ describe("hotbar", () => {
       icon: "ward",
       useOn: "self",
     };
-    const key: InventoryItem = { id: "b1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" };
+    const key: InventoryItem = { id: "b1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key", itemId: "copper-key" };
     const self = player("Maya", { id: SELF_ID, inventory: [salve, key] });
     const slots = hotbarView(view({ ...inSession, players: [self] }), self);
 
@@ -717,7 +718,7 @@ describe("action prompt", () => {
   });
 
   it("offers a door and an exit with the interact key", () => {
-    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, locked: false };
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, lock: null };
     const doorView = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
     expect(actionPrompt(doorView, self, origin)).toEqual({ action: "interact", keyHint: "E", text: "Open door" });
 
@@ -730,6 +731,24 @@ describe("action prompt", () => {
     });
     expect(actionPrompt(exitView, self, origin)?.text).toBe("Enter the dungeon");
     expect(actionPrompt({ ...exitView, location: "dungeon" }, self, origin)?.text).toBe("Leave the dungeon");
+  });
+
+  it("names the key a locked door wants, and whether the player carries it", () => {
+    const lock = { type: "key" as const, keyItemId: "boss-key" };
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, lock };
+    const bossKey: InventoryItem = { id: "b1111111-1111-4111-8111-111111111111", name: "Boss Key", kind: "key", itemId: "boss-key" };
+    const vaultKey: InventoryItem = { ...bossKey, name: "Vault Key", itemId: "vault-key" };
+    const text = (inventory: InventoryItem[]): string | undefined => {
+      const holder = { ...self, inventory };
+      return actionPrompt(view({ ...inSession, players: [holder], dungeon: dungeon({ doors: [door] }) }), holder, origin)?.text;
+    };
+
+    expect(text([])).toBe("Locked: needs Boss Key");
+    expect(text([vaultKey])).toBe("Locked: needs Boss Key");
+    expect(text([bossKey])).toBe("Unlock door (Boss Key)");
+    expect(doorPromptText({ type: "seal", groupId: "arena" }, [])).toBe("Sealed door");
+    expect(doorPromptText({ type: "hidden" }, [])).toBe("Locked door");
+    expect(doorPromptText(null, [])).toBe("Open door");
   });
 
   it("offers to open a closed chest, and to unlock a locked one", () => {
@@ -750,7 +769,7 @@ describe("action prompt", () => {
   });
 
   it("skips an open door", () => {
-    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: true, locked: false };
+    const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: true, lock: null };
     const v = view({ ...inSession, players: [self], dungeon: dungeon({ doors: [door] }) });
     expect(actionPrompt(v, self, origin)).toBeNull();
   });

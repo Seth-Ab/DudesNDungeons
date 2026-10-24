@@ -627,7 +627,7 @@ export function createCanvasRenderer(
       }
     }
 
-    if (door.locked) {
+    if (door.lock !== null) {
       drawSprite("door-lock", door.position, 2, 2, camera);
     }
   };

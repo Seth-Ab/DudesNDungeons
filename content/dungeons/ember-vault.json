@@ -33,7 +33,7 @@
     { "entityId": "99999999-9999-4999-8999-999999999999", "itemId": "warding-salve", "x": 7, "y": 1 }
   ],
   "doors": [
-    { "entityId": "55555555-5555-4555-8555-555555555555", "x": 11, "y": 6, "locked": true }
+    { "entityId": "55555555-5555-4555-8555-555555555555", "x": 11, "y": 6, "lock": { "type": "key", "keyItemId": "copper-key" } }
   ],
   "exits": [
     { "entityId": "66666666-6666-4666-8666-666666666666", "x": 14, "y": 6, "destination": "hub" }

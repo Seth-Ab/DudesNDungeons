@@ -15,7 +15,7 @@ import type { ChestState } from "../../src/shared/types/core.js";
 import { TEST_SEED, at, testPlayer, testSession } from "./fixtures.js";
 
 const CHEST_ID = "c0000000-0000-4000-8000-000000000000";
-const KEY = { id: "c1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" as const };
+const KEY = { id: "c1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" as const, itemId: "copper-key" };
 
 /** A guaranteed pair of tonics, so a test can count exactly what one opening spills. */
 const TWO_TONICS: LootTableDefinition = {
@@ -112,6 +112,18 @@ describe("opening a chest", () => {
 
     expect(chest).toMatchObject({ opened: true, locked: false });
     expect(alpha.inventory).toHaveLength(1);
+  });
+
+  it("keeps a locked chest shut for a boss or vault key, which belong to doors", () => {
+    const { session, chest } = vaultWithChest(true);
+    const alpha = session.players.get("alpha")!;
+    const bossKey = { ...KEY, itemId: "boss-key", name: "Boss Key" };
+    alpha.inventory = [bossKey];
+
+    expect(interact(session, "alpha", CHEST_ID)).toEqual({ ok: false, reason: "notPermitted" });
+
+    expect(chest).toMatchObject({ opened: false, locked: true });
+    expect(alpha.inventory).toEqual([bossKey]);
   });
 
   it("is shown only to players who can see its tile, opened or not", () => {

@@ -3,6 +3,7 @@ import { loadContent } from "../../src/server/content/loadContent.js";
 import { carveDungeon, type CarvedWorld } from "../../src/server/game/generation/carve.js";
 import { generateLayout, type LayoutGraph } from "../../src/server/game/generation/layout.js";
 import {
+  BOSS_KEY_ITEM_ID,
   populateDungeon,
   roomDepth,
   threatBudget,
@@ -174,7 +175,7 @@ describe("populateDungeon", () => {
       const { populated, plan } = run;
       const door = populated.doors[0]!;
       expect(populated.doors).toHaveLength(1);
-      expect(door.locked).toBe(true);
+      expect(door.lock).toEqual({ type: "key", keyItemId: BOSS_KEY_ITEM_ID });
       const room = run.world.rooms[plan.bossLock.to]!;
       const onBorder =
         door.position.x === room.x ||
@@ -188,7 +189,7 @@ describe("populateDungeon", () => {
       if (plan.bossKey.via === "puzzle") {
         expect(plan.puzzles.some((puzzle) => puzzle.nodeId === holder && puzzle.rewardsBossKey)).toBe(true);
       } else {
-        const keys = populated.loot.filter((loot) => loot.name === content.items.get("copper-key")!.name);
+        const keys = populated.loot.filter((loot) => loot.name === content.items.get(BOSS_KEY_ITEM_ID)!.name);
         expect(keys).toHaveLength(1);
         expect(roomAt(run, keys[0]!.position)).toBe(holder);
       }
