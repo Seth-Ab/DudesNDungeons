@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { applyMapDiscovery } from "../../src/client/state/discoveredMap.js";
 import {
+  hasLineOfSight,
   takeMapDiscovery,
   visibilityFrameForPlayer,
   visibleTilesForPlayer,
@@ -252,9 +253,14 @@ describe("a generated run", () => {
     const { rooms } = session.dungeon;
     expect(rooms.length).toBeGreaterThan(1);
 
-    for (let index = 0; index + 1 < rooms.length; index += 1) {
+    // Rooms are no longer a chain, so a pair is any two rooms with a wall between their middles. A
+    // straight corridor between aligned doorways is a clear line, and light crossing that is correct.
+    let walledOff = 0;
+    for (const [index, other] of rooms.slice(1).entries()) {
       first.position = middleOf(session, rooms[index]!);
-      second.position = middleOf(session, rooms[index + 1]!);
+      second.position = middleOf(session, other);
+      if (hasLineOfSight(session.dungeon, first.position, second.position)) continue;
+      walledOff += 1;
 
       first.carryingTorch = true;
       second.carryingTorch = false;
@@ -264,6 +270,7 @@ describe("a generated run", () => {
       second.carryingTorch = true;
       expect(visibilityFrameForPlayer(session, second).visiblePlayerIds.has("first")).toBe(false);
     }
+    expect(walledOff).toBeGreaterThan(0);
   });
 });
 

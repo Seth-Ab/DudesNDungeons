@@ -921,7 +921,8 @@ describe("flow and biome content", () => {
       keySource: "branch",
     });
     expect(content.biomes.get("cinder-depths")?.roster.map((entry) => entry.typeId)).toContain("slag-charger");
-    expect(content.dungeons.get("vault-run")?.layout).toBe("generated");
+    expect(content.dungeons.get("vault-run")?.layout).toBe("delve");
+    expect(content.dungeons.get("ember-vault")?.layout).toBe("authored");
   });
 
   it("loads a delve profile that names real flows and biomes", () => {
@@ -934,10 +935,12 @@ describe("flow and biome content", () => {
     });
   });
 
-  it("will not build a delve profile until the generator can", () => {
+  it("builds a delve profile into a run", () => {
     const content = loadContent(shippedWith({ "dungeons/delve-run.json": DELVE }));
 
-    expect(() => buildDungeon({ content, dungeonId: "delve-run", seed: 1 })).toThrow(/delve layout/);
+    const built = buildDungeon({ content, dungeonId: "delve-run", seed: 1 });
+    expect(built.seed).toBe(1);
+    expect(built.dungeon.rooms.some((room) => room.kind === "boss")).toBe(true);
   });
 
   it.each([

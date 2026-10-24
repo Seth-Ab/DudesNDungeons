@@ -11,7 +11,7 @@ import type {
   Vector2,
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
-import type { Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
+import type { DelveDungeon, Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
 import { distance } from "../../shared/game/movement.js";
 import {
   BALLAST_ITEM_ID,
@@ -23,6 +23,7 @@ import {
   trapInstance,
   type BuiltDungeon,
 } from "./dungeonBuilder.js";
+import { generateDelve } from "./generation/delve.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -31,6 +32,8 @@ import { createRng, type Rng } from "./random.js";
  * Everything here is a pure function of the seed, so the same seed always builds the same dungeon.
  * That is what lets a test assert on a generated run and a bug found in play be reproduced from the
  * seed alone. Nothing in this file calls `Math.random`.
+ *
+ * This file holds the older `generated` layout; `generation/delve.ts` is the grid pipeline.
  *
  * The shape of a run is a chain: entrance, then each slot from the profile in order, then the exit.
  * Consecutive rooms are joined by an L-shaped corridor between their facing doorways, so the chain
@@ -491,12 +494,18 @@ function populate(
   return { monsters, loot, traps, chests };
 }
 
+/**
+ * Builds a run from a seed. A `delve` profile runs the grid pipeline with validation and retry; a
+ * `generated` one keeps the older chain of rooms below.
+ */
 export function generateDungeon(
-  definition: GeneratedDungeon,
+  definition: GeneratedDungeon | DelveDungeon,
   content: GameContent,
   seed: number,
   partySize: number,
 ): BuiltDungeon {
+  if (definition.layout === "delve") return generateDelve(definition, content, seed, partySize);
+
   const rng = createRng(seed);
   const grid = new TileGrid(definition.width, definition.height);
 

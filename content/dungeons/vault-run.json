@@ -1,16 +1,10 @@
 {
   "id": "vault-run",
   "name": "The Vault Run",
-  "layout": "generated",
-  "width": 96,
-  "height": 64,
-  "slots": [
-    { "kinds": ["hall"], "min": 1, "max": 2 },
-    { "kinds": ["maze", "trap"], "min": 1, "max": 2 },
-    { "kinds": ["puzzle"], "min": 1, "max": 1 },
-    { "kinds": ["hall", "trap"], "min": 1, "max": 2 },
-    { "kinds": ["boss"], "min": 1, "max": 1 }
-  ],
-  "corridorLight": { "name": "Corridor Torch", "radius": 4.5, "everyTiles": 7 },
+  "layout": "delve",
+  "grid": { "cols": 6, "rows": 4, "cell": 16, "margin": 2 },
+  "flows": ["gauntlet", "long-loop", "three-roads"],
+  "biomes": ["cinder-depths"],
+  "maxAttempts": 200,
   "exitDestination": "hub"
 }

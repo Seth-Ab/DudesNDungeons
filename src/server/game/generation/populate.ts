@@ -310,7 +310,9 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     }
 
     if (kind === "entrance") {
-      const tiles = floorOf(room).sort((a, b) => distance(a, center) - distance(b, center) || byPosition(a, b));
+      // Beside the gate brazier rather than the room's middle, so the party arrives inside its light.
+      const brazier = out.lightSources.find((light) => light.name === "Gate Brazier")?.position ?? center;
+      const tiles = floorOf(room).sort((a, b) => distance(a, brazier) - distance(b, brazier) || byPosition(a, b));
       out.spawnPoints.push(...tiles.slice(0, 4).map((tile) => claim(tile)!));
     }
 
