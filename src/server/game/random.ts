@@ -19,6 +19,17 @@ export interface Rng {
   /** A copy of `items` in random order. Does not mutate the input. */
   shuffle<T>(items: readonly T[]): T[];
   /**
+   * True with probability `p`. Draws nothing when `p` is 0 or 1, so a rule whose chance defaults
+   * to certain or never leaves the rest of the stream where it was.
+   */
+  chance(p: number): boolean;
+  /**
+   * Picks one entry with probability proportional to its `weight`. Throws on an empty list or a
+   * total weight that is not positive, and on a negative or non-finite weight, which are always
+   * content authoring mistakes. A zero-weight entry is never picked.
+   */
+  weighted<T extends { readonly weight: number }>(entries: readonly T[]): T;
+  /**
    * A v4-shaped UUID drawn from this stream, not from `node:crypto`.
    *
    * Entity ids have to be UUIDs to satisfy the protocol, and they have to be part of the seeded
@@ -68,6 +79,31 @@ export function createRng(seed: number): Rng {
       return `${hex(8)}-${hex(4)}-4${hex(3)}-${int(8, 11).toString(16)}${hex(3)}-${hex(12)}`;
     },
 
+    chance(p) {
+      if (p >= 1) return true;
+      if (p <= 0) return false;
+      return next() < p;
+    },
+
+    weighted(entries) {
+      if (entries.length === 0) throw new Error("Cannot pick from an empty list");
+      let total = 0;
+      for (const entry of entries) {
+        if (!Number.isFinite(entry.weight) || entry.weight < 0) {
+          throw new Error(`Invalid weight: ${entry.weight}`);
+        }
+        total += entry.weight;
+      }
+      if (total <= 0) throw new Error("Cannot pick from entries with no weight");
+      let roll = next() * total;
+      for (const entry of entries) {
+        roll -= entry.weight;
+        if (roll < 0) return entry;
+      }
+      // Float rounding can leave the roll just above zero; the last entry with weight absorbs it.
+      return [...entries].reverse().find((entry) => entry.weight > 0)!;
+    },
+
     pick(items) {
       if (items.length === 0) throw new Error("Cannot pick from an empty list");
       // Non-null: int() is bounded by length - 1, and the list is not empty.
@@ -88,4 +124,17 @@ export function createRng(seed: number): Rng {
 /** A fresh seed for a new dungeon. The only place generation touches real randomness. */
 export function randomSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) >>> 0;
+}
+
+/**
+ * A child seed derived from `seed` and `salt`, so a retry can re-roll with its own stream without
+ * changing the run seed. Pure and stable: the same pair always gives the same 32-bit result, and
+ * different salts give different streams.
+ */
+export function mixSeed(seed: number, salt: number): number {
+  let h = (seed ^ Math.imul((salt + 0x9e3779b9) >>> 0, 0x85ebca6b)) >>> 0;
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
 }
