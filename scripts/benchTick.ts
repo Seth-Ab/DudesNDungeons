@@ -5,6 +5,7 @@ import { shareDiscoveredMaps } from "../src/server/game/mapSharing.js";
 import { hasLineOfSight, takeMapDiscovery, visibilityFrameForPlayer } from "../src/server/game/visibility.js";
 import { startRun } from "../src/server/game/runLifecycle.js";
 import { runStateFor } from "../src/server/game/vitals.js";
+import { DEFAULT_APPEARANCE } from "../src/shared/constants/appearance.js";
 import { ProfileStore } from "../src/server/profiles/profileStore.js";
 import { SessionStore, type Session } from "../src/server/sessions/sessionStore.js";
 import { serializeServerMessage } from "../src/shared/protocol/index.js";
@@ -36,6 +37,8 @@ function buildParty(): Session {
       createProfile: () => profiles.create(name).profile,
     });
     if (!joined.ok) throw new Error(joined.message);
+    // A player who has not designed a look is not in the world, so the run would not start.
+    joined.player.appearance = { ...DEFAULT_APPEARANCE };
     joined.player.ready = true;
   }
 

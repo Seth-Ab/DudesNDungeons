@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { loadContent } from "../../src/server/content/loadContent.js";
+import type { DelveDungeon } from "../../src/server/content/schema.js";
+import type { BuiltDungeon } from "../../src/server/game/dungeonBuilder.js";
+import { generateDungeon } from "../../src/server/game/dungeonGenerator.js";
+import { validateDungeon } from "../../src/server/game/generation/validate.js";
 import { buildDungeon, DEFAULT_DUNGEON_ID } from "../../src/server/game/dungeonState.js";
 import { coversTile, isFloor, tileOf } from "../../src/shared/game/movement.js";
 import type { DungeonState, Vector2 } from "../../src/shared/types/core.js";
@@ -62,26 +66,36 @@ describe("generated dungeons", () => {
   });
 
   it("runs from an entrance to an exit, with a boss room on the way", () => {
-    const { dungeon } = generate(11);
-    const kinds = dungeon.rooms.map((room) => room.kind);
+    for (let seed = 0; seed < 40; seed += 1) {
+      const { dungeon } = generate(seed);
+      const kinds = dungeon.rooms.map((room) => room.kind);
 
-    expect(kinds[0]).toBe("entrance");
-    expect(kinds[kinds.length - 1]).toBe("exit");
-    expect(kinds).toContain("boss");
-    expect(kinds).toContain("puzzle");
+      // The critical path comes first in the room list: entrance, the rooms, boss, exit, then branches.
+      expect(kinds[0]).toBe("entrance");
+      expect(kinds.filter((kind) => kind === "exit")).toHaveLength(1);
+      expect(kinds.filter((kind) => kind === "boss")).toHaveLength(1);
+      expect(kinds.indexOf("boss") + 1).toBe(kinds.indexOf("exit"));
+    }
   });
 
-  it("makes the Iron Will scroll rare rather than guaranteed", () => {
-    let runsWithScroll = 0;
-    const runCount = 80;
+  it("gives every run a boss vault chest, which is where the Iron Will scroll can drop", () => {
+    const vault = content.lootTables.get("vault-chest")!;
+    const share = vault.entries.find((entry) => entry.itemId === "iron-will-scroll")!.weight /
+      vault.entries.reduce((total, entry) => total + entry.weight, 0);
+    expect(share).toBeGreaterThan(0);
+    expect(share).toBeLessThan(0.25);
 
-    for (let seed = 0; seed < runCount; seed += 1) {
+    for (let seed = 0; seed < 40; seed += 1) {
       const { dungeon } = generate(seed);
-      if (dungeon.loot.some((loot) => loot.kind === "skillScroll")) runsWithScroll += 1;
+      const boss = dungeon.rooms.find((room) => room.kind === "boss")!;
+      expect(
+        dungeon.chests.some(
+          (chest) =>
+            chest.lootTableId === "vault-chest" &&
+            coversRoom(boss, chest.position),
+        ),
+      ).toBe(true);
     }
-
-    expect(runsWithScroll).toBeGreaterThan(0);
-    expect(runsWithScroll).toBeLessThan(runCount / 4);
   });
 
   it("never overlaps two rooms", () => {
@@ -129,16 +143,14 @@ describe("generated dungeons", () => {
     }
   });
 
-  it("places a key somewhere reachable before the locked door", () => {
+  it("puts a way to open the boss door before it: a key on the floor or a puzzle's reward", () => {
     for (let seed = 0; seed < 120; seed += 1) {
       const { dungeon, spawnPoints } = generate(seed);
       const reachable = reachableFrom(dungeon, spawnPoints[0]!);
-      const keys = dungeon.loot.filter((loot) => loot.kind === "key");
+      const keys = dungeon.loot.filter((loot) => loot.kind === "key" && reachable.has(tileKey(loot.position)));
+      const puzzles = dungeon.puzzles.filter((puzzle) => puzzle.plates.every((plate) => reachable.has(tileKey(plate.position))));
 
-      expect(keys.length).toBeGreaterThan(0);
-      expect(
-        keys.some((key) => reachable.has(tileKey(key.position))),
-      ).toBe(true);
+      expect(keys.length + puzzles.length).toBeGreaterThan(0);
     }
   });
 
@@ -164,18 +176,147 @@ describe("generated dungeons", () => {
     }
   });
 
-  it("refuses a profile whose rooms cannot fit, rather than building a broken map", () => {
+  it("refuses a generated profile whose rooms cannot fit, rather than building a broken map", () => {
     const cramped = {
-      ...content.dungeons.get(DEFAULT_DUNGEON_ID)!,
+      id: "cramped",
+      name: "Cramped",
+      layout: "generated" as const,
       width: 20,
       height: 12,
+      slots: [{ kinds: ["hall" as const], min: 1, max: 2 }],
+      exitDestination: "hub",
     };
-    const tiny = new Map(content.dungeons);
-    tiny.set(DEFAULT_DUNGEON_ID, cramped);
 
-    expect(() =>
-      buildDungeon({ dungeonId: DEFAULT_DUNGEON_ID, seed: 1, content: { ...content, dungeons: tiny } }),
-    ).toThrow(/does not fit/);
+    expect(() => generateDungeon(cramped, content, 1, 4)).toThrow(/does not fit/);
+  });
+});
+
+const coversRoom = (room: { x: number; y: number; width: number; height: number }, point: Vector2): boolean =>
+  point.x >= room.x && point.x < room.x + room.width && point.y >= room.y && point.y < room.y + room.height;
+
+const delveProfile = content.dungeons.get(DEFAULT_DUNGEON_ID) as DelveDungeon;
+const PARTY_SIZES = [1, 2, 3, 4];
+
+/** Ids and tiles flattened, so byte-identical is one string comparison. */
+const fingerprint = (built: BuiltDungeon): string => JSON.stringify([built.dungeon, built.spawnPoints, built.seed]);
+
+describe("the delve generator", () => {
+  it("is what the default run builds, and the Ember Vault stays the pinned authored map", () => {
+    expect(delveProfile.layout).toBe("delve");
+    expect(content.dungeons.get("ember-vault")?.layout).toBe("authored");
+  });
+
+  it("gives the same seed and party size byte-identical tiles and ids", () => {
+    for (const partySize of PARTY_SIZES) {
+      for (const seed of [0, 1, 357, 4242, 99999]) {
+        const first = generateDungeon(delveProfile, content, seed, partySize);
+        expect(fingerprint(generateDungeon(delveProfile, content, seed, partySize))).toBe(fingerprint(first));
+      }
+    }
+  });
+
+  it("builds a different layout for different seeds", () => {
+    const layouts = new Set<string>();
+    for (let seed = 0; seed < 50; seed += 1) {
+      layouts.add(generateDungeon(delveProfile, content, seed, 4).dungeon.map.tiles.join("\n"));
+    }
+    expect(layouts.size).toBeGreaterThan(45);
+  });
+
+  it("builds a run in well under 5 ms on average", () => {
+    for (let seed = 0; seed < 20; seed += 1) generateDungeon(delveProfile, content, seed, 4);
+    const runs = 300;
+    const startedAt = performance.now();
+    for (let seed = 0; seed < runs; seed += 1) generateDungeon(delveProfile, content, seed, 1 + (seed % 4));
+    expect((performance.now() - startedAt) / runs).toBeLessThan(5);
+  });
+
+  it("retries a failed attempt from a new stream, and throws naming the seed when none works", () => {
+    const failsOnce = (seed: number): boolean => {
+      try {
+        generateDungeon({ ...delveProfile, maxAttempts: 1 }, content, seed, 4);
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    const seed = Array.from({ length: 200 }, (_, index) => index).find(failsOnce);
+    // A seed one attempt cannot build is one the full profile still builds.
+    expect(seed).toBeDefined();
+    expect(() => generateDungeon(delveProfile, content, seed!, 4)).not.toThrow();
+    expect(() => generateDungeon({ ...delveProfile, maxAttempts: 1 }, content, seed!, 4)).toThrow(
+      new RegExp(`seed ${seed}\\b`),
+    );
+  });
+
+  it("refuses a profile no flow of which the party can play", () => {
+    const content2 = {
+      ...content,
+      flows: new Map([...content.flows].map(([id, flow]) => [id, { ...flow, minParty: 5 }])),
+    };
+    expect(() => generateDungeon(delveProfile, content2, 1, 4)).toThrow(/no flow a party of 4 can play/);
+  });
+});
+
+describe("validation", () => {
+  /** The first run from `from` up that `want` accepts, so a mutation starts from the shape it needs. */
+  const firstRun = (want: (built: BuiltDungeon) => boolean): BuiltDungeon => {
+    for (let seed = 0; seed < 200; seed += 1) {
+      const built = generateDungeon(delveProfile, content, seed, 4);
+      if (want(built)) return structuredClone(built);
+    }
+    throw new Error("no seed in range has the shape this test needs");
+  };
+
+  it("accepts an unmodified run", () => {
+    expect(validateDungeon(firstRun(() => true), content, 4)).toEqual([]);
+  });
+
+  it("rejects a key placed inside the boss room", () => {
+    // A run with no puzzle, since a solved puzzle's reward is a second way to a key.
+    const built = firstRun((run) => run.dungeon.puzzles.length === 0);
+    const boss = built.dungeon.rooms.find((room) => room.kind === "boss")!;
+    const taken = new Set(
+      [...built.dungeon.monsters, ...built.dungeon.loot, ...built.dungeon.chests, ...built.dungeon.traps, ...built.dungeon.doors].map(
+        (entity) => `${entity.position.x},${entity.position.y}`,
+      ),
+    );
+    let spot: Vector2 | undefined;
+    for (let y = boss.y + 1; y < boss.y + boss.height - 1; y += 1) {
+      for (let x = boss.x + 1; x < boss.x + boss.width - 1; x += 1) {
+        if (built.dungeon.map.tiles[y]![x] === "." && !taken.has(`${x},${y}`)) spot = { x, y };
+      }
+    }
+    expect(spot).toBeDefined();
+    const [bossKey, ...spares] = built.dungeon.loot.filter((loot) => loot.kind === "key");
+    expect(bossKey).toBeDefined();
+    bossKey!.position = spot!;
+    built.dungeon.loot = built.dungeon.loot.filter((loot) => !spares.includes(loot as (typeof spares)[number]));
+
+    const errors = validateDungeon(built, content, 4);
+    expect(errors).toContain("the exit is unreachable after every key and puzzle");
+  });
+
+  it("rejects a run whose locks were never placed", () => {
+    const built = firstRun(() => true);
+    built.dungeon.doors = [];
+
+    expect(validateDungeon(built, content, 4)).toContain("the boss room is reachable with every lock closed");
+  });
+
+  it("rejects a puzzle needing more plates than the party can hold", () => {
+    const built = firstRun((run) => run.dungeon.puzzles.length > 0);
+    // Two plates, no stones, and a party of one: the second plate has nobody to stand on it.
+    built.dungeon.loot = built.dungeon.loot.filter((loot) => loot.kind !== "ballast");
+
+    expect(validateDungeon(built, content, 1).join(" ")).toMatch(/plates held by 1 players and 0 stones/);
+  });
+
+  it("rejects an entity off the floor", () => {
+    const built = firstRun((run) => run.dungeon.monsters.length > 0);
+    built.dungeon.monsters[0]!.position = { x: 0, y: 0 };
+
+    expect(validateDungeon(built, content, 4).join(" ")).toMatch(/monster is off the floor/);
   });
 });
 

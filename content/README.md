@@ -111,10 +111,10 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   field. `cinder-depths` is the only biome and the only live one.
 - A `delve` dungeon profile (`layout: "delve"`) sits in `dungeons/` beside `authored` and
   `generated`: `grid` (`cols`, `rows`, `cell` in authored tiles, `margin`), the `flows` and
-  `biomes` a run draws from by id, `maxAttempts` layout retries, an optional `corridorLight` and an
-  `exitDestination`. Every id must exist, and at least one listed flow must have `minParty` of 1 so
-  a solo party has a run. `vault-run` stays `generated` until the integration issue switches it;
-  asking `buildDungeon` for a `delve` profile throws until then.
+  `biomes` a run draws from by id, `maxAttempts` generation attempts (each retry reads `mixSeed(seed, attempt)`, and the run fails
+  naming its seed when none validates), an optional `corridorLight` and an `exitDestination`. Every id must exist, and at least one listed flow must have `minParty` of 1 so
+  a solo party has a run. `vault-run` is a `delve` profile; `ember-vault` stays the pinned authored map
+  that tests build on.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
   profiles and skill scrolls.
 
