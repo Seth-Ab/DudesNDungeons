@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Layout section superseded by [0016](0016-dungeon-generator-v2.md): "Corridors route around rooms" and the chain layout describe the `generated` layout, which `vault-run` no longer uses.
 
 ## Context
 
@@ -60,6 +61,8 @@ differently-identified dungeon each time; they are not credentials, and resume t
 still come from `node:crypto`.
 
 ### Corridors route around rooms
+
+> **Superseded by [0016](0016-dungeon-generator-v2.md).** `vault-run` now uses the `delve` grid layout. The chain below is the `generated` layout, kept in code but used by no shipped content. The seeded stream, content loading and everything outside this section still stand.
 
 A run is a chain: entrance, each slot in order, then the exit, with consecutive rooms joined by a
 corridor. The chain is what makes the exit reachable by construction.
