@@ -1,0 +1,14 @@
+{
+  "id": "three-roads",
+  "name": "The Three Roads",
+  "weight": 2,
+  "minParty": 1,
+  "path": { "min": 4, "max": 5 },
+  "branches": { "min": 3, "max": 3 },
+  "branchLength": { "min": 2, "max": 3 },
+  "loops": { "min": 0, "max": 1 },
+  "branchFrom": "any",
+  "bossLock": "key",
+  "keySource": "arena",
+  "vaultChance": 0.7
+}

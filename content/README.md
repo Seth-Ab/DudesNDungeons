@@ -90,6 +90,27 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   character outside `gcd.`. Grass draws a ragged fringe onto the cobble or dirt beside it, so
   boundaries need no art of their own; the hub is the example. Ground scales with the map, so each
   character covers a `TILE_SCALE` block, and reaches a client with the tiles it describes.
+- `flows/` and `biomes/`: the two halves of a `delve` run (decision 0016). Nothing builds a `delve`
+  run yet, so these are validated content only.
+  A **flow** is the shape of a run: `weight` (relative odds), `minParty` (smallest party it may be
+  drawn for), inclusive `{ min, max }` ranges for `path` (rooms on the critical path), `branches`,
+  `branchLength` and `loops`, `branchFrom` (`any` path room, or `hub`, which also needs `hubIndex`),
+  `bossLock`, `keySource` and `vaultChance` (0 to 1). `bossLock` is `key`, `seals` or `split-seal`,
+  but only the locks in `GENERATOR_BOSS_LOCKS` (`schema.ts`) can be built, today `key` with a
+  `keySource` of `puzzle`, `branch` or `arena`; any other lock, or a key source that lock cannot use,
+  fails loading. `gauntlet`, `long-loop` and `three-roads` ship.
+  A **biome** is what a run looks and fights like: `theme` and `lightTint`, `light` (a multiplier on
+  light radii), a `roster` of `{ typeId, cost, weight }` (cost is spent against a room's threat
+  budget; bosses are not allowed here), `traps` and `puzzles` pools, a `bosses` pool (each must be
+  a `boss: true` monster), `roomWeights` by room kind, a `lootTableId`, and `names` by room kind.
+  An unknown monster, trap, puzzle, boss, loot table or room kind fails startup naming the file and
+  field. `cinder-depths` is the only biome and the only live one.
+- A `delve` dungeon profile (`layout: "delve"`) sits in `dungeons/` beside `authored` and
+  `generated`: `grid` (`cols`, `rows`, `cell` in authored tiles, `margin`), the `flows` and
+  `biomes` a run draws from by id, `maxAttempts` layout retries, an optional `corridorLight` and an
+  `exitDestination`. Every id must exist, and at least one listed flow must have `minParty` of 1 so
+  a solo party has a run. `vault-run` stays `generated` until the integration issue switches it;
+  asking `buildDungeon` for a `delve` profile throws until then.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
   profiles and skill scrolls.
 

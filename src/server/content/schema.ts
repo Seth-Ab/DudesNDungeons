@@ -762,9 +762,126 @@ export const generatedDungeonSchema = z.object({
 });
 export type GeneratedDungeon = z.infer<typeof generatedDungeonSchema>;
 
+/** An inclusive count range for a flow's path, branches and loops. */
+const flowRangeSchema = spawnCountSchema;
+const positiveFlowRangeSchema = spawnCountSchema.refine((count) => count.min >= 1, {
+  message: "min must be at least 1",
+});
+
+/** How a flow gates its boss, as the design names them. Only `GENERATOR_BOSS_LOCKS` can be built. */
+export const BOSS_LOCK_TYPES = ["key", "seals", "split-seal"] as const;
+/** Where a flow hides what opens its boss lock. */
+export const KEY_SOURCES = ["puzzle", "branch", "arena", "seals", "split"] as const;
+/**
+ * The boss locks a generator stage builds today, each with the key sources it can place. A flow
+ * asking for anything else fails loading rather than producing a run with an unopenable boss door;
+ * the issue that teaches the generator a new lock adds it here.
+ */
+export const GENERATOR_BOSS_LOCKS: Readonly<Record<string, readonly (typeof KEY_SOURCES)[number][]>> = {
+  key: ["puzzle", "branch", "arena"],
+};
+
+/**
+ * The shape of one run (decision 0016): how long the critical path is, how many side branches hang
+ * off it and how deep, how many loops tie routes back together, what locks the boss and where its
+ * key comes from. Each run draws one flow by `weight` from the profile's list, never one whose
+ * `minParty` the party is below. The numbers are the design bible's starting values.
+ */
+export const flowDefinitionSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    weight: z.number().int().positive(),
+    /** Smallest party this flow may be drawn for; a group-only flow sets 2. */
+    minParty: z.number().int().positive(),
+    /** Rooms on the critical path, entrance to exit. */
+    path: positiveFlowRangeSchema,
+    branches: flowRangeSchema,
+    /** Rooms in each branch. */
+    branchLength: positiveFlowRangeSchema,
+    loops: flowRangeSchema,
+    /** Where branches leave the path: any path room, or only the hub room at `hubIndex`. */
+    branchFrom: z.enum(["any", "hub"]),
+    hubIndex: z.number().int().nonnegative().optional(),
+    bossLock: z.enum(BOSS_LOCK_TYPES),
+    keySource: z.enum(KEY_SOURCES),
+    /** Chance a run of this flow gets a vault room, 0 to 1. */
+    vaultChance: z.number().min(0).max(1),
+  })
+  .superRefine((flow, context) => {
+    if (flow.branchFrom === "hub" && flow.hubIndex === undefined) {
+      context.addIssue({ code: "custom", path: ["hubIndex"], message: "A hub flow needs a hubIndex" });
+    }
+    if (flow.branchFrom === "any" && flow.hubIndex !== undefined) {
+      context.addIssue({ code: "custom", path: ["hubIndex"], message: "Only a hub flow takes a hubIndex" });
+    }
+  });
+export type FlowDefinition = z.infer<typeof flowDefinitionSchema>;
+
+/** A monster a biome may spawn, with what it costs against a room's threat budget and how often. */
+const biomeRosterEntrySchema = z.object({
+  typeId: contentIdSchema,
+  cost: z.number().int().positive(),
+  weight: z.number().int().positive(),
+});
+
+/**
+ * What a run looks and fights like (decision 0016): who lives there, what traps, puzzles and bosses
+ * it draws from, which room kinds it favours, how dark it is, and what its rooms are called. One
+ * biome per run. `loadContent` checks every id against the catalog, since a single file cannot see
+ * monsters, traps, puzzles or loot tables. Cinder Depths is the only one that ships.
+ */
+export const biomeDefinitionSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  theme: z.enum(MAP_THEMES).default(DEFAULT_MAP_THEME),
+  lightTint: z.enum(LIGHT_TINTS).default("warm"),
+  /** Multiplier on light radii: below 1 is darker than the baseline, above 1 brighter. */
+  light: z.number().positive(),
+  roster: z.array(biomeRosterEntrySchema).min(1),
+  traps: z.array(contentIdSchema).default([]),
+  puzzles: z.array(contentIdSchema).default([]),
+  bosses: z.array(contentIdSchema).min(1),
+  /** Relative odds of each room kind filling a body room. */
+  roomWeights: z.record(roomKindSchema, z.number().int().positive()).refine((weights) => Object.keys(weights).length > 0, {
+    message: "roomWeights needs at least one room kind",
+  }),
+  lootTableId: contentIdSchema,
+  /** Room names to draw from, by room kind. */
+  names: z.record(roomKindSchema, z.array(z.string().min(1)).min(1)).default({}),
+});
+export type BiomeDefinition = z.infer<typeof biomeDefinitionSchema>;
+
+/**
+ * A run assembled on a grid from flows and biomes (decision 0016). The grid is `cols` by `rows`
+ * cells of `cell` authored tiles with `margin` tiles around it, so its size lives here and not in
+ * code. A run draws a flow and a biome from these lists, and the generator retries up to
+ * `maxAttempts` layouts before giving up. `loadContent` checks the ids exist and that a party of
+ * one has a flow to play.
+ */
+export const delveDungeonSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  layout: z.literal("delve"),
+  grid: z.object({
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+    cell: z.number().int().positive(),
+    margin: z.number().int().nonnegative(),
+  }),
+  flows: z.array(contentIdSchema).min(1),
+  biomes: z.array(contentIdSchema).min(1),
+  maxAttempts: z.number().int().positive(),
+  /** Light dropped along corridors, as for a generated dungeon. */
+  corridorLight: generatedDungeonSchema.shape.corridorLight,
+  exitDestination: z.string().min(1),
+});
+export type DelveDungeon = z.infer<typeof delveDungeonSchema>;
+
 export const dungeonDefinitionSchema = z.discriminatedUnion("layout", [
   authoredDungeonSchema,
   generatedDungeonSchema,
+  delveDungeonSchema,
 ]);
 export type DungeonDefinition = z.infer<typeof dungeonDefinitionSchema>;
 

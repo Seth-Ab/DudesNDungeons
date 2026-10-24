@@ -1,0 +1,26 @@
+{
+  "id": "cinder-depths",
+  "name": "Cinder Depths",
+  "theme": "stone",
+  "lightTint": "warm",
+  "light": 1,
+  "roster": [
+    { "typeId": "cinder-slime", "cost": 1, "weight": 3 },
+    { "typeId": "ash-imp", "cost": 1, "weight": 3 },
+    { "typeId": "cinder-spitter", "cost": 2, "weight": 2 },
+    { "typeId": "slag-charger", "cost": 3, "weight": 1 }
+  ],
+  "traps": ["spike-plate", "ember-vent", "snare-wire"],
+  "puzzles": ["paired-levers"],
+  "bosses": ["ember-warden"],
+  "roomWeights": { "hall": 4, "maze": 2, "trap": 2 },
+  "lootTableId": "common-chest",
+  "names": {
+    "entrance": ["Cinder Gate", "Ash Stair"],
+    "exit": ["Ember Stair", "Chimney Climb"],
+    "hall": ["Ashen Hall", "Slag Gallery", "Bellows Nave", "Clinker Hall", "Soot Chapel"],
+    "maze": ["Sunken Maze", "Flue Warren", "Ducts of Ash"],
+    "trap": ["Collapsing Span", "Vent Run", "Spike Gallery"],
+    "puzzle": ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"]
+  }
+}
