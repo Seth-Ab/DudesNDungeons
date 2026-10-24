@@ -441,6 +441,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 - [x] Add flow and biome content (issue #245, 2026-10-23): `content/flows/` (`gauntlet`, `long-loop`, `three-roads`), `content/biomes/` (`cinder-depths`), a `delve` dungeon profile layout, and load-time reference checks. `vault-run` stays `generated`; nothing builds a `delve` run yet.
 - [x] Add room sockets, template transforms and procedural room shapes (issue #248, 2026-10-23): `src/server/game/generation/roomShapes.ts` with midpoint sockets, rotate and mirror for `transform` templates, ten procedural shapes (plain, pillars, block, cross, ring, octagon, partition, alcoves, braided maze, cavern), a 0-1 BFS socket repair and pocket fill, and a cavern retry that falls back to plain. `roomTemplateSchema` gains optional `sockets: "midpoints"` (derives `doorways`), `transform`, `biomes` and `tags`; existing templates load unchanged. Nothing in the generator calls the shapes yet; the grid layout and carve issues do.
 - [x] Add the layout stage (issue #246, 2026-10-23): `src/server/game/generation/layout.ts` `generateLayout(rng, flow, grid)` walks a self-avoiding critical path across the grid, grows the flow's branches, then adds loops between rooms at least three hops apart; the boss and exit get none, and it returns null when the path cannot fit or the flow's minimum branches or loops cannot be placed, for the caller to retry with `mixSeed`. Not wired into `generateDungeon` yet.
+- [x] Add the roles stage (issue #247, 2026-10-23): `src/server/game/generation/roles.ts` `assignRoles(rng, graph, flow, biome)` fixes the entrance, boss and exit, locks the boss room on the edge in front of it (the existing locked door, moved from the exit room), puts the key on the farthest free dead end beyond the lock's room (a puzzle reward, a branch's loot or a guarded room by `keySource`), and fills the rest from the biome's `roomWeights` with no kind twice in a row on the critical path and no trap first after the entrance. Only today's room kinds; vaults, shrines, camps, secrets and arenas wait for their own issues. It returns null when no dead end lies beyond the lock, the biome cannot avoid a repeat, or the flow's lock is not `key`, for the caller to retry. Not wired into `generateDungeon` yet.
 - [ ] Rest of Phase 1 Shape and later phases: not started; issues are filed per bullet in `STEPS.md` Backend 14.
 
 ## Frontend Dev Progress
@@ -642,6 +643,7 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+- 2026-10-23: Generator v2 roles stage: boss lock, key holder and room kinds from the layout graph (#247).
 - 2026-10-23: Generator v2 layout stage: critical path, branches and loops on the grid (#246).
 - 2026-10-23: Dungeon generator v2 design decided (decision 0016, #243); the series is Backend 14 in `STEPS.md`, documentation only.
 - 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48).
