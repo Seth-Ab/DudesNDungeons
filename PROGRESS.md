@@ -312,6 +312,7 @@ check remains.
 - [x] Key monsters by type id instead of display name. `monsterState.typeId`; `MONSTER_STATS` is gone.
 - [x] Stitch templates into a dungeon: halls, mazes, traps, puzzles, bosses, exit. Seven templates covering every kind; rooms chained entrance to exit with BFS-routed corridors.
 - [x] Place loot, monsters, and lights from a seeded random source. `src/server/game/random.ts`; the seed is stored on the session so a run replays exactly.
+- [x] Add `chance(p)`, `weighted(entries)` and an exported `mixSeed(seed, salt)` to the seeded stream (issue #244, 2026-10-23). The existing methods are unchanged (golden-value test); `chance(0)` and `chance(1)` draw nothing; `mixSeed` derives a child stream for a generation retry without changing the run seed. Nothing in the generator uses them yet; later generator v2 issues do.
 
 ### 10. Hub World and Run Lifecycle
 
