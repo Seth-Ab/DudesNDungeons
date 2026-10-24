@@ -895,8 +895,8 @@ export type BiomeDefinition = z.infer<typeof biomeDefinitionSchema>;
 
 /**
  * A run assembled on a grid from flows and biomes (decision 0016). The grid is `cols` by `rows`
- * cells of `cell` authored tiles with `margin` tiles around it, so its size lives here and not in
- * code. A run draws a flow and a biome from these lists, and the generator retries up to
+ * cells of `cell` authored tiles with `margin` tiles kept clear inside each cell, so its size lives
+ * here and not in code. A run draws a flow and a biome from these lists, and the generator retries up to
  * `maxAttempts` layouts before giving up. `loadContent` checks the ids exist and that a party of
  * one has a flow to play.
  */
