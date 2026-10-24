@@ -92,7 +92,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   const built = buildDungeon(
     dungeonId === HUB_DUNGEON_ID
       ? { dungeonId: HUB_DUNGEON_ID, content: session.runDungeon.content }
-      : session.runDungeon,
+      : { ...session.runDungeon, partySize: session.players.size },
   );
 
   session.dungeon = built.dungeon;
@@ -165,8 +165,9 @@ export function returnToHub(session: Session, escaped: boolean): void {
       const carried =
         player.carryingPlayerId === null ? undefined : session.players.get(player.carryingPlayerId);
       const itemsBanked = player.inventory.length + (player.held ? 1 : 0);
-      for (const item of player.inventory) storeInVault(session, item);
-      if (player.held) storeInVault(session, player.held);
+      // A Ballast Stone belongs to the room it lies in; it is never worth carrying out.
+      for (const item of player.inventory) if (item.kind !== "ballast") storeInVault(session, item);
+      if (player.held && player.held.kind !== "ballast") storeInVault(session, player.held);
       bankRunSkills(player);
       player.runCoin += ESCAPE_REWARD_COIN;
       bankRunCoin(player);

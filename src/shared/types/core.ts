@@ -192,7 +192,7 @@ export type ProjectileState = z.infer<typeof projectileStateSchema>;
  * A weapon is carried in the hand slot (`PlayerState.held`) or, when the hand is full, an
  * inventory slot. Ammo is a stack: one entry, and so one slot, carrying a `count`.
  */
-export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon", "ammo"]);
+export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon", "ammo", "ballast"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const consumableIconSchema = z.enum(CONSUMABLE_ICONS);
@@ -241,7 +241,7 @@ const ammoFields = {
 const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch"]),
+  kind: z.enum(["key", "torch", "ballast"]),
   position: vector2Schema,
   pickedUp: z.boolean(),
 });
@@ -292,7 +292,7 @@ export type LootState = z.infer<typeof lootStateSchema>;
 const ordinaryInventoryItemSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch"]),
+  kind: z.enum(["key", "torch", "ballast"]),
 });
 
 const consumableInventoryItemSchema = z.object({

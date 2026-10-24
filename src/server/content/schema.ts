@@ -239,7 +239,7 @@ export type PuzzleType = z.infer<typeof puzzleTypeSchema>;
 const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch"]),
+  kind: z.enum(["key", "torch", "ballast"]),
 });
 
 /**

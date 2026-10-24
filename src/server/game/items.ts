@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  BALLAST_STAMINA_COST,
   INTERACT_RANGE,
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
@@ -197,6 +198,8 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
   const item = inventoryItemFromLoot(loot);
   const destination = destinationFor(player, item);
   if (!destination) return reject("notPermitted");
+  // A stone is heavy: hefting it is what costs stamina, so a refusal leaves it where it lies.
+  if (loot.kind === "ballast" && !spendStamina(player, BALLAST_STAMINA_COST)) return reject("exhausted");
 
   loot.pickedUp = true;
   receive(player, item, destination);
@@ -416,6 +419,7 @@ export function useItem(
     }
     case "key":
     case "torch":
+    case "ballast":
     case "weapon":
     case "ammo":
       // Keys are spent by interacting with a locked door, not used on their own.

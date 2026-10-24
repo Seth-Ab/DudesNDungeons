@@ -24,15 +24,33 @@ function eligiblePlayers(session: Session): SessionPlayer[] {
   return [...session.players.values()].filter((player) => player.connected && !isDown(player));
 }
 
+/** Who or what is holding a plate: a player, a Ballast Stone lying on it, or nothing. */
+type Holder = SessionPlayer | "ballast" | null;
+
 /**
- * Assigns each plate its nearest unassigned eligible player in reach. One player holds at most one
- * plate, so two plates can never be held by a single person standing between them. Plates are
- * taken in authored order and ties break by join order, which keeps the outcome deterministic.
+ * Whether a Ballast Stone lies on the plate. A stone that is carried is not on the floor, so it
+ * holds nothing: lifting it off, or dropping it anywhere else, releases the plate.
  */
-function holders(puzzle: PuzzleState, players: SessionPlayer[]): (SessionPlayer | null)[] {
+function ballasted(session: Session, puzzle: PuzzleState, plate: PuzzleState["plates"][number]): boolean {
+  return session.dungeon.loot.some(
+    (loot) =>
+      loot.kind === "ballast" && !loot.pickedUp && distance(loot.position, plate.position) <= puzzle.radius,
+  );
+}
+
+/**
+ * Assigns each plate its holder. A plate with a Ballast Stone on it is held by the stone, which
+ * frees the player to stand on another; the rest take their nearest unassigned eligible player in
+ * reach. One player holds at most one plate, so two plates can never be held by a single person
+ * standing between them. Plates are taken in authored order and ties break by join order, which
+ * keeps the outcome deterministic.
+ */
+function holders(session: Session, puzzle: PuzzleState, players: SessionPlayer[]): Holder[] {
   const taken = new Set<string>();
 
-  return puzzle.plates.map((plate) => {
+  return puzzle.plates.map((plate): Holder => {
+    if (ballasted(session, puzzle, plate)) return "ballast";
+
     let best: SessionPlayer | null = null;
     let bestDistance = Infinity;
     for (const player of players) {
@@ -76,7 +94,7 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     const type = content.puzzles.get(puzzle.typeId);
     if (!type) throw new Error(`No puzzle type "${puzzle.typeId}"`);
 
-    const assigned = holders(puzzle, players);
+    const assigned = holders(session, puzzle, players);
     puzzle.plates.forEach((plate, index) => {
       plate.held = assigned[index] !== null;
     });
@@ -91,8 +109,9 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     const since = session.puzzleHeldSince.get(puzzle.id) ?? now;
     session.puzzleHeldSince.set(puzzle.id, since);
 
-    const power = assigned.reduce(
-      (total, holder) => total + progressionEffectTotal(holder!, "puzzlePowerBonus", content),
+    const holding = assigned.filter((holder): holder is SessionPlayer => holder !== null && holder !== "ballast");
+    const power = holding.reduce(
+      (total, holder) => total + progressionEffectTotal(holder, "puzzlePowerBonus", content),
       0,
     );
     const required = requiredHoldMs(type, power);
@@ -104,7 +123,7 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     session.dungeon.loot.push(lootInstance(reward, puzzle.plates[0]!.position, randomUUID()));
     session.puzzleHeldSince.delete(puzzle.id);
     puzzle.phase = "solved";
-    recordPuzzleSolved(assigned.filter((holder): holder is SessionPlayer => holder !== null));
+    recordPuzzleSolved(holding);
     solved.push(puzzle);
   }
 

@@ -410,7 +410,7 @@ describe("appearance contract", () => {
   }
 
   it("is on protocol v48, the version that added the saved-run list", () => {
-    expect(PROTOCOL_VERSION).toBe(48);
+    expect(PROTOCOL_VERSION).toBe(49);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

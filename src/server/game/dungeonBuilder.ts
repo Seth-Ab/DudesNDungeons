@@ -101,6 +101,17 @@ export function puzzleInstance(type: PuzzleType, plates: Vector2[], id: string):
   };
 }
 
+/** The content id of the stone that stands in for a missing player on a plate. */
+export const BALLAST_ITEM_ID = "ballast-stone";
+
+/**
+ * How many Ballast Stones a puzzle needs so that players plus stones can hold every plate. Plates
+ * are held by different players, so one more plate than people is one stone.
+ */
+export function ballastNeeded(plateCount: number, partySize: number): number {
+  return Math.max(0, plateCount - partySize);
+}
+
 export function chestInstance(lootTableId: string, position: Vector2, id: string, locked: boolean): ChestState {
   return { id, lootTableId, position: { ...position }, opened: false, locked };
 }

@@ -37,7 +37,12 @@ export interface DungeonRequest {
   /** Seed for a generated dungeon. Omitted, a fresh one is drawn; pass one to replay a run. */
   seed?: number;
   content?: GameContent;
+  /** Players in the party. Omitted, generation assumes a full party of four. */
+  partySize?: number;
 }
+
+/** The party generation plans for when a request does not say how many are playing. */
+export const DEFAULT_PARTY_SIZE = 4;
 
 /** The generated run a new session gets when nothing asks for a specific dungeon. */
 export const DEFAULT_DUNGEON_ID = "vault-run";
@@ -58,7 +63,7 @@ export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
   const built =
     definition.layout === "authored"
       ? buildAuthoredDungeon(definition, content)
-      : generateDungeon(definition, content, request.seed ?? randomSeed());
+      : generateDungeon(definition, content, request.seed ?? randomSeed(), request.partySize ?? DEFAULT_PARTY_SIZE);
 
   // Content is authored small and played large. Every session gets the scaled world; nothing
   // downstream of here ever sees authored tile coordinates.

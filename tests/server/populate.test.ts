@@ -211,6 +211,21 @@ describe("populateDungeon", () => {
     }
   });
 
+  it("never plans a puzzle that needs more plates held than players plus Ballast Stones", () => {
+    for (let partySize = 1; partySize <= 4; partySize += 1) {
+      for (const run of sweep(partySize)) {
+        run.plan.puzzles.forEach((spec, index) => {
+          const puzzle = run.populated.puzzles[index]!;
+          const stones = run.populated.loot.filter(
+            (loot) => loot.kind === "ballast" && roomAt(run, loot.position) === spec.nodeId,
+          );
+          expect(puzzle.plates.length).toBeLessThanOrEqual(partySize + stones.length);
+          expect(stones.length).toBe(Math.max(0, puzzle.plates.length - partySize));
+        });
+      }
+    }
+  });
+
   it("keeps lights sparse: corridor torches sit seven tiles apart", () => {
     for (const run of sweep(2)) {
       const torches = run.populated.lightSources.filter((light) => light.name === "Corridor Torch");

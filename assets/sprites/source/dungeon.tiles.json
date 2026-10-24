@@ -732,6 +732,22 @@
         "6*0000000000000000"
       ]
     },
+    "loot-ballast": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "4*0000000000000000",
+        "00000IJKKJI00000",
+        "0000IKLMMLKI0000",
+        "000IKLMMMMLKI000",
+        "000IKLMMLLKKI000",
+        "000IKLLLLKKKI000",
+        "000IJKKKKKKJI000",
+        "0000IIJJJJII0000",
+        "00000IIIIII00000",
+        "4*0000000000000000"
+      ]
+    },
     "loot-tonic": {
       "tilesWide": 1,
       "tilesHigh": 1,
