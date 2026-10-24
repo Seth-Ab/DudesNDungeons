@@ -435,6 +435,11 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
   - Two bugs in that width surfaced on 2026-09-18 while drawing the door art, both from the one-tile assumptions the block replaced. Line of sight exempted only a door's centre tile, so a closed door hid behind itself and was never sent to any client; and the client still measured interact reach to the centre while the server measured to the face, so no locked door could be opened from the UI. Fixed with `distanceToDoor` in `src/shared/game/movement.ts`, now shared by both sides.
 - [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`. Superseded by discovery deltas (issue #30).
 
+### 14. Dungeon Generator v2
+
+- [x] Decide the design before building it: grid layout, one floor, `#`/`.` alphabet, omens on the quest board, small-party scaling, one biome per run, content as a menu (decision 0016, issue #243).
+- [ ] Phase 1 Shape and later phases: not started; issues are filed per bullet in `STEPS.md` Backend 14.
+
 ## Frontend Dev Progress
 
 ### 1. Project Foundation
@@ -634,6 +639,7 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+- 2026-10-23: Dungeon generator v2 design decided (decision 0016, #243); the series is Backend 14 in `STEPS.md`, documentation only.
 - 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48).
 One line per change; read the linked pull request for detail.
 
