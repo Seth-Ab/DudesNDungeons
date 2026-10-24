@@ -1,0 +1,26 @@
+{
+  "id": "vent-run",
+  "name": "Vent Run",
+  "kind": "trap",
+  "tiles": [
+    "#############",
+    "#...........#",
+    "#.#.#...#.#.#",
+    "#...........#",
+    "#.#.#...#.#.#",
+    "#...........#",
+    "#############"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["trap"],
+  "lights": [],
+  "monsters": [{ "typeId": "cinder-slime", "min": 0, "max": 1 }],
+  "loot": [{ "itemId": "warding-salve", "min": 0, "max": 1 }],
+  "traps": [
+    { "typeId": "spike-plate", "min": 1, "max": 3 },
+    { "typeId": "ember-vent", "min": 1, "max": 2 },
+    { "typeId": "snare-wire", "min": 0, "max": 2 }
+  ]
+}

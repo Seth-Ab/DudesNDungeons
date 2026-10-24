@@ -336,7 +336,7 @@ describe("rejecting bad content", () => {
   });
 
   it("defaults the v2 fields on a template that only has doorways", () => {
-    const template = loadContent().templates.values().next().value!;
+    const template = loadContent().templates.get("cinder-gate")!;
     expect(template.sockets).toBeUndefined();
     expect(template.transform).toBe(false);
     expect(template.biomes).toEqual([]);

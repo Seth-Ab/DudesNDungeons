@@ -1,0 +1,29 @@
+{
+  "id": "slag-pit",
+  "name": "Slag Pit",
+  "kind": "boss",
+  "tiles": [
+    "###############",
+    "#.............#",
+    "#.............#",
+    "#..##.....##..#",
+    "#..##.....##..#",
+    "#.............#",
+    "#..##.....##..#",
+    "#..##.....##..#",
+    "#.............#",
+    "#.............#",
+    "###############"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["boss"],
+  "lights": [{ "x": 7, "y": 5, "name": "Slag Fire", "radius": 8 }],
+  "monsters": [{ "typeId": "ember-warden", "min": 1, "max": 1 }],
+  "loot": [
+    { "itemId": "copper-key", "min": 1, "max": 1 },
+    { "itemId": "iron-will-scroll", "min": 1, "max": 1, "chance": 0.1 }
+  ],
+  "chests": [{ "lootTableId": "vault-chest", "min": 1, "max": 1 }]
+}

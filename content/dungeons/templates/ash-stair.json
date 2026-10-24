@@ -1,0 +1,19 @@
+{
+  "id": "ash-stair",
+  "name": "Ash Stair",
+  "kind": "entrance",
+  "tiles": [
+    "###########",
+    "#.........#",
+    "#.##...##.#",
+    "#.........#",
+    "#.##...##.#",
+    "#.........#",
+    "###########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["entrance"],
+  "lights": [{ "x": 5, "y": 3, "name": "Stair Brazier", "radius": 7 }]
+}

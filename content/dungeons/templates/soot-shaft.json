@@ -1,0 +1,21 @@
+{
+  "id": "soot-shaft",
+  "name": "Soot Shaft",
+  "kind": "exit",
+  "tiles": [
+    "###########",
+    "#.........#",
+    "#.........#",
+    "#..#...#..#",
+    "#.........#",
+    "#..#...#..#",
+    "#.........#",
+    "#.........#",
+    "###########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["exit"],
+  "lights": [{ "x": 5, "y": 4, "name": "Shaft Beacon", "radius": 7 }]
+}

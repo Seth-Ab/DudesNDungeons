@@ -1,0 +1,19 @@
+{
+  "id": "bellows-porch",
+  "name": "Bellows Porch",
+  "kind": "entrance",
+  "tiles": [
+    "#############",
+    "#...........#",
+    "#.#.#...#.#.#",
+    "#...........#",
+    "#.#.#...#.#.#",
+    "#...........#",
+    "#############"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["entrance"],
+  "lights": [{ "x": 6, "y": 3, "name": "Porch Brazier", "radius": 7 }]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "furnace-lock",
+  "name": "Furnace Lock",
+  "kind": "puzzle",
+  "tiles": [
+    "###########",
+    "#.........#",
+    "#....#....#",
+    "#....#....#",
+    "#.........#",
+    "#....#....#",
+    "#....#....#",
+    "#.........#",
+    "###########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["puzzle"],
+  "lights": [
+    { "x": 5, "y": 4, "name": "Furnace Mouth", "radius": 5 },
+    { "x": 2, "y": 6, "name": "Lock Sconce", "radius": 4 }
+  ],
+  "puzzles": [{ "typeId": "paired-levers", "plates": [{ "x": 2, "y": 2 }, { "x": 8, "y": 6 }] }]
+}

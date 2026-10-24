@@ -1,0 +1,35 @@
+{
+  "id": "slag-gallery",
+  "name": "Slag Gallery",
+  "kind": "hall",
+  "tiles": [
+    "###############",
+    "#.............#",
+    "#.#.#.#.#.#.#.#",
+    "#.............#",
+    "#.............#",
+    "#.............#",
+    "#.#.#.#.#.#.#.#",
+    "#.............#",
+    "###############"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["hall"],
+  "lights": [
+    { "x": 3, "y": 3, "name": "Gallery Torch", "radius": 5 },
+    { "x": 11, "y": 5, "name": "Gallery Torch", "radius": 5 }
+  ],
+  "monsters": [
+    { "typeId": "cinder-slime", "min": 1, "max": 3 },
+    { "typeId": "ash-imp", "min": 0, "max": 2 },
+    { "typeId": "slag-charger", "min": 0, "max": 1 }
+  ],
+  "loot": [
+    { "itemId": "minor-tonic", "min": 0, "max": 2 },
+    { "itemId": "travelers-torch", "min": 0, "max": 1 },
+    { "itemId": "smelling-salts", "min": 1, "max": 1, "chance": 0.2 }
+  ],
+  "chests": [{ "lootTableId": "common-chest", "min": 0, "max": 1 }]
+}
