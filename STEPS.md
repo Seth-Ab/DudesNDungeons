@@ -157,6 +157,17 @@ Taken out of order, before steps 10-12, because the first playable demo showed t
 - Send each player a window of the map rather than all of it, now that the whole map is far more than anyone can see or walk to between snapshots.
 - Make the renderer draw in world units and clip to the viewport, so the player holds a small part of a large room instead of most of a small one.
 
+### 14. Dungeon Generator v2
+
+Design: `docs/design/dungeon-design-bible.html`; decisions in `docs/decisions/0016-dungeon-generator-v2.md`. Each bullet is roughly one issue. Content beyond Phase 1 is a menu the owner pulls from.
+
+- Phase 1, Shape: seeded `chance`, `weighted` and `mixSeed`; a 6x4 grid layout with a critical path, branches and loops replacing `placeRooms`; midpoint sockets with rotated and mirrored templates and procedural maze, cavern and hall shapes; 12 to 15 new Cinder Depths templates; party size passed into generation to scale plates and threat; a validation and retry loop. No protocol or art changes.
+- Phase 2, Locks and specials: typed keys and door locks; vault, shrine, camp, secret and arena rooms; shrine altars; campfire rest; cracked walls.
+- Phase 3, Flows and omens: flows as content (Split Seal gated to parties of two or more); omens on the hub quest board; Hold the Line arenas; brazier switches and speaking tubes.
+- Phase 4, Biomes: biomes as content, one per issue, Drowned Crypt first; new traps with effects.
+- Phase 5, Bosses and puzzles: one boss or group puzzle per issue; Door Vote at forks.
+- Later: Descent, and any new tile characters such as water or chasms.
+
 ## Frontend Dev
 
 ### 1. Project Foundation
