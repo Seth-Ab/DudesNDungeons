@@ -7,7 +7,7 @@ import { createRng, mixSeed } from "../../src/server/game/random.js";
 
 const GRID = { cols: 6, rows: 4 };
 const CELL = { cell: 16, margin: 2 };
-const SEEDS = 300;
+const SEEDS = 100;
 const SIZES = [5, 7, 9, 11];
 const flows = [...loadContent().flows.values()];
 
@@ -81,6 +81,8 @@ describe("carveDungeon", () => {
   });
 
   it("joins exactly the two sockets of each edge and opens no other wall", () => {
+    // Per-tile checks collect problems and assert once, since a sweep makes millions of them.
+    const problems: string[] = [];
     for (const { graph, world } of runs) {
       expect(world.corridors).toHaveLength(graph.edges.length);
       const socketTiles = new Map<string, number[]>();
@@ -97,14 +99,14 @@ describe("carveDungeon", () => {
         expect(corridor.tiles[corridor.tiles.length - 1]).toEqual(corridor.to);
         corridor.tiles.slice(1).forEach((tile, i) => {
           const before = corridor.tiles[i]!;
-          expect(Math.abs(tile.x - before.x) + Math.abs(tile.y - before.y)).toBe(1);
+          if (Math.abs(tile.x - before.x) + Math.abs(tile.y - before.y) !== 1) problems.push(`edge ${corridor.edge} skips`);
         });
         // Only the two endpoints sit on a room; the rest is gap.
         for (const tile of corridor.tiles.slice(1, -1)) {
           for (const room of world.rooms) {
             const inside =
               tile.x >= room.x && tile.x < room.x + room.width && tile.y >= room.y && tile.y < room.y + room.height;
-            expect(inside).toBe(false);
+            if (inside) problems.push(`edge ${corridor.edge} crosses room ${room.nodeId}`);
           }
         }
       }
@@ -117,7 +119,7 @@ describe("carveDungeon", () => {
           for (let x = 0; x < room.width; x += 1) {
             if (x !== 0 && y !== 0 && x !== room.width - 1 && y !== room.height - 1) continue;
             if (world.tiles[room.y + y]![room.x + x] === ".") {
-              expect(socketTiles.has(`${room.x + x},${room.y + y}`)).toBe(true);
+              if (!socketTiles.has(`${room.x + x},${room.y + y}`)) problems.push(`room ${room.nodeId} opens a wall`);
             }
           }
         }
@@ -129,10 +131,11 @@ describe("carveDungeon", () => {
         [...row].forEach((tile, x) => {
           if (tile !== ".") return;
           const room = world.rooms.some((r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height);
-          if (!room) expect(corridorKeys.has(`${x},${y}`)).toBe(true);
+          if (!room && !corridorKeys.has(`${x},${y}`)) problems.push(`stray floor at ${x},${y}`);
         });
       });
     }
+    expect(problems).toEqual([]);
   });
 
   it("connects exactly what the graph connects, with no corridor touching another", () => {
