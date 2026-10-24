@@ -439,11 +439,8 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 
 - [x] Decide the design before building it: grid layout, one floor, `#`/`.` alphabet, omens on the quest board, small-party scaling, one biome per run, content as a menu (decision 0016, issue #243).
 - [x] Add flow and biome content (issue #245, 2026-10-23): `content/flows/` (`gauntlet`, `long-loop`, `three-roads`), `content/biomes/` (`cinder-depths`), a `delve` dungeon profile layout, and load-time reference checks. `vault-run` stays `generated`; nothing builds a `delve` run yet.
-<<<<<<< HEAD
 - [x] Add room sockets, template transforms and procedural room shapes (issue #248, 2026-10-23): `src/server/game/generation/roomShapes.ts` with midpoint sockets, rotate and mirror for `transform` templates, ten procedural shapes (plain, pillars, block, cross, ring, octagon, partition, alcoves, braided maze, cavern), a 0-1 BFS socket repair and pocket fill, and a cavern retry that falls back to plain. `roomTemplateSchema` gains optional `sockets: "midpoints"` (derives `doorways`), `transform`, `biomes` and `tags`; existing templates load unchanged. Nothing in the generator calls the shapes yet; the grid layout and carve issues do.
-=======
 - [x] Add the layout stage (issue #246, 2026-10-23): `src/server/game/generation/layout.ts` `generateLayout(rng, flow, grid)` walks a self-avoiding critical path across the grid, grows the flow's branches, then adds loops between rooms at least three hops apart; the boss and exit get none, and it returns null when the path cannot fit or the flow's minimum branches or loops cannot be placed, for the caller to retry with `mixSeed`. Not wired into `generateDungeon` yet.
->>>>>>> origin/main
 - [ ] Rest of Phase 1 Shape and later phases: not started; issues are filed per bullet in `STEPS.md` Backend 14.
 
 ## Frontend Dev Progress
