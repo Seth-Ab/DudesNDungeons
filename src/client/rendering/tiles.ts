@@ -169,6 +169,7 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["door-jamb-v", { tilesWide: 1, tilesHigh: 1 }],
   ["door-lock", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-key", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-ballast", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-draught", { tilesWide: 1, tilesHigh: 1 }],
@@ -206,6 +207,7 @@ export type SpriteName = string;
  */
 export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, SpriteName> = {
   key: "loot-key",
+  ballast: "loot-ballast",
   skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
   weapon: "loot-weapon",

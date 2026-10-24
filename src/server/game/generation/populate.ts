@@ -24,7 +24,15 @@ import type {
 } from "../../../shared/types/core.js";
 import type { GameContent } from "../../content/loadContent.js";
 import type { BiomeDefinition, RoomKind } from "../../content/schema.js";
-import { chestInstance, lootInstance, monsterInstance, puzzleInstance, trapInstance } from "../dungeonBuilder.js";
+import {
+  BALLAST_ITEM_ID,
+  ballastNeeded,
+  chestInstance,
+  lootInstance,
+  monsterInstance,
+  puzzleInstance,
+  trapInstance,
+} from "../dungeonBuilder.js";
 import type { Rng } from "../random.js";
 import type { CarvedRoom, CarvedWorld } from "./carve.js";
 import type { LayoutGraph } from "./layout.js";
@@ -386,6 +394,18 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     const plates = spread(rng, floorOf(room), count).map((tile) => claim(tile)!);
     if (plates.length < count) throw new Error(`Room ${spec.nodeId} has no room for ${count} plates`);
     out.puzzles.push(puzzleInstance(type, plates, rng.uuid()));
+
+    // A stone for each hand the party is short of, off the plates so it has to be carried onto one.
+    const ballast = content.items.get(BALLAST_ITEM_ID);
+    const stones = ballastNeeded(plates.length, partySize);
+    if (stones > 0 && !ballast) throw new Error(`Populate needs the "${BALLAST_ITEM_ID}" item`);
+    for (let index = 0; index < stones; index += 1) {
+      const open = floorOf(room);
+      const clear = open.filter((tile) => plates.every((plate) => distance(plate, tile) > type.plateRadius));
+      const tile = claim(rng.shuffle(clear.length > 0 ? clear : open)[0] ?? null);
+      if (!tile) throw new Error(`Room ${spec.nodeId} has no room for a Ballast Stone`);
+      out.loot.push(lootInstance(ballast!, tile, rng.uuid()));
+    }
   }
 
   // Corridor torches, every seventh tile, never on a socket where the door or a doorway stands.

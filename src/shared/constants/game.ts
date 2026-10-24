@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 48;
+export const PROTOCOL_VERSION = 49;
 
 export const MAX_PARTY_SIZE = 4;
 
@@ -101,6 +101,8 @@ export const STAMINA_REGEN_PER_SECOND = 12;
 export const ATTACK_STAMINA_COST = 15;
 /** Cost of lifting an object or a downed player. Spent by Backend step 12. */
 export const LIFT_STAMINA_COST = 20;
+/** Cost of hefting a Ballast Stone off the floor. Setting it back down on a plate is free. */
+export const BALLAST_STAMINA_COST = LIFT_STAMINA_COST;
 /** Drain per second while carrying something. Spent by Backend step 12. */
 export const CARRY_STAMINA_DRAIN_PER_SECOND = 6;
 /**

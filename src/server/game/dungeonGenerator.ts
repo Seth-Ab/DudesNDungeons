@@ -12,7 +12,10 @@ import type {
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
+import { distance } from "../../shared/game/movement.js";
 import {
+  BALLAST_ITEM_ID,
+  ballastNeeded,
   chestInstance,
   lootInstance,
   monsterInstance,
@@ -492,6 +495,7 @@ export function generateDungeon(
   definition: GeneratedDungeon,
   content: GameContent,
   seed: number,
+  partySize: number,
 ): BuiltDungeon {
   const rng = createRng(seed);
   const grid = new TileGrid(definition.width, definition.height);
@@ -532,6 +536,19 @@ export function generateDungeon(
       const plates = rule.plates.map((plate) => ({ x: room.origin.x + plate.x, y: room.origin.y + plate.y }));
       for (const plate of plates) reserved.add(`${plate.x},${plate.y}`);
       puzzles.push(puzzleInstance(type, plates, rng.uuid()));
+
+      // A stone for each hand the party is short of, off the plates so it has to be carried onto one.
+      const stones = ballastNeeded(plates.length, partySize);
+      const ballast = content.items.get(BALLAST_ITEM_ID);
+      if (stones > 0 && !ballast) throw new Error(`Puzzle "${type.id}" needs the "${BALLAST_ITEM_ID}" item`);
+      for (let index = 0; index < stones; index += 1) {
+        const open = floorTilesOf(room).filter((tile) => !reserved.has(`${tile.x},${tile.y}`));
+        const clear = open.filter((tile) => plates.every((plate) => distance(plate, tile) > type.plateRadius));
+        const tile = rng.shuffle(clear.length > 0 ? clear : open)[0];
+        if (!tile) throw new Error(`Template "${room.template.id}" has no room for a Ballast Stone`);
+        reserved.add(`${tile.x},${tile.y}`);
+        loot.push(lootInstance(ballast!, tile, rng.uuid()));
+      }
     }
   }
 
