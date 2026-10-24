@@ -1,0 +1,24 @@
+{
+  "id": "slag-landing",
+  "name": "Slag Landing",
+  "kind": "entrance",
+  "tiles": [
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#...#...#",
+    "#..###..#",
+    "#...#...#",
+    "#.......#",
+    "#.......#",
+    "#########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["entrance"],
+  "lights": [
+    { "x": 4, "y": 2, "name": "Landing Torch", "radius": 6 },
+    { "x": 4, "y": 6, "name": "Landing Torch", "radius": 6 }
+  ]
+}

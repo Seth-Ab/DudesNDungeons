@@ -1,0 +1,21 @@
+{
+  "id": "chimney-climb",
+  "name": "Chimney Climb",
+  "kind": "exit",
+  "tiles": [
+    "#########",
+    "#.......#",
+    "#.##.##.#",
+    "#.#...#.#",
+    "#.......#",
+    "#.#...#.#",
+    "#.##.##.#",
+    "#.......#",
+    "#########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["exit"],
+  "lights": [{ "x": 4, "y": 4, "name": "Chimney Beacon", "radius": 7 }]
+}

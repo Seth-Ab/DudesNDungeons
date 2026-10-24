@@ -1,0 +1,23 @@
+{
+  "id": "flue-ascent",
+  "name": "Flue Ascent",
+  "kind": "exit",
+  "tiles": [
+    "#######",
+    "#.....#",
+    "#.....#",
+    "#.#.#.#",
+    "#.....#",
+    "#.....#",
+    "#.....#",
+    "#.#.#.#",
+    "#.....#",
+    "#.....#",
+    "#######"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["exit"],
+  "lights": [{ "x": 3, "y": 5, "name": "Flue Beacon", "radius": 7 }]
+}

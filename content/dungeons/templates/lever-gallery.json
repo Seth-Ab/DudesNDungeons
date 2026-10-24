@@ -1,0 +1,24 @@
+{
+  "id": "lever-gallery",
+  "name": "Lever Gallery",
+  "kind": "puzzle",
+  "tiles": [
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#.#...#.#",
+    "#.#...#.#",
+    "#.......#",
+    "#.#...#.#",
+    "#.#...#.#",
+    "#.......#",
+    "#.......#",
+    "#########"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["puzzle"],
+  "lights": [{ "x": 4, "y": 5, "name": "Gallery Sconce", "radius": 5 }],
+  "puzzles": [{ "typeId": "paired-levers", "plates": [{ "x": 1, "y": 1 }, { "x": 7, "y": 9 }] }]
+}

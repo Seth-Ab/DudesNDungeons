@@ -1,0 +1,22 @@
+{
+  "id": "brazier-court",
+  "name": "Brazier Court",
+  "kind": "puzzle",
+  "tiles": [
+    "#############",
+    "#...........#",
+    "#.##.....##.#",
+    "#.#.......#.#",
+    "#...........#",
+    "#.#.......#.#",
+    "#.##.....##.#",
+    "#...........#",
+    "#############"
+  ],
+  "sockets": "midpoints",
+  "transform": true,
+  "biomes": ["cinder-depths"],
+  "tags": ["puzzle"],
+  "lights": [{ "x": 6, "y": 4, "name": "Court Brazier", "radius": 6 }],
+  "puzzles": [{ "typeId": "paired-levers", "plates": [{ "x": 1, "y": 3 }, { "x": 11, "y": 5 }] }]
+}
