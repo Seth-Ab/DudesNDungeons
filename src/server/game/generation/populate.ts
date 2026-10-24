@@ -34,6 +34,7 @@ import {
   trapInstance,
 } from "../dungeonBuilder.js";
 import type { Rng } from "../random.js";
+import { NO_OMEN_EFFECTS, type OmenEffects } from "./omens.js";
 import type { CarvedRoom, CarvedWorld } from "./carve.js";
 import type { LayoutGraph } from "./layout.js";
 import type { RoleAssignment } from "./roles.js";
@@ -53,8 +54,16 @@ const BRANCH_DEPTH = 0.6;
 const CORRIDOR_TORCH_EVERY = 7;
 const CORRIDOR_TORCH_OFFSET = 3;
 const CORRIDOR_TORCH_RADIUS = 4.5;
+/** Chance a corridor torch is lit, at an omen's `lightMult` of 1 or less. */
+const CORRIDOR_TORCH_CHANCE = 0.7;
+const CORRIDOR_TRAP_EVERY = 9;
+const CORRIDOR_TRAP_OFFSET = 5;
+/** Above this `lightMult` a room may gain a light beyond its base count. */
+const BONUS_LIGHT_MULT = 1.2;
 const MAX_PLATES: Readonly<Record<string, number>> = { "paired-levers": 2 };
 const DEFAULT_MAX_PLATES = 3;
+/** Room kinds that may hold a Scroll Cache: the ones a biome fills, minus the puzzle. */
+const FILL_ROOMS: readonly RoomKind[] = ["hall", "maze", "trap"];
 
 export interface PopulateInput {
   readonly graph: LayoutGraph;
@@ -64,6 +73,8 @@ export interface PopulateInput {
   readonly content: GameContent;
   /** Players in the party, at least one. Scales every room's threat budget. */
   readonly partySize: number;
+  /** What the run's omens do to this population. Neutral, so no omen changes nothing, when absent. */
+  readonly omens?: OmenEffects;
 }
 
 export interface RoomThreat {
@@ -93,9 +104,12 @@ export function roomDepth(graph: LayoutGraph, nodeId: number): number {
   return node.pathIndex >= 0 ? node.pathIndex / graph.pathLength : BRANCH_DEPTH;
 }
 
-/** `base[kind] x (1 + 0.5 x depth) x (0.6 + 0.2 x partySize)`, rounded. Zero for kinds with no base. */
-export function threatBudget(kind: RoomKind, depth: number, partySize: number): number {
-  return Math.round((BASE_BUDGET[kind] ?? 0) * (1 + 0.5 * depth) * (0.6 + 0.2 * partySize));
+/**
+ * `base[kind] x (1 + 0.5 x depth) x (0.6 + 0.2 x partySize) x budgetMult`, rounded. Zero for kinds
+ * with no base. `budgetMult` is the run's omen multiplier, 1 when there is none.
+ */
+export function threatBudget(kind: RoomKind, depth: number, partySize: number, budgetMult = 1): number {
+  return Math.round((BASE_BUDGET[kind] ?? 0) * (1 + 0.5 * depth) * (0.6 + 0.2 * partySize) * budgetMult);
 }
 
 const key = (point: Vector2): string => `${point.x},${point.y}`;
@@ -159,6 +173,7 @@ function spread(rng: Rng, tiles: readonly Vector2[], count: number): Vector2[] {
 
 export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
   const { graph, plan, world, biome, content, partySize } = input;
+  const omens = input.omens ?? NO_OMEN_EFFECTS;
   if (!Number.isInteger(partySize) || partySize < 1) {
     throw new Error(`Populate needs a party of at least one, got ${partySize}`);
   }
@@ -250,14 +265,17 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       name,
       kind: "fixed",
       position: { ...tile! },
-      radius: Math.round(radius * biome.light * 100) / 100,
+      radius: Math.round(radius * biome.light * omens.radiusMult * 100) / 100,
       ...tint,
       ...extra,
     });
   };
   const lightCount = (base: number): number => {
     let count = 0;
-    for (let index = 0; index < base; index += 1) if (rng.chance(Math.min(1, biome.light * 0.85))) count += 1;
+    for (let index = 0; index < base; index += 1) {
+      if (rng.chance(Math.min(1, biome.light * omens.lightMult * 0.85))) count += 1;
+    }
+    if (omens.lightMult > BONUS_LIGHT_MULT && rng.chance(omens.lightMult - 1)) count += 1;
     return count;
   };
 
@@ -272,7 +290,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
   };
   /** A chest in one of the room's deepest nooks, the floor tiles with the most walls round them. */
   const dropChest = (room: CarvedRoom, tableId: string, chance: number): void => {
-    if (!rng.chance(chance)) return;
+    if (!rng.chance(Math.min(1, chance + omens.chestBonus))) return;
     const nooks = floorOf(room).sort((a, b) => wallCount(b) - wallCount(a));
     const tile = claim(nooks[rng.int(0, Math.min(3, nooks.length - 1))] ?? null);
     if (tile) out.chests.push(chestInstance(requireTable(tableId).id, tile, rng.uuid(), false));
@@ -327,7 +345,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
 
     // Monsters, from a threat budget that grows with depth and party size. A guardian spends the
     // most it can afford of it first, standing in the middle of the room it keeps the key in.
-    const budget = threatBudget(kind, depth, partySize);
+    const budget = threatBudget(kind, depth, partySize, omens.budgetMult);
     let remaining = budget;
     const holdsKey = plan.bossKey.nodeId === node.id;
     if (holdsKey && plan.bossKey.via === "guardian") {
@@ -410,12 +428,34 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     }
   }
 
-  // Corridor torches, every seventh tile, never on a socket where the door or a doorway stands.
+  // A guaranteed skill scroll in a side room, for the Scroll Cache omen. A puzzle room is never
+  // used, and a run with no side room falls back to a body room on the path.
+  if (omens.shrine) {
+    const scrolls = [...content.items.values()]
+      .filter((item) => item.kind === "skillScroll")
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const sides = graph.nodes.filter((node) => node.pathIndex === -1 && FILL_ROOMS.includes(plan.roles[node.id]!));
+    const rooms = sides.length > 0 ? sides : graph.nodes.filter((node) => FILL_ROOMS.includes(plan.roles[node.id]!));
+    if (scrolls.length === 0 || rooms.length === 0) throw new Error("No room or scroll for the Scroll Cache");
+    const room = world.rooms[rng.pick(rooms).id]!;
+    const tile = claim(nearest(floorOf(room), centerOf(room)));
+    if (!tile) throw new Error("No open floor left for the Scroll Cache");
+    out.loot.push(lootInstance(rng.pick(scrolls), tile, rng.uuid()));
+  }
+
+  // Corridor torches, every seventh tile, never on a socket where the door or a doorway stands. A
+  // dark omen leaves some unlit; Brittle Floors drops a single-use trap every ninth tile.
+  const corridorTrap = omens.corridorTrap === null ? null : content.traps.get(omens.corridorTrap);
+  if (omens.corridorTrap !== null && !corridorTrap) throw new Error(`Populate needs unknown trap "${omens.corridorTrap}"`);
   for (const corridor of world.corridors) {
     corridor.tiles.forEach((tile, index) => {
-      if (index === 0 || index === corridor.tiles.length - 1) return;
-      if (index % CORRIDOR_TORCH_EVERY !== CORRIDOR_TORCH_OFFSET || reserved.has(key(tile))) return;
-      addLight(tile, "Corridor Torch", CORRIDOR_TORCH_RADIUS);
+      if (index === 0 || index === corridor.tiles.length - 1 || reserved.has(key(tile))) return;
+      if (index % CORRIDOR_TORCH_EVERY === CORRIDOR_TORCH_OFFSET) {
+        const lit = omens.lightMult >= 1 || rng.chance(Math.min(1, CORRIDOR_TORCH_CHANCE * omens.lightMult));
+        if (lit) addLight(tile, "Corridor Torch", CORRIDOR_TORCH_RADIUS);
+      } else if (corridorTrap && index % CORRIDOR_TRAP_EVERY === CORRIDOR_TRAP_OFFSET) {
+        out.traps.push(trapInstance(corridorTrap, claim(tile)!, rng.uuid()));
+      }
     });
   }
 

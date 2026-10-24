@@ -1,0 +1,7 @@
+{
+  "id": "lantern-festival",
+  "name": "Lantern Festival",
+  "type": "anomaly",
+  "description": "Every hall is lit by more lanterns than it needs.",
+  "lightMult": 1.6
+}

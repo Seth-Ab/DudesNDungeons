@@ -1,0 +1,7 @@
+{
+  "id": "restless-dead",
+  "name": "Restless Dead",
+  "type": "warning",
+  "description": "The dungeon holds many more monsters than usual.",
+  "budgetMult": 1.4
+}

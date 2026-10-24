@@ -41,6 +41,8 @@ export interface BuiltDungeon {
   spawnPoints: Vector2[];
   /** The seed a generated dungeon came from, or null when it was laid out by hand. */
   seed: number | null;
+  /** Ids of the omens a generated run rolled, warning first. Absent for a dungeon without any. */
+  omens?: string[];
 }
 
 /**

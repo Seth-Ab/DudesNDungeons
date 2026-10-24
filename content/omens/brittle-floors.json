@@ -1,0 +1,7 @@
+{
+  "id": "brittle-floors",
+  "name": "Brittle Floors",
+  "type": "warning",
+  "description": "The corridors are cracked and give way underfoot.",
+  "corridorTraps": "collapsing-floor"
+}

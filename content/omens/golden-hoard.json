@@ -1,0 +1,7 @@
+{
+  "id": "golden-hoard",
+  "name": "Golden Hoard",
+  "type": "anomaly",
+  "description": "Chests are far more likely to hold something.",
+  "chestBonus": 0.35
+}

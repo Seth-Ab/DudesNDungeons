@@ -893,6 +893,58 @@ export const biomeDefinitionSchema = z.object({
 });
 export type BiomeDefinition = z.infer<typeof biomeDefinitionSchema>;
 
+/** Whether an omen makes a run harder (a warning) or is a neutral or helpful twist (an anomaly). */
+/** Odds a `delve` run rolls each kind of omen, unless its profile says otherwise. */
+export const DEFAULT_WARNING_CHANCE = 0.35;
+export const DEFAULT_ANOMALY_CHANCE = 0.3;
+export const OMEN_TYPES = ["warning", "anomaly"] as const;
+
+/**
+ * A run modifier (decision 0016): a content-driven twist rolled once per run, at most one warning
+ * and one anomaly. Each field is a knob the generator turns, and a field left out changes nothing:
+ * `lightMult` scales how many fixed lights a room gets, `radiusMult` the radius of every light,
+ * `budgetMult` every room's threat budget, and `chestBonus` is added to the chance of every chest
+ * roll (a chest that always spawns is unaffected). `corridorTraps` names a trap type dropped along
+ * the corridors. `shrine` guarantees a skill scroll cache in a side room. `overrides` are run-scoped
+ * rules the generator does not read: the session applies them while the run is played.
+ */
+export const omenDefinitionSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    type: z.enum(OMEN_TYPES),
+    /** One line for the hub quest board. */
+    description: z.string().min(1).max(120),
+    lightMult: z.number().positive().optional(),
+    radiusMult: z.number().positive().optional(),
+    budgetMult: z.number().positive().optional(),
+    chestBonus: z.number().positive().max(1).optional(),
+    corridorTraps: contentIdSchema.optional(),
+    shrine: z.boolean().optional(),
+    overrides: z
+      .object({
+        /** How long into a run before resistance starts to decay, in milliseconds. */
+        decayGraceMs: z.number().int().positive().optional(),
+        /** Multiplier on how far a voice carries. */
+        voiceRangeMult: z.number().positive().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (omen) =>
+      omen.lightMult !== undefined ||
+      omen.radiusMult !== undefined ||
+      omen.budgetMult !== undefined ||
+      omen.chestBonus !== undefined ||
+      omen.corridorTraps !== undefined ||
+      omen.shrine === true ||
+      omen.overrides !== undefined,
+    { message: "An omen must change something" },
+  );
+export type OmenDefinition = z.infer<typeof omenDefinitionSchema>;
+
 /**
  * A run assembled on a grid from flows and biomes (decision 0016). The grid is `cols` by `rows`
  * cells of `cell` authored tiles with `margin` tiles kept clear inside each cell, so its size lives
@@ -913,6 +965,13 @@ export const delveDungeonSchema = z.object({
   flows: z.array(contentIdSchema).min(1),
   biomes: z.array(contentIdSchema).min(1),
   maxAttempts: z.number().int().positive(),
+  /** Chance a run rolls a warning and an anomaly, each at most one. */
+  omens: z
+    .object({
+      warningChance: z.number().min(0).max(1),
+      anomalyChance: z.number().min(0).max(1),
+    })
+    .default({ warningChance: DEFAULT_WARNING_CHANCE, anomalyChance: DEFAULT_ANOMALY_CHANCE }),
   /** Light dropped along corridors, as for a generated dungeon. */
   corridorLight: generatedDungeonSchema.shape.corridorLight,
   exitDestination: z.string().min(1),

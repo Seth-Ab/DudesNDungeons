@@ -115,6 +115,14 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   naming its seed when none validates), an optional `corridorLight` and an `exitDestination`. Every id must exist, and at least one listed flow must have `minParty` of 1 so
   a solo party has a run. `vault-run` is a `delve` profile; `ember-vault` stays the pinned authored map
   that tests build on.
+- `omens/`: run modifiers (decision 0016). A `delve` run rolls at most one `warning` (35%) and one
+  `anomaly` (30%) from its seed, so the same seed always gets the same omens; a profile may set its
+  own `omens` chances. An omen sets `name`, `type`, a one-line `description` and at least one knob:
+  `lightMult` (how many fixed lights), `radiusMult` (light radius), `budgetMult` (threat budgets),
+  `chestBonus` (added to every chest roll's chance), `corridorTraps` (a single-use trap id dropped
+  along the corridors) or `shrine` (a guaranteed skill scroll in a side room). `overrides`
+  (`decayGraceMs`, `voiceRangeMult`) are run-scoped rules the generator ignores. `smothering-dark`,
+  `restless-dead`, `brittle-floors`, `golden-hoard`, `lantern-festival` and `scroll-cache` ship.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by
   profiles and skill scrolls.
 

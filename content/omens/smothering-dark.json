@@ -1,0 +1,8 @@
+{
+  "id": "smothering-dark",
+  "name": "Smothering Dark",
+  "type": "warning",
+  "description": "Half as many lights burn, and those that do reach less far.",
+  "lightMult": 0.5,
+  "radiusMult": 0.8
+}

@@ -10,6 +10,7 @@ import {
   biomeDefinitionSchema,
   dungeonDefinitionSchema,
   flowDefinitionSchema,
+  omenDefinitionSchema,
   itemDefinitionSchema,
   lootTableDefinitionSchema,
   milestoneDefinitionSchema,
@@ -23,6 +24,7 @@ import {
   type BiomeDefinition,
   type DungeonDefinition,
   type FlowDefinition,
+  type OmenDefinition,
   type ItemDefinition,
   type LootTableDefinition,
   type MilestoneDefinition,
@@ -65,12 +67,15 @@ export interface GameContent {
   flows: ReadonlyMap<string, FlowDefinition>;
   /** What a `delve` run looks and fights like: roster, pools, light and room names. */
   biomes: ReadonlyMap<string, BiomeDefinition>;
+  /** Run modifiers a `delve` run may roll: at most one warning and one anomaly. */
+  omens: ReadonlyMap<string, OmenDefinition>;
 }
 
 /** The file each flow, biome and dungeon came from, so a reference error can name it. */
 interface ContentSources {
   flows: ReadonlyMap<string, string>;
   biomes: ReadonlyMap<string, string>;
+  omens: ReadonlyMap<string, string>;
   dungeons: ReadonlyMap<string, string>;
 }
 
@@ -300,6 +305,20 @@ function validateReferences(content: GameContent, sources: ContentSources): void
         `${file} field keySource "${flow.keySource}" cannot open a "${flow.bossLock}" lock; use ${keySources.join(" or ")}`,
       );
     }
+  }
+
+  const hasSkillScroll = [...content.items.values()].some((item) => item.kind === "skillScroll");
+  for (const omen of content.omens.values()) {
+    const file = sources.omens.get(omen.id);
+    if (omen.corridorTraps !== undefined) {
+      const trap = content.traps.get(omen.corridorTraps);
+      if (!trap) throw new Error(`${file} field corridorTraps names unknown trap "${omen.corridorTraps}"`);
+      // Corridors are one tile wide and a trap cannot be stepped around, so it must not repeat.
+      if (trap.rearmMs !== undefined) {
+        throw new Error(`${file} field corridorTraps names "${trap.id}", which rearms; use a single-use trap`);
+      }
+    }
+    if (omen.shrine && !hasSkillScroll) throw new Error(`${file} field shrine needs a skill scroll item to place`);
   }
 
   for (const biome of content.biomes.values()) {
@@ -591,7 +610,7 @@ function validateReferences(content: GameContent, sources: ContentSources): void
 }
 
 export function loadContent(contentRoot = resolveContentRoot()): GameContent {
-  const sources = { flows: new Map<string, string>(), biomes: new Map<string, string>(), dungeons: new Map<string, string>() };
+  const sources = { flows: new Map<string, string>(), biomes: new Map<string, string>(), omens: new Map<string, string>(), dungeons: new Map<string, string>() };
   const content: GameContent = {
     monsters: loadCollection(join(contentRoot, "monsters"), monsterTypeSchema),
     items: loadCollection(join(contentRoot, "items"), itemDefinitionSchema),
@@ -606,6 +625,7 @@ export function loadContent(contentRoot = resolveContentRoot()): GameContent {
     dungeons: loadCollection(join(contentRoot, "dungeons"), dungeonDefinitionSchema, sources.dungeons),
     flows: loadCollection(join(contentRoot, "flows"), flowDefinitionSchema, sources.flows),
     biomes: loadCollection(join(contentRoot, "biomes"), biomeDefinitionSchema, sources.biomes),
+    omens: loadCollection(join(contentRoot, "omens"), omenDefinitionSchema, sources.omens),
   };
 
   validateReferences(content, sources);
