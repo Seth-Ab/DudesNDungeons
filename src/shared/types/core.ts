@@ -11,6 +11,7 @@ import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
   CONSUMABLE_TARGETS,
+  GENERIC_KEY_ITEM_ID,
   WEAPON_KINDS,
   MAX_ITEM_DESCRIPTION_LENGTH,
   MAX_INVENTORY_SIZE,
@@ -238,10 +239,27 @@ const ammoFields = {
   count: z.number().int().positive().max(MAX_STACK_SIZE).default(1),
 };
 
+/**
+ * A key. `itemId` is the content id of the definition, which is what a door's lock matches. It
+ * defaults to the generic key so a key banked before keys were typed still parses.
+ */
+const keyFields = {
+  kind: z.literal("key"),
+  itemId: contentIdSchema.default(GENERIC_KEY_ITEM_ID),
+};
+
 const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch", "ballast"]),
+  kind: z.enum(["torch", "ballast"]),
+  position: vector2Schema,
+  pickedUp: z.boolean(),
+});
+
+const keyLootStateSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...keyFields,
   position: vector2Schema,
   pickedUp: z.boolean(),
 });
@@ -281,6 +299,7 @@ const skillScrollLootStateSchema = z.object({
 
 export const lootStateSchema = z.discriminatedUnion("kind", [
   ordinaryLootStateSchema,
+  keyLootStateSchema,
   consumableLootStateSchema,
   skillScrollLootStateSchema,
   weaponLootStateSchema,
@@ -292,7 +311,13 @@ export type LootState = z.infer<typeof lootStateSchema>;
 const ordinaryInventoryItemSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch", "ballast"]),
+  kind: z.enum(["torch", "ballast"]),
+});
+
+const keyInventoryItemSchema = z.object({
+  id: entityIdSchema,
+  name: z.string().min(1),
+  ...keyFields,
 });
 
 const consumableInventoryItemSchema = z.object({
@@ -323,12 +348,26 @@ const ammoInventoryItemSchema = z.object({
 
 export const inventoryItemSchema = z.discriminatedUnion("kind", [
   ordinaryInventoryItemSchema,
+  keyInventoryItemSchema,
   consumableInventoryItemSchema,
   skillScrollInventoryItemSchema,
   weaponInventoryItemSchema,
   ammoInventoryItemSchema,
 ]);
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
+
+/**
+ * What a closed door wants. A `key` lock takes only the key item whose content id is `keyItemId`
+ * and refuses every other key, keeping it. `seal` and `hidden` locks are part of the contract but
+ * no door carries one yet; the server refuses to open them by interaction. `null` is an unlocked
+ * door. The client never sends a key id: it sends an interact intent and the server picks the key.
+ */
+export const doorLockSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("key"), keyItemId: contentIdSchema }),
+  z.object({ type: z.literal("seal"), groupId: contentIdSchema }),
+  z.object({ type: z.literal("hidden") }),
+]);
+export type DoorLock = z.infer<typeof doorLockSchema>;
 
 export const doorStateSchema = z.object({
   id: entityIdSchema,
@@ -343,7 +382,7 @@ export const doorStateSchema = z.object({
    */
   size: z.number().positive(),
   open: z.boolean(),
-  locked: z.boolean(),
+  lock: doorLockSchema.nullable(),
 });
 export type DoorState = z.infer<typeof doorStateSchema>;
 

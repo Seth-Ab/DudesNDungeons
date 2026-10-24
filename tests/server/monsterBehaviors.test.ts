@@ -157,7 +157,7 @@ describe("ranged monsters", () => {
   it("stops a bolt at a closed door", () => {
     const spitter = spawn("cinder-spitter", { x: 5, y: 2 });
     const session = hallSession([spitter], { alpha: { x: 11, y: 2 } }, [
-      { id: "d", position: { x: 8, y: 2 }, size: 1, open: false, locked: false },
+      { id: "d", position: { x: 8, y: 2 }, size: 1, open: false, lock: null },
     ]);
 
     const events = run(session, 4000);
@@ -306,7 +306,7 @@ describe("charging monsters", () => {
   it("is stunned by a closed door as by a wall", () => {
     const charger = spawn("slag-charger", { x: 3, y: 2 });
     const session = hallSession([charger], { alpha: { x: 9, y: 3.4 } }, [
-      { id: "d", position: { x: 7, y: 2 }, size: 1, open: false, locked: false },
+      { id: "d", position: { x: 7, y: 2 }, size: 1, open: false, lock: null },
     ]);
     charger.facing = { x: 1, y: 0 };
     session.monsterWindups.set(charger.id, -stats().windupMs);

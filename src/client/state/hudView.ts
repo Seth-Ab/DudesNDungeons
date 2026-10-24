@@ -8,7 +8,7 @@ import {
   RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
-import type { InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
+import type { DoorLock, InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
   inShopArea,
@@ -718,6 +718,33 @@ export function heldView(view: SessionView, self: PlayerState | null): HeldSlotV
   };
 }
 
+/** "boss-key" as "Boss Key". The server sends the key's content id, never a display name. */
+function keyName(keyItemId: string): string {
+  return keyItemId
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * What a door's prompt says. A key lock names the key it wants, and whether the player carries it;
+ * the server still decides, and a different key is refused and kept.
+ */
+export function doorPromptText(lock: DoorLock | null, inventory: readonly InventoryItem[]): string {
+  if (!lock) return "Open door";
+  switch (lock.type) {
+    case "key": {
+      const name = keyName(lock.keyItemId);
+      const held = inventory.some((item) => item.kind === "key" && item.itemId === lock.keyItemId);
+      return held ? `Unlock door (${name})` : `Locked: needs ${name}`;
+    }
+    case "seal":
+      return "Sealed door";
+    case "hidden":
+      return "Locked door";
+  }
+}
+
 export interface ActionPromptView {
   action: GameplayAction;
   keyHint: string;
@@ -764,7 +791,7 @@ export function actionPrompt(
   }
 
   const target = nearestInteraction(view, position);
-  if (target?.kind === "door") return prompt("interact", "Open door");
+  if (target?.kind === "door") return prompt("interact", doorPromptText(target.lock, self.inventory));
   if (target?.kind === "chest") return prompt("interact", target.locked ? "Unlock chest" : "Open chest");
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");

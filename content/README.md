@@ -36,6 +36,10 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   and backs off inside `preferredRange`; its bolt uses `projectile.damage`. A charger winds up from
   within `attackRange`, dashes straight for `charge.distance` dealing `damage` to the first player it
   touches, and is stunned for `stunMs` if it hits a wall or closed door.
+- Doors: an authored dungeon places a door with an optional `lock`, `{ "type": "key", "keyItemId": "boss-key" }`
+  (the id must be a `key` item). Opening it spends only that key and refuses every other, keeping it.
+  `seal` and `hidden` locks parse but cannot be opened by interacting yet. Key items are plain
+  `kind: "key"` definitions; `copper-key` is the generic key, `boss-key` and `vault-key` the typed ones.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
   delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a
@@ -49,7 +53,7 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
 - `dungeons/templates/`: reusable rooms for procedural generation. A `chests` rule list
   (`lootTableId`, inclusive `min`/`max`, optional `chance`, optional `locked`) places chests on the
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
-  and spill beside it as ordinary loot. A `locked` chest spends a key, like a locked door. Authored
+  and spill beside it as ordinary loot. A `locked` chest spends the generic `copper-key`. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
   A template gives `doorways` by hand, or `sockets: "midpoints"` for one doorway at the middle of
   each side (then omit `doorways`). `transform: true` lets the generator rotate and mirror it, and

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   BALLAST_STAMINA_COST,
+  GENERIC_KEY_ITEM_ID,
   INTERACT_RANGE,
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
@@ -51,10 +52,13 @@ function withinReachOfDoor(player: SessionPlayer, door: DoorState): boolean {
   return distanceToDoor(player.position, door) <= INTERACT_RANGE;
 }
 
-/** The acting player, or null when they are missing or downed and so cannot act at all. */
+/**
+ * The acting player, or null when they are missing, downed or disconnected and so cannot act at
+ * all. A dropped connection holds its slot but spends nothing, so it cannot spend a key.
+ */
 function actor(session: Session, playerId: PlayerId): SessionPlayer | null {
   const player = session.players.get(playerId);
-  return player && !isDown(player) ? player : null;
+  return player && player.connected && !isDown(player) ? player : null;
 }
 
 function inventoryItemFromLoot(loot: LootState): InventoryItem {
@@ -76,6 +80,8 @@ function inventoryItemFromLoot(loot: LootState): InventoryItem {
       return { id, name, kind: loot.kind, itemId: loot.itemId, weaponKind: loot.weaponKind };
     case "ammo":
       return { id, name, kind: loot.kind, itemId: loot.itemId, count: loot.count };
+    case "key":
+      return { id, name, kind: loot.kind, itemId: loot.itemId };
     default:
       return { id, name, kind: loot.kind };
   }
@@ -224,6 +230,8 @@ function lootFromInventoryItem(item: InventoryItem, position: Vector2): LootStat
       return { ...base, kind: item.kind, itemId: item.itemId, weaponKind: item.weaponKind };
     case "ammo":
       return { ...base, kind: item.kind, itemId: item.itemId, count: item.count };
+    case "key":
+      return { ...base, kind: item.kind, itemId: item.itemId };
     default:
       return { ...base, kind: item.kind };
   }
@@ -576,18 +584,23 @@ function openDoor(player: SessionPlayer, door: DoorState): ItemResult {
   if (!withinReachOfDoor(player, door)) return reject("outOfRange");
   if (door.open) return reject("notPermitted");
 
-  if (door.locked) {
-    if (!spendKey(player)) return reject("notPermitted");
-    door.locked = false;
+  if (door.lock) {
+    // Only a key lock opens by interacting; seal and hidden locks are opened some other way.
+    if (door.lock.type !== "key") return reject("notPermitted");
+    if (!spendKey(player, door.lock.keyItemId)) return reject("notPermitted");
+    door.lock = null;
   }
 
   door.open = true;
   return OK;
 }
 
-/** Removes one key from the player's inventory. False, changing nothing, when they carry none. */
-function spendKey(player: SessionPlayer): boolean {
-  const key = player.inventory.find((candidate) => candidate.kind === "key");
+/**
+ * Removes one key of `keyItemId` from the player's inventory. False, changing nothing, when they
+ * carry none: a key of another kind is refused and kept.
+ */
+function spendKey(player: SessionPlayer, keyItemId: string): boolean {
+  const key = player.inventory.find((candidate) => candidate.kind === "key" && candidate.itemId === keyItemId);
   if (!key) return false;
 
   player.inventory = player.inventory.filter((candidate) => candidate !== key);
@@ -613,7 +626,7 @@ function openChest(session: Session, player: SessionPlayer, chest: ChestState): 
   if (!table) return reject("notPermitted");
 
   if (chest.locked) {
-    if (!spendKey(player)) return reject("notPermitted");
+    if (!spendKey(player, GENERIC_KEY_ITEM_ID)) return reject("notPermitted");
     chest.locked = false;
   }
 

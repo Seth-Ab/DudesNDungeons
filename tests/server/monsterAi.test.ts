@@ -67,7 +67,7 @@ function imp(x: number, y: number): MonsterState {
 }
 
 function door(x: number, y: number, size: number, open = false): DoorState {
-  return { id: `door-${x}-${y}`, position: { x, y }, size, open, locked: false };
+  return { id: `door-${x}-${y}`, position: { x, y }, size, open, lock: null };
 }
 
 /** A session over a hand-drawn map, one world tile per character, holding only these bodies. */

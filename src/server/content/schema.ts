@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { doorLockSchema } from "../../shared/types/core.js";
 import {
   CONSUMABLE_ICONS,
   type CONSUMABLE_TARGETS,
@@ -649,7 +650,8 @@ const placedChestSchema = placedEntitySchema.extend({
   locked: z.boolean().default(false),
 });
 
-const placedDoorSchema = placedEntitySchema.extend({ locked: z.boolean().default(false) });
+/** `lock` is what a closed door wants; omitted, the door is unlocked. */
+const placedDoorSchema = placedEntitySchema.extend({ lock: doorLockSchema.nullable().default(null) });
 
 const placedExitSchema = placedEntitySchema.extend({ destination: z.string().min(1) });
 

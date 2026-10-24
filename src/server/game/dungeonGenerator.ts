@@ -12,6 +12,7 @@ import type {
 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { DelveDungeon, Doorway, GeneratedDungeon, RoomKind, RoomTemplate } from "../content/schema.js";
+import { GENERIC_KEY_ITEM_ID } from "../../shared/constants/game.js";
 import { distance } from "../../shared/game/movement.js";
 import {
   BALLAST_ITEM_ID,
@@ -615,7 +616,7 @@ export function generateDungeon(
   // what ends a run. Without it the exit is just another room to walk into.
   const exitDoorTile = doorwayTowards(exitRoom, centerOf(rooms[rooms.length - 2] ?? entrance), grid, rooms);
   const doors: DoorState[] = [
-    { id: rng.uuid(), position: { ...exitDoorTile }, size: 1, open: false, locked: true },
+    { id: rng.uuid(), position: { ...exitDoorTile }, size: 1, open: false, lock: { type: "key", keyItemId: GENERIC_KEY_ITEM_ID } },
   ];
 
   const spawnPoints = rng

@@ -144,7 +144,7 @@ describe("party changes", () => {
   });
 
   it("keeps the party vault from partyVault, and starts a fresh join without one", () => {
-    const items = [{ id: "c1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" as const }];
+    const items = [{ id: "c1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" as const, itemId: "copper-key" }];
     let view = applyServerMessage(joinedView(), { type: "partyVault", items });
     expect(view.vault).toEqual(items);
 
@@ -345,7 +345,7 @@ describe("map discovery in snapshots", () => {
 });
 
 describe("the run lifecycle", () => {
-  const key = { id: "a1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key" } as const;
+  const key = { id: "a1111111-1111-4111-8111-111111111111", name: "Copper Key", kind: "key", itemId: "copper-key" } as const;
 
   function snapshot(view: SessionView, tick: number, location: "hub" | "dungeon", self: PlayerState) {
     return applyServerMessage(view, {

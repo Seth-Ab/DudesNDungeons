@@ -123,10 +123,16 @@ export const releaseDrawSchema = z.object({
   direction: vector2Schema,
 });
 
-export const playerInteractSchema = z.object({
-  type: z.literal("playerInteract"),
-  targetId: entityIdSchema,
-});
+/**
+ * An interact intent names only its target. Which key a locked door takes is the server's to
+ * decide, so a message carrying a key id of any kind is refused rather than having it ignored.
+ */
+export const playerInteractSchema = z
+  .object({
+    type: z.literal("playerInteract"),
+    targetId: entityIdSchema,
+  })
+  .strict();
 
 export const pickupItemSchema = z.object({
   type: z.literal("pickupItem"),

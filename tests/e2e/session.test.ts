@@ -588,7 +588,7 @@ describe("character appearance", () => {
     const torch = session.dungeon.loot.find((loot) => loot.kind === "torch")!;
     const entrance = session.dungeon.exits[0]!;
     player.position = { ...torch.position };
-    player.inventory = [{ id: ANY_ID, name: "Copper Key", kind: "key" }];
+    player.inventory = [{ id: ANY_ID, name: "Copper Key", kind: "key", itemId: "copper-key" }];
     const before = { ...player.position };
 
     alpha.client.send({ type: "playerMoveIntent", sequence: 7, direction: { x: 1, y: 0 } });

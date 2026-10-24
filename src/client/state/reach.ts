@@ -1,6 +1,6 @@
 import { INTERACT_RANGE } from "../../shared/constants/game.js";
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
-import type { EntityId, InventoryItem, PlayerState, Vector2 } from "../../shared/types/core.js";
+import type { DoorLock, EntityId, InventoryItem, PlayerState, Vector2 } from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
 
 /**
@@ -85,7 +85,7 @@ export function nearestLoot(
 export function nearestInteraction(
   view: SessionView,
   position: Vector2,
-): (ReachTarget & { gap: number; kind: "door" | "exit" | "chest" | "seat"; locked: boolean }) | null {
+): (ReachTarget & { gap: number; kind: "door" | "exit" | "chest" | "seat"; locked: boolean; lock: DoorLock | null }) | null {
   if (!view.dungeon) return null;
   const taken = new Set(view.players.map((p) => p.seatId));
   const sitting = view.players.some((p) => p.id === view.selfId && p.seatId !== null);
@@ -97,6 +97,7 @@ export function nearestInteraction(
         name: "chest",
         kind: "chest" as const,
         locked: chest.locked,
+        lock: null,
         gap: distance(position, chest.position),
       })),
     ...view.dungeon.doors
@@ -105,7 +106,8 @@ export function nearestInteraction(
         id: door.id,
         name: "door",
         kind: "door" as const,
-        locked: door.locked,
+        locked: door.lock !== null,
+        lock: door.lock,
         gap: distanceToDoor(position, door),
       })),
     ...view.dungeon.exits.map((exit) => ({
@@ -113,6 +115,7 @@ export function nearestInteraction(
       name: "exit",
       kind: "exit" as const,
       locked: false,
+      lock: null,
       gap: distance(position, exit.position),
     })),
     ...(sitting ? [] : (view.dungeon.map.seats ?? []))
@@ -122,6 +125,7 @@ export function nearestInteraction(
         name: "seat",
         kind: "seat" as const,
         locked: false,
+        lock: null,
         gap: distance(position, seat),
       })),
   ]);

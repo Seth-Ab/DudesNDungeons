@@ -22,7 +22,7 @@ import {
 
 // Copper Key on tile (12, 1), locked door on (11, 6), exit on (14, 6) inside the vault.
 
-const KEY: InventoryItem = { id: COPPER_KEY_ID, name: "Copper Key", kind: "key" };
+const KEY: InventoryItem = { id: COPPER_KEY_ID, name: "Copper Key", kind: "key", itemId: "copper-key" };
 const TONIC: InventoryItem = { id: MINOR_TONIC_ID, name: "Minor Tonic", ...TONIC_FIELDS };
 const SKILL_SCROLL: InventoryItem = {
   id: "77777777-7777-4777-8777-777777777777",
@@ -330,7 +330,7 @@ describe("doors and exits", () => {
     const session = testSession([testPlayer("alpha", { position: BY_THE_DOOR })]);
 
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
-    expect(door(session)).toMatchObject({ open: false, locked: true });
+    expect(door(session)).toMatchObject({ open: false, lock: { type: "key", keyItemId: "copper-key" } });
   });
 
   it("unlocks and opens a locked door with a key, spending the key", () => {
@@ -338,11 +338,93 @@ describe("doors and exits", () => {
     const session = testSession([player]);
 
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: true });
-    expect(door(session)).toMatchObject({ open: true, locked: false });
+    expect(door(session)).toMatchObject({ open: true, lock: null });
     expect(player.inventory).toEqual([]);
     // A point inside the doorway, far enough from the player that only the door could block it.
     expect(canOccupy(session, at(11, 6))).toBe(true);
     expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+  });
+
+  describe("typed key locks", () => {
+    const BOSS_KEY: InventoryItem = { id: "b0000000-0000-4000-8000-000000000001", name: "Boss Key", kind: "key", itemId: "boss-key" };
+    const VAULT_KEY: InventoryItem = { id: "b0000000-0000-4000-8000-000000000002", name: "Vault Key", kind: "key", itemId: "vault-key" };
+
+    /** The vault door, relocked so it wants `keyItemId`. */
+    function lockedWith(keyItemId: string, inventory: InventoryItem[], extra: Parameters<typeof testPlayer>[1] = {}) {
+      const player = testPlayer("alpha", { position: BY_THE_DOOR, inventory, ...extra });
+      const session = testSession([player]);
+      door(session).lock = { type: "key", keyItemId };
+      return { player, session };
+    }
+
+    it("opens a boss door with the boss key and refuses the vault key, keeping it", () => {
+      const refused = lockedWith("boss-key", [{ ...VAULT_KEY }]);
+      expect(interact(refused.session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+      expect(door(refused.session)).toMatchObject({ open: false, lock: { type: "key", keyItemId: "boss-key" } });
+      expect(refused.player.inventory).toEqual([VAULT_KEY]);
+
+      const opened = lockedWith("boss-key", [{ ...VAULT_KEY }, { ...BOSS_KEY }]);
+      expect(interact(opened.session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: true });
+      expect(door(opened.session)).toMatchObject({ open: true, lock: null });
+      expect(opened.player.inventory).toEqual([VAULT_KEY]);
+    });
+
+    it("opens a vault door with the vault key and refuses the boss key, keeping it", () => {
+      const refused = lockedWith("vault-key", [{ ...BOSS_KEY }]);
+      expect(interact(refused.session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+      expect(refused.player.inventory).toEqual([BOSS_KEY]);
+
+      const opened = lockedWith("vault-key", [{ ...VAULT_KEY }]);
+      expect(interact(opened.session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: true });
+      expect(opened.player.inventory).toEqual([]);
+    });
+
+    it("refuses the generic key on a typed door", () => {
+      const { player, session } = lockedWith("boss-key", [{ ...KEY }]);
+
+      expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+      expect(player.inventory).toEqual([KEY]);
+    });
+
+    it("refuses from out of range, keeping the key and the lock", () => {
+      const { player, session } = lockedWith("boss-key", [{ ...BOSS_KEY }], { position: at(1, 1) });
+
+      expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "outOfRange" });
+      expect(player.inventory).toEqual([BOSS_KEY]);
+      expect(door(session).lock).not.toBeNull();
+    });
+
+    it("refuses a disconnected player, keeping the key and the lock", () => {
+      const { player, session } = lockedWith("boss-key", [{ ...BOSS_KEY }], { connected: false });
+
+      expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+      expect(player.inventory).toEqual([BOSS_KEY]);
+      expect(door(session)).toMatchObject({ open: false });
+      expect(door(session).lock).not.toBeNull();
+    });
+
+    it("spends one key once when two players interact together", () => {
+      const first = testPlayer("alpha", { position: BY_THE_DOOR, inventory: [{ ...BOSS_KEY }] });
+      const second = testPlayer("bravo", { position: BY_THE_DOOR, inventory: [{ ...BOSS_KEY, id: "b0000000-0000-4000-8000-000000000003" }] });
+      const session = testSession([first, second]);
+      door(session).lock = { type: "key", keyItemId: "boss-key" };
+
+      expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: true });
+      expect(interact(session, "bravo", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+      expect(first.inventory).toEqual([]);
+      expect(second.inventory).toHaveLength(1);
+    });
+
+    it("does not open a seal or hidden lock by interacting", () => {
+      for (const lock of [{ type: "seal", groupId: "arena" }, { type: "hidden" }] as const) {
+        const { player, session } = lockedWith("boss-key", [{ ...BOSS_KEY }]);
+        door(session).lock = lock;
+
+        expect(interact(session, "alpha", VAULT_DOOR_ID)).toEqual({ ok: false, reason: "notPermitted" });
+        expect(player.inventory).toEqual([BOSS_KEY]);
+        expect(door(session)).toMatchObject({ open: false, lock });
+      }
+    });
   });
 
   it("refuses a door out of reach", () => {
@@ -398,7 +480,7 @@ describe("dropping", () => {
 
     const matches = session.dungeon.loot.filter((loot) => loot.id === COPPER_KEY_ID);
     expect(matches).toHaveLength(1);
-    expect(matches[0]).toMatchObject({ pickedUp: false, position: at(3, 3), kind: "key" });
+    expect(matches[0]).toMatchObject({ pickedUp: false, position: at(3, 3), kind: "key", itemId: "copper-key" });
 
     expect(pickupItem(session, "alpha", COPPER_KEY_ID)).toEqual({ ok: true });
     expect(player.inventory).toEqual([KEY]);

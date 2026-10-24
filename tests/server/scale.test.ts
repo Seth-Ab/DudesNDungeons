@@ -43,7 +43,7 @@ function authoredCorridor(): BuiltDungeon {
           position: { x: 3, y: 1 },
           size: 1,
           open: false,
-          locked: true,
+          lock: { type: "key", keyItemId: "copper-key" },
         },
       ],
       exits: [],
