@@ -77,7 +77,11 @@ async function enterRun(browser: Browser, label: string, testInfo: { outputPath(
 
   await host.screenshot({ path: testInfo.outputPath(`delve-${label}-host.png`) });
   await guest.screenshot({ path: testInfo.outputPath(`delve-${label}-guest.png`) });
-  const result = { host: seen.host.latest()!, guest: seen.guest.latest()! };
+  const headers = {
+    host: (await host.locator(".hud__minimap-room").textContent()) ?? "",
+    guest: (await guest.locator(".hud__minimap-room").textContent()) ?? "",
+  };
+  const result = { host: seen.host.latest()!, guest: seen.guest.latest()!, headers };
   await host.context().close();
   if (withGuest) await guest.context().close();
   return result;
@@ -94,6 +98,8 @@ test.describe("Delve run", () => {
       expect(run.host.dungeon.rooms.map((room) => room.kind)).toEqual(["entrance"]);
       // Both clients are told the same run.
       expect(run.guest.dungeon.rooms).toEqual(run.host.dungeon.rooms);
+      // The minimap header names that room and its kind, and nothing beyond what is discovered.
+      for (const header of [run.headers.host, run.headers.guest]) expect(header).toMatch(/Entrance/);
     }
 
     // Whether the exit is reachable is the server sweep's job (`generationSweep.test.ts`); here the

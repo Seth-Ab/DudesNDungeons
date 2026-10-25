@@ -48,7 +48,7 @@ export const BOSS_KEY_ITEM_ID = "boss-key";
 const BOSS_CHEST_TABLE = "vault-chest";
 
 /** Threat a room of each kind starts from, before depth and party size scale it. */
-export const BASE_BUDGET: Readonly<Partial<Record<RoomKind, number>>> = { hall: 5, maze: 3, trap: 2, puzzle: 1 };
+export const BASE_BUDGET: Readonly<Partial<Record<RoomKind, number>>> = { hall: 5, maze: 3, trap: 2, puzzle: 1, cavern: 4, arena: 7 };
 /** Depth of a branch room, which has no place along the path. */
 const BRANCH_DEPTH = 0.6;
 const CORRIDOR_TORCH_EVERY = 7;

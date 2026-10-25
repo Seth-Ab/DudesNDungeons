@@ -491,12 +491,23 @@ export const roomKindSchema = z.enum([
   "puzzle",
   "boss",
   "exit",
+  "corridor",
   /** Where the party vault is used. Only meaningful in the hub, the one place the vault opens. */
   "vault",
   /** Where the hub skill shop is used. Only meaningful in the hub, like the vault. */
   "shop",
   /** Where cosmetics are bought, at the hub wardrobe stall. Only meaningful in the hub. */
   "wardrobe",
+  /** A resting place on the way down. Mechanics come with their own issue. */
+  "camp",
+  /** A room with an altar or boon to find. Mechanics come with their own issue. */
+  "shrine",
+  /** A room off the map until found. Mechanics come with their own issue. */
+  "secret",
+  /** A room fought in the open, with no way to slip past. Mechanics come with their own issue. */
+  "arena",
+  /** An irregular cave in place of a built hall. */
+  "cavern",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 

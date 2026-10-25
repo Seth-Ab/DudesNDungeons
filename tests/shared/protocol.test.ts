@@ -442,8 +442,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v50, the version that added typed door locks", () => {
-    expect(PROTOCOL_VERSION).toBe(50);
+  it("is on protocol v51, the version that added the camp, shrine, secret, arena and cavern room kinds", () => {
+    expect(PROTOCOL_VERSION).toBe(51);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

@@ -9,6 +9,10 @@ import {
   minimapIcons,
   minimapInitial,
   minimapPoint,
+  minimapRoomHeader,
+  minimapRoomKindAt,
+  MINIMAP_KIND_LABELS,
+  MINIMAP_KIND_TINTS,
   minimapRoomName,
   minimapTile,
   minimapViewport,
@@ -19,6 +23,7 @@ import {
 } from "../../src/client/state/minimap.js";
 import { PARTY_PALETTES } from "../../src/client/rendering/characterPalettes.js";
 import { initialSessionView, type SessionView } from "../../src/client/network/sessionState.js";
+import { roomKindSchema } from "../../src/shared/types/core.js";
 import type {
   ChestState,
   DungeonMapState,
@@ -278,5 +283,34 @@ describe("minimap header", () => {
 
   it("has nothing to name outside a world", () => {
     expect(minimapRoomName(initialSessionView, null)).toBe("-");
+  });
+});
+
+describe("minimap room kinds", () => {
+  const map = applyMapDiscovery(null, discovery());
+  const shrine: RoomState = { id: "s", name: "Quiet Alcove", kind: "shrine", x: 0, y: 0, width: 3, height: 3 };
+  const view = viewWith(map, {
+    location: "dungeon",
+    dungeon: { map, rooms: [shrine] } as unknown as SessionView["dungeon"],
+  });
+
+  it("names every room kind and tints the new ones", () => {
+    for (const kind of roomKindSchema.options) expect(MINIMAP_KIND_LABELS[kind]).toBeTruthy();
+    for (const kind of ["camp", "shrine", "secret", "arena", "cavern"] as const) {
+      expect(MINIMAP_KIND_TINTS[kind]).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  it("adds the kind to the header unless the name already says it", () => {
+    expect(minimapRoomHeader(view, { x: 1.5, y: 1.5 })).toBe("Quiet Alcove · Shrine");
+    const named = { ...view, dungeon: { ...view.dungeon!, rooms: [{ ...shrine, name: "The Shrine" }] } };
+    expect(minimapRoomHeader(named, { x: 1.5, y: 1.5 })).toBe("The Shrine");
+    expect(minimapRoomHeader(view, { x: 4.5, y: 1.5 })).toBe("World");
+  });
+
+  it("finds the kind only inside a room the client has been sent", () => {
+    expect(minimapRoomKindAt([shrine], 1, 1)).toBe("shrine");
+    expect(minimapRoomKindAt([shrine], 3, 1)).toBeNull();
+    expect(minimapRoomKindAt([], 1, 1)).toBeNull();
   });
 });

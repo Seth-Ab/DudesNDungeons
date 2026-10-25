@@ -30,7 +30,7 @@ type RoleFlow = Pick<FlowDefinition, "bossLock" | "keySource">;
 type RoleBiome = Pick<BiomeDefinition, "roomWeights" | "puzzles">;
 
 /** Kinds the fill step may draw; the rest are fixed by the path or belong to the hub. */
-const FILL_KINDS: readonly RoomKind[] = ["hall", "maze", "trap", "puzzle"];
+const FILL_KINDS: readonly RoomKind[] = ["hall", "maze", "trap", "puzzle", "cavern", "arena", "camp", "shrine"];
 
 function adjacency(graph: LayoutGraph): number[][] {
   const adjacent: number[][] = Array.from({ length: graph.nodes.length }, () => []);

@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { gameContent, loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
-import { monsterTypeSchema } from "../../src/server/content/schema.js";
+import { monsterTypeSchema, roomKindSchema } from "../../src/server/content/schema.js";
+import { roomKindSchema as wireRoomKindSchema } from "../../src/shared/types/core.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 
 const roots: string[] = [];
@@ -1016,5 +1017,17 @@ describe("flow and biome content", () => {
     expect(() => loadContent(shippedWith({ "flows/group-only.json": group, "dungeons/delve-run.json": profile }))).toThrow(
       /delve-run\.json field flows has no flow a party of one can play/,
     );
+  });
+});
+
+describe("room kinds", () => {
+  it("are the same set on the server and on the wire", () => {
+    expect([...roomKindSchema.options].sort()).toEqual([...wireRoomKindSchema.options].sort());
+  });
+
+  it("include the camp, shrine, vault, secret, arena and cavern kinds", () => {
+    for (const kind of ["camp", "shrine", "vault", "secret", "arena", "cavern"]) {
+      expect(roomKindSchema.safeParse(kind).success).toBe(true);
+    }
   });
 });
