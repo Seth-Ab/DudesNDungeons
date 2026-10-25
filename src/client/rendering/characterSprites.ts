@@ -11,7 +11,11 @@ import {
   PORTRAIT_SIZE,
   SILHOUETTE_COLOUR,
   SILHOUETTE_LOOK,
-  WALK_POSES,
+  BODY_POSES,
+  CARRIED_LIFT_PX,
+  LYING_FRAME_HEIGHT,
+  LYING_FRAME_WIDTH,
+  STANDING,
   bodyFrame,
   characterFrameRect,
   characterSwaps,
@@ -21,16 +25,20 @@ import {
   createBlinkClock,
   createCompositeCache,
   createMotionTracker,
+  downedFrame,
   drawnCosmetics,
   flickerPhase,
+  headDrop,
+  lyingCell,
   hairClipRow,
   hairFrame,
   hatFrame,
-  pickCharacterPose,
+  pickDrawnPose,
   portraitRect,
   recolourPixels,
   silhouettePixels,
   type CharacterLook,
+  type CharacterStance,
   type FlickerPhase,
 } from "./characters.js";
 
@@ -48,7 +56,7 @@ export const CHARACTER_SHEET_URL = new URL(
   import.meta.url,
 ).href;
 
-/** How transparent a downed or disconnected player is drawn, until there is a downed frame. */
+/** How transparent a disconnected player is drawn. A downed one is drawn lying down, opaque. */
 const FADED_ALPHA = 0.45;
 
 /** The frame pixel a character stands on: bottom centre, on the last row. */
@@ -67,8 +75,12 @@ export interface DrawnPlayer {
   /** Where they are drawn, in world units: predicted for the local player, interpolated for others. */
   position: Vector2;
   label: string;
-  /** Downed or disconnected. */
+  /** Disconnected. */
   faded: boolean;
+  /** Downed, seated or mid-swing; absent for a player just standing or walking. */
+  stance?: CharacterStance;
+  /** Carried by another player: drawn lifted above the carrier, and over them. */
+  carried?: boolean;
 }
 
 function createSurface(width: number, height: number) {
@@ -118,47 +130,82 @@ export function buildCharacterComposite(
   const { hat, cloak } = drawnCosmetics(look);
   const clip = hairClipRow(look);
   const cells = CHARACTER_FACINGS.flatMap((facing) =>
-    WALK_POSES.flatMap((pose) =>
-      [false, true].map((blinking) => ({ facing, pose, blinking, cell: compositeCell(facing, pose, blinking) })),
+    BODY_POSES.flatMap((pose) =>
+      [false, true].map((blinking) => ({
+        facing,
+        pose,
+        blinking,
+        cell: compositeCell(facing, pose, blinking),
+        drop: headDrop(pose),
+      })),
     ),
   );
-  /** Stamps frame rows `fromRow` to the bottom of one frame at a cell. */
-  const stamp = (frame: string, x: number, y: number, fromRow = 0): void => {
+  /**
+   * Stamps frame rows `fromRow` to the bottom of one frame at a cell, `drop` rows lower. What the
+   * drop would push past the cell's bottom is cut, so it never lands in the cell beneath.
+   */
+  const stamp = (frame: string, x: number, y: number, fromRow = 0, drop = 0, target = context): void => {
     const rect = characterFrameRect(frame);
-    const rows = CHARACTER_FRAME_HEIGHT - fromRow;
-    context.drawImage(sheet, rect.x, rect.y + fromRow, CHARACTER_FRAME_WIDTH, rows, x, y + fromRow, CHARACTER_FRAME_WIDTH, rows);
+    const rows = CHARACTER_FRAME_HEIGHT - fromRow - drop;
+    if (rows <= 0) return;
+    target.drawImage(sheet, rect.x, rect.y + fromRow, CHARACTER_FRAME_WIDTH, rows, x, y + fromRow + drop, CHARACTER_FRAME_WIDTH, rows);
   };
 
   for (const { facing, pose, cell } of cells) stamp(bodyFrame(look.body, facing, pose), cell.x, cell.y);
 
-  // Eyes close on the bare body, before hair could cover a pixel beside one.
+  const lying = lyingCell();
+  const lyingRect = characterFrameRect(downedFrame(look.body));
+  context.drawImage(sheet, lyingRect.x, lyingRect.y, LYING_FRAME_WIDTH, LYING_FRAME_HEIGHT, lying.x, lying.y, LYING_FRAME_WIDTH, LYING_FRAME_HEIGHT);
+
+  // Eyes close on the bare body, before hair could cover a pixel beside one. A seated head is lower.
   const bodies = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
-  for (const { blinking, cell } of cells) {
-    if (blinking) closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y);
+  for (const { blinking, cell, drop } of cells) {
+    if (blinking) closeEyes(bodies.data, COMPOSITE_WIDTH, cell.x, cell.y + drop);
   }
   context.putImageData(bodies, 0, 0);
+
+  /**
+   * Draws standing-frame layers turned onto their side into the downed cell, head to the left, so a
+   * hat or a head of hair meets the downed body wherever it sits on the standing one.
+   */
+  const upright = createSurface(CHARACTER_FRAME_WIDTH, CHARACTER_FRAME_HEIGHT);
+  const stampLying = (draw: (target: CanvasRenderingContext2D) => void): void => {
+    upright.context.clearRect(0, 0, CHARACTER_FRAME_WIDTH, CHARACTER_FRAME_HEIGHT);
+    draw(upright.context);
+    context.save();
+    context.translate(lying.x, lying.y + LYING_FRAME_HEIGHT);
+    context.rotate(-Math.PI / 2);
+    context.drawImage(upright.canvas, 0, 0);
+    context.restore();
+  };
 
   if (cloak) {
     // Slipped in under the body already drawn, rather than drawn first, so the eye scan above saw
     // the body alone.
     context.globalCompositeOperation = "destination-over";
-    for (const { facing, cell } of cells) {
-      if (facing === "down") stamp(cloakFrame("behind"), cell.x, cell.y);
+    for (const { facing, cell, drop } of cells) {
+      if (facing === "down") stamp(cloakFrame("behind"), cell.x, cell.y, 0, drop);
     }
+    stampLying((target) => stamp(cloakFrame("behind"), 0, 0, 0, 0, target));
     context.globalCompositeOperation = "source-over";
-    for (const { facing, cell } of cells) {
-      if (facing === "up") stamp(cloakFrame("back"), cell.x, cell.y);
+    for (const { facing, cell, drop } of cells) {
+      if (facing === "up") stamp(cloakFrame("back"), cell.x, cell.y, 0, drop);
     }
   }
 
   if (clip !== HIDE_ALL_HAIR) {
-    for (const { facing, cell } of cells) stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y, clip ?? 0);
+    for (const { facing, cell, drop } of cells) stamp(hairFrame(look.hairStyle, facing), cell.x, cell.y, clip ?? 0, drop);
+    stampLying((target) => stamp(hairFrame(look.hairStyle, "down"), 0, 0, clip ?? 0, 0, target));
   }
 
-  for (const { facing, cell } of cells) {
-    if (cloak && facing === "down") stamp(cloakFrame("clasp"), cell.x, cell.y);
-    if (hat) stamp(hatFrame(hat, facing), cell.x, cell.y);
+  for (const { facing, cell, drop } of cells) {
+    if (cloak && facing === "down") stamp(cloakFrame("clasp"), cell.x, cell.y, 0, drop);
+    if (hat) stamp(hatFrame(hat, facing), cell.x, cell.y, 0, drop);
   }
+  stampLying((target) => {
+    if (cloak) stamp(cloakFrame("clasp"), 0, 0, 0, 0, target);
+    if (hat) stamp(hatFrame(hat, "down"), 0, 0, 0, 0, target);
+  });
 
   const pixels = context.getImageData(0, 0, COMPOSITE_WIDTH, COMPOSITE_HEIGHT);
   recolourPixels(pixels.data, characterSwaps(look, phase));
@@ -203,15 +250,19 @@ export function createCharacterSprites(onReady?: () => void) {
       now: number,
     ): void {
       const px = pixelsPerWorldUnit / CHARACTER_FRAME_WIDTH;
-      const ordered = [...players].sort((a, b) => a.position.y - b.position.y);
+      // Anyone carried is drawn last, over their carrier, whatever their row.
+      const ordered = [...players].sort(
+        (a, b) => Number(a.carried ?? false) - Number(b.carried ?? false) || a.position.y - b.position.y,
+      );
       const feet = ordered.map((player) =>
         toScreen({ x: player.position.x, y: player.position.y + PLAYER_RADIUS }),
       );
 
       ordered.forEach((player, index) => {
         const at = feet[index]!;
+        const lift = player.carried ? CARRIED_LIFT_PX * px : 0;
         const left = Math.round(at.x - ANCHOR_X * px);
-        const top = Math.round(at.y - (ANCHOR_ROW + 1) * px);
+        const top = Math.round(at.y - (ANCHOR_ROW + 1) * px - lift);
         const palette = PARTY_PALETTES[player.look.partyColor];
         const moving = motion.moving(player.id, player.position, now);
 
@@ -225,11 +276,29 @@ export function createCharacterSprites(onReady?: () => void) {
           return;
         }
 
-        const pose = pickCharacterPose(player.facing, moving, now);
+        const pose = pickDrawnPose(player.facing, moving, now, player.stance ?? STANDING);
+        const composite = composites.get(player.look, flickerPhase(player.look, now));
+
+        if (pose.lying) {
+          // Head to the left, feet on the anchor row, centred on the character's own column.
+          const cell = lyingCell();
+          ctx.drawImage(
+            composite,
+            cell.x,
+            cell.y,
+            LYING_FRAME_WIDTH,
+            LYING_FRAME_HEIGHT,
+            Math.round(at.x - (LYING_FRAME_WIDTH / 2) * px),
+            Math.round(at.y - LYING_FRAME_HEIGHT * px - lift),
+            LYING_FRAME_WIDTH * px,
+            LYING_FRAME_HEIGHT * px,
+          );
+          return;
+        }
+
         const cell = compositeCell(pose.facing, pose.pose, blinks.blinking(player.id, now));
         const width = CHARACTER_FRAME_WIDTH * px;
         const height = CHARACTER_FRAME_HEIGHT * px;
-        const composite = composites.get(player.look, flickerPhase(player.look, now));
 
         if (pose.mirror) {
           ctx.save();

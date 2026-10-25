@@ -38,6 +38,10 @@ export const CHARACTER_BODY_TOP = 8;
 /** How many frames fit across the sheet: one body's three facings of three poses. */
 const SHEET_COLUMNS = 9;
 
+/** A lying figure: wider than it is tall, so it has its own band under the standing frames. */
+export const LYING_FRAME_WIDTH = 24;
+export const LYING_FRAME_HEIGHT = 16;
+
 export const CHARACTER_BODIES = ["guy", "girl"] as const;
 export type CharacterBody = (typeof CHARACTER_BODIES)[number];
 
@@ -54,6 +58,33 @@ export type CharacterFacing = (typeof CHARACTER_FACINGS)[number];
  */
 export const WALK_POSES = ["stand", "walk1", "walk2"] as const;
 export type WalkPose = (typeof WALK_POSES)[number];
+
+/** A swing's three frames, in order: wind-up, strike and recover. Only the arms and hands change. */
+export const ATTACK_PHASES = ["windup", "strike", "recover"] as const;
+export type AttackPhase = (typeof ATTACK_PHASES)[number];
+
+/**
+ * Every pose a standing-sized body frame has. `seated` is the figure sitting on a bench or rim; its
+ * head sits `SEATED_DROP_ROWS` lower than a standing one, so hair, hats and cloaks follow it down.
+ * A downed figure is lying down and has its own frame, not a pose.
+ */
+export type BodyPose = WalkPose | "seated" | AttackPhase;
+export const BODY_POSES: readonly BodyPose[] = [...WALK_POSES, "seated", ...ATTACK_PHASES];
+
+/** Rows a seated figure's head sits below a standing one's. */
+export const SEATED_DROP_ROWS = 3;
+
+/** How far, in art pixels, a carried player is drawn above the carrier. */
+export const CARRIED_LIFT_PX = 6;
+
+function isWalkPose(pose: BodyPose): pose is WalkPose {
+  return (WALK_POSES as readonly string[]).includes(pose);
+}
+
+/** Frame rows the head, and so hair, hats and a cloak, is drawn below standing in this pose. */
+export function headDrop(pose: BodyPose): number {
+  return pose === "seated" ? SEATED_DROP_ROWS : 0;
+}
 
 /**
  * Hats the sheet has art for, by cosmetic content id. Content may list a hat the client has no art
@@ -152,9 +183,15 @@ export function hairLayer(style: HairStyle, facing: CharacterFacing): CharacterL
 export function bodyFrame(
   body: CharacterBody,
   facing: CharacterFacing,
-  pose: WalkPose,
+  pose: BodyPose,
 ): CharacterFrameName {
-  return `${bodyLayer(body, facing)}-${pose}`;
+  if (isWalkPose(pose)) return `${bodyLayer(body, facing)}-${pose}`;
+  return pose === "seated" ? `${bodyLayer(body, facing)}-seated` : `${bodyLayer(body, facing)}-attack-${pose}`;
+}
+
+/** The one downed frame, lying on its back with the head to the left. Hair and hats rotate to meet it. */
+export function downedFrame(body: CharacterBody): CharacterFrameName {
+  return `body-${body}-downed`;
 }
 
 /** Hair has one frame per facing, named after its layer. */
@@ -175,36 +212,68 @@ export interface CharacterFrame {
   name: CharacterFrameName;
   /** The authored layer this frame is baked from. */
   layer: CharacterLayerName;
+  /** The walk pose the baker derives from the layer; every other frame is baked as authored. */
+  pose: WalkPose;
+  width: number;
+  height: number;
+}
+
+interface StandingFrame {
+  name: CharacterFrameName;
+  layer: CharacterLayerName;
   pose: WalkPose;
 }
 
-/** Every frame the sheet holds, in packing order: each body's facings and poses, then each hair. */
+const standing = (frames: readonly StandingFrame[]): CharacterFrame[] =>
+  frames.map((frame) => ({ ...frame, width: CHARACTER_FRAME_WIDTH, height: CHARACTER_FRAME_HEIGHT }));
+
+/**
+ * Every frame the sheet holds, in packing order: each body's facings and poses, then each hair. The
+ * downed frames come last, since they are the ones that are not a standing frame's size.
+ */
 export const CHARACTER_FRAMES: readonly CharacterFrame[] = [
-  ...CHARACTER_BODIES.flatMap((body) =>
-    CHARACTER_FACINGS.flatMap((facing) =>
-      WALK_POSES.map((pose) => ({
-        name: bodyFrame(body, facing, pose),
-        layer: bodyLayer(body, facing),
-        pose,
+  ...standing([
+    ...CHARACTER_BODIES.flatMap((body) =>
+      CHARACTER_FACINGS.flatMap((facing) => [
+        ...WALK_POSES.map((pose) => ({
+          name: bodyFrame(body, facing, pose),
+          layer: bodyLayer(body, facing),
+          pose,
+        })),
+        ...(["seated", ...ATTACK_PHASES] as const).map((pose) => ({
+          name: bodyFrame(body, facing, pose),
+          layer: bodyFrame(body, facing, pose),
+          pose: "stand" as const,
+        })),
+      ]),
+    ),
+    ...HAIR_STYLES.flatMap((style) =>
+      CHARACTER_FACINGS.map((facing) => ({
+        name: hairFrame(style, facing),
+        layer: hairLayer(style, facing),
+        pose: "stand" as const,
       })),
     ),
-  ),
-  ...HAIR_STYLES.flatMap((style) =>
-    CHARACTER_FACINGS.map((facing) => ({
-      name: hairFrame(style, facing),
-      layer: hairLayer(style, facing),
-      pose: "stand" as const,
-    })),
-  ),
-  ...HAT_IDS.flatMap((hat) =>
-    (["down", "up"] as const).map((facing) => ({
-      name: hatFrame(hat, facing),
-      layer: hatFrame(hat, facing),
-      pose: "stand" as const,
-    })),
-  ),
-  ...CLOAK_PARTS.map((part) => ({ name: cloakFrame(part), layer: cloakFrame(part), pose: "stand" as const })),
+    ...HAT_IDS.flatMap((hat) =>
+      (["down", "up"] as const).map((facing) => ({
+        name: hatFrame(hat, facing),
+        layer: hatFrame(hat, facing),
+        pose: "stand" as const,
+      })),
+    ),
+    ...CLOAK_PARTS.map((part) => ({ name: cloakFrame(part), layer: cloakFrame(part), pose: "stand" as const })),
+  ]),
+  ...CHARACTER_BODIES.map((body) => ({
+    name: downedFrame(body),
+    layer: downedFrame(body),
+    pose: "stand" as const,
+    width: LYING_FRAME_WIDTH,
+    height: LYING_FRAME_HEIGHT,
+  })),
 ];
+
+const STANDING_FRAME_COUNT = CHARACTER_FRAMES.filter((frame) => frame.height === CHARACTER_FRAME_HEIGHT).length;
+const STANDING_BAND_HEIGHT = Math.ceil(STANDING_FRAME_COUNT / SHEET_COLUMNS) * CHARACTER_FRAME_HEIGHT;
 
 /** Every layer the source art must author, each exactly once. The baker validates against this. */
 export const CHARACTER_LAYERS: readonly CharacterLayerName[] = [
@@ -212,8 +281,7 @@ export const CHARACTER_LAYERS: readonly CharacterLayerName[] = [
 ];
 
 export const CHARACTER_SHEET_WIDTH = SHEET_COLUMNS * CHARACTER_FRAME_WIDTH;
-export const CHARACTER_SHEET_HEIGHT =
-  Math.ceil(CHARACTER_FRAMES.length / SHEET_COLUMNS) * CHARACTER_FRAME_HEIGHT;
+export const CHARACTER_SHEET_HEIGHT = STANDING_BAND_HEIGHT + LYING_FRAME_HEIGHT;
 
 export interface CharacterFrameRect {
   /** Left edge in the sheet, in art pixels. */
@@ -222,17 +290,25 @@ export interface CharacterFrameRect {
   y: number;
 }
 
-const FRAME_RECTS = new Map<CharacterFrameName, CharacterFrameRect>(
-  CHARACTER_FRAMES.map((frame, index) => [
-    frame.name,
-    {
-      x: (index % SHEET_COLUMNS) * CHARACTER_FRAME_WIDTH,
-      y: Math.floor(index / SHEET_COLUMNS) * CHARACTER_FRAME_HEIGHT,
-    },
-  ]),
-);
+const FRAME_RECTS = new Map<CharacterFrameName, CharacterFrameRect>([
+  ...CHARACTER_FRAMES.filter((frame) => frame.height === CHARACTER_FRAME_HEIGHT).map(
+    (frame, index): [CharacterFrameName, CharacterFrameRect] => [
+      frame.name,
+      {
+        x: (index % SHEET_COLUMNS) * CHARACTER_FRAME_WIDTH,
+        y: Math.floor(index / SHEET_COLUMNS) * CHARACTER_FRAME_HEIGHT,
+      },
+    ],
+  ),
+  ...CHARACTER_FRAMES.filter((frame) => frame.height !== CHARACTER_FRAME_HEIGHT).map(
+    (frame, index): [CharacterFrameName, CharacterFrameRect] => [
+      frame.name,
+      { x: index * LYING_FRAME_WIDTH, y: STANDING_BAND_HEIGHT },
+    ],
+  ),
+]);
 
-/** Where a frame sits in the sheet. Every frame is `CHARACTER_FRAME_WIDTH` by `_HEIGHT`. */
+/** Where a frame sits in the sheet. A standing frame is `CHARACTER_FRAME_WIDTH` by `_HEIGHT`, a downed one `LYING_FRAME_WIDTH` by `_HEIGHT`. */
 export function characterFrameRect(name: CharacterFrameName): CharacterFrameRect {
   const rect = FRAME_RECTS.get(name);
   if (!rect) throw new Error(`Unknown character frame: ${name}`);
@@ -416,19 +492,25 @@ export function closeEyes(
  * Where each frame of a look sits in its composite: one column per facing and pose, an open-eyed
  * row and a blinking one beneath it.
  */
-export const COMPOSITE_WIDTH = CHARACTER_FACINGS.length * WALK_POSES.length * CHARACTER_FRAME_WIDTH;
+const STANDING_COMPOSITE_WIDTH = CHARACTER_FACINGS.length * BODY_POSES.length * CHARACTER_FRAME_WIDTH;
+export const COMPOSITE_WIDTH = STANDING_COMPOSITE_WIDTH + LYING_FRAME_WIDTH;
 export const COMPOSITE_HEIGHT = 2 * CHARACTER_FRAME_HEIGHT;
 
 export function compositeCell(
   facing: CharacterFacing,
-  pose: WalkPose,
+  pose: BodyPose,
   blinking: boolean,
 ): CharacterFrameRect {
-  const column = CHARACTER_FACINGS.indexOf(facing) * WALK_POSES.length + WALK_POSES.indexOf(pose);
+  const column = CHARACTER_FACINGS.indexOf(facing) * BODY_POSES.length + BODY_POSES.indexOf(pose);
   return {
     x: column * CHARACTER_FRAME_WIDTH,
     y: blinking ? CHARACTER_FRAME_HEIGHT : 0,
   };
+}
+
+/** Where the downed figure sits in a composite: after every standing cell, a lying frame's size. Eyes stay shut. */
+export function lyingCell(): CharacterFrameRect {
+  return { x: STANDING_COMPOSITE_WIDTH, y: 0 };
 }
 
 /**
@@ -527,6 +609,47 @@ export function pickCharacterPose(
   timeMs: number,
 ): CharacterPose {
   return { ...characterFacing(direction), pose: walkPose(moving, timeMs) };
+}
+
+/** What a character is doing beyond walking, in the order it takes over from standing. */
+export interface CharacterStance {
+  /** Downed: drawn lying. A carried player is downed too. */
+  downed: boolean;
+  seated: boolean;
+  /** The swing in progress, from the server's resolved arc, or null. */
+  swing: { heading: number; progress: number } | null;
+}
+
+export const STANDING: CharacterStance = { downed: false, seated: false, swing: null };
+
+/** The attack frame at a point through a swing: its first third is the wind-up, then the strike, then the recover. */
+export function attackPhase(progress: number): AttackPhase {
+  const index = Math.floor(Math.min(Math.max(progress, 0), 0.999) * ATTACK_PHASES.length);
+  return ATTACK_PHASES[index]!;
+}
+
+export type DrawnPose =
+  | { lying: true }
+  | { lying: false; facing: CharacterFacing; mirror: boolean; pose: BodyPose };
+
+/**
+ * What to draw for a character: lying if downed, otherwise a swing's attack frame facing the way it
+ * was struck, otherwise seated, otherwise the walk pose. Downed beats everything, since a downed
+ * player can neither sit nor swing.
+ */
+export function pickDrawnPose(
+  direction: { x: number; y: number },
+  moving: boolean,
+  timeMs: number,
+  stance: CharacterStance = STANDING,
+): DrawnPose {
+  if (stance.downed) return { lying: true };
+  if (stance.swing) {
+    const heading = { x: Math.cos(stance.swing.heading), y: Math.sin(stance.swing.heading) };
+    return { lying: false, ...characterFacing(heading), pose: attackPhase(stance.swing.progress) };
+  }
+  if (stance.seated) return { lying: false, ...characterFacing(direction), pose: "seated" };
+  return { lying: false, ...pickCharacterPose(direction, moving, timeMs) };
 }
 
 export const BLINK_MS = 120;

@@ -138,6 +138,18 @@ pixel data is ported from the owner-approved `docs/design/character-sprite-bible
   The walk frames are **derived, not authored**: `walk1` moves the boot pixels in the right half of
   the frame up one row onto the trousers, and `walk2` does the same for the left half. The cycle is
   stand, walk1, stand, walk2.
+- Seated, attack and downed frames (#313) are **authored**, not derived. `body-<body>-<facing>-seated`
+  is the body sitting: its first eleven body rows (head to tunic) lowered `SEATED_DROP_ROWS` (3) rows
+  over a row of thighs and boots, so hair, hats and a cloak are stamped the same three rows lower. The
+  bible has no seated pose; this one is new. `body-<body>-<facing>-attack-windup`, `-strike` and
+  `-recover` keep the head exactly where standing has it and move only the swinging arm and its fist,
+  so cosmetics line up unchanged. The renderer picks one by thirds of the swing's life, facing the swing's
+  heading.
+- `body-<body>-downed` is the one frame that is not 16 x 24: the bible's **24 x 16** figure lying on its
+  back, head to the left, eyes shut, in a band of the sheet under the standing frames. It is the standing
+  `down` body turned a quarter, so the renderer turns the standing hair, hat and cloak the same way
+  rather than carrying a downed copy of each. A carried player is the same frame drawn
+  `CARRIED_LIFT_PX` (6) above the carrier and over them.
 - `src/client/rendering/characters.ts` is the one list of layers and frame cells, the way `tiles.ts`
   is for the tilesheet. A layer in one and not the other fails the bake.
 - Eyes are baked in the outline colour, so the renderer finds them by position for the blink: an

@@ -74,8 +74,6 @@ export const pixelsPerWorldUnit = 32;
 /** The body the server collides a player with, in world units. Monsters are sized from it. */
 const figureWidth = PLAYER_RADIUS * 2;
 
-/** How far a seated figure is drawn below where it sits, in world units, so it reads as sitting. */
-const SEATED_DROP = 0.2;
 
 /** A dungeon torch's halo by tint: centre, middle and rim colour stops. Warm is the original fire. */
 const DUNGEON_GLOWS: Readonly<Record<LightGlowTint, readonly [string, string, string]>> = {
@@ -366,22 +364,34 @@ export function createCanvasRenderer(
 
   /**
    * A player as drawn this frame, or null for one still designing their character, who is not in
-   * the world. Downed and disconnected players are drawn faded; a carried player is drawn where the
-   * snapshot puts them, like anyone else. A seated player is the standing figure dropped a little
-   * onto the seat, until the character sheet has a seated frame.
+   * the world. A disconnected player is drawn faded. A downed player is drawn lying down, and a
+   * carried one is the same frame lifted above the carrier, at the position the snapshot gives them.
+   * A seated player is drawn in the seated frame, and a swinger in the attack frame the server's
+   * resolved swing is at, facing the way it struck.
    */
-  const drawnPlayer = (player: PlayerState, position: Vector2): DrawnPlayer | null => {
+  const drawnPlayer = (
+    player: PlayerState,
+    position: Vector2,
+    swings: ReadonlyMap<string, ActiveSwing>,
+  ): DrawnPlayer | null => {
     const look = lookOf(player);
-    return look === null
-      ? null
-      : {
-          id: player.id,
-          look,
-          facing: player.facing,
-          position: player.seatId === null ? position : { x: position.x, y: position.y + SEATED_DROP },
-          label: carryLabel(player),
-          faded: player.health <= 0 || !player.connected,
-        };
+    if (look === null) return null;
+    const downed = player.health <= 0;
+    const swing = swings.get(player.id);
+    return {
+      id: player.id,
+      look,
+      facing: player.facing,
+      position,
+      label: carryLabel(player),
+      faded: !player.connected,
+      carried: downed && player.carriedByPlayerId !== null,
+      stance: {
+        downed,
+        seated: player.seatId !== null,
+        swing: swing ? { heading: swing.heading, progress: swing.progress } : null,
+      },
+    };
   };
 
   /**
@@ -1102,9 +1112,15 @@ export function createCanvasRenderer(
       ctx.fill();
     });
 
+    // Each attacker's newest swing: the one nearest its start.
+    const swings = new Map<string, ActiveSwing>();
+    for (const swing of scene.swings) {
+      const seen = swings.get(swing.attackerId);
+      if (!seen || swing.progress < seen.progress) swings.set(swing.attackerId, swing);
+    }
     const players = [
-      ...scene.others.map((player) => drawnPlayer(player, player.position)),
-      scene.self ? drawnPlayer(scene.self, scene.localPosition) : null,
+      ...scene.others.map((player) => drawnPlayer(player, player.position, swings)),
+      scene.self ? drawnPlayer(scene.self, scene.localPosition, swings) : null,
     ].filter((player): player is DrawnPlayer => player !== null);
     characters.draw(ctx, players, toScreen, pixelsPerWorldUnit, performance.now());
 
