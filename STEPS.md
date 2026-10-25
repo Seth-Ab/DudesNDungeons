@@ -57,6 +57,7 @@ progression, target run length, world tile scale, and run saves.
 - Add production build and start commands.
 - Add basic logging for sessions, disconnects, and server errors.
 - Verify one deployed server can host multiple dungeon instances.
+  Multi-room isolation over WebSocket is covered by an e2e test; the deployed check remains open.
 
 ### 7. Player Vitals: Resistance, Stamina, and the Run Timer
 

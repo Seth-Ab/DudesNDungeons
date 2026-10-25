@@ -244,7 +244,10 @@ check remains.
   no structured logger.
 - [ ] Verify one deployed server can host multiple dungeon instances. A local `npm start` process
   hosted two joined sessions at once over HTTP and WebSocket, but there is no deployment target yet,
-  and the only automated multi-session check is store-level (`tests/server/sessions.test.ts`).
+  and the deployed check stays open. Isolation between two live rooms on one server is covered over
+  WebSocket by `tests/e2e/multiRoom.test.ts` (rosters, snapshots, run lifecycle, voice, emotes,
+  disconnect/rejoin, shutdown, and per-room saves), alongside the store-level
+  `tests/server/sessions.test.ts`.
 
 ### 7. Player Vitals: Resistance, Stamina, and the Run Timer
 
