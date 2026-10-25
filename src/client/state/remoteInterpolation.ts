@@ -1,8 +1,14 @@
 import { distance, MOVE_INTERVAL_MS } from "../../shared/game/movement.js";
-import type { PlayerId, PlayerState, Vector2 } from "../../shared/types/core.js";
+import type { Vector2 } from "../../shared/types/core.js";
+
+/** Anything drawn from a buffered track: a remote player or a monster. */
+export interface InterpolatedEntity {
+  id: string;
+  position: Vector2;
+}
 
 /**
- * How far in the past remote players are drawn. Two move intervals: one for the slide between
+ * How far in the past remote players and monsters are drawn. Two move intervals: one for the slide between
  * authoritative positions, one of headroom so a late or bunched snapshot lands before the render
  * clock reaches it, rather than leaving the player stopped and then lurching.
  */
@@ -18,7 +24,7 @@ export const REMOTE_RENDER_DELAY_MS = 2 * MOVE_INTERVAL_MS;
 const LATE_SLACK_MS = MOVE_INTERVAL_MS / 2;
 const MAX_SCHEDULE_AHEAD_MS = MOVE_INTERVAL_MS;
 
-/** How long a player keeps moving along their last step when nothing new has arrived. */
+/** How long an entity keeps moving along their last step when nothing new has arrived. */
 export const MAX_EXTRAPOLATION_MS = MOVE_INTERVAL_MS;
 
 /**
@@ -56,7 +62,7 @@ interface RemoteTrack {
   heardAt: number;
 }
 
-export type RemoteInterpolationState = ReadonlyMap<PlayerId, RemoteTrack>;
+export type RemoteInterpolationState = ReadonlyMap<string, RemoteTrack>;
 
 export const emptyRemoteInterpolation: RemoteInterpolationState = new Map();
 
@@ -198,10 +204,10 @@ function advanceTrack(track: RemoteTrack, position: Vector2, now: number): Remot
 
 /** Snaps every given player to their current position, discarding any prior buffer. */
 export function resetRemoteInterpolation(
-  players: readonly PlayerState[],
+  players: readonly InterpolatedEntity[],
   now: number,
 ): RemoteInterpolationState {
-  const next = new Map<PlayerId, RemoteTrack>();
+  const next = new Map<string, RemoteTrack>();
   for (const player of players) {
     next.set(player.id, snapTrack(player.position, now));
   }
@@ -215,10 +221,11 @@ export function resetRemoteInterpolation(
  */
 export function updateRemoteInterpolation(
   state: RemoteInterpolationState,
-  players: readonly PlayerState[],
+  players: readonly InterpolatedEntity[],
   now: number,
+  absentGraceMs: number = ABSENT_TRACK_GRACE_MS,
 ): RemoteInterpolationState {
-  const next = new Map<PlayerId, RemoteTrack>();
+  const next = new Map<string, RemoteTrack>();
 
   for (const player of players) {
     const previous = state.get(player.id);
@@ -229,8 +236,9 @@ export function updateRemoteInterpolation(
   }
 
   // Keep a briefly absent player's track, so one flickering at the edge of view does not snap.
+  // Monsters pass no grace: one that died or left view must not slide from a stale position.
   for (const [playerId, track] of state) {
-    if (!next.has(playerId) && now - track.heardAt < ABSENT_TRACK_GRACE_MS) {
+    if (!next.has(playerId) && now - track.heardAt < absentGraceMs) {
       next.set(playerId, track);
     }
   }
@@ -241,11 +249,28 @@ export function updateRemoteInterpolation(
 /** Where to draw a remote player right now: their buffered position `REMOTE_RENDER_DELAY_MS` ago. */
 export function remoteInterpolatedPosition(
   state: RemoteInterpolationState,
-  playerId: PlayerId,
+  playerId: string,
   now: number,
   fallback: Vector2,
 ): Vector2 {
   const track = state.get(playerId);
   if (!track) return fallback;
   return positionAt(track, now - REMOTE_RENDER_DELAY_MS);
+}
+
+/**
+ * Folds a snapshot's living, visible monsters into their buffers. Unlike a player, a monster that
+ * is absent loses its track at once: it died or left view, and if it reappears it snaps.
+ */
+export function updateMonsterInterpolation(
+  state: RemoteInterpolationState,
+  monsters: readonly (InterpolatedEntity & { alive: boolean })[],
+  now: number,
+): RemoteInterpolationState {
+  return updateRemoteInterpolation(
+    state,
+    monsters.filter((monster) => monster.alive),
+    now,
+    0,
+  );
 }
