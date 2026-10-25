@@ -83,9 +83,17 @@ test.describe("The lobby's Continue list", () => {
     await guest.screenshot({ path: testInfo.outputPath("continue-list.png") });
 
     // The portrait is painted from the sheet, not left blank.
+    // The server config has no DOM lib, so the canvas is typed by the few members read here.
+    type PaintedCanvas = {
+      width: number;
+      height: number;
+      getContext(id: "2d"): { getImageData(x: number, y: number, w: number, h: number): { data: Uint8ClampedArray } } | null;
+    };
     const painted = await card(guest)
       .locator(".lobby__portrait")
-      .evaluate((canvas: HTMLCanvasElement) => canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data.some((byte, index) => index % 4 === 3 && byte > 0));
+      .evaluate((canvas: PaintedCanvas) =>
+        canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data.some((byte: number, index: number) => index % 4 === 3 && byte > 0),
+      );
     expect(painted).toBe(true);
 
     // Continue goes straight into the run: no design screen, and the teammate is still there.

@@ -657,6 +657,7 @@ Complete on `feature/hub-run-flow`.
 - 2026-10-24: Typed key locks: a door's `locked` boolean becomes `lock`, keys carry `itemId`, and `boss-key` and `vault-key` open different doors (#255, protocol v50).
 - 2026-10-24: Omens added to generation: six warnings and anomalies rolled from the run seed, plus a single-use `collapsing-floor` trap (#267, no protocol change).
 - 2026-10-24: Generator v2 Phase 1 documented: decision 0016 pipeline and invariants, content README, 0007 layout marked superseded (#254, documentation only).
+- 2026-10-25: `npm run typecheck` is green again and runs in the CI unit-test job; the Continue-list spec types its canvas read without the DOM lib (#304, tests and CI only).
 - 2026-10-24: `vault-run` switched to the generator v2 `delve` layout with validation, retry and a 1,000-seed-per-party-size sweep (#253, no protocol change).
 - 2026-10-23: Puzzles scale to the party: `partySize` passed into generation, Ballast Stones stand in for missing players on a plate, and a new `ballast` item kind (#252, protocol v49).
 - 2026-10-23: Generator v2 populate stage: boss door, lights, spawn points, threat-budget monsters, role-based loot, traps and plates placed into carved rooms (#251, not yet called by `generateDungeon`).
