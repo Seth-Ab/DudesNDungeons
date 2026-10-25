@@ -143,6 +143,15 @@ describe("the tile layer", () => {
     expect(stamps).toEqual(["forest-13", floorSprite(2, 1, "forest"), "forest-overhang-8"]);
   });
 
+  it("draws a crypt-themed map with the crypt's own wall and floor", () => {
+    const { layer, draw, stamps } = harness();
+    const rows = withTile(filled(" "), 1, 1, "#");
+    layer.sync({ ...windowOf(withTile(rows, 2, 1, ".")), theme: "crypt" }, "run");
+    draw();
+
+    expect(stamps).toEqual(["crypt-13", floorSprite(2, 1, "crypt")]);
+  });
+
   it("stamps a stone map without ground exactly as it did before ground existed", () => {
     const rows = withTile(withTile(withTile(filled("."), 4, 4, "#"), 5, 4, "#"), 4, 5, "#");
     const map = windowOf(rows);

@@ -8,9 +8,10 @@
 
 /**
  * How a map draws its `#` and `.` tiles. `stone` is dungeon masonry and the default; `forest` draws
- * walls as dense woodland, which is the hub.
+ * walls as dense woodland, which is the hub. `crypt`, `fungal` and `ossuary` are the biomes' own
+ * wall and floor palettes: drowned blue-grey, mossy earth and pale bone.
  */
-export const MAP_THEMES = ["stone", "forest"] as const;
+export const MAP_THEMES = ["stone", "forest", "crypt", "fungal", "ossuary"] as const;
 
 export const DEFAULT_MAP_THEME = "stone";
 

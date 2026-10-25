@@ -66,8 +66,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `flue-ascent`, `soot-shaft`; boss `slag-pit`; puzzles `furnace-lock`, `brazier-court`,
   `lever-gallery`; halls `slag-gallery`, `bellows-nave`; maze `flue-warren`; trap `vent-run`.
 - `dungeons/`: authored dungeons and generated-dungeon profiles. An authored dungeon may set
-  `theme` (`stone`, the default, or `forest`, which draws walls as woodland, with its canopy
-  overhanging the floor beside it) and a `props` list of
+  `theme` (`stone`, the default, `forest`, which draws walls as woodland, with its canopy
+  overhanging the floor beside it, or a biome's own `crypt`, `fungal` or `ossuary` palette) and a `props` list of
   scenery: `{ kind, x, y, label?, tint?, facing? }`, with `kind` one of `fountain`, `stall`,
   `quest-board`, `tree`, `bush`, `dungeon-gate`, `sign`, `hanging-lantern`, `bench`, `log` or
   `campfire` (the stone pit round a `fixture: "campfire"` light, flat on open floor: a light on a
@@ -113,7 +113,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `keySource` of `puzzle`, `branch` or `arena`; any other lock, or a key source that lock cannot use,
   fails loading. `gauntlet`, `long-loop` and `three-roads` ship. A run draws its flow weighted among the profile's
   flows with `minParty` at most the party size, from the run seed alone.
-  A **biome** is what a run looks and fights like: `theme` and `lightTint`, `light` (a multiplier on
+  A **biome** is what a run looks and fights like: `theme` (the map theme its run's walls and floors draw
+  with, which also tints its torch light: cold for `crypt`, green for `fungal`) and `lightTint`, `light` (a multiplier on
   light radii), a `roster` of `{ typeId, cost, weight }` (cost is spent against a room's threat
   budget; bosses are not allowed here), `traps` and `puzzles` pools, a `bosses` pool (each must be
   a `boss: true` monster), `roomWeights` by room kind, a `lootTableId`, and `names` by room kind.

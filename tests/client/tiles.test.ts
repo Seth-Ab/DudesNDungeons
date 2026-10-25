@@ -13,6 +13,7 @@ import {
   SHEET_WIDTH,
   SPRITE_NAMES,
   SPRITE_TILE_SIZE,
+  THEME_LIGHT_TINTS,
   UNKNOWN,
   GROUND_VARIANTS,
   cobbleSprite,
@@ -238,6 +239,31 @@ describe("weapon art", () => {
 });
 
 describe("map themes and props", () => {
+  it("gives each biome theme its own wall and floor sprites, all in the sheet", () => {
+    for (const theme of ["crypt", "fungal", "ossuary"] as const) {
+      for (let mask = 0; mask < 16; mask += 1) {
+        expect(wallSprite(mask, theme)).toBe(`${theme}-${mask}`);
+        expect(SPRITE_NAMES).toContain(wallSprite(mask, theme));
+      }
+      const floors = new Set<string>();
+      for (let y = 0; y < 20; y += 1) {
+        for (let x = 0; x < 20; x += 1) {
+          const floor = floorSprite(x, y, theme);
+          expect(SPRITE_NAMES).toContain(floor);
+          expect(floor.startsWith(`${theme}-floor-`)).toBe(true);
+          floors.add(floor);
+        }
+      }
+      expect(floors.size).toBeGreaterThan(1);
+      // Walls stay `#` and the canopy is the forest's alone.
+      expect(overhangSprite(readerFor(["#", "."]), 0, 0, theme)).toBeNull();
+    }
+  });
+
+  it("tints the light of each biome: cold for the crypt, green for the fungal, warm elsewhere", () => {
+    expect(THEME_LIGHT_TINTS).toEqual({ stone: "warm", forest: "warm", crypt: "cold", fungal: "green", ossuary: "warm" });
+  });
+
   it("names a forest wall for every mask, and gives the forest the stone floor", () => {
     for (let mask = 0; mask < 16; mask += 1) {
       expect(wallSprite(mask)).toBe(`wall-${mask}`);

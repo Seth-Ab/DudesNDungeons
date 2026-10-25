@@ -200,6 +200,21 @@ const PARTY_SIZES = [1, 2, 3, 4];
 /** Ids and tiles flattened, so byte-identical is one string comparison. */
 const fingerprint = (built: BuiltDungeon): string => JSON.stringify([built.dungeon, built.spawnPoints, built.seed]);
 
+describe("a delve run's map theme", () => {
+  it("is the theme its biome names, so each biome draws with its own palette", () => {
+    const biome = content.biomes.get("cinder-depths")!;
+    expect(generateDungeon(delveProfile, content, 7, 2).dungeon.map.theme).toBe(biome.theme);
+
+    for (const theme of ["crypt", "fungal", "ossuary"] as const) {
+      const themed = { ...content, biomes: new Map([["cinder-depths", { ...biome, theme }]]) };
+      const { dungeon } = generateDungeon(delveProfile, themed, 7, 2);
+      expect(dungeon.map.theme).toBe(theme);
+      // Theme changes the picture and nothing else: the layout is the same seeded layout.
+      expect(dungeon.map.tiles).toEqual(generateDungeon(delveProfile, content, 7, 2).dungeon.map.tiles);
+    }
+  });
+});
+
 describe("the delve generator", () => {
   it("is what the default run builds, and the Ember Vault stays the pinned authored map", () => {
     expect(delveProfile.layout).toBe("delve");
