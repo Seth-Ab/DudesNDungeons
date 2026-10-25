@@ -71,7 +71,7 @@ test.describe("Party frames for allies out of sight", () => {
 
     sight.on = true;
     await expect(frame).toHaveAttribute("data-state", "outOfSight");
-    await expect(frame.locator(".hud__frame-caption")).toHaveText("out of sight");
+    await expect(frame.locator(".hud__frame-caption")).toHaveText(/^out of sight/);
     await expect(frame.locator(".hud__frame-state")).toHaveText("◌");
     await expect(frame.locator(".hud__bar").first()).toBeHidden();
     await expect(frame.locator(".hud__frame-footer")).toBeHidden();
@@ -88,5 +88,49 @@ test.describe("Party frames for allies out of sight", () => {
 
     expect(errors).toEqual([]);
     for (const page of [host, guest]) await page.context().close();
+  });
+
+  test("shows a designing friend as Designing… and an unseen ally with the room they were last in", async ({ browser }, testInfo) => {
+    const errors: string[] = [];
+    const sight = { on: false };
+    const host = await openPlayer(browser, errors, sight);
+    await host.getByPlaceholder("Your name").fill("Maya");
+    await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    const room = host.locator(".hud__stat", { hasText: "Room:" }).locator("span");
+    await expect(room).toHaveText(/^[A-Z0-9]{6}$/);
+    const roomCode = (await room.textContent()) ?? "";
+    await enterHub(host);
+
+    const join = async (name: string) => {
+      const page = await openPlayer(browser, errors);
+      await page.getByPlaceholder("Your name").fill(name);
+      await page.getByPlaceholder(/Room code/).fill(roomCode);
+      await page.getByRole("button", { name: "Join dungeon" }).click();
+      return page;
+    };
+    const sam = await join("Sam");
+    await enterHub(sam);
+    // Iris stays on the design screen: she has no look, so the host cannot see her at all.
+    const iris = await join("Iris");
+
+    const samFrame = host.locator(".hud__frame", { hasText: "Sam" });
+    const irisFrame = host.locator(".hud__frame", { hasText: "Iris" });
+    await expect(samFrame).toHaveAttribute("data-state", "waiting", { timeout: 15_000 });
+    await expect(irisFrame).toHaveAttribute("data-state", "designing", { timeout: 15_000 });
+    await expect(irisFrame.locator(".hud__frame-caption")).toHaveText("Designing…");
+    await expect(irisFrame.locator(".hud__bar").first()).toBeHidden();
+
+    sight.on = true;
+    await expect(samFrame).toHaveAttribute("data-state", "outOfSight");
+    await expect(samFrame.locator(".hud__frame-caption")).toHaveText(/^out of sight · last seen in .+/);
+    await expect(irisFrame).toHaveAttribute("data-state", "designing");
+    await host.waitForTimeout(300);
+    await host.screenshot({
+      path: testInfo.outputPath("party-frames-designing-and-last-seen.png"),
+      clip: { x: 0, y: 60, width: 360, height: 220 },
+    });
+
+    expect(errors).toEqual([]);
+    for (const page of [host, sam, iris]) await page.context().close();
   });
 });

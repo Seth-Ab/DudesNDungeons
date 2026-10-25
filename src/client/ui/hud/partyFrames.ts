@@ -1,4 +1,4 @@
-import { partyFrames, VITAL_GLYPHS, type PartyFrameView } from "../../state/hudView.js";
+import { partyFrameCaption, partyFrames, VITAL_GLYPHS, type PartyFrameView } from "../../state/hudView.js";
 import type { SessionView } from "../../network/sessionState.js";
 import { characterLookKey } from "../../rendering/characters.js";
 import { createCharacterPortraits } from "../../rendering/characterSprites.js";
@@ -87,7 +87,7 @@ function createFrame(portraits: Portraits) {
       // the state never reads from the grey frame alone.
       const hasVitals = frame.health !== null && frame.resistance !== null && frame.state !== "designing";
       const captioned = !hasVitals;
-      caption.textContent = captioned ? frame.stateLabel : "";
+      caption.textContent = captioned ? partyFrameCaption(frame) : "";
       caption.hidden = !captioned;
       health.element.hidden = !hasVitals;
       footer.hidden = !hasVitals;

@@ -795,17 +795,17 @@ export function withOwnBank(state: PlayerState, player: SessionPlayer): PlayerSt
 /**
  * Who is in the party, for members who cannot see each other. Only identity and connection: nothing
  * here may reveal where a member is or how they are, because the receiver may have lost sight of
- * them on purpose. Members still designing their character are left out until they have one.
+ * them on purpose. A member still designing their character is listed with `designing` set, which
+ * is all that is true of them yet.
  */
 export function partyRosterOf(session: Session): PartyRosterEntry[] {
-  return [...session.players.values()]
-    .filter((player) => player.appearance !== null)
-    .map((player) => ({
-      playerId: player.id,
-      name: player.name,
-      partyColor: player.partyColor,
-      connected: player.connected,
-    }));
+  return [...session.players.values()].map((player) => ({
+    playerId: player.id,
+    name: player.name,
+    partyColor: player.partyColor,
+    connected: player.connected,
+    designing: player.appearance === null,
+  }));
 }
 
 /** Public state for every player, without banks. Build once per tick and share across viewers. */
