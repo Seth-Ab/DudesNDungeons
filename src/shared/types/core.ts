@@ -432,6 +432,16 @@ export const roomKindSchema = z.enum([
   "shop",
   /** The hub's wardrobe stall: standing inside one is what lets a player buy a cosmetic. */
   "wardrobe",
+  /** A resting place on the way down. */
+  "camp",
+  /** A room with an altar or boon to find. */
+  "shrine",
+  /** A room off the map until found. */
+  "secret",
+  /** A room fought in the open, with no way to slip past. */
+  "arena",
+  /** An irregular cave in place of a built hall. */
+  "cavern",
 ]);
 export type RoomKind = z.infer<typeof roomKindSchema>;
 
