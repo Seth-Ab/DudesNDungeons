@@ -569,6 +569,15 @@ export interface PartyFrameView {
   portrait: CharacterLook | null;
   /** The party colour's ring, edging the frame the way it rings their feet in the world. */
   accent: string;
+  /** For an ally out of sight, the discovered room the client last saw them in; null if never seen. */
+  lastSeenRoom: string | null;
+}
+
+/** The words under a frame's name when it has no vitals: its state, plus where an unseen ally was. */
+export function partyFrameCaption(frame: PartyFrameView): string {
+  return frame.state === "outOfSight" && frame.lastSeenRoom
+    ? `${frame.stateLabel} · last seen in ${frame.lastSeenRoom}`
+    : frame.stateLabel;
 }
 
 export function partyMemberState(player: PlayerState): PartyMemberState {
@@ -583,8 +592,8 @@ const DOWNED_FRAME_STATES: ReadonlySet<PartyMemberState> = new Set(["downed", "b
 
 /**
  * One frame per other party member. Members in the latest snapshot show live health and resistance;
- * the rest come from the server's roster and get a grey "out of sight" frame (or "disconnected")
- * with no vitals, so a frame never holds a number the viewer should not know. Downed allies who are
+ * the rest come from the server's roster and get a grey "out of sight" frame (or "disconnected",
+ * or "Designing…" for a member with no character yet) with no vitals, so a frame never holds a number the viewer should not know. Downed allies who are
  * in sight sort first; otherwise the order is the roster's, which does not change between ticks.
  * Self is left out: the vitals cluster already covers it.
  */
@@ -595,7 +604,7 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
   );
 
   const rostered = new Map(view.partyRoster.map((entry) => [entry.playerId, entry]));
-  // Roster order first; then anyone seen who is not listed yet, such as a member still designing.
+  // Roster order first; then anyone seen who is not listed yet.
   const ids = [
     ...[...rostered.keys()].filter((id) => id !== view.selfId),
     ...[...live.keys()].filter((id) => !rostered.has(id)),
@@ -615,11 +624,12 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
         resistance: barView(player.resistance, PLAYER_MAX_RESISTANCE),
         portrait: lookOf(player),
         accent: PARTY_PALETTES[player.partyColor].ring,
+        lastSeenRoom: null,
       };
     }
 
     const entry = rostered.get(id) as PartyRosterEntry;
-    const state: PartyMemberState = entry.connected ? "outOfSight" : "disconnected";
+    const state: PartyMemberState = !entry.connected ? "disconnected" : entry.designing ? "designing" : "outOfSight";
     return {
       id: entry.playerId,
       name: entry.name,
@@ -630,6 +640,7 @@ export function partyFrames(view: SessionView): PartyFrameView[] {
       resistance: null,
       portrait: null,
       accent: PARTY_PALETTES[entry.partyColor].ring,
+      lastSeenRoom: state === "outOfSight" ? (view.lastSeenRooms[id] ?? null) : null,
     };
   });
 

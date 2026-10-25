@@ -10,12 +10,13 @@ import type { AttackRecord } from "../state/combatFeedback.js";
 import { applyMapDiscovery } from "../state/discoveredMap.js";
 import { emoteFeedLine, type EmoteRecord } from "../state/emotes.js";
 import { litTilesFrom, type LitTileSet } from "../state/litTiles.js";
-import { rejectionMessage, runOutcome, type RunOutcome } from "../state/runFlow.js";
+import { rejectionMessage, roomAt, runOutcome, type RunOutcome } from "../state/runFlow.js";
 import type {
   DungeonState,
   InventoryItem,
   PlayerId,
   PlayerState,
+  RoomState,
   RunState,
   SkillStacks,
   MilestoneStats,
@@ -141,6 +142,12 @@ export interface SessionView {
    * connection only: for a member outside `visiblePlayerIds` this is all the client knows.
    */
   partyRoster: PartyRosterEntry[];
+  /**
+   * The name of the room each ally was last seen in, by player id. Taken from snapshots the client
+   * already holds, so it only ever names a room the server had shown this viewer. Forgotten when
+   * the party moves between the hub and a run, since rooms do not carry over.
+   */
+  lastSeenRooms: Readonly<Record<PlayerId, string>>;
   /** What the party vault holds, from the latest `partyVault`. The same list for every member. */
   vault: InventoryItem[];
   /**
@@ -204,6 +211,7 @@ export const initialSessionView: SessionView = {
   voiceRange: [],
   progression: null,
   partyRoster: [],
+  lastSeenRooms: {},
   vault: [],
   convertPromptItemId: null,
   skillShop: [],
@@ -245,6 +253,33 @@ function mergePlayers(known: PlayerState[], visible: PlayerState[]): PlayerState
   return [...merged.values()];
 }
 
+function withoutKey(record: Readonly<Record<PlayerId, string>>, key: PlayerId): Record<PlayerId, string> {
+  const { [key]: _dropped, ...rest } = record;
+  return rest;
+}
+
+/**
+ * Notes the room each visible ally stands in. `rooms` is the snapshot's own list, which holds only
+ * rooms this viewer has discovered, so nothing undiscovered can be named. An ally between rooms
+ * keeps the last room they were seen in.
+ */
+function rememberSeenRooms(
+  known: Readonly<Record<PlayerId, string>>,
+  selfId: PlayerId | null,
+  visible: readonly PlayerState[],
+  rooms: readonly RoomState[],
+): Readonly<Record<PlayerId, string>> {
+  let next: Record<PlayerId, string> | null = null;
+  for (const player of visible) {
+    if (player.id === selfId) continue;
+    const name = roomAt(rooms, player.position)?.name;
+    if (!name || known[player.id] === name) continue;
+    next ??= { ...known };
+    next[player.id] = name;
+  }
+  return next ?? known;
+}
+
 /**
  * Folds one server message into the client's view of the dungeon. Pure, so the whole session
  * lifecycle can be tested without a socket.
@@ -265,6 +300,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         // A new join is a new profile's view; nothing of an earlier one carries over.
         progression: null,
         partyRoster: [],
+        lastSeenRooms: {},
         vault: [],
         convertPromptItemId: null,
         skillShop: [],
@@ -320,6 +356,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         ...view,
         players: view.players.filter((player) => player.id !== message.playerId),
         partyRoster: view.partyRoster.filter((entry) => entry.playerId !== message.playerId),
+        lastSeenRooms: withoutKey(view.lastSeenRooms, message.playerId),
       };
 
     case "savedRuns":
@@ -381,6 +418,12 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         lit: litTilesFrom(message.dungeon.map),
         location: message.location,
         run: message.run,
+        lastSeenRooms: rememberSeenRooms(
+          view.location === null || view.location === message.location ? view.lastSeenRooms : {},
+          view.selfId,
+          message.players,
+          message.dungeon.rooms,
+        ),
       };
 
       // The party moves between the hub and a run as one, and protocol v8 announces neither: the

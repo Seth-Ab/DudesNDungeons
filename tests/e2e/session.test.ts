@@ -813,15 +813,18 @@ describe("party roster", () => {
     betaPlayer.resistance = 3;
     betaPlayer.position = { x: 123.5, y: 456.5 };
 
-    const roster = await rosterWhere(alpha.client, (message) => message.members.length === 2);
+    const roster = await rosterWhere(
+      alpha.client,
+      (message) => message.members.length === 2 && message.members.every((member) => !member.designing),
+    );
 
     expect(roster.members.map((member) => Object.keys(member).sort())).toEqual([
-      ["connected", "name", "partyColor", "playerId"],
-      ["connected", "name", "partyColor", "playerId"],
+      ["connected", "designing", "name", "partyColor", "playerId"],
+      ["connected", "designing", "name", "partyColor", "playerId"],
     ]);
     expect(roster.members).toEqual([
-      { playerId: alpha.joined.playerId, name: "Alpha", partyColor: "ember", connected: true },
-      { playerId: beta.joined.playerId, name: "Beta", partyColor: "moss", connected: true },
+      { playerId: alpha.joined.playerId, name: "Alpha", partyColor: "ember", connected: true, designing: false },
+      { playerId: beta.joined.playerId, name: "Beta", partyColor: "moss", connected: true, designing: false },
     ]);
 
     // Nothing the roster carries, on any message of that type, mentions the body.
@@ -833,17 +836,29 @@ describe("party roster", () => {
     }
   });
 
-  it("leaves out a member who is still designing, then lists them once they have a look", async () => {
+  it("lists a member who is still designing as designing, with no body detail, then clears the flag", async () => {
     const roomCode = await createRoom();
     const alpha = await joinRoom(roomCode, "Alpha");
     const beta = await joinRoom(roomCode, "Beta", undefined, false);
 
-    await alpha.client.nextWhere("stateSnapshot", () => true);
-    expect(rosterOf(alpha.client).at(-1)?.members.map((member) => member.name)).toEqual(["Alpha"]);
+    const designing = await rosterWhere(alpha.client, (message) => message.members.length === 2);
+    expect(designing.members).toEqual([
+      { playerId: alpha.joined.playerId, name: "Alpha", partyColor: "ember", connected: true, designing: false },
+      { playerId: beta.joined.playerId, name: "Beta", partyColor: "moss", connected: true, designing: true },
+    ]);
+    // The entry for a designing member is as strict as any other: identity, colour, connection, flag.
+    expect(Object.keys(designing.members[1]!).sort()).toEqual(["connected", "designing", "name", "partyColor", "playerId"]);
+    const text = JSON.stringify(designing);
+    for (const leak of ["position", "health", "resistance", "downed", "stamina", "appearance"]) {
+      expect(text, leak).not.toContain(leak);
+    }
 
     beta.client.send({ type: "setAppearance", appearance: LOOK });
-    const grown = await rosterWhere(alpha.client, (message) => message.members.length === 2);
-    expect(grown.members.map((member) => member.name)).toEqual(["Alpha", "Beta"]);
+    const designed = await rosterWhere(
+      alpha.client,
+      (message) => message.members.find((member) => member.name === "Beta")?.designing === false,
+    );
+    expect(designed.members.map((member) => member.name)).toEqual(["Alpha", "Beta"]);
   });
 
   it("follows a drop, a reconnect and a timeout, and resends in full to a new socket", async () => {

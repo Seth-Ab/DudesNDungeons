@@ -259,6 +259,10 @@ export const playerReadyChangedSchema = z.object({
  * One party member as the roster lists them. Deliberately only what is safe to tell someone who
  * cannot see this member: no position, health, resistance, downed state or anything else about the
  * body. `.strict()` so a field added here is a decision, not an accident.
+ *
+ * `designing` is true for a member who has no character yet. It says only that, so the receiver can
+ * show a "Designing..." frame for someone they cannot see; it carries nothing about a body, since
+ * there is none to describe.
  */
 export const partyRosterEntrySchema = z
   .object({
@@ -266,6 +270,7 @@ export const partyRosterEntrySchema = z
     name: playerNameSchema,
     partyColor: partyColorSchema,
     connected: z.boolean(),
+    designing: z.boolean(),
   })
   .strict();
 export type PartyRosterEntry = z.infer<typeof partyRosterEntrySchema>;
@@ -273,7 +278,7 @@ export type PartyRosterEntry = z.infer<typeof partyRosterEntrySchema>;
 /**
  * Who is in the party, including members the receiver cannot see, so the HUD can keep a frame for
  * an ally who left sight. Sent to every connected member whenever the list changes, and once after
- * joining. Members who have not finished designing their character are not listed yet. Snapshots
+ * joining. A member who has not finished designing their character is listed with `designing` set. Snapshots
  * remain the only source of live state: a member missing from the receiver's snapshot is out of
  * sight, and the client shows nothing about them but this entry.
  */

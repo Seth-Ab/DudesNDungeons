@@ -26,6 +26,7 @@ import {
   vitalChange,
   newServerAction,
   noticesView,
+  partyFrameCaption,
   partyFrames,
   toastMessages,
   slotKind,
@@ -1026,6 +1027,7 @@ describe("party frames for allies out of sight", () => {
       name,
       partyColor: "moss" as const,
       connected: connected ?? true,
+      designing: false,
     }));
   const self = player("Maya", { id: SELF_ID });
 
@@ -1120,5 +1122,66 @@ describe("party frames for allies out of sight", () => {
     );
 
     expect(frames[0]?.state).toBe("outOfSight");
+  });
+
+  it("shows Designing… from the roster for a member who is not in sight", () => {
+    const [entry] = roster([SAM_ID, "Sam"]);
+    const [frame] = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self],
+        visiblePlayerIds: [SELF_ID],
+        partyRoster: [{ ...entry!, designing: true }],
+      }),
+    );
+
+    expect(frame).toMatchObject({
+      id: SAM_ID,
+      state: "designing",
+      stateLabel: "Designing…",
+      health: null,
+      resistance: null,
+      portrait: null,
+      lastSeenRoom: null,
+    });
+    expect(partyFrameCaption(frame!)).toBe("Designing…");
+  });
+
+  it("shows a designing member who dropped as disconnected", () => {
+    const [entry] = roster([SAM_ID, "Sam", false]);
+    const [frame] = partyFrames(
+      view({ selfId: SELF_ID, players: [self], partyRoster: [{ ...entry!, designing: true }] }),
+    );
+
+    expect(frame?.state).toBe("disconnected");
+  });
+
+  it("captions an out-of-sight ally with the room they were last seen in, and none if never seen", () => {
+    const unseen = view({
+      selfId: SELF_ID,
+      players: [self],
+      partyRoster: roster([SAM_ID, "Sam"], [IRIS_ID, "Iris"]),
+      lastSeenRooms: { [SAM_ID]: "Ember Hall" },
+    });
+    const [sam, iris] = partyFrames(unseen);
+
+    expect(sam).toMatchObject({ name: "Sam", lastSeenRoom: "Ember Hall" });
+    expect(partyFrameCaption(sam!)).toBe("out of sight · last seen in Ember Hall");
+    expect(iris).toMatchObject({ name: "Iris", lastSeenRoom: null });
+    expect(partyFrameCaption(iris!)).toBe("out of sight");
+  });
+
+  it("drops the remembered room once the ally is back in sight", () => {
+    const sam = player("Sam", { id: SAM_ID });
+    const [frame] = partyFrames(
+      view({
+        selfId: SELF_ID,
+        players: [self, sam],
+        partyRoster: roster([SAM_ID, "Sam"]),
+        lastSeenRooms: { [SAM_ID]: "Ember Hall" },
+      }),
+    );
+
+    expect(frame).toMatchObject({ state: "waiting", lastSeenRoom: null });
   });
 });

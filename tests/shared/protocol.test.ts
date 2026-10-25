@@ -442,8 +442,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v53, the version that added setName", () => {
-    expect(PROTOCOL_VERSION).toBe(53);
+  it("is on protocol v54, the version that added the roster's designing flag", () => {
+    expect(PROTOCOL_VERSION).toBe(54);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -838,7 +838,7 @@ describe("party vault contract", () => {
 });
 
 describe("partyRoster contract", () => {
-  const entry = { playerId: PLAYER_ID, name: "Grix", partyColor: "ember", connected: true };
+  const entry = { playerId: PLAYER_ID, name: "Grix", partyColor: "ember", connected: true, designing: false };
   const roster = { type: "partyRoster", members: [entry] };
   const parse = (message: unknown) => parseServerMessage(JSON.stringify(message));
 
@@ -850,13 +850,21 @@ describe("partyRoster contract", () => {
     }
   });
 
+  it("round-trips an entry for a member still designing", () => {
+    const message = { type: "partyRoster", members: [{ ...entry, designing: true }] };
+    const result = parse(message);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.message).toEqual(message);
+  });
+
   it("rejects malformed entries", () => {
     for (const bad of [
       { ...entry, playerId: "not-a-uuid" },
       { ...entry, name: "" },
       { ...entry, partyColor: "mauve" },
       { ...entry, connected: "yes" },
-      { playerId: entry.playerId, name: entry.name, partyColor: entry.partyColor },
+      { ...entry, designing: "yes" },
+      { playerId: entry.playerId, name: entry.name, partyColor: entry.partyColor, connected: true },
     ]) {
       expect(parse({ ...roster, members: [bad] }).ok, JSON.stringify(bad)).toBe(false);
     }
@@ -870,6 +878,7 @@ describe("partyRoster contract", () => {
       { health: 40 },
       { resistance: 10 },
       { downed: true },
+      { appearance: { body: "slim" } },
     ]) {
       expect(parse({ ...roster, members: [{ ...entry, ...extra }] }).ok, JSON.stringify(extra)).toBe(false);
     }

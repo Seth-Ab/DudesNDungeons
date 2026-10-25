@@ -154,8 +154,8 @@ describe("party changes", () => {
 
   it("keeps the party roster from partyRoster, forgetting a player who leaves", () => {
     const members = [
-      { playerId: SELF_ID, name: "Self", partyColor: "ember" as const, connected: true },
-      { playerId: ALLY_ID, name: "Ally", partyColor: "moss" as const, connected: true },
+      { playerId: SELF_ID, name: "Self", partyColor: "ember" as const, connected: true, designing: false },
+      { playerId: ALLY_ID, name: "Ally", partyColor: "moss" as const, connected: true, designing: true },
     ];
     let view = applyServerMessage(joinedView(), { type: "partyRoster", members });
     expect(view.partyRoster).toEqual(members);
@@ -215,6 +215,55 @@ describe("party changes", () => {
     });
 
     expect(after.players).toEqual(view.players);
+  });
+});
+
+describe("last-seen rooms", () => {
+  const HALL = { id: "hall", name: "Ember Hall", kind: "hall" as const, x: 2, y: 2, width: 4, height: 4 };
+  const snapshot = (
+    tick: number,
+    allyAt: { x: number; y: number } | null,
+    overrides: { location?: "hub" | "dungeon"; rooms?: DungeonSnapshot["rooms"] } = {},
+  ) => ({
+    type: "stateSnapshot" as const,
+    tick,
+    location: overrides.location ?? ("dungeon" as const),
+    players: [player(SELF_ID), ...(allyAt ? [player(ALLY_ID, { position: allyAt })] : [])],
+    dungeon: dungeon({ rooms: overrides.rooms ?? [HALL] }),
+    run: run(),
+  });
+
+  it("remembers the room an ally stood in once they leave sight", () => {
+    let view = applyServerMessage(joinedView(), snapshot(1, { x: 3.5, y: 3.5 }));
+    expect(view.lastSeenRooms).toEqual({ [ALLY_ID]: "Ember Hall" });
+
+    view = applyServerMessage(view, snapshot(2, null));
+    expect(view.lastSeenRooms).toEqual({ [ALLY_ID]: "Ember Hall" });
+  });
+
+  it("keeps the previous room while an ally is between rooms, and never records one for self", () => {
+    let view = applyServerMessage(joinedView(), snapshot(1, { x: 3.5, y: 3.5 }));
+    view = applyServerMessage(view, snapshot(2, { x: 12.5, y: 12.5 }));
+
+    expect(view.lastSeenRooms).toEqual({ [ALLY_ID]: "Ember Hall" });
+  });
+
+  it("names no room the snapshot did not list, so an undiscovered room is never named", () => {
+    const view = applyServerMessage(joinedView(), snapshot(1, { x: 3.5, y: 3.5 }, { rooms: [] }));
+
+    expect(view.lastSeenRooms).toEqual({});
+  });
+
+  it("forgets rooms when the party changes between the hub and a run, and when an ally leaves", () => {
+    let view = applyServerMessage(joinedView(), snapshot(1, { x: 3.5, y: 3.5 }, { location: "hub" }));
+    expect(view.lastSeenRooms).toEqual({ [ALLY_ID]: "Ember Hall" });
+
+    view = applyServerMessage(view, snapshot(2, null, { location: "dungeon" }));
+    expect(view.lastSeenRooms).toEqual({});
+
+    view = applyServerMessage(view, snapshot(3, { x: 3.5, y: 3.5 }));
+    view = applyServerMessage(view, { type: "playerLeft", playerId: ALLY_ID, reason: "left" });
+    expect(view.lastSeenRooms).toEqual({});
   });
 });
 
