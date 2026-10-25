@@ -230,7 +230,7 @@ Out of scope here: real movement and collision (Backend step 3), combat (step 4)
 - Show health, inventory, combat feedback, and player names.
 - Add monster and loot rendering.
 - Add minimal menus for start, pause, settings, and exit.
-- Let the player rebind gameplay and movement keys from the Controls menu (not persisted yet; issue #69).
+- Let the player rebind gameplay and movement keys from the Controls menu (issue #69; stored in local storage, issue #307).
 
 ### 4. Combat and Dungeon Interaction
 

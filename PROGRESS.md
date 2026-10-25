@@ -654,6 +654,7 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
+- 2026-10-25: Rebound keys persist in local storage (`dnd.keyBindings`), validated on load; Reset to defaults clears them (#307, no protocol change).
 - 2026-10-24: Biome map themes: `crypt`, `fungal` and `ossuary` walls, floors and torch tints, carried by a run from its biome (#272, no protocol change).
 - 2026-10-24: Typed key locks: a door's `locked` boolean becomes `lock`, keys carry `itemId`, and `boss-key` and `vault-key` open different doors (#255, protocol v50).
 - 2026-10-24: Omens added to generation: six warnings and anomalies rolled from the run seed, plus a single-use `collapsing-floor` trap (#267, no protocol change).

@@ -18,6 +18,11 @@ import {
   createLocalStorageHudSettingsStore,
   createMemoryHudSettingsStore,
 } from "./state/hudSettings.js";
+import {
+  createLocalStorageKeyBindingsStore,
+  createMemoryKeyBindingsStore,
+  persistKeyBindings,
+} from "./state/keyBindingsStore.js";
 import { createSessionClient } from "./network/sessionClient.js";
 import {
   initialSessionView,
@@ -121,6 +126,17 @@ function hudSettingsStore() {
     return createMemoryHudSettingsStore(prefersReducedMotion);
   }
 }
+
+function keyBindingsStore() {
+  try {
+    return createLocalStorageKeyBindingsStore(window.localStorage);
+  } catch {
+    return createMemoryKeyBindingsStore();
+  }
+}
+
+// Before the controls menu, prompts and input read the table, so they all show the stored keys.
+persistKeyBindings(keyBindingsStore());
 
 let renderedDungeon = createPlaceholderDungeon();
 /** The lit set that came with `renderedDungeon`. Null for the preview, which the server never lit. */
