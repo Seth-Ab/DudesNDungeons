@@ -158,6 +158,11 @@ export const monsterStateSchema = z.object({
    */
   boss: z.boolean(),
   /**
+   * An elite is a stat-boosted roster monster that carries the vault key. Public so the client can
+   * mark it; the key it drops is the server's business.
+   */
+  elite: z.boolean(),
+  /**
    * `windingUp` while the monster is committed to a swing it has not yet resolved. The swing lands
    * on whoever is inside its reach and arc when `windupProgress` reaches 1, so a player can step out.
    */

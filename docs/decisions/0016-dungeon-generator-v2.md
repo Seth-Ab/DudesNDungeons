@@ -93,7 +93,16 @@ room or locks never placed are rejected):
   Split Seal gating from decision 5 waits for its own issue.
 - A puzzle's plate count is fixed (a paired-levers puzzle has two); a smaller party is covered by
   Ballast Stones, not by changing the plate count. Threat scales with party size.
-- Only today's room kinds are generated. Vaults, shrines, camps, secrets and arenas (Phase 2) and
-  omens (Phase 3) are not part of this record.
+- Vaults (#257): the run seed's own stream (`mixSeed(seed, 1000003)`, so omens and attempts never
+  move it) decides from the flow's `vaultChance` whether the run has one. A run that does adds one
+  branch to the layout, takes the farthest dead end left after the boss key's for a `vault` room
+  behind a `vault-key` door in its own wall (no lights, one or two `vault-chest` chests, no
+  guards), and puts an elite in a hall, cavern, maze or arena that holds neither key. The elite is
+  a roster monster of cost 2 or less with 3x health and 1.5x damage that always drops the key (it
+  is never placed on the floor); validation reads its tile as the place the key is picked up, so a
+  key carried inside or behind the vault door fails. If no layout in the first 120 attempts holds
+  a vault the run builds without one rather than fail.
+- Only today's room kinds, plus vaults, are generated. Shrines, camps, secrets and arenas (the rest
+  of Phase 2) and omens (Phase 3) are not part of this record.
 - `ember-vault` stays an authored map that tests build on. The old `generated` chain layout
   remains in code but no shipped content uses it.

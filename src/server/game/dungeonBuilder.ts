@@ -1,3 +1,4 @@
+import { ELITE_HEALTH_MULT } from "../../shared/constants/game.js";
 import type {
   ChestState,
   DoorState,
@@ -62,16 +63,18 @@ function telegraphShape(type: MonsterType): Pick<MonsterState, "hitRange" | "hit
 /** Cosine of a few degrees: a lane drawn as a sliver of a cone. */
 const LANE_ARC_COS = 0.985;
 
-export function monsterInstance(type: MonsterType, position: Vector2, id: string): MonsterState {
+export function monsterInstance(type: MonsterType, position: Vector2, id: string, elite = false): MonsterState {
+  const maxHealth = elite ? Math.round(type.maxHealth * ELITE_HEALTH_MULT) : type.maxHealth;
   return {
     id,
     typeId: type.id,
-    name: type.name,
+    name: elite ? `Elite ${type.name}` : type.name,
     position: { ...position },
-    health: type.maxHealth,
-    maxHealth: type.maxHealth,
+    health: maxHealth,
+    maxHealth,
     alive: true,
     boss: type.boss,
+    elite,
     action: "idle",
     behavior: type.behavior,
     windupProgress: 0,

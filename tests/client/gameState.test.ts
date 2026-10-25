@@ -128,6 +128,7 @@ describe("predictMove", () => {
       health: 5,
       maxHealth: 5,
       boss: false,
+      elite: false,
       action: "idle" as const,
       behavior: "melee" as const,
       windupProgress: 0,

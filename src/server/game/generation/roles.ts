@@ -6,8 +6,9 @@
  * locked door, on the edge in front of it, and the key goes on the farthest free dead end, which
  * must lie beyond the lock's room so the party carries it back. Every other room is drawn from the
  * biome's weights, never the same kind twice in a row on the critical path and never a trap first
- * after the entrance. Phase 1 uses today's room kinds only: the design's cavern is a hall, and
- * vaults, shrines, camps, secrets and arenas wait for their own issues.
+ * after the entrance. An optional vault takes the next far dead end, behind a `vault-key` door, and
+ * an elite in a hall, cavern, maze or arena elsewhere carries that key. Shrines, camps and secrets
+ * wait for their own issues.
  */
 import type { BiomeDefinition, FlowDefinition, RoomKind } from "../../content/schema.js";
 import type { Rng } from "../random.js";
@@ -22,6 +23,11 @@ export interface RoleAssignment {
   /** The locked door: the edge from the lock's room (`from`) into the boss room (`to`). */
   readonly bossLock: { readonly from: number; readonly to: number };
   readonly bossKey: { readonly nodeId: number; readonly via: KeyVia };
+  /**
+   * The vault on a far dead end and the one room next to it (`from`) whose door it hides behind,
+   * with the room whose elite carries the vault key. Null when none was asked for.
+   */
+  readonly vault: { readonly nodeId: number; readonly from: number; readonly eliteNodeId: number } | null;
   /** Rooms that get a puzzle. `rewardsBossKey` marks the one that holds the boss key. */
   readonly puzzles: readonly { readonly nodeId: number; readonly typeId: string; readonly rewardsBossKey: boolean }[];
 }
@@ -31,6 +37,8 @@ type RoleBiome = Pick<BiomeDefinition, "roomWeights" | "puzzles">;
 
 /** Kinds the fill step may draw; the rest are fixed by the path or belong to the hub. */
 const FILL_KINDS: readonly RoomKind[] = ["hall", "maze", "trap", "puzzle", "cavern", "arena", "camp", "shrine"];
+/** Kinds an elite may roam: open enough to chase it through. */
+const ELITE_KINDS: readonly RoomKind[] = ["hall", "cavern", "maze", "arena"];
 
 function adjacency(graph: LayoutGraph): number[][] {
   const adjacent: number[][] = Array.from({ length: graph.nodes.length }, () => []);
@@ -62,7 +70,13 @@ function hopsFromEntrance(adjacent: readonly number[][]): number[] {
  * beyond the lock's room, or the biome cannot fill the critical path without repeating a kind, so
  * the caller retries with another stream rather than ship a key somewhere unreachable.
  */
-export function assignRoles(rng: Rng, graph: LayoutGraph, flow: RoleFlow, biome: RoleBiome): RoleAssignment | null {
+export function assignRoles(
+  rng: Rng,
+  graph: LayoutGraph,
+  flow: RoleFlow,
+  biome: RoleBiome,
+  wantVault = false,
+): RoleAssignment | null {
   if (flow.bossLock !== "key") return null;
   const { nodes, pathLength } = graph;
   const adjacent = adjacency(graph);
@@ -101,6 +115,18 @@ export function assignRoles(rng: Rng, graph: LayoutGraph, flow: RoleFlow, biome:
     via = flow.keySource === "branch" ? "loot" : "guardian";
   }
 
+  // A vault, when the run asked for one, on the farthest dead end still free. It is a leaf, so one
+  // door shuts it off completely. A layout with no such dead end cannot hold it: the caller retries.
+  const vaultSpot = nodes
+    .filter(
+      (node) =>
+        roles[node.id] === undefined && node.id !== holder.id && adjacent[node.id]!.length === 1,
+    )
+    .sort((a, b) => dist[b.id]! - dist[a.id]! || a.id - b.id)[0];
+  if (wantVault && !vaultSpot) return null;
+  const vaultNodeId = wantVault ? vaultSpot!.id : null;
+  if (vaultNodeId !== null) roles[vaultNodeId] = "vault";
+
   // Fill the path in order, then the branches. A kind never follows itself along the path, and a
   // trap never comes first after the entrance.
   const order = [...nodes].sort(
@@ -120,10 +146,21 @@ export function assignRoles(rng: Rng, graph: LayoutGraph, flow: RoleFlow, biome:
     if (kind === "puzzle") puzzles.push({ nodeId: node.id, typeId: rng.pick(biome.puzzles), rewardsBossKey: false });
   }
 
+  // The elite goes in a room away from the vault and the boss key, so no one room holds both keys.
+  let vault: RoleAssignment["vault"] = null;
+  if (vaultNodeId !== null) {
+    const carriers = nodes.filter(
+      (node) => ELITE_KINDS.includes(roles[node.id]!) && node.id !== holder.id,
+    );
+    if (carriers.length === 0) return null;
+    vault = { nodeId: vaultNodeId, from: adjacent[vaultNodeId]![0]!, eliteNodeId: rng.pick(carriers).id };
+  }
+
   return {
     roles: roles as RoomKind[],
     bossLock: { from: lockRoom, to: bossId },
     bossKey: { nodeId: holder.id, via },
     puzzles,
+    vault,
   };
 }

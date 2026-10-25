@@ -442,8 +442,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v51, the version that added the camp, shrine, secret, arena and cavern room kinds", () => {
-    expect(PROTOCOL_VERSION).toBe(51);
+  it("is on protocol v52, the version that added the elite flag on monsters", () => {
+    expect(PROTOCOL_VERSION).toBe(52);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1069,6 +1069,7 @@ describe("parseServerMessage", () => {
             maxHealth: 12,
             alive: true,
             boss: false,
+            elite: false,
             action: "idle",
             behavior: "melee",
             windupProgress: 0,

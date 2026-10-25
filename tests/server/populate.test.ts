@@ -4,6 +4,7 @@ import { carveDungeon, type CarvedWorld } from "../../src/server/game/generation
 import { generateLayout, type LayoutGraph } from "../../src/server/game/generation/layout.js";
 import {
   BOSS_KEY_ITEM_ID,
+  ELITE_COST,
   populateDungeon,
   roomDepth,
   threatBudget,
@@ -131,7 +132,9 @@ describe("populateDungeon", () => {
       for (const monster of run.populated.monsters) {
         if (bossType.has(monster.typeId)) continue;
         const nodeId = roomAt(run, monster.position);
-        spent.set(nodeId, (spent.get(nodeId) ?? 0) + costOf.get(monster.typeId)!);
+        const budget = threatBudget(run.plan.roles[nodeId]!, roomDepth(run.graph, nodeId), 3);
+        const cost = monster.elite ? Math.min(ELITE_COST, budget) : costOf.get(monster.typeId)!;
+        spent.set(nodeId, (spent.get(nodeId) ?? 0) + cost);
       }
       for (const room of run.populated.threat) {
         expect(room.spent).toBe(spent.get(room.nodeId) ?? 0);
@@ -173,8 +176,8 @@ describe("populateDungeon", () => {
   it("locks the boss room's own socket and holds the key somewhere reachable beyond the lock", () => {
     for (const run of sweep(2)) {
       const { populated, plan } = run;
-      const door = populated.doors[0]!;
-      expect(populated.doors).toHaveLength(1);
+      const door = populated.doors.find((candidate) => candidate.lock?.type === "key" && candidate.lock.keyItemId === BOSS_KEY_ITEM_ID)!;
+      expect(populated.doors.filter((candidate) => candidate.lock?.type === "key" && candidate.lock.keyItemId === BOSS_KEY_ITEM_ID)).toHaveLength(1);
       expect(door.lock).toEqual({ type: "key", keyItemId: BOSS_KEY_ITEM_ID });
       const room = run.world.rooms[plan.bossLock.to]!;
       const onBorder =

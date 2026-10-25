@@ -5,6 +5,7 @@ import type { BuiltDungeon } from "../../src/server/game/dungeonBuilder.js";
 import { generateDungeon } from "../../src/server/game/dungeonGenerator.js";
 import { validateDungeon } from "../../src/server/game/generation/validate.js";
 import { buildDungeon, DEFAULT_DUNGEON_ID } from "../../src/server/game/dungeonState.js";
+import { ELITE_HEALTH_MULT } from "../../src/shared/constants/game.js";
 import { coversTile, isFloor, tileOf } from "../../src/shared/game/movement.js";
 import type { DungeonState, Vector2 } from "../../src/shared/types/core.js";
 
@@ -172,7 +173,8 @@ describe("generated dungeons", () => {
     expect(dungeon.monsters.length).toBeGreaterThan(0);
     for (const monster of dungeon.monsters) {
       expect(content.monsters.has(monster.typeId)).toBe(true);
-      expect(monster.health).toBe(content.monsters.get(monster.typeId)!.maxHealth);
+      const base = content.monsters.get(monster.typeId)!.maxHealth;
+      expect(monster.health).toBe(monster.elite ? Math.round(base * ELITE_HEALTH_MULT) : base);
     }
   });
 

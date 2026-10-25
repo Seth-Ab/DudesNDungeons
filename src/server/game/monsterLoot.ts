@@ -1,4 +1,4 @@
-import { TILE_SCALE } from "../../shared/constants/game.js";
+import { ELITE_KEY_ITEM_ID, TILE_SCALE } from "../../shared/constants/game.js";
 import { PLAYER_RADIUS, coversTile, isFloor } from "../../shared/game/movement.js";
 import type { DungeonState, MonsterState, Vector2 } from "../../shared/types/core.js";
 import type { LootTable } from "../content/schema.js";
@@ -106,10 +106,19 @@ export function spillLootTable(
   }
 }
 
-/** Rolls the dead monster's table and puts each drop on open floor at or near the corpse. */
+/**
+ * Rolls the dead monster's table and puts each drop on open floor at or near the corpse. An elite
+ * also drops the vault key it carries, outside the table roll, so it never depends on a roll and
+ * does not matter whose hands the killing blow came from.
+ */
 export function dropMonsterLoot(session: Session, monster: MonsterState): void {
-  const table = contentForSession(session).monsters.get(monster.typeId)?.loot;
-  if (!table) return;
+  const content = contentForSession(session);
+  const table = content.monsters.get(monster.typeId)?.loot;
+  if (table) spillLootTable(session, table, monster.position, `Monster "${monster.typeId}"`);
 
-  spillLootTable(session, table, monster.position, `Monster "${monster.typeId}"`);
+  if (monster.elite) {
+    const key = content.items.get(ELITE_KEY_ITEM_ID);
+    if (!key) throw new Error(`Elite "${monster.typeId}" carries unknown item "${ELITE_KEY_ITEM_ID}"`);
+    session.dungeon.loot.push(lootInstance(key, dropPosition(session.dungeon, monster.position), session.lootRng.uuid()));
+  }
 }

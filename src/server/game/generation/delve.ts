@@ -41,7 +41,20 @@ const SHAPES: Readonly<Partial<Record<RoomKind, { shapes: readonly RoomShapeId[]
   camp: { shapes: ["plain", "octagon"], sizes: [7, 9] },
   shrine: { shapes: ["plain", "pillars", "octagon"], sizes: [7, 9] },
   secret: { shapes: ["plain", "alcoves"], sizes: [7] },
+  vault: { shapes: ["plain", "pillars"], sizes: [7, 9] },
 };
+
+/**
+ * Attempts a run that wants a vault spends looking for a layout that can hold one, before it
+ * builds without rather than fail to build at all.
+ */
+const VAULT_ATTEMPTS = 120;
+/** The `mixSeed` stream that decides whether a run has a vault, beyond any attempt number. */
+const VAULT_STREAM = 1_000_003;
+
+function withVaultBranch(flow: FlowDefinition): FlowDefinition {
+  return { ...flow, branches: { min: flow.branches.min + 1, max: flow.branches.max + 1 } };
+}
 
 /** Chance a room is a hand-authored template, when one of its kind fits the cell. */
 const TEMPLATE_CHANCE = 0.5;
@@ -50,6 +63,8 @@ const TEMPLATE_CHANCE = 0.5;
 export interface DelveOverrides {
   /** Omen ids to use instead of rolling. An empty list means no omens. */
   readonly omens?: readonly string[];
+  /** Whether the run has a vault, instead of rolling the flow's `vaultChance`. */
+  readonly vault?: boolean;
 }
 
 function recipe(
@@ -58,7 +73,7 @@ function recipe(
   seed: number,
   partySize: number,
   overrides: DelveOverrides,
-): { flow: FlowDefinition; biome: BiomeDefinition; omens: OmenDefinition[] } {
+): { flow: FlowDefinition; biome: BiomeDefinition; omens: OmenDefinition[]; vault: boolean } {
   const rng = createRng(seed);
   const flows = definition.flows
     .map((id) => content.flows.get(id)!)
@@ -69,7 +84,10 @@ function recipe(
   // Last, so the flow and biome a seed draws are the same whether or not omens exist.
   const rolled = rollOmens(rng, definition, content);
   const omens = overrides.omens ? chooseOmens(overrides.omens, content) : rolled;
-  return { flow, biome, omens };
+  // Its own stream, so neither omens nor an attempt's stream move it. The flow's `vaultChance` is
+  // the chance the run asks for a vault; `generateDelve` holds out for a layout with room for one.
+  const vault = overrides.vault ?? createRng(mixSeed(seed, VAULT_STREAM)).chance(flow.vaultChance);
+  return { flow, biome, omens, vault };
 }
 
 function roomTiles(
@@ -105,19 +123,21 @@ export function generateDelve(
   partySize: number,
   overrides: DelveOverrides = {},
 ): BuiltDungeon {
-  const { flow, biome, omens } = recipe(definition, content, seed, partySize, overrides);
+  const { flow, biome, omens, vault } = recipe(definition, content, seed, partySize, overrides);
   const effects = omenEffects(omens);
   const { grid } = definition;
   const failures: string[] = [];
 
   for (let attempt = 0; attempt < definition.maxAttempts; attempt += 1) {
     const rng = createRng(mixSeed(seed, attempt));
-    const graph = generateLayout(rng, flow, grid);
+    const wantsVault = vault && attempt < VAULT_ATTEMPTS;
+    // A vault is one more dead-end branch than the flow draws, so a layout has one to spare for it.
+    const graph = generateLayout(rng, wantsVault ? withVaultBranch(flow) : flow, grid);
     if (!graph) {
       failures.push("layout");
       continue;
     }
-    const plan = assignRoles(rng, graph, flow, biome);
+    const plan = assignRoles(rng, graph, flow, biome, wantsVault);
     if (!plan) {
       failures.push("roles");
       continue;

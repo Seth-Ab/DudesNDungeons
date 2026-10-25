@@ -7,7 +7,7 @@
  * a finishable run is:
  *
  * - every spawn, entity, plate, door and exit is on open floor, and no two share a tile;
- * - with every lock closed, the boss room cannot be entered;
+ * - with every lock closed, the boss room and every vault cannot be entered;
  * - collecting keys and solving puzzles in whatever order they become reachable opens a route to
  *   the exit, and every room is reachable by the end;
  * - the first spawn point stands inside a light, so the party does not arrive in the dark;
@@ -15,7 +15,7 @@
  *
  * Pure: it reads the dungeon and changes nothing.
  */
-import { TILE_SCALE } from "../../../shared/constants/game.js";
+import { ELITE_KEY_ITEM_ID, TILE_SCALE } from "../../../shared/constants/game.js";
 import type { RoomState, Vector2 } from "../../../shared/types/core.js";
 import type { GameContent } from "../../content/loadContent.js";
 import type { BuiltDungeon } from "../dungeonBuilder.js";
@@ -99,7 +99,9 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   // Checked from the rooms, not the doors, so a lock that was never placed is caught too.
   const sealed = flood(tiles, spawn, closed(new Set()));
   for (const room of dungeon.rooms) {
-    if (room.kind === "boss" && entersRoom(sealed, room)) errors.push("the boss room is reachable with every lock closed");
+    if ((room.kind === "boss" || room.kind === "vault") && entersRoom(sealed, room)) {
+      errors.push(`the ${room.kind} room is reachable with every lock closed`);
+    }
   }
 
   // Walk the run the way a party does: take what is in reach, spend keys on doors beside it, and
@@ -117,6 +119,13 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
       if (loot.kind !== "key" || gathered.has(loot.id) || !reach.has(key(loot.position))) continue;
       gathered.add(loot.id);
       addKey(loot.itemId);
+      changed = true;
+    }
+    // An elite carries the vault key, which is in hand only once its tile is reachable.
+    for (const monster of dungeon.monsters) {
+      if (!monster.elite || gathered.has(monster.id) || !reach.has(key(monster.position))) continue;
+      gathered.add(monster.id);
+      addKey(ELITE_KEY_ITEM_ID);
       changed = true;
     }
     for (const puzzle of dungeon.puzzles) {

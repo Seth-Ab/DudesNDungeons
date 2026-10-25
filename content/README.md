@@ -111,7 +111,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `bossLock`, `keySource` and `vaultChance` (0 to 1). `bossLock` is `key`, `seals` or `split-seal`,
   but only the locks in `GENERATOR_BOSS_LOCKS` (`schema.ts`) can be built, today `key` with a
   `keySource` of `puzzle`, `branch` or `arena`; any other lock, or a key source that lock cannot use,
-  fails loading. `gauntlet`, `long-loop` and `three-roads` ship. A run draws its flow weighted among the profile's
+  fails loading. `vaultChance` is the chance a run of the flow has a vault, a dead-end `vault` room
+  behind a `vault-key` door whose key an elite carries (decision 0016). `gauntlet`, `long-loop` and `three-roads` ship. A run draws its flow weighted among the profile's
   flows with `minParty` at most the party size, from the run seed alone.
   A **biome** is what a run looks and fights like: `theme` (the map theme its run's walls and floors draw
   with, which also tints its torch light: cold for `crypt`, green for `fungal`) and `lightTint`, `light` (a multiplier on

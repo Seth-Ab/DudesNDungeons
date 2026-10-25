@@ -1,4 +1,4 @@
-import { CARRY_MOVE_SPEED_MULTIPLIER } from "../../shared/constants/game.js";
+import { CARRY_MOVE_SPEED_MULTIPLIER, ELITE_DAMAGE_MULT } from "../../shared/constants/game.js";
 import {
   MOVE_BURST_TOLERANCE_MS,
   MOVE_INTERVAL_MS,
@@ -24,10 +24,23 @@ import { standUp } from "./seats.js";
  */
 export type MonsterStats = MonsterType;
 
+const eliteStats = new WeakMap<MonsterType, MonsterStats>();
+
+/** An elite hits harder than its roster type; its health is scaled when the instance is built. */
+function elitePlus(stats: MonsterStats): MonsterStats {
+  let scaled = eliteStats.get(stats);
+  if (!scaled) {
+    scaled = { ...stats, damage: Math.round(stats.damage * ELITE_DAMAGE_MULT) };
+    if (scaled.projectile) scaled.projectile = { ...scaled.projectile, damage: Math.round(scaled.projectile.damage * ELITE_DAMAGE_MULT) };
+    eliteStats.set(stats, scaled);
+  }
+  return scaled;
+}
+
 export function monsterStatsFor(monster: MonsterState, content = gameContent()): MonsterStats {
   const stats = content.monsters.get(monster.typeId);
   if (!stats) throw new Error(`No stats for monster type "${monster.typeId}"`);
-  return stats;
+  return monster.elite ? elitePlus(stats) : stats;
 }
 
 /** Which dungeon to build. Sessions use the hub first and this request when the party starts a run. */

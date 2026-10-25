@@ -11,6 +11,7 @@
  * Out of scope here: the session's party size reaching generation, and Ballast Stones for the
  * hands a puzzle is short of. A paired-levers puzzle always gets two plates.
  */
+import { ELITE_KEY_ITEM_ID } from "../../../shared/constants/game.js";
 import type {
   ChestState,
   DoorState,
@@ -44,6 +45,12 @@ const FLOOR = ".";
 
 /** What opens the boss door when the key is not a puzzle's reward. */
 export const BOSS_KEY_ITEM_ID = "boss-key";
+/** What opens the vault door, and what its elite carries. */
+export const VAULT_KEY_ITEM_ID = ELITE_KEY_ITEM_ID;
+/** What an elite costs against its room's threat budget; it is placed even when the budget is short. */
+export const ELITE_COST = 4;
+/** An elite is drawn from the roster monsters no costlier than this, so it stays a fight a party can win. */
+const ELITE_MAX_BASE_COST = 2;
 /** Chest table for the boss room, and for any chest the design calls a vault chest. */
 const BOSS_CHEST_TABLE = "vault-chest";
 
@@ -304,6 +311,16 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
   const doorTile = claim({ x: bossRoom.x + doorSocket.x, y: bossRoom.y + doorSocket.y })!;
   out.doors.push({ id: rng.uuid(), position: { ...doorTile }, size: 1, open: false, lock: { type: "key", keyItemId: BOSS_KEY_ITEM_ID } });
 
+  // The vault door, in the vault's own socket, opened only by the key an elite carries.
+  if (plan.vault) {
+    const vaultRoom = world.rooms[plan.vault.nodeId]!;
+    const socket = midpointSockets(vaultRoom.width, vaultRoom.height)[
+      sideToward(graph, plan.vault.nodeId, plan.vault.from)
+    ].wall;
+    const tile = claim({ x: vaultRoom.x + socket.x, y: vaultRoom.y + socket.y })!;
+    out.doors.push({ id: rng.uuid(), position: { ...tile }, size: 1, open: false, lock: { type: "key", keyItemId: VAULT_KEY_ITEM_ID } });
+  }
+
   const roster = [...biome.roster];
 
   for (const node of graph.nodes) {
@@ -356,6 +373,14 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
         remaining -= guard.cost;
       }
     }
+    if (plan.vault?.eliteNodeId === node.id) {
+      const base = roster.filter((entry) => entry.cost <= ELITE_MAX_BASE_COST);
+      const entry = rng.weighted(base.length > 0 ? base : roster);
+      const tile = claim(rng.pick(floorOf(room)));
+      if (!tile) throw new Error("No open floor left for the elite");
+      out.monsters.push(monsterInstance(requireMonster(entry.typeId), tile, rng.uuid(), true));
+      remaining = Math.max(0, remaining - ELITE_COST);
+    }
     while (remaining > 0) {
       const affordable = roster.filter((entry) => entry.cost <= remaining);
       if (affordable.length === 0) break;
@@ -380,6 +405,12 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       const far = floorOf(room).sort((a, b) => distance(b, center) - distance(a, center) || byPosition(a, b))[0];
       const tile = claim(far ?? null);
       if (tile) out.loot.push(lootInstance(requireItem(BOSS_KEY_ITEM_ID), tile, rng.uuid()));
+    }
+
+    // A vault holds one or two vault chests in its darkest nooks and nothing else: no lights, no guards.
+    if (kind === "vault") {
+      const chests = rng.int(1, 2);
+      for (let index = 0; index < chests; index += 1) dropChest(room, BOSS_CHEST_TABLE, 1);
     }
 
     // Loot and chests by room kind.

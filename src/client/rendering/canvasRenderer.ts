@@ -115,6 +115,7 @@ const colors = {
   areaLabel: "#c9b184",
   gateLabel: "#9fd0a6",
   sealedLabel: "#d0806a",
+  eliteEdge: "#e8c25a",
   boss: "#8e2f3a",
   telegraph: "rgba(214, 74, 58, 0.4)",
   telegraphFlash: "rgba(255, 140, 110, 0.65)",
@@ -419,6 +420,12 @@ export function createCanvasRenderer(
     const eye = Math.max(2, side * 0.18);
 
     if (monster.action === "windingUp") drawTelegraph(monster, center);
+    // An elite carries the vault key: a gold frame, and its name, mark it out from the pack.
+    if (monster.elite) {
+      ctx.strokeStyle = colors.eliteEdge;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(center.x - side / 2 - 3, center.y - side / 2 - 3, side + 6, side + 6);
+    }
 
     ctx.fillStyle = monster.boss
       ? colors.boss
@@ -446,8 +453,8 @@ export function createCanvasRenderer(
     ctx.fillStyle = bar.low ? colors.monsterBarLow : colors.monsterBar;
     ctx.fillRect(barX, barY, barWidth * bar.ratio, barHeight);
 
-    if (monster.boss) {
-      ctx.fillStyle = colors.sealedLabel;
+    if (monster.boss || monster.elite) {
+      ctx.fillStyle = monster.elite ? colors.eliteEdge : colors.sealedLabel;
       ctx.font = "13px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(monster.name, center.x, barY - 6);
