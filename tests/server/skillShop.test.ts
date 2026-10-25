@@ -185,6 +185,11 @@ describe("the stock message", () => {
       skillId: "iron-will",
     });
     expect(message.entries.filter((entry) => entry.rotating)).toHaveLength(shop.rotatingCount);
+    // The whole rotating pool is named, in stock or not, so a client can say "sometimes sold".
+    expect(message.rotatingSkillIds.length).toBe(shop.rotating.length);
+    for (const entry of message.entries.filter((candidate) => candidate.rotating)) {
+      expect(message.rotatingSkillIds).toContain(entry.skillId);
+    }
   });
 });
 

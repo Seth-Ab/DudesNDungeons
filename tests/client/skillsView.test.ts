@@ -135,6 +135,57 @@ describe("skills panel", () => {
     expect(entry(panel, "torchbearer").acquisition).toEqual(["Found as a skill scroll in the dungeon"]);
   });
 
+  describe("the hub shop's price for a locked skill", () => {
+    const stocked = (skillId: string, price: number, rotating: boolean) => ({
+      itemId: `${skillId}-scroll`,
+      name: `Scroll of ${skillId}`,
+      skillId,
+      price,
+      rotating,
+    });
+    const shopView = (shop: { stock: ReturnType<typeof stocked>[]; rotating: string[] }) => ({
+      ...view(progression()),
+      skillShop: shop.stock,
+      skillShopRotating: shop.rotating,
+    });
+
+    it("shows the server's price for a fixed scroll", () => {
+      const panel = skillsPanelView(shopView({ stock: [stocked("torchbearer", 25, false)], rotating: [] }));
+      expect(entry(panel, "torchbearer").shopText).toBe("Sold at the hub shop - 25 coin");
+    });
+
+    it("shows the price for a rotating scroll that is in stock", () => {
+      const panel = skillsPanelView(
+        shopView({ stock: [stocked("quick-hands", 40, true)], rotating: ["quick-hands", "shadow-step"] }),
+      );
+      expect(entry(panel, "quick-hands").shopText).toBe("Sold at the hub shop - 40 coin (rotating stock)");
+    });
+
+    it("shows no number for a rotating scroll that is out of stock", () => {
+      const panel = skillsPanelView(
+        shopView({ stock: [stocked("quick-hands", 40, true)], rotating: ["quick-hands", "shadow-step"] }),
+      );
+      expect(entry(panel, "shadow-step").shopText).toBe("Sometimes sold at the hub shop");
+    });
+
+    it("says nothing for a scroll the shop never lists, and for a held skill", () => {
+      const panel = skillsPanelView({
+        ...shopView({ stock: [stocked("torchbearer", 25, false)], rotating: [] }),
+        progression: progression({ skillStacks: { torchbearer: 1 }, activeSkillStacks: { torchbearer: 1 } }),
+      });
+      expect(entry(panel, "iron-will").shopText).toBeNull();
+      expect(entry(panel, "torchbearer").shopText).toBeNull();
+    });
+
+    it("keeps the unmet prerequisites beside the price", () => {
+      const panel = skillsPanelView(shopView({ stock: [stocked("shadow-step", 60, false)], rotating: [] }));
+      expect(entry(panel, "shadow-step")).toMatchObject({
+        missingPrerequisites: ["Torchbearer"],
+        shopText: "Sold at the hub shop - 60 coin",
+      });
+    });
+  });
+
   it("marks a locked skill with a missing prerequisite unavailable and names the prerequisite and milestone", () => {
     const shadow = entry(skillsPanelView(view(progression())), "shadow-step");
     expect(shadow.status).toBe("unavailable");

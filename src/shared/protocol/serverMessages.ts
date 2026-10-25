@@ -301,7 +301,9 @@ export const partyVaultSchema = z.object({
  * What the hub skill shop sells right now (decision 0014). Stock belongs to the room: the fixed
  * entries plus this run count's rotation, the same for every member, sent after joining and again
  * when a run ends. `itemId` names the entry a `buySkillScroll` refers to; `price` is informational,
- * since the server reads the real one from content.
+ * since the server reads the real one from content. `rotatingSkillIds` names the skills of the
+ * whole rotating pool, in stock or not, so the Skills panel can tell a scroll the shop sometimes
+ * sells from one it never lists.
  */
 export const skillShopStockSchema = z.object({
   type: z.literal("skillShopStock"),
@@ -315,6 +317,7 @@ export const skillShopStockSchema = z.object({
       rotating: z.boolean(),
     }),
   ),
+  rotatingSkillIds: z.array(contentIdSchema),
 });
 
 /**
