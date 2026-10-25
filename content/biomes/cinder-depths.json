@@ -21,6 +21,7 @@
     "hall": ["Ashen Hall", "Slag Gallery", "Bellows Nave", "Clinker Hall", "Soot Chapel"],
     "maze": ["Sunken Maze", "Flue Warren", "Ducts of Ash"],
     "trap": ["Collapsing Span", "Vent Run", "Spike Gallery"],
-    "puzzle": ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"]
+    "puzzle": ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"],
+    "vault": ["Slag Vault", "Cinder Strongroom"]
   }
 }

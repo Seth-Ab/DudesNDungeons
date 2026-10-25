@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 51;
+export const PROTOCOL_VERSION = 52;
 
 /**
  * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors
@@ -48,6 +48,20 @@ export const MONSTER_HEARING_RANGE = 6;
  * and walks back to where it spawned.
  */
 export const MONSTER_LEASH_MS = 4000;
+
+/**
+ * An elite is a roster monster with its stats multiplied, and it always drops the vault key. Below
+ * `ELITE_FLEE_HEALTH_FRACTION` of its health it runs from the party instead of fighting, and the
+ * first time it does it calls every living monster within `ELITE_CALL_RADIUS` world units, which
+ * then hunt at `ELITE_CALL_AGGRO_FACTOR` times their usual range for `ELITE_CALL_MS`.
+ */
+export const ELITE_HEALTH_MULT = 3;
+export const ELITE_DAMAGE_MULT = 1.5;
+export const ELITE_KEY_ITEM_ID = "vault-key";
+export const ELITE_FLEE_HEALTH_FRACTION = 0.5;
+export const ELITE_CALL_RADIUS = 14;
+export const ELITE_CALL_MS = 8000;
+export const ELITE_CALL_AGGRO_FACTOR = 2;
 
 /** Wind-up for a monster whose content does not set one. */
 export const DEFAULT_MONSTER_WINDUP_MS = 500;

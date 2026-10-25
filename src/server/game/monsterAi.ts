@@ -1,4 +1,11 @@
-import { MONSTER_HEARING_RANGE, MONSTER_LEASH_MS } from "../../shared/constants/game.js";
+import {
+  ELITE_CALL_AGGRO_FACTOR,
+  ELITE_CALL_MS,
+  ELITE_CALL_RADIUS,
+  ELITE_FLEE_HEALTH_FRACTION,
+  MONSTER_HEARING_RANGE,
+  MONSTER_LEASH_MS,
+} from "../../shared/constants/game.js";
 import { distance, isOpen, normalizeDirection, tileOf } from "../../shared/game/movement.js";
 import type { MonsterState, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
@@ -14,6 +21,10 @@ export interface MonsterPost {
   engaged: boolean;
   /** The last time a player was inside its aggro range while it hunted. */
   lastThreatAt: number;
+  /** An elite's call has reached it: until this time it hunts at a longer range. Not saved. */
+  calledUntil?: number;
+  /** An elite has already shouted for help. Not saved, so a restored run may shout once more. */
+  shouted?: boolean;
 }
 
 /**
@@ -83,8 +94,10 @@ export class MonsterPlanner {
   target(monster: MonsterState, stats: MonsterStats, now: number): SessionPlayer | undefined {
     const post = this.#postFor(monster, now);
 
+    // A monster an elite has called is after the party wherever it is, within a longer range.
+    const called = (post.calledUntil ?? 0) > now;
     let nearest: SessionPlayer | undefined;
-    let nearestDistance = stats.aggroRange;
+    let nearestDistance = stats.aggroRange * (called ? ELITE_CALL_AGGRO_FACTOR : 1);
     for (const player of this.#targets) {
       const gap = distance(monster.position, player.position);
       if (gap > nearestDistance) continue;
@@ -92,7 +105,7 @@ export class MonsterPlanner {
       const noticed =
         gap <= MONSTER_HEARING_RANGE ||
         hasLineOfSight(this.#session.dungeon, monster.position, player.position);
-      if (!noticed && !(post.engaged && this.#canReachHunted(monster))) continue;
+      if (!noticed && !((post.engaged || called) && this.#canReachHunted(monster))) continue;
 
       nearest = player;
       nearestDistance = gap;
@@ -120,6 +133,41 @@ export class MonsterPlanner {
 
     this.#hunt();
     this.#stepAlong(this.#fields.hunt, monster, stepDistance);
+  }
+
+  /** Whether an elite is hurt enough to run from the party instead of fighting it. */
+  isFleeing(monster: MonsterState): boolean {
+    return monster.elite && monster.health < monster.maxHealth * ELITE_FLEE_HEALTH_FRACTION;
+  }
+
+  /**
+   * Runs away from every standing player along the shared distance field, so it goes round walls
+   * and through loops rather than into the nearest corner. Reports false when it has nowhere
+   * farther to go (cornered) or no player is near enough to run from.
+   */
+  flee(monster: MonsterState, stepDistance: number): boolean {
+    if (stepDistance <= 0) return false;
+    this.#hunt();
+    return this.#fleeAlong(this.#fields.hunt, monster, stepDistance);
+  }
+
+  /**
+   * An elite's shout: every other living monster within `ELITE_CALL_RADIUS` hunts at a longer
+   * range for `ELITE_CALL_MS`. Done once per elite, the first time it runs.
+   */
+  callNearby(elite: MonsterState, now: number): void {
+    const post = this.#postFor(elite, now);
+    if (post.shouted) return;
+    post.shouted = true;
+
+    for (const other of this.#session.dungeon.monsters) {
+      if (other === elite || !other.alive || other.boss) continue;
+      if (distance(elite.position, other.position) > ELITE_CALL_RADIUS) continue;
+      const otherPost = this.#postFor(other, now);
+      otherPost.calledUntil = now + ELITE_CALL_MS;
+      otherPost.engaged = true;
+      otherPost.lastThreatAt = now;
+    }
   }
 
   /** Backs directly away from a point, for a ranged monster that has been crowded. */
@@ -174,7 +222,7 @@ export class MonsterPlanner {
 
     let reach = 0;
     for (const other of this.#session.dungeon.monsters) {
-      if (other.alive) reach = Math.max(reach, monsterStatsFor(other).aggroRange);
+      if (other.alive) reach = Math.max(reach, monsterStatsFor(other).aggroRange * ELITE_CALL_AGGRO_FACTOR);
     }
     this.#fields.hunt.compute(
       this.#grid,
@@ -193,6 +241,14 @@ export class MonsterPlanner {
   #stepAlong(field: FlowField, monster: MonsterState, stepDistance: number): boolean {
     const tile = tileOf(monster.position);
     return field.descend(this.#grid, tile.x, tile.y, (x, y) =>
+      this.#stepDirect(monster, { x, y }, stepDistance),
+    );
+  }
+
+  /** One step along the field away from its sources, trying each tile that gets farther. */
+  #fleeAlong(field: FlowField, monster: MonsterState, stepDistance: number): boolean {
+    const tile = tileOf(monster.position);
+    return field.ascend(this.#grid, tile.x, tile.y, (x, y) =>
       this.#stepDirect(monster, { x, y }, stepDistance),
     );
   }

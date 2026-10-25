@@ -187,4 +187,55 @@ describe("assignRoles", () => {
     const flow = { bossLock: "key", keySource: "branch" } as const;
     expect(assignRoles(createRng(1), graph!, flow, { roomWeights: { hall: 1 }, puzzles: [] })).toBeNull();
   });
+
+  describe("vaults", () => {
+    /** Roles for the first 1,500 layouts of `flow`, asking for a vault. */
+    function vaultRolls(flow: (typeof flows)[number]): { plan: RoleAssignment | null; graph: LayoutGraph }[] {
+      const rolls: { plan: RoleAssignment | null; graph: LayoutGraph }[] = [];
+      for (let seed = 0; seed < 1500; seed += 1) {
+        const rng = createRng(seed);
+        const graph = generateLayout(rng, flow, GRID);
+        if (graph) rolls.push({ graph, plan: assignRoles(rng, graph, flow, biome, true) });
+      }
+      return rolls;
+    }
+
+    it("are only asked for, never added unasked", () => {
+      for (const flow of flows) {
+        for (const { plan } of sweep(flow)) expect(plan.vault).toBeNull();
+      }
+    });
+
+    it("sit on a dead end of their own, with the elite in an open room that holds neither key", () => {
+      for (const flow of flows) {
+        const built = vaultRolls(flow).filter((roll) => roll.plan !== null);
+        expect(built.length, flow.id).toBeGreaterThan(10);
+        for (const { graph, plan } of built) {
+          const { nodeId, from, eliteNodeId } = plan!.vault!;
+          expect(plan!.roles[nodeId]).toBe("vault");
+          expect(plan!.roles.filter((kind) => kind === "vault")).toHaveLength(1);
+          expect(degree(graph, nodeId)).toBe(1);
+          expect(graph.edges.some((edge) => (edge.a === nodeId && edge.b === from) || (edge.b === nodeId && edge.a === from))).toBe(true);
+          expect(nodeId).not.toBe(plan!.bossKey.nodeId);
+          expect(eliteNodeId).not.toBe(nodeId);
+          expect(eliteNodeId).not.toBe(plan!.bossKey.nodeId);
+          expect(["hall", "cavern", "maze", "arena"]).toContain(plan!.roles[eliteNodeId]);
+        }
+      }
+    });
+
+    it("are refused by a layout with no dead end to spare", () => {
+      const graph = generateLayout(createRng(1), flows[0]!, GRID)!;
+      const loopless = { ...graph, edges: graph.edges.filter((edge) => edge.kind === "open") };
+      // Every leaf of a layout is a dead end, so closing them all leaves nothing: join each to the entrance.
+      const closed = {
+        ...loopless,
+        edges: [
+          ...loopless.edges,
+          ...graph.nodes.filter((node) => node.id > 1 && degree(loopless, node.id) === 1).map((node) => ({ a: 1, b: node.id, kind: "loop" as const })),
+        ],
+      };
+      expect(assignRoles(createRng(1), closed, flows[0]!, biome, true)).toBeNull();
+    });
+  });
 });

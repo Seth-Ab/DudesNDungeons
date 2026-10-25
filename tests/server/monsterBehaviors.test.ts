@@ -3,8 +3,15 @@ import { gameContent } from "../../src/server/content/loadContent.js";
 import { monsterTypeSchema } from "../../src/server/content/schema.js";
 import { simulate } from "../../src/server/game/combat.js";
 import { monsterInstance } from "../../src/server/game/dungeonBuilder.js";
+import { monsterStatsFor } from "../../src/server/game/dungeonState.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import type { Session } from "../../src/server/sessions/sessionStore.js";
+import {
+  ELITE_DAMAGE_MULT,
+  ELITE_FLEE_HEALTH_FRACTION,
+  ELITE_HEALTH_MULT,
+  PLAYER_MOVE_SPEED,
+} from "../../src/shared/constants/game.js";
 import { PLAYER_RADIUS, distance } from "../../src/shared/game/movement.js";
 import type { DoorState, MonsterState, Vector2 } from "../../src/shared/types/core.js";
 import { testPlayer, testSession } from "./fixtures.js";
@@ -323,5 +330,121 @@ describe("charging monsters", () => {
     const session = hallSession([charger], { alpha: { x: 9, y: 2 } });
     windUpAndCharge(charger, session);
     expect(session.monsterCharges.has(charger.id)).toBe(true);
+  });
+});
+
+describe("elite monsters", () => {
+  const eliteImp = (position: Vector2): MonsterState => {
+    const type = gameContent().monsters.get("ash-imp")!;
+    return monsterInstance(type, position, crypto.randomUUID(), true);
+  };
+
+  it("is a roster monster with its health and damage multiplied", () => {
+    const base = gameContent().monsters.get("ash-imp")!;
+    const elite = eliteImp({ x: 5, y: 2 });
+
+    expect(elite.elite).toBe(true);
+    expect(elite.name).toBe("Elite Ash Imp");
+    expect(elite.maxHealth).toBe(Math.round(base.maxHealth * ELITE_HEALTH_MULT));
+    expect(elite.health).toBe(elite.maxHealth);
+    expect(monsterStatsFor(elite).damage).toBe(Math.round(base.damage * ELITE_DAMAGE_MULT));
+    expect(monsterStatsFor(spawn("ash-imp", { x: 5, y: 2 })).damage).toBe(base.damage);
+  });
+
+  it("fights while healthy and closes on the party", () => {
+    const elite = eliteImp({ x: 10, y: 2 });
+    const session = hallSession([elite], { alpha: { x: 4, y: 2 } });
+
+    const events = run(session, 3000);
+
+    expect(events.some((event) => event.attackerId === elite.id)).toBe(true);
+    expect(distance(elite.position, session.players.get("alpha")!.position)).toBeLessThan(2);
+  });
+
+  it("runs from the party once hurt, farther each second, and never swings", () => {
+    const elite = eliteImp({ x: 10, y: 2 });
+    elite.health = Math.floor(elite.maxHealth * ELITE_FLEE_HEALTH_FRACTION) - 1;
+    const session = hallSession([elite], { alpha: { x: 6, y: 2 } });
+    const player = session.players.get("alpha")!;
+    const clock = { now: 0 };
+
+    let previous = distance(elite.position, player.position);
+    const events = [];
+    for (let second = 0; second < 3; second += 1) {
+      events.push(...run(session, 1000, clock));
+      const gap = distance(elite.position, player.position);
+      expect(gap).toBeGreaterThan(previous);
+      previous = gap;
+    }
+    expect(events.filter((event) => event.attackerId === elite.id)).toEqual([]);
+    expect(elite.action).toBe("idle");
+  });
+
+  it("flees only below the threshold", () => {
+    const elite = eliteImp({ x: 10, y: 2 });
+    elite.health = Math.ceil(elite.maxHealth * ELITE_FLEE_HEALTH_FRACTION);
+    const session = hallSession([elite], { alpha: { x: 6, y: 2 } });
+
+    run(session, 1000);
+
+    expect(distance(elite.position, session.players.get("alpha")!.position)).toBeLessThan(4);
+  });
+
+  it("is outrun by a player, so the chase can end", () => {
+    const elite = eliteImp({ x: 10, y: 2 });
+    elite.health = 1;
+    const session = hallSession([elite], { alpha: { x: 6, y: 2 } });
+    const player = session.players.get("alpha")!;
+    const clock = { now: 0 };
+
+    for (let second = 0; second < 2; second += 1) {
+      run(session, 1000, clock);
+      player.position = { x: player.position.x + PLAYER_MOVE_SPEED, y: 2 };
+    }
+
+    expect(distance(elite.position, player.position)).toBeLessThan(4);
+  });
+
+  it("fights back when cornered at a dead end", () => {
+    const elite = eliteImp({ x: 36, y: 2 });
+    elite.health = 1;
+    const session = hallSession([elite], { alpha: { x: 34, y: 2 } });
+    const clock = { now: 0 };
+
+    // It holds its corner while the player keeps their distance...
+    expect(run(session, 2000, clock).filter((event) => event.attackerId === elite.id)).toEqual([]);
+    expect(elite.position.x).toBeGreaterThan(35.5);
+
+    // ...and swings at one who comes within reach.
+    session.players.get("alpha")!.position = { x: 35.4, y: 2 };
+    expect(run(session, 3000, clock).some((event) => event.attackerId === elite.id)).toBe(true);
+  });
+
+  it("calls monsters nearby, once, when it first runs", () => {
+    const slime = spawn("cinder-slime", { x: 20, y: 2 });
+    const far = spawn("cinder-slime", { x: 37, y: 3 });
+    const elite = eliteImp({ x: 8, y: 2 });
+    elite.health = 1;
+    const session = hallSession([elite, slime, far], { alpha: { x: 2, y: 2 } });
+    const alpha = session.players.get("alpha")!;
+
+    run(session, 2000);
+
+    // Eighteen away is past a slime's own range of twelve, but inside the doubled range of a call.
+    expect(slime.position.x).toBeLessThan(20);
+    // Out of the elite's earshot, a monster hears nothing.
+    expect(far.position).toEqual({ x: 37, y: 3 });
+    expect(session.monsterPosts.get(elite.id)?.shouted).toBe(true);
+    expect(distance(slime.position, alpha.position)).toBeLessThan(18);
+  });
+
+  it("leaves a slime that is beyond its own range alone when the elite is healthy", () => {
+    const slime = spawn("cinder-slime", { x: 20, y: 2 });
+    const elite = eliteImp({ x: 8, y: 2 });
+    const session = hallSession([elite, slime], { alpha: { x: 2, y: 2 } });
+
+    run(session, 2000);
+
+    expect(slime.position).toEqual({ x: 20, y: 2 });
   });
 });

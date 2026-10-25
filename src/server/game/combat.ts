@@ -255,6 +255,15 @@ function actMonster(
 
   const stepDistance = (stats.speed * elapsedMs) / 1000;
   const target = planner.target(monster, stats, now);
+  // A hurt elite calls for help, then runs. Cornered, it stands its ground and fights whoever
+  // comes within reach, rather than stepping out of the corner and straight back into it.
+  let cornered = false;
+  if (planner.isFleeing(monster)) {
+    planner.callNearby(monster, now);
+    if (planner.flee(monster, stepDistance)) return [];
+    if (!target) return [];
+    cornered = true;
+  }
   if (!target) {
     planner.returnHome(monster, now, stepDistance);
     return [];
@@ -267,7 +276,7 @@ function actMonster(
     if (gap < preferred) planner.retreat(monster, target.position, stepDistance);
   }
   if (gap > stats.attackRange) {
-    planner.chase(monster, target.position, stepDistance);
+    if (!cornered) planner.chase(monster, target.position, stepDistance);
     return [];
   }
   if (

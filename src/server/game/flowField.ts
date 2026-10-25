@@ -184,4 +184,36 @@ export class FlowField {
 
     return false;
   }
+
+  /**
+   * The mirror of `descend`: calls `visit` for each neighbour one step farther from every source,
+   * until `visit` returns true. Reports false for a tile the search never reached, and for one
+   * with nowhere farther to go, a dead end the caller is cornered in.
+   */
+  ascend(
+    grid: WalkableGrid,
+    x: number,
+    y: number,
+    visit: (tileX: number, tileY: number) => boolean,
+  ): boolean {
+    const here = this.distanceAt(x, y);
+    if (here === Number.POSITIVE_INFINITY) return false;
+
+    const wanted = here + 1;
+    for (const [dx, dy] of NEIGHBOURS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (this.distanceAt(nx, ny) !== wanted) continue;
+      if (
+        dx !== 0 &&
+        dy !== 0 &&
+        (grid.tiles[y * grid.width + nx] !== 1 || grid.tiles[ny * grid.width + x] !== 1)
+      ) {
+        continue;
+      }
+      if (visit(nx, ny)) return true;
+    }
+
+    return false;
+  }
 }

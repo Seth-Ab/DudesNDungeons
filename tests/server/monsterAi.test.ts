@@ -57,6 +57,7 @@ function imp(x: number, y: number): MonsterState {
     maxHealth: 12,
     alive: true,
     boss: false,
+    elite: false,
     action: "idle",
     behavior: "melee",
     windupProgress: 0,

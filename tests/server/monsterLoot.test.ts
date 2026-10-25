@@ -233,3 +233,61 @@ describe("monster loot table validation", () => {
     expect(() => loadContent(root)).toThrow(/empty-imp\.json is not valid content: loot\.entries/);
   });
 });
+
+describe("an elite's vault key", () => {
+  const vaultKeys = (session: Session) =>
+    session.dungeon.loot.filter((loot) => loot.kind === "key" && loot.itemId === "vault-key");
+
+  function eliteImp(content: GameContent): Session {
+    const session = vaultWith(content);
+    const imp = monster(session, ASH_IMP_ID);
+    imp.elite = true;
+    imp.health = 1;
+    return session;
+  }
+
+  it("drops on death even when the monster's own table is empty", () => {
+    const session = eliteImp(contentWithImpLoot(undefined));
+    expect(vaultKeys(session)).toHaveLength(0);
+
+    killImp(session);
+
+    const [key] = vaultKeys(session);
+    expect(vaultKeys(session)).toHaveLength(1);
+    expect(key).toMatchObject({ name: "Vault Key", pickedUp: false });
+    expect(isFloor(session.dungeon, key!.position)).toBe(true);
+  });
+
+  it("drops once, beside the table's own drops", () => {
+    const session = eliteImp(contentWithImpLoot(TONIC_TABLE));
+    const before = session.dungeon.loot.length;
+
+    killImp(session);
+
+    expect(droppedNames(session, before).sort()).toEqual(["Minor Tonic", "Vault Key"]);
+  });
+
+  it("is not lost when a different player lands the killing blow", () => {
+    const session = eliteImp(contentWithImpLoot(undefined));
+    session.players.set("beta", testPlayer("beta", { position: at(11, 2, -IN_REACH) }));
+    // Beta, not the player who was fighting it, finishes it.
+    const imp = monster(session, ASH_IMP_ID);
+    imp.health = 2;
+    imp.maxHealth = 30;
+
+    const result = resolvePlayerAttack(session, "beta", { x: 1, y: 0 }, null, 0);
+
+    expect(result.ok && result.event.targetDefeated).toBe(true);
+    expect(vaultKeys(session)).toHaveLength(1);
+    expect(vaultKeys(session)[0]!.pickedUp).toBe(false);
+  });
+
+  it("is never dropped by an ordinary monster", () => {
+    const session = vaultWith(contentWithImpLoot(undefined));
+    monster(session, ASH_IMP_ID).health = 1;
+
+    killImp(session);
+
+    expect(vaultKeys(session)).toHaveLength(0);
+  });
+});
