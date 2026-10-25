@@ -363,6 +363,11 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "setAppearance", appearance });
     },
 
+    /** Renames the sender while they are still designing; the server refuses it afterwards. */
+    setName(name: string): boolean {
+      return send({ type: "setName", name });
+    },
+
     /**
      * Intent, never a position. The sequence lets a later server correction say which input it is
      * answering. The server paces moves to `MOVE_INTERVAL_MS`, so callers should send at that rate.

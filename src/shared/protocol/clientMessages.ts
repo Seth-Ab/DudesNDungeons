@@ -83,6 +83,20 @@ export const setAppearanceSchema = z.object({
 });
 
 /**
+ * A new name for the sender, allowed only while they are still designing (`needsAppearance`, no look
+ * yet). Trimmed and length-checked like the join name; the server answers a name another player in
+ * the room already uses (ignoring case) with `nameTaken`, a malformed one with `invalidName`, and a
+ * player who has entered the hub with `nameLocked`. Success has no message of its own: the next
+ * snapshot and roster carry the name.
+ */
+export const setNameSchema = z
+  .object({
+    type: z.literal("setName"),
+    name: playerNameSchema,
+  })
+  .strict();
+
+/**
  * Movement intent, never a position. `direction` is an unnormalized heading; the server normalizes
  * it, applies its own speed, and resolves collision. `sequence` lets the server tell the client
  * which intent a correction refers to.
@@ -264,6 +278,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   saveAndQuitSchema,
   setReadySchema,
   setAppearanceSchema,
+  setNameSchema,
   playerMoveIntentSchema,
   playerAttackSchema,
   beginDrawSchema,

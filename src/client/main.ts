@@ -294,6 +294,8 @@ const lobby = createLobby({
 const design = createCharacterDesign({
   store: lookStore(),
   onConfirm: (look) => client.setAppearance(look),
+  onRename: (name) => client.setName(name),
+  onNameAccepted: (name) => lobby.setPlayerName(name),
   onBack: () => {
     client.leave();
     lobby.setMessage("You left the dungeon.");

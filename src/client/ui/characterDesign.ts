@@ -4,7 +4,7 @@ import {
   HAIR_STYLES,
   SKIN_TONES,
 } from "../../shared/constants/appearance.js";
-import { MAX_PARTY_SIZE } from "../../shared/constants/game.js";
+import { MAX_PARTY_SIZE, MAX_PLAYER_NAME_LENGTH } from "../../shared/constants/game.js";
 import type { PlayerAppearance, PlayerState } from "../../shared/types/core.js";
 import type { SessionError, SessionView } from "../network/sessionState.js";
 import { selfOf } from "../network/sessionState.js";
@@ -34,6 +34,10 @@ interface CharacterDesignOptions {
   store: LookStore;
   /** Sends the look. False when there is no connection to send it on. */
   onConfirm: (look: PlayerAppearance) => boolean;
+  /** Sends a new name. False when there is no connection to send it on. */
+  onRename: (name: string) => boolean;
+  /** The server took the name, so the lobby can offer it on a rejoin. */
+  onNameAccepted: (name: string) => void;
   /** Gives up the reserved slot and returns to the lobby. */
   onBack: () => void;
 }
@@ -170,6 +174,7 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
   let walking = false;
   let party: PlayerState[] = [];
   let selfId: string | null = null;
+  let selfName = "";
   let sentAgainst: SessionError | null | undefined;
   let lastError: SessionError | null = null;
   let shown = false;
@@ -230,8 +235,13 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
   const nameLabel = document.createElement("span");
   nameLabel.className = "design__group-label";
   nameLabel.textContent = "Name";
-  const nameValue = document.createElement("span");
+  const nameValue = document.createElement("input");
+  nameValue.type = "text";
   nameValue.className = "design__name-value";
+  nameValue.maxLength = MAX_PLAYER_NAME_LENGTH;
+  nameValue.autocomplete = "off";
+  nameValue.spellcheck = false;
+  nameValue.setAttribute("aria-label", "Name");
   const partyChip = document.createElement("span");
   partyChip.className = "design__chip";
   nameRow.append(nameLabel, nameValue, partyChip);
@@ -388,7 +398,7 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
     }
 
     const people: { id: string; name: string; look: CharacterLook; pose: PreviewPose }[] = [
-      { id: "self", name: nameValue.textContent ?? "", look: fullLook(), pose: { ...STAND, pose: walkPose(walking, now), blinking: blinks.blinking("design-game", now) } },
+      { id: "self", name: nameValue.value.trim(), look: fullLook(), pose: { ...STAND, pose: walkPose(walking, now), blinking: blinks.blinking("design-game", now) } },
       ...others.map((player) => ({
         id: player.id,
         name: player.name,
@@ -444,11 +454,23 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
 
   randomize.addEventListener("click", () => setLook(randomLook()));
 
+  // A rename goes first and the look waits for the snapshot that carries the new name, so a refused
+  // name never locks the look in.
+  let pending: { look: PlayerAppearance; name: string } | null = null;
+
   enter.addEventListener("click", () => {
     if (enter.disabled) return;
     const confirmed = { ...look };
+    const name = nameValue.value.trim();
+    if (name.length === 0) {
+      error.textContent = "Pick a name first.";
+      nameValue.focus();
+      return;
+    }
     options.store.write(confirmed);
-    if (options.onConfirm(confirmed)) {
+    const rename = name !== selfName;
+    if (rename ? options.onRename(name) : options.onConfirm(confirmed)) {
+      if (rename) pending = { look: confirmed, name };
       sentAgainst = lastError;
       error.textContent = "";
       enter.disabled = true;
@@ -462,6 +484,11 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
   // The screen owns the keyboard while it is up, so game keys held for the dungeon never fire.
   element.addEventListener("keydown", (event) => {
     event.stopPropagation();
+    // Typing a name must not reroll the look, and Enter there confirms like the button.
+    if (event.target === nameValue) {
+      if (event.key === "Enter") enter.click();
+      return;
+    }
     if (event.key === "r" || event.key === "R") {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       setLook(randomLook());
@@ -478,7 +505,7 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
       party = view.players;
       selfId = view.selfId;
       partyColor = self?.partyColor ?? partyColor;
-      nameValue.textContent = self?.name ?? "";
+      selfName = self?.name ?? "";
       partyChip.textContent = `Party colour: ${titleCase(partyColor)}`;
       partyChip.style.setProperty("--chip", preview.ringColor(partyColor));
       roomLine.textContent = state.roomLine ?? "";
@@ -494,6 +521,8 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
         enter.disabled = false;
         enter.textContent = "Enter the hub";
         error.textContent = "";
+        pending = null;
+        nameValue.value = selfName;
         setLook(startingLook(options.store));
         bodyGroup.focus();
         frame = requestAnimationFrame(loop);
@@ -504,6 +533,19 @@ export function createCharacterDesign(options: CharacterDesignOptions) {
       }
 
       if (!shown) return;
+      if (pending !== null && state.error !== null) {
+        pending = null;
+      } else if (pending !== null && selfName === pending.name) {
+        const { look: confirmed, name } = pending;
+        pending = null;
+        options.onNameAccepted(name);
+        if (!options.onConfirm(confirmed)) {
+          sentAgainst = undefined;
+          enter.disabled = false;
+          enter.textContent = "Enter the hub";
+          error.textContent = "No connection to the dungeon. Try again in a moment.";
+        }
+      }
       if (!state.entering && sentAgainst !== undefined) {
         // The server answered the look with a refusal: let the player fix it and try again.
         enter.disabled = false;

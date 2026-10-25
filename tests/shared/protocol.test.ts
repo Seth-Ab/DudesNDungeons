@@ -442,8 +442,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v52, the version that added the elite flag on monsters", () => {
-    expect(PROTOCOL_VERSION).toBe(52);
+  it("is on protocol v53, the version that added setName", () => {
+    expect(PROTOCOL_VERSION).toBe(53);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -496,6 +496,21 @@ describe("appearance contract", () => {
     expect(setAppearance({ ...LOOK, hat: "crown" }).ok).toBe(false);
     expect(setAppearance(null).ok).toBe(false);
     expect(parseClientMessage(JSON.stringify({ type: "setAppearance" })).ok).toBe(false);
+  });
+
+  it("trims a setName and refuses an empty, blank, over-long or padded one", () => {
+    const setName = (name: unknown) => parseClientMessage(JSON.stringify({ type: "setName", name }));
+    const trimmed = setName("  Maya  ");
+    expect(trimmed.ok).toBe(true);
+    if (trimmed.ok) expect(trimmed.message).toEqual({ type: "setName", name: "Maya" });
+
+    for (const name of ["", "   ", "x".repeat(MAX_PLAYER_NAME_LENGTH + 1), 7, null]) {
+      const result = setName(name);
+      expect(result.ok, String(name)).toBe(false);
+      if (!result.ok) expect(result.claimedType).toBe("setName");
+    }
+    expect(parseClientMessage(JSON.stringify({ type: "setName" })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "setName", name: "Maya", extra: 1 })).ok).toBe(false);
   });
 
   it("names no claimed type for a message type the protocol does not have", () => {

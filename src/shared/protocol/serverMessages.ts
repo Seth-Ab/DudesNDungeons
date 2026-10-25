@@ -59,6 +59,12 @@ export const errorCodeSchema = z.enum([
   "invalidAppearance",
   /** A `setAppearance` from a player whose look is already set. It is fixed for the slot's life. */
   "appearanceLocked",
+  /** A `setName` that is empty, over-long, or malformed. */
+  "invalidName",
+  /** A `setName` for a name another player in the room already uses. */
+  "nameTaken",
+  /** A `setName` from a player who has already designed a character. The name is fixed from then on. */
+  "nameLocked",
   "rateLimited",
   "notImplemented",
   "internalError",

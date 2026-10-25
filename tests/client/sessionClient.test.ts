@@ -353,6 +353,36 @@ describe("character appearance", () => {
   });
 });
 
+describe("renaming on the design screen", () => {
+  it("shows the new name to the party, refuses a clash, and keeps the name through a reconnect", async () => {
+    const host = newClient();
+    const roomCode = await host.createRoom();
+    host.join(roomCode, "Alpha");
+    await until(host, inSession);
+    const guest = newClient();
+    guest.join(roomCode, "Beta");
+    await until(guest, inSession);
+
+    expect(host.setName("Beta")).toBe(true);
+    const refused = await until(host, (v) => v.lastError?.code === "nameTaken");
+    expect(selfOf(refused)?.name).toBe("Alpha");
+
+    expect(host.setName("Alpine")).toBe(true);
+    await until(guest, (v) => v.players.some((p) => p.name === "Alpine"));
+    await design(host);
+
+    host.disconnect();
+    await until(guest, (v) => v.players.some((p) => !p.connected));
+    host.join(roomCode, "Alpine");
+    const back = await until(host, (v) => v.phase === "inSession" && v.players.length === 2);
+    expect(selfOf(back)?.name).toBe("Alpine");
+
+    host.setName("Late");
+    const locked = await until(host, (v) => v.lastError?.code === "nameLocked");
+    expect(selfOf(locked)?.name).toBe("Alpine");
+  });
+});
+
 describe("roguelite profiles", () => {
   const KEY = { id: "33333333-3333-4333-8333-333333333333", name: "Copper Key", kind: "key" as const, itemId: "copper-key" };
 
