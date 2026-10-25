@@ -476,7 +476,7 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
   with steps spaced one move interval apart and brief capped extrapolation when the buffer runs dry
   (issue #62), fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is
   untouched. A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE`
-  snaps instead of sliding. Monsters still draw at raw snapshot position; interpolation was scoped to players only.
+  snaps instead of sliding. Monsters get the same buffer (issue #316, 2026-10-25): `updateMonsterInterpolation` tracks living visible monsters by id with the same render delay, spacing and extrapolation cap, drops a track the moment its monster dies or leaves the snapshot (no absent grace, so a reused id snaps), and snaps on a jump past `SNAP_DISTANCE`. `main.ts` `dungeonAt` hands the renderer monsters at their drawn position, so the telegraph cone, health bar, damage popups and swing impact follow it; `windupProgress` is untouched, so the strike lands exactly when the server resolves it. No protocol change.
   Local prediction skips a step onto ground the client has never been shown (`stepsIntoUndiscovered`
   in `src/client/state/gameState.ts`) and follows the server's placement instead. Without a torch
   nothing ahead is discovered, and predicting against unknown tiles as walls froze the player and

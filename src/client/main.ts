@@ -1,5 +1,5 @@
 import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
-import type { EntityId, Vector2 } from "../shared/types/core.js";
+import type { DungeonState, EntityId, MonsterState, Vector2 } from "../shared/types/core.js";
 import {
   captureMicrophone,
   createBrowserPeerLink,
@@ -44,6 +44,7 @@ import {
   emptyRemoteInterpolation,
   remoteInterpolatedPosition,
   resetRemoteInterpolation,
+  updateMonsterInterpolation,
   updateRemoteInterpolation,
   type RemoteInterpolationState,
 } from "./state/remoteInterpolation.js";
@@ -148,6 +149,8 @@ let lastPredictionAt = Number.NEGATIVE_INFINITY;
 let view: SessionView = initialSessionView;
 /** Buffered remote positions, drawn slightly in the past. Local prediction never touches this. */
 let remoteInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
+/** Buffered monster positions, drawn the same delay in the past. Telegraphs, bars and hits follow. */
+let monsterInterpolation: RemoteInterpolationState = emptyRemoteInterpolation;
 /** Floating damage numbers, and the last attack sequence already turned into one. */
 const popupField = createPopupField();
 const swingField = createSwingField();
@@ -168,6 +171,18 @@ const client = createSessionClient({
 /** The held movement keys' heading. Set once the input exists, which is after the first frame is asked for. */
 let heldHeading: () => Vector2 | null = () => null;
 
+/** The dungeon with each monster moved to where it is drawn at `now`. */
+function dungeonAt(dungeon: DungeonState, now: number): DungeonState {
+  if (dungeon.monsters.length === 0) return dungeon;
+  return {
+    ...dungeon,
+    monsters: dungeon.monsters.map((monster) => ({
+      ...monster,
+      position: remoteInterpolatedPosition(monsterInterpolation, monster.id, now, monster.position),
+    })),
+  };
+}
+
 const renderer = createCanvasRenderer(() => {
   const now = performance.now();
   const self = selfOf(view);
@@ -176,7 +191,7 @@ const renderer = createCanvasRenderer(() => {
     position: remoteInterpolatedPosition(remoteInterpolation, player.id, now, player.position),
   }));
   return {
-    dungeon: renderedDungeon,
+    dungeon: dungeonAt(renderedDungeon, now),
     lit: renderedLit,
     localPosition,
     self,
@@ -355,8 +370,10 @@ client.subscribe((next) => {
   const now = performance.now();
   if (joinedNow || transitioned) {
     remoteInterpolation = resetRemoteInterpolation(visibleOthersOf(view), now);
+    monsterInterpolation = resetRemoteInterpolation(livingMonsters(), now);
   } else if (snapshotArrived) {
     remoteInterpolation = updateRemoteInterpolation(remoteInterpolation, visibleOthersOf(view), now);
+    monsterInterpolation = updateMonsterInterpolation(monsterInterpolation, view.dungeon?.monsters ?? [], now);
   }
 
   const self = selfOf(view);
@@ -384,15 +401,21 @@ client.subscribe((next) => {
  * struck training dummy. The server sends every attack in the session to every member, so only
  * those whose target this client can place are drawn.
  */
+function livingMonsters(): MonsterState[] {
+  return (view.dungeon?.monsters ?? []).filter((monster) => monster.alive);
+}
+
 function showDamageNumbers(): void {
   // A fresh view (leaving a session) restarts the sequence.
   if (view.attackSeq < lastAttackSeq) lastAttackSeq = 0;
 
   const now = performance.now();
+  // Hit feedback lands where the monster is drawn, not at its latest snapshot position.
+  const drawnView: SessionView = view.dungeon ? { ...view, dungeon: dungeonAt(view.dungeon, now) } : view;
   for (const attack of newAttacks(view, lastAttackSeq)) {
-    const popup = damagePopup(view, attack, localPosition);
+    const popup = damagePopup(drawnView, attack, localPosition);
     if (popup) popupField.add(popup, now);
-    const arc = swingArc(view, attack);
+    const arc = swingArc(drawnView, attack);
     if (arc) swingField.add(arc, now);
     const targetId = attack.targetId;
     const struckDummy =

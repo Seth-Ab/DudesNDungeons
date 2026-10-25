@@ -6,6 +6,7 @@ import {
   emptyRemoteInterpolation,
   remoteInterpolatedPosition,
   resetRemoteInterpolation,
+  updateMonsterInterpolation,
   updateRemoteInterpolation,
   type RemoteInterpolationState,
 } from "../../src/client/state/remoteInterpolation.js";
@@ -227,5 +228,61 @@ describe("resetRemoteInterpolation", () => {
     expect(
       remoteInterpolatedPosition(slidingTo, PLAYER_ID, 50, ORIGIN),
     ).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("updateMonsterInterpolation", () => {
+  const MONSTER_ID = "00000000-0000-4000-8000-0000000000aa";
+  const monster = (x: number, alive = true) => ({ id: MONSTER_ID, position: { x, y: 0 }, alive });
+  const drawnAt = (state: RemoteInterpolationState, now: number) =>
+    remoteInterpolatedPosition(state, MONSTER_ID, now, { x: -1, y: -1 }).x;
+
+  it("draws a monster between snapshots, not at the raw coordinates", () => {
+    const seeded = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    const moved = updateMonsterInterpolation(seeded, [monster(STEP)], MOVE_INTERVAL_MS);
+
+    expect(drawnAt(moved, MOVE_INTERVAL_MS)).toBe(0);
+    expect(drawnAt(moved, REMOTE_RENDER_DELAY_MS + MOVE_INTERVAL_MS / 2)).toBeCloseTo(STEP / 2, 9);
+    expect(drawnAt(moved, REMOTE_RENDER_DELAY_MS + MOVE_INTERVAL_MS)).toBeCloseTo(STEP, 9);
+  });
+
+  it("caps extrapolation when no snapshot arrives", () => {
+    const seeded = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    const moved = updateMonsterInterpolation(seeded, [monster(STEP)], MOVE_INTERVAL_MS);
+    const end = MOVE_INTERVAL_MS + REMOTE_RENDER_DELAY_MS;
+
+    expect(drawnAt(moved, end + 10 * MAX_EXTRAPOLATION_MS)).toBeCloseTo(STEP + SPEED * MAX_EXTRAPOLATION_MS, 9);
+  });
+
+  it("snaps a large jump instead of sliding", () => {
+    const seeded = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    const jumped = updateMonsterInterpolation(seeded, [monster(40)], 1);
+
+    expect(drawnAt(jumped, 1)).toBe(40);
+  });
+
+  it("drops the track of a monster that left the snapshot, so it snaps back in", () => {
+    let state = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    state = updateMonsterInterpolation(state, [], 50);
+    expect(state.has(MONSTER_ID)).toBe(false);
+    expect(drawnAt(state, 50)).toBe(-1);
+
+    state = updateMonsterInterpolation(state, [monster(1)], 100);
+    expect(drawnAt(state, 100)).toBe(1);
+  });
+
+  it("drops the track of a monster that died", () => {
+    let state = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    state = updateMonsterInterpolation(state, [monster(STEP, false)], 50);
+
+    expect(state.has(MONSTER_ID)).toBe(false);
+  });
+
+  it("snaps a new monster that reuses an id from a stale position", () => {
+    let state = updateMonsterInterpolation(emptyRemoteInterpolation, [monster(0)], 0);
+    state = updateMonsterInterpolation(state, [], 50);
+    state = updateMonsterInterpolation(state, [monster(1.5)], 60);
+
+    expect(drawnAt(state, 60)).toBe(1.5);
   });
 });
