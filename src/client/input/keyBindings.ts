@@ -2,7 +2,8 @@
  * The one table of rebindable keys, as runtime state. The input controller reads it to decide what
  * a keypress does, and the controls menu, the contextual prompt, and the hotbar read it to say which
  * key to press, so a rebinding cannot leave the on-screen hint naming a key that no longer works.
- * Bindings are per page (so per client) and are not persisted.
+ * Bindings are per page; `state/keyBindingsStore.ts` saves and restores them through the helpers at the
+ * bottom of this file.
  */
 
 export type GameplayAction =
@@ -171,4 +172,53 @@ export function bindingMessage(key: string, result: Extract<BindingResult, { ok:
   }
   if (result.reason === "modifier") return "Press a regular key, not a modifier.";
   return `${label} is reserved and cannot be bound.`;
+}
+
+/** One key per action, only for the actions that differ from their default; what gets persisted. */
+export type BindingOverrides = Partial<Record<BindableAction, string>>;
+
+/** The bindings that differ from the defaults, for saving. */
+export function bindingOverrides(): BindingOverrides {
+  const overrides: BindingOverrides = {};
+  for (const action of BINDABLE_ACTIONS) {
+    const key = KEY_BINDINGS[action].keys[0];
+    if (key !== undefined && key !== DEFAULT_KEYS[action]) overrides[action] = key;
+  }
+  return overrides;
+}
+
+/**
+ * Keeps only the entries of untrusted data that are safe to apply: a known action, a key that is
+ * neither reserved nor a modifier, and no clash with the key any other action ends up on. Entries
+ * that clash are dropped (their action keeps its default) until the table is clean.
+ */
+export function sanitizeOverrides(raw: unknown): BindingOverrides {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const record = raw as Record<string, unknown>;
+  const overrides: BindingOverrides = {};
+  for (const action of BINDABLE_ACTIONS) {
+    const value = record[action];
+    if (typeof value !== "string" || value.length === 0) continue;
+    const key = value.toLowerCase();
+    if (MODIFIER_KEYS.has(key) || RESERVED_KEYS.has(key)) continue;
+    if (key !== DEFAULT_KEYS[action]) overrides[action] = key;
+  }
+  for (;;) {
+    const holders = new Map<string, BindableAction[]>();
+    for (const action of BINDABLE_ACTIONS) {
+      const key = overrides[action] ?? DEFAULT_KEYS[action];
+      holders.set(key, [...(holders.get(key) ?? []), action]);
+    }
+    const clashing = [...holders.values()].find((actions) => actions.length > 1);
+    if (!clashing) return overrides;
+    for (const action of clashing) delete overrides[action];
+  }
+}
+
+/** Replaces the table with the defaults plus `overrides`, without notifying listeners (used at startup). */
+export function applyOverrides(overrides: BindingOverrides): void {
+  for (const action of BINDABLE_ACTIONS) {
+    const key = overrides[action];
+    KEY_BINDINGS[action] = key === undefined ? defaultBinding(action) : { keys: [key], label: labelForKey(key) };
+  }
 }
