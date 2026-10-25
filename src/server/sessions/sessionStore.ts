@@ -256,6 +256,10 @@ export type SetAppearanceResult =
   | { ok: true; member: SessionMember }
   | { ok: false; code: ErrorCode; message: string };
 
+export type SetNameResult =
+  | { ok: true; member: SessionMember; previousName: PlayerName }
+  | { ok: false; code: ErrorCode; message: string };
+
 export interface SessionStoreOptions {
   now?: () => number;
   createPlayerId?: () => PlayerId;
@@ -588,6 +592,35 @@ export class SessionStore {
     member.player.position = findSpawnPoint(member.session);
     member.player.appearance = { ...appearance };
     return { ok: true, member };
+  }
+
+  /**
+   * Renames a player who is still designing. Same trim and length rule as the join name, which the
+   * protocol schema already applied; what is left is uniqueness (ignoring case, among the others
+   * in the room) and the designing-only rule.
+   */
+  setName(playerId: PlayerId, name: PlayerName): SetNameResult {
+    const member = this.findMember(playerId);
+    if (!member) {
+      return { ok: false, code: "notInSession", message: "Join a dungeon before sending this message" };
+    }
+    if (member.player.appearance !== null) {
+      return {
+        ok: false,
+        code: "nameLocked",
+        message: "Your character is already designed and cannot be renamed",
+      };
+    }
+    const wanted = name.toLowerCase();
+    for (const other of member.session.players.values()) {
+      if (other.id !== playerId && other.name.toLowerCase() === wanted) {
+        return { ok: false, code: "nameTaken", message: "Another player here already uses that name" };
+      }
+    }
+
+    const previousName = member.player.name;
+    member.player.name = name;
+    return { ok: true, member, previousName };
   }
 
   setReady(playerId: PlayerId, ready: boolean): SessionMember | undefined {

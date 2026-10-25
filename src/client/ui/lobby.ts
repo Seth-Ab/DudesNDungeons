@@ -297,6 +297,10 @@ export function createLobby(options: LobbyOptions) {
     setMessage(text: string) {
       message.textContent = text;
     },
+    /** Keeps the name field in step with a rename made on the design screen, so a rejoin sends it. */
+    setPlayerName(name: string) {
+      nameInput.value = name;
+    },
     setRoomCode(roomCode: string) {
       codeInput.value = roomCode;
     },

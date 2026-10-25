@@ -1068,7 +1068,13 @@ button:disabled {
 }
 
 .design__name-value {
-  overflow-wrap: anywhere;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #5f5132;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: inherit;
 }
 
 .design__chip {

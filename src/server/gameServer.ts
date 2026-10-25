@@ -378,7 +378,11 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         // The character designer shows this code on its error line, so a bad look is named as one.
         sendError(
           socket,
-          result.claimedType === "setAppearance" ? "invalidAppearance" : "invalidMessage",
+          result.claimedType === "setAppearance"
+            ? "invalidAppearance"
+            : result.claimedType === "setName"
+              ? "invalidName"
+              : "invalidMessage",
           result.error,
         );
         return;
@@ -568,6 +572,22 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         saveSessionRoom(set.member.session);
         // No message of its own: the next tick's snapshots carry the look to the whole party.
         note(`[session] ${set.member.session.roomCode}: ${set.member.player.name} designed a character`);
+        return;
+      }
+
+      if (message.type === "setName") {
+        const renamed = store.setName(playerId, message.name);
+        if (!renamed.ok) {
+          sendError(socket, renamed.code, renamed.message);
+          return;
+        }
+
+        // The profile is named after whoever plays it, as a join does. The room save learns of the
+        // name when the look is set, since a slot with no look is not yet in it.
+        profiles.touch(renamed.member.player.profile, message.name);
+        profiles.flush();
+        // No message of its own: the next snapshot and roster carry the name to the whole party.
+        note(`[session] ${renamed.member.session.roomCode}: ${renamed.previousName} is now ${message.name}`);
         return;
       }
 

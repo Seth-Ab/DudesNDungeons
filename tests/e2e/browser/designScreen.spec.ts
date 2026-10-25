@@ -121,4 +121,47 @@ test.describe("Character design screen", () => {
     await expect(page.getByRole("button", { name: "Join dungeon" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Enter the hub" })).toBeHidden();
   });
+  test("renaming while designing refuses a clash, then shows the new name to a teammate", async ({ browser }) => {
+    test.setTimeout(60_000);
+    const hostContext = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
+    const host = await hostContext.newPage();
+    await host.goto("/");
+    await host.getByPlaceholder("Your name").fill("Host");
+    await host.getByRole("button", { name: "Create a new dungeon" }).click();
+    await host.getByRole("button", { name: "Enter the hub" }).click();
+    await expect(host.locator(".hud__vitals")).toBeVisible();
+    const roomCode = (await host.locator(".hud__stat", { hasText: "Room:" }).locator("span").textContent()) ?? "";
+
+    const guestContext = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
+    const guest = await guestContext.newPage();
+    const guestSent: Sent[] = [];
+    await openRecordedPage(guest, guestSent, []);
+    await guest.getByPlaceholder("Your name").fill("Maya");
+    await guest.getByPlaceholder(/Room code/).fill(roomCode);
+    await guest.getByRole("button", { name: "Join dungeon" }).click();
+
+    const name = guest.getByRole("textbox", { name: "Name", exact: true });
+    await expect(name).toHaveValue("Maya");
+    const enter = guest.getByRole("button", { name: "Enter the hub" });
+
+    // A teammate's name is refused, and the look is not locked in by the attempt.
+    await name.fill("host");
+    await enter.click();
+    await expect(guest.locator(".design__error")).toContainText("already uses that name");
+    await expect(enter).toBeEnabled();
+    expect(guestSent.some((message) => message.type === "setAppearance")).toBe(false);
+    await guest.screenshot({ path: "test-results/rename-clash-refused.png" });
+
+    // Typing an "r" in the field must not reroll the look.
+    await name.fill("");
+    await name.pressSequentially("Mara");
+    await guest.screenshot({ path: "test-results/rename-design-screen.png" });
+    await name.press("Enter");
+    await expect(guest.locator(".design")).toBeHidden();
+
+    expect(guestSent.map((message) => message.type).filter((type) => type === "setName" || type === "setAppearance"))
+      .toEqual(["setName", "setName", "setAppearance"]);
+    await expect(host.locator(".hud__frame", { hasText: "Mara" })).toBeVisible();
+    await host.screenshot({ path: "test-results/rename-host-party-frame.png" });
+  });
 });

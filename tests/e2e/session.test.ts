@@ -573,6 +573,101 @@ describe("character appearance", () => {
     expect(server.store.findMember(joined.playerId)?.player.appearance).toEqual(DESIGNED);
   });
 
+  describe("renaming while designing", () => {
+    it("renames a designing player and shows the new name in snapshots and a later join's roster", async () => {
+      const roomCode = await createRoom();
+      const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+      const beta = await joinRoom(roomCode, "Beta");
+
+      alpha.client.send({ type: "setName", name: "  Alpine " });
+      const seen = await beta.client.nextWhere("stateSnapshot", (snapshot) =>
+        snapshot.players.some((player) => player.id === alpha.joined.playerId && player.name === "Alpine"),
+      );
+      expect(seen.players.find((player) => player.id === alpha.joined.playerId)?.name).toBe("Alpine");
+
+      const gamma = await joinRoom(roomCode, "Gamma");
+      expect(gamma.joined.players.find((player) => player.id === alpha.joined.playerId)?.name).toBe("Alpine");
+      expect(server.profiles.get(server.store.findMember(alpha.joined.playerId)!.player.profile.id)?.displayName)
+        .toBe("Alpine");
+    });
+
+    it("refuses an empty, blank or over-long name and keeps the old one", async () => {
+      const roomCode = await createRoom();
+      const { client, joined } = await joinRoom(roomCode, "Alpha", undefined, false);
+
+      for (const name of ["", "   ", "x".repeat(25)]) {
+        client.send({ type: "setName", name });
+        expect((await client.next("sessionError")).code, JSON.stringify(name)).toBe("invalidName");
+      }
+      expect(server.store.findMember(joined.playerId)?.player.name).toBe("Alpha");
+    });
+
+    it("refuses a name another player in the room uses, ignoring case", async () => {
+      const roomCode = await createRoom();
+      await joinRoom(roomCode, "Beta");
+      const { client, joined } = await joinRoom(roomCode, "Alpha", undefined, false);
+
+      client.send({ type: "setName", name: "bETA" });
+      expect((await client.next("sessionError")).code).toBe("nameTaken");
+      expect(server.store.findMember(joined.playerId)?.player.name).toBe("Alpha");
+
+      client.send({ type: "setName", name: "ALPHA" });
+      client.send({ type: "setAppearance", appearance: LOOK });
+      await client.nextWhere("stateSnapshot", (snapshot) =>
+        snapshot.players.some((player) => player.id === joined.playerId && player.appearance !== null),
+      );
+      expect(server.store.findMember(joined.playerId)?.player.name).toBe("ALPHA");
+    });
+
+    it("saves the new name with the character, for the Continue list", async () => {
+      const roomCode = await createRoom();
+      const { client, joined } = await joinRoom(roomCode, "Alpha", undefined, false);
+
+      client.send({ type: "setName", name: "Alpine" });
+      client.send({ type: "setAppearance", appearance: LOOK });
+      await client.nextWhere("stateSnapshot", (snapshot) =>
+        snapshot.players.some((player) => player.id === joined.playerId && player.appearance !== null),
+      );
+      const save = server.store.saves.get(roomCode);
+      expect(save?.members.map((member) => member.name)).toEqual(["Alpine"]);
+    });
+
+    it("refuses a rename once the character is designed", async () => {
+      const roomCode = await createRoom();
+      const { client, joined } = await joinRoom(roomCode, "Alpha");
+
+      client.send({ type: "setName", name: "Other" });
+      expect((await client.next("sessionError")).code).toBe("nameLocked");
+      expect(server.store.findMember(joined.playerId)?.player.name).toBe("Alpha");
+    });
+
+    it("refuses a rename before sessionJoined", async () => {
+      const client = await TestClient.connect();
+      client.send({ type: "setName", name: "Alpha" });
+      expect((await client.next("sessionError")).code).toBe("notInSession");
+    });
+
+    it("keeps a name set just before the connection dropped, and a resume with that name keeps it", async () => {
+      const roomCode = await createRoom();
+      const alpha = await joinRoom(roomCode, "Alpha", undefined, false);
+      const beta = await joinRoom(roomCode, "Beta");
+
+      alpha.client.send({ type: "setName", name: "Alpine" });
+      await beta.client.nextWhere("stateSnapshot", (snapshot) =>
+        snapshot.players.some((player) => player.name === "Alpine"),
+      );
+      const dropped = beta.client.next("playerConnectionChanged");
+      alpha.client.close();
+      await dropped;
+
+      // A rename from the dead socket's player id has nowhere to go; the slot keeps what it had.
+      expect(server.store.findMember(alpha.joined.playerId)?.player.name).toBe("Alpine");
+      const resumed = await joinRoom(roomCode, "Alpine", alpha.joined.resumeToken, false);
+      expect(resumed.joined.resumed).toBe(true);
+      expect(resumed.joined.players.find((p) => p.id === alpha.joined.playerId)?.name).toBe("Alpine");
+    });
+  });
+
   it("refuses a look before sessionJoined", async () => {
     const client = await TestClient.connect();
     client.send({ type: "setAppearance", appearance: DESIGNED });
