@@ -16,7 +16,10 @@ const delveProfile = content.dungeons.get(DEFAULT_DUNGEON_ID) as DelveDungeon;
 const PARTY_SIZES = [1, 2, 3, 4];
 const SWEEP_SEEDS = 1000;
 
-describe("the delve generator seed sweep", () => {
+// Each sweep runs a thousand generations, close to vitest's 5 s default on a slow CI runner.
+const SWEEP_TIMEOUT_MS = 30_000;
+
+describe("the delve generator seed sweep", { timeout: SWEEP_TIMEOUT_MS }, () => {
   // The invariants that decide whether a run is finishable at all, swept rather than sampled: a
   // generator that only usually holds them ships an unplayable dungeon to somebody. Generation
   // already validates before returning, so this also proves no seed exhausts its attempts.

@@ -157,6 +157,8 @@ export interface SessionView {
   convertPromptItemId: string | null;
   /** What the hub skill shop sells now, from the latest `skillShopStock`. The same for every member. */
   skillShop: SkillShopEntry[];
+  /** Skills whose scroll the shop sometimes stocks (its whole rotating pool), from the same message. */
+  skillShopRotating: string[];
   /** The refusal to show inside the shop panel for the last purchase, or null. Set by the session client. */
   shopNotice: string | null;
   /** Every cosmetic and whether the wardrobe stall stocks it now, from the latest `wardrobeCatalog`. */
@@ -215,6 +217,7 @@ export const initialSessionView: SessionView = {
   vault: [],
   convertPromptItemId: null,
   skillShop: [],
+  skillShopRotating: [],
   shopNotice: null,
   wardrobe: [],
   wardrobeNotice: null,
@@ -304,6 +307,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         vault: [],
         convertPromptItemId: null,
         skillShop: [],
+        skillShopRotating: [],
         shopNotice: null,
         wardrobe: [],
         wardrobeNotice: null,
@@ -316,7 +320,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
       return { ...view, vault: message.items };
 
     case "skillShopStock":
-      return { ...view, skillShop: message.entries };
+      return { ...view, skillShop: message.entries, skillShopRotating: message.rotatingSkillIds };
 
     case "wardrobeCatalog":
       return { ...view, wardrobe: message.entries };

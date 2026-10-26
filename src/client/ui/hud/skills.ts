@@ -46,6 +46,7 @@ function skillItem(entry: SkillEntryView): HTMLLIElement {
     item.append(line("hud__skill-text hud__skill-need", `Requires ${entry.missingPrerequisites.join(", ")} first.`));
   }
   for (const way of entry.acquisition) item.append(line("hud__skill-text hud__skill-way", way));
+  if (entry.shopText) item.append(line("hud__skill-text hud__skill-way", entry.shopText));
   return item;
 }
 

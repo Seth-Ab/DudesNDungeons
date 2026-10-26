@@ -170,6 +170,7 @@ describe("parseClientMessage", () => {
     const stock: ServerMessage = {
       type: "skillShopStock",
       entries: [{ itemId: "iron-will-scroll", name: "Scroll of Iron Will", skillId: "iron-will", price: 20, rotating: false }],
+      rotatingSkillIds: ["quick-hands"],
     };
     const parsed = parseServerMessage(serializeServerMessage(stock));
     expect(parsed.ok && parsed.message).toEqual(stock);
@@ -442,8 +443,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v54, the version that added the roster's designing flag", () => {
-    expect(PROTOCOL_VERSION).toBe(54);
+  it("is on protocol v55, the version that added the shop stock's rotatingSkillIds", () => {
+    expect(PROTOCOL_VERSION).toBe(55);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

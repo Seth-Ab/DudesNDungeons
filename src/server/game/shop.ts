@@ -64,6 +64,11 @@ export function currentStock(session: Session): StockEntry[] {
 /** The stock as the wire carries it: scroll names and skills resolved, never trusted back. */
 export function skillShopStockMessage(session: Session): ServerMessage {
   const content = contentForSession(session);
+  const shop = content.shops.get(SKILL_SHOP_ID);
+  const rotatingSkillIds = (shop?.rotating ?? []).flatMap((entry) => {
+    const item = content.items.get(entry.itemId);
+    return item?.kind === "skillScroll" ? [item.skillId] : [];
+  });
   const entries = currentStock(session).flatMap((entry) => {
     const item = content.items.get(entry.itemId);
     if (item?.kind !== "skillScroll") return [];
@@ -77,7 +82,7 @@ export function skillShopStockMessage(session: Session): ServerMessage {
       },
     ];
   });
-  return { type: "skillShopStock", entries };
+  return { type: "skillShopStock", entries, rotatingSkillIds };
 }
 
 /** Whether a player may shop from where they stand: in the hub, inside a room of kind `shop`. */

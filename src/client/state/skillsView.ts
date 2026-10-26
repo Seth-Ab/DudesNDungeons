@@ -48,6 +48,8 @@ export interface SkillEntryView {
   missingPrerequisites: string[];
   /** How a locked skill is earned; empty for a held one. */
   acquisition: string[];
+  /** Where its scroll is sold, worded like the shop panel; null for a held skill or one the shop never lists. */
+  shopText: string | null;
 }
 
 export interface ScrollEntryView {
@@ -115,7 +117,18 @@ function missingPrerequisites(progression: ProgressionView, skill: SkillView): s
     .map((id) => progression.skills.find((candidate) => candidate.id === id)?.name ?? id);
 }
 
-function skillEntry(progression: ProgressionView, skill: SkillView): SkillEntryView {
+/**
+ * What the hub shop offers for a skill's scroll, from the stock the server last sent: the price when
+ * it is in stock now, "sometimes sold" for a rotating scroll that is not, and nothing otherwise.
+ */
+function shopText(view: SessionView, skillId: string): string | null {
+  const stocked = view.skillShop.find((entry) => entry.skillId === skillId);
+  if (stocked) return `Sold at the hub shop - ${stocked.price} coin${stocked.rotating ? " (rotating stock)" : ""}`;
+  if (view.skillShopRotating.includes(skillId)) return "Sometimes sold at the hub shop";
+  return null;
+}
+
+function skillEntry(view: SessionView, progression: ProgressionView, skill: SkillView): SkillEntryView {
   const permanentStacks = progression.skillStacks[skill.id] ?? 0;
   const runStacks = progression.runSkillStacks[skill.id] ?? 0;
   const held = permanentStacks + runStacks;
@@ -159,6 +172,7 @@ function skillEntry(progression: ProgressionView, skill: SkillView): SkillEntryV
     nextEffect: canStackMore ? describeEffects(stackEffects(skill, held + 1)) : null,
     missingPrerequisites: missing,
     acquisition,
+    shopText: held > 0 ? null : shopText(view, skill.id),
   };
 }
 
@@ -212,7 +226,7 @@ export function skillsPanelView(view: SessionView): SkillsPanelView {
   }
 
   const skills = progression.skills
-    .map((skill) => skillEntry(progression, skill))
+    .map((skill) => skillEntry(view, progression, skill))
     .sort((a, b) => SKILL_ORDER[a.status] - SKILL_ORDER[b.status]);
   return {
     ready: true,
