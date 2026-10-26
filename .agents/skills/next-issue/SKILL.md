@@ -33,6 +33,10 @@ an error.
 
 Print the in-flight list with its source before continuing.
 
+Inside Herdr, run the capacity check from the `ticket` skill's
+[Herdr delegation](../ticket/references/herdr-delegation.md) (step 2) now. If it stops, report it
+and do not select an issue: there is no room to start one.
+
 ## 2. Estimate Each In-Flight Item's Footprint
 
 For each in-flight issue, produce a set of likely-touched paths and areas:
