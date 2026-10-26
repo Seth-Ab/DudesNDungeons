@@ -72,6 +72,15 @@ GitHub Actions runs `npm ci`, `npm test`, `npm run test:e2e` (after installing P
 
 Do not introduce new commands without adding them to project documentation.
 
+## Parallel Agents
+
+Agents running in parallel share one machine's memory, so their number is capped: at most
+`MAX_PARALLEL_AGENTS` live Herdr agents in total, counting the coordinator (default 4, meaning a
+coordinator and three ticket workers). Set it in your shell profile to suit the machine. Before
+starting another agent, also check memory: on macOS, do not start one when `memory_pressure`
+reports less than 20% free. At the cap, stop and report what is running instead of queueing or
+waiting. The `ticket` skill's Herdr delegation enforces this.
+
 ## Coding Style & Naming Conventions
 
 Prefer TypeScript for new game, networking, and protocol code. Use 2-space indentation, semicolons, and descriptive names. Use `camelCase` for variables and functions, `PascalCase` for classes/components/types, and `SCREAMING_SNAKE_CASE` for constants.
