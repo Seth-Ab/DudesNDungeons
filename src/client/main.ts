@@ -507,7 +507,8 @@ function performAction(action: GameplayAction): void {
       return;
     }
     case "interact": {
-      const targetId = nearestInteractionTargetId();
+      const target = nearestInteraction(view, localPosition);
+      const targetId = target?.id ?? null;
       if (!targetId) {
         // The vault is an area rather than an entity, and opening it is a panel rather than a
         // message: each take or store from the panel is what the server checks.
@@ -535,7 +536,8 @@ function performAction(action: GameplayAction): void {
         return;
       }
 
-      client.interact(targetId);
+      // An altar also needs the scroll taken, the one the prompt named.
+      client.interact(targetId, target?.kind === "altar" ? (target.choiceItemId ?? undefined) : undefined);
       return;
     }
     case "drop": {
@@ -637,8 +639,4 @@ function nearestDownedPlayerId(): EntityId | null {
 
 function nearestLootId(): EntityId | null {
   return nearestLoot(view, localPosition)?.id ?? null;
-}
-
-function nearestInteractionTargetId(): EntityId | null {
-  return nearestInteraction(view, localPosition)?.id ?? null;
 }

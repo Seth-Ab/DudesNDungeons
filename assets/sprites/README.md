@@ -96,6 +96,7 @@ quiet, so whatever a player can use carries the accent colour.
   `flare-lit` (a burning flare's light), `loot-skill-scroll`, `loot-weapon` (any weapon
   without its own art), `loot-rusted-sword`, `loot-arrow` (any ammo), `loot-torch`,
   `chest-closed`, `chest-open` (a locked chest adds `door-lock` over its face), `exit-stairs`.
+- Shrines: `altar` (four tiles wide, two tall: a slab with a plinth a world unit either side of its centre, where the renderer lays a `loot-skill-scroll` on each offered scroll), `altar-cage` (two tiles square, drawn over a plinth the party's choice shut away) and `prop-candle` (one wide, two tall, a `candle` light fixture).
   `torch-flame` uses only palette `e f g h`, the Hearth flame ramp: a torch flame cosmetic (#138)
   swaps exactly those four colours on a carried torch, so keep the flame to them and keep their
   values in step with `HEARTH_FLAME_RAMP` in `src/client/rendering/characterPalettes.ts`, which a

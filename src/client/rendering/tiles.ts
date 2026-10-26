@@ -208,6 +208,11 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["chest-closed", { tilesWide: 1, tilesHigh: 1 }],
   ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
+  // A shrine altar: a slab with a plinth under each of two scrolls (they sit a world unit either
+  // side of its centre), the cage that comes down over a plinth, and the candle that lights the room.
+  ["altar", { tilesWide: 4, tilesHigh: 2 }],
+  ["altar-cage", { tilesWide: 2, tilesHigh: 2 }],
+  ["prop-candle", { tilesWide: 1, tilesHigh: 2 }],
   // Scenery, at the footprint the server validated it against.
   ...MAP_PROP_KINDS.flatMap((kind): Array<readonly [string, SpriteSize]> => {
     const tints = kind === "stall" ? STALL_TINTS : [undefined];

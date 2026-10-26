@@ -92,10 +92,10 @@ export const LIGHT_TINTS = ["warm", "red"] as const;
 
 /**
  * What a fixed light is drawn as. `pillar` is a torch on a stand and the default; `campfire` is a
- * fire on the ground; `none` draws nothing of its own, for a light whose source is a prop already
- * in the scene, such as a hanging lantern.
+ * fire on the ground; `candle` is a tall candle on a shrine's floor; `none` draws nothing of its
+ * own, for a light whose source is a prop already in the scene, such as a hanging lantern.
  */
-export const LIGHT_FIXTURES = ["pillar", "campfire", "none"] as const;
+export const LIGHT_FIXTURES = ["pillar", "campfire", "candle", "none"] as const;
 
 /**
  * What an authored map's optional `ground` grid may say about a floor tile: grass, cobble or dirt,

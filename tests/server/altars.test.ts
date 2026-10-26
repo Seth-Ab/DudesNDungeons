@@ -162,6 +162,18 @@ describe("generating shrine altars", () => {
     }
   });
 
+  it("lights every shrine with a candle fixture, which the client draws as one", () => {
+    const withShrine = SEEDS.map((seed) => generateDelve(profile, content, seed, 3, { omens: ["scroll-cache"] }).dungeon).filter(
+      (dungeon) => dungeon.altars.length > 0,
+    );
+    expect(withShrine.length).toBeGreaterThan(0);
+    for (const dungeon of withShrine) {
+      const candles = dungeon.lightSources.filter((light) => light.name === "Shrine Candle");
+      expect(candles).toHaveLength(1);
+      expect(candles[0]).toMatchObject({ kind: "fixed", fixture: "candle" });
+    }
+  });
+
   it("rolls a shrine some of the time without an omen (a layout may have no free dead end), and every time under Scroll Cache", () => {
     const plain = SEEDS.filter((seed) => generateDelve(profile, content, seed, 3, { omens: [] }).dungeon.altars.length > 0);
     expect(plain.length).toBeGreaterThan(SEEDS.length * 0.1);
