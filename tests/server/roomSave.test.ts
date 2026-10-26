@@ -172,7 +172,7 @@ describe("saving and restoring a run", () => {
     session.dungeon.projectiles.push({ id: PROJECTILE, position: at(4, 4), direction: { x: 1, y: 0 }, radius: 0.2 });
     session.projectileRuns.set(PROJECTILE, { ownerId: first!.id, damage: 5, speed: 6, remaining: 4 });
     const [grix, moss] = [...session.players.values()];
-    grix!.draw = { heldId: TONIC.id, startedAt: 4_000, fraction: 0.5 };
+    grix!.draw = { heldId: TONIC.id, startedAt: 4_000, fraction: 0.5, reach: { minRange: 4, maxRange: 14 } };
     grix!.carryingPlayerId = moss!.id;
     moss!.carriedByPlayerId = grix!.id;
     moss!.health = 0;

@@ -431,6 +431,7 @@ describe("appearance contract", () => {
       inventory: [],
       held: null,
       drawFraction: null,
+      drawRange: null,
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
@@ -443,8 +444,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v55, the version that added the shop stock's rotatingSkillIds", () => {
-    expect(PROTOCOL_VERSION).toBe(55);
+  it("is on protocol v56, the version that added the player drawRange", () => {
+    expect(PROTOCOL_VERSION).toBe(56);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -636,6 +637,7 @@ describe("seat contract", () => {
       inventory: [],
       held: null,
       drawFraction: null,
+      drawRange: null,
       carryingTorch: false,
       carryingPlayerId: null,
       carriedByPlayerId: null,
@@ -700,6 +702,7 @@ describe("ready plate contract", () => {
           inventory: [],
           held: null,
           drawFraction: null,
+          drawRange: null,
           carryingTorch: false,
           carryingPlayerId: null,
           carriedByPlayerId: null,
@@ -1226,6 +1229,7 @@ describe("parseServerMessage", () => {
         ],
         held: null,
         drawFraction: null,
+        drawRange: null,
         carryingTorch: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,

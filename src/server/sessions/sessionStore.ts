@@ -772,6 +772,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     inventory: player.inventory.map((item) => ({ ...item })),
     held: player.held ? { ...player.held } : null,
     drawFraction: player.draw ? player.draw.fraction : null,
+    drawRange: player.draw ? { ...player.draw.reach } : null,
     carryingTorch: player.carryingTorch,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,

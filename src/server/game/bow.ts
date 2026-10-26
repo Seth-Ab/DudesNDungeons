@@ -25,6 +25,14 @@ export interface Draw {
   startedAt: number;
   /** 0 to 1, refreshed every tick for the snapshot. */
   fraction: number;
+  /** What the bow reaches for this player now, refreshed every tick for the snapshot's indicator. */
+  reach: DrawReach;
+}
+
+/** The two ends of a draw's range, as `shotRange` uses them: no draw reaches `minRange`, a full one `maxRange`. */
+export interface DrawReach {
+  minRange: number;
+  maxRange: number;
 }
 
 export type DrawResult = { ok: true; fired: boolean } | { ok: false; reason: RejectionReason };
@@ -44,6 +52,12 @@ function heldBow(player: SessionPlayer, content: GameContent): RangedWeaponStats
  */
 export function bowMaxRange(bow: RangedWeaponStats, _player: SessionPlayer, _content: GameContent): number {
   return bow.maxRange;
+}
+
+/** The range a draw runs between for this player: the figures the snapshot sends and `shotRange` flies. */
+export function drawReach(bow: RangedWeaponStats, player: SessionPlayer, content: GameContent): DrawReach {
+  const maxRange = bowMaxRange(bow, player, content);
+  return { minRange: Math.min(bow.minRange, maxRange), maxRange };
 }
 
 /** How far through its draw a bow is `heldMs` after it began: 0 to 1, flat once fully drawn. */
@@ -91,7 +105,7 @@ export function beginDraw(
 
   standUp(session, player);
   player.facing = heading;
-  player.draw = { heldId: player.held?.id ?? "", startedAt: now, fraction: 0 };
+  player.draw = { heldId: player.held?.id ?? "", startedAt: now, fraction: 0, reach: drawReach(bow, player, content) };
   return { ok: true, fired: false };
 }
 
@@ -131,7 +145,7 @@ export function releaseDraw(
   consumeFromStack(player, arrows.id, 1);
   spendStamina(player, bow.staminaCost);
 
-  const range = shotRange(bow, bowMaxRange(bow, player, content), drawFractionAfter(bow, heldMs));
+  const range = shotRange(bow, drawReach(bow, player, content).maxRange, drawFractionAfter(bow, heldMs));
   const id = randomUUID();
   player.facing = heading;
   session.dungeon.projectiles.push({
@@ -171,5 +185,6 @@ export function settleDraws(session: Session, now: number): void {
       continue;
     }
     draw.fraction = drawFractionAfter(bow, now - draw.startedAt);
+    draw.reach = drawReach(bow, player, content);
   }
 }

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import type { InventoryItem, PlayerState } from "../../src/shared/types/core.js";
@@ -35,6 +34,7 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
     appearance: { ...DEFAULT_APPEARANCE },
     partyColor: "ember",
     bankedItems: [],
+    drawRange: overrides.drawFraction == null ? null : RANGE,
     ...overrides,
   } as PlayerState;
 }
@@ -53,14 +53,19 @@ describe("drawRange", () => {
     expect(drawRange(RANGE, 2)).toBe(14);
   });
 
-  it("matches the ranges in the hunting bow's content file", () => {
-    const content = JSON.parse(readFileSync("content/items/hunting-bow.json", "utf8")) as {
-      weapon: typeof RANGE;
-    };
-    const aim = bowAims(player("me", { drawFraction: 0 }), { x: 0, y: 0 }, null, [])[0];
-    const full = bowAims(player("me", { drawFraction: 1 }), { x: 0, y: 0 }, null, [])[0];
-    expect(aim?.length).toBe(content.weapon.minRange);
-    expect(full?.length).toBe(content.weapon.maxRange);
+  it("draws the range the server sent, not a table of its own", () => {
+    const range = { minRange: 6, maxRange: 20 };
+    const aim = (fraction: number) =>
+      bowAims(player("me", { drawFraction: fraction, drawRange: range }), { x: 0, y: 0 }, null, [])[0];
+    expect(aim(0)?.length).toBe(range.minRange);
+    expect(aim(1)?.length).toBe(range.maxRange);
+    expect(aim(1)?.fullLength).toBe(range.maxRange);
+  });
+
+  it("still draws the line for a bow the client has never heard of", () => {
+    const mystery = { ...BOW, itemId: "mystery-bow" } as InventoryItem;
+    const aim = bowAims(player("me", { held: mystery, drawFraction: 0.5 }), { x: 0, y: 0 }, null, [])[0];
+    expect(aim?.length).toBe(9);
   });
 });
 
@@ -95,8 +100,8 @@ describe("bowAims", () => {
 
   it("hides the cue for a downed player or one no longer holding a bow", () => {
     expect(bowAims(player("me", { drawFraction: 0.5, health: 0 }), { x: 0, y: 0 }, null, [])).toEqual([]);
-    expect(bowAims(player("me", { drawFraction: 0.5, held: SWORD }), { x: 0, y: 0 }, null, [])).toEqual([]);
-    expect(bowAims(player("me", { drawFraction: 0.5, held: null }), { x: 0, y: 0 }, null, [])).toEqual([]);
+    expect(bowAims(player("me", { drawFraction: 0.5, held: SWORD, drawRange: null }), { x: 0, y: 0 }, null, [])).toEqual([]);
+    expect(bowAims(player("me", { drawFraction: 0.5, held: null, drawRange: null }), { x: 0, y: 0 }, null, [])).toEqual([]);
   });
 
   it("shows a visible ally's draw as a shorter cue along their facing", () => {
