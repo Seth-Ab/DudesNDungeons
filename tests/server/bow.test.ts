@@ -308,6 +308,32 @@ describe("beginning and releasing a draw", () => {
     expect([...session.projectileRuns.values()][0]!.damage).toBe(BOW.damage + 3);
   });
 
+  it("sends the range the shot will have, so the indicator and the arrow agree", () => {
+    const session = laneSession();
+    const stretched = { ...BOW, minRange: 6, maxRange: 20 };
+    const definition = loadContent().items.get("hunting-bow")!;
+    const content = loadContent();
+    session.runDungeon.content = {
+      ...content,
+      items: new Map(content.items).set("hunting-bow", { ...definition, weapon: stretched } as typeof definition),
+    };
+    const player = session.players.get("alpha")!;
+    expect(toPlayerState(player).drawRange).toBeNull();
+
+    beginDraw(session, "alpha", EAST, 1000);
+    simulate(session, 1000 + BOW.drawMs / 2);
+    const wire = toPlayerState(player);
+    expect(wire.drawRange).toEqual({ minRange: 6, maxRange: 20 });
+
+    releaseDraw(session, "alpha", EAST, 1000 + BOW.drawMs / 2);
+    const [run] = [...session.projectileRuns.values()];
+    expect(run!.remaining).toBeCloseTo(
+      wire.drawRange!.minRange + (wire.drawRange!.maxRange - wire.drawRange!.minRange) * wire.drawFraction!,
+      5,
+    );
+    expect(toPlayerState(player).drawRange).toBeNull();
+  });
+
   it("shows the draw fraction on the wire while drawing, and null after", () => {
     const session = laneSession();
     const player = session.players.get("alpha")!;
@@ -370,7 +396,7 @@ describe("cancelling a draw", () => {
     const session = store.createSession();
     const joined = store.join(joinRequest({ roomCode: session.roomCode, playerName: "Ana" }));
     if (!joined.ok) throw new Error("join failed");
-    joined.player.draw = { heldId: "x", startedAt: 0, fraction: 0.4 };
+    joined.player.draw = { heldId: "x", startedAt: 0, fraction: 0.4, reach: { minRange: 4, maxRange: 14 } };
     store.markDisconnected(joined.player.id);
     expect(joined.player.draw).toBeNull();
   });

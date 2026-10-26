@@ -36,6 +36,7 @@ function self(appearance: PlayerState["appearance"]): PlayerState {
     inventory: [],
     held: null,
     drawFraction: null,
+    drawRange: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

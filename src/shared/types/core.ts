@@ -881,6 +881,12 @@ export const playerStateSchema = z.object({
    * client's: a draw indicator can read it, and every viewer can see who is drawing.
    */
   drawFraction: z.number().min(0).max(1).nullable(),
+  /**
+   * What the held bow reaches for this player, in world units, or null while not drawing: the arrow
+   * flies `minRange` at no draw and `maxRange` at a full one. Computed by the server from the bow and
+   * the player's bonuses, so the indicator shows the range the shot will have, never a client guess.
+   */
+  drawRange: z.object({ minRange: z.number().min(0), maxRange: z.number().min(0) }).nullable(),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
   /** The downed party member this player is carrying, or null. Spent by Backend step 12. */

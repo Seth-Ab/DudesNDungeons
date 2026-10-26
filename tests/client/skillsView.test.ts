@@ -86,6 +86,7 @@ function self(inventory: InventoryItem[]): PlayerState {
     inventory,
     held: null,
     drawFraction: null,
+    drawRange: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

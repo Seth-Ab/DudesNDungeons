@@ -38,6 +38,7 @@ function player(id: string, x: number): PlayerState {
     inventory: [],
     held: null,
     drawFraction: null,
+    drawRange: null,
     carryingTorch: false,
     carryingPlayerId: null,
     carriedByPlayerId: null,

@@ -5,16 +5,6 @@ import type { PlayerState, Vector2 } from "../../shared/types/core.js";
  * this only turns it into geometry and a meter reading, so nothing here decides what an arrow hits.
  */
 
-/**
- * The draw range of each bow, mirrored from its `weapon` block in `content/items/`. The snapshot
- * carries a weapon's id but not its stats, and this ticket adds no protocol field, so the client
- * keeps the two figures it needs; a test checks them against the content files. A bow missing here
- * still gets its meter, only the line in the world is left out.
- */
-const BOW_RANGES: Readonly<Record<string, { minRange: number; maxRange: number }>> = {
-  "hunting-bow": { minRange: 4, maxRange: 14 },
-};
-
 /** An ally's cue is drawn at this share of the range: a hint that they are drawing, not a sight. */
 export const ALLY_CUE_SCALE = 0.5;
 
@@ -49,7 +39,7 @@ function aimOf(
   const fraction = player.drawFraction;
   if (fraction === null || player.health <= 0) return null;
   if (player.held?.kind !== "weapon") return null;
-  const range = BOW_RANGES[player.held.itemId];
+  const range = player.drawRange;
   if (!range) return null;
   if (direction.x === 0 && direction.y === 0) return null;
 
