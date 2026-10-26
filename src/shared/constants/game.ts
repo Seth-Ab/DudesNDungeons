@@ -315,3 +315,8 @@ export const MAX_CLIENT_MESSAGE_CHARS = 16384;
  * per-message deflate it bounds the inflated size, which also caps compression bombs.
  */
 export const MAX_CLIENT_MESSAGE_BYTES = MAX_CLIENT_MESSAGE_CHARS * 3;
+
+/** How long every standing, connected player must stay seated at a camp's fire before it rests the party. */
+export const CAMP_REST_SEATED_MS = 10_000;
+/** Resistance each seated player regains when a camp rests the party, once per camp per run. */
+export const CAMP_REST_RESISTANCE = 15;

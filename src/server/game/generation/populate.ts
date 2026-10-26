@@ -12,12 +12,15 @@
  * hands a puzzle is short of. A paired-levers puzzle always gets two plates.
  */
 import { ELITE_KEY_ITEM_ID } from "../../../shared/constants/game.js";
+import { SEAT_FACING_VECTORS } from "../../../shared/constants/scenery.js";
+import type { SeatFacing } from "../../../shared/constants/scenery.js";
 import type {
   ChestState,
   DoorState,
   ExitState,
   LightSourceState,
   LootState,
+  MapSeat,
   MonsterState,
   PuzzleState,
   TrapState,
@@ -58,6 +61,10 @@ const BOSS_CHEST_TABLE = "vault-chest";
 export const BASE_BUDGET: Readonly<Partial<Record<RoomKind, number>>> = { hall: 5, maze: 3, trap: 2, puzzle: 1, cavern: 4, arena: 7 };
 /** Depth of a branch room, which has no place along the path. */
 const BRANCH_DEPTH = 0.6;
+/** Radius of a camp's fire. */
+const CAMP_FIRE_RADIUS = 6;
+/** The sides of a camp's fire that get a seat, four, enough for a full party; each faces the fire. */
+const CAMP_SEAT_SIDES: readonly SeatFacing[] = ["south", "west", "north", "east"];
 const CORRIDOR_TORCH_EVERY = 7;
 const CORRIDOR_TORCH_OFFSET = 3;
 const CORRIDOR_TORCH_RADIUS = 4.5;
@@ -101,6 +108,8 @@ export interface Populated {
   readonly chests: ChestState[];
   readonly traps: TrapState[];
   readonly puzzles: PuzzleState[];
+  /** Somewhere to sit round each camp's fire. Empty when no room is a camp. */
+  readonly seats: MapSeat[];
   /** One entry per layout node, indexed by node id. */
   readonly threat: readonly RoomThreat[];
 }
@@ -261,6 +270,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     chests: [] as ChestState[],
     traps: [] as TrapState[],
     puzzles: [] as PuzzleState[],
+    seats: [] as MapSeat[],
   };
   const threat: RoomThreat[] = [];
 
@@ -276,6 +286,24 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       ...tint,
       ...extra,
     });
+  };
+  /**
+   * A campfire light with a seat on each side of it, one tile out and facing it. A tile here is a
+   * block of world tiles once the dungeon is scaled, so the seats stay inside the fire's glow.
+   */
+  const placeCampfire = (room: CarvedRoom, center: Vector2): void => {
+    const fire = nearest(floorOf(room), center);
+    addLight(fire, "Campfire", CAMP_FIRE_RADIUS, { fixture: "campfire", flicker: 0.5 });
+    if (!fire) return;
+
+    const open = new Set(floorOf(room).map(key));
+    for (const facing of CAMP_SEAT_SIDES) {
+      const toward = SEAT_FACING_VECTORS[facing];
+      const tile = { x: fire.x - toward.x, y: fire.y - toward.y };
+      if (!open.has(key(tile))) continue;
+      claim(tile);
+      out.seats.push({ id: rng.uuid(), x: tile.x, y: tile.y, facing });
+    }
   };
   const lightCount = (base: number): number => {
     let count = 0;
@@ -334,6 +362,8 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     else if (kind === "exit") addLight(nearest(floorOf(room), center), "Stair Beacon", 7);
     else if (kind === "boss") {
       addLight(nearest(floorOf(room), center), "Arena Fire", 7.5, { fixture: "campfire", flicker: 0.4 });
+    } else if (kind === "camp") {
+      placeCampfire(room, center);
     } else if (kind === "hall") {
       for (const tile of spread(rng, wallHugging(floorOf(room)), lightCount(2))) addLight(tile, "Wall Torch", 5);
     } else if (kind === "maze") {

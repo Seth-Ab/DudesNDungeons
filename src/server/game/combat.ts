@@ -29,6 +29,7 @@ import { damageMonster } from "./monsterDamage.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
+import { advanceCamps } from "./camps.js";
 import { advanceVitals, damagePlayer, markCombat, regenerateStamina, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
@@ -226,6 +227,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   advanceVitals(session, now, elapsedMs);
   resolveTraps(session, now);
   resolvePuzzles(session, now);
+  advanceCamps(session, now);
 
   const events: AttackEvent[] = [];
   const planner = new MonsterPlanner(session);

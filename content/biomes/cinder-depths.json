@@ -13,7 +13,7 @@
   "traps": ["spike-plate", "ember-vent", "snare-wire"],
   "puzzles": ["paired-levers"],
   "bosses": ["ember-warden"],
-  "roomWeights": { "hall": 4, "maze": 2, "trap": 2 },
+  "roomWeights": { "hall": 4, "maze": 2, "trap": 2, "camp": 1 },
   "lootTableId": "common-chest",
   "names": {
     "entrance": ["Cinder Gate", "Ash Stair"],
@@ -22,6 +22,7 @@
     "maze": ["Sunken Maze", "Flue Warren", "Ducts of Ash"],
     "trap": ["Collapsing Span", "Vent Run", "Spike Gallery"],
     "puzzle": ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"],
+    "camp": ["Banked Hearth", "Ember Rest"],
     "vault": ["Slag Vault", "Cinder Strongroom"]
   }
 }
