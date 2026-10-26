@@ -14,7 +14,11 @@ import {
   CHARACTER_SHEET_HEIGHT,
   CHARACTER_SHEET_WIDTH,
   bodyFrame,
+  LYING_FRAME_HEIGHT,
+  LYING_FRAME_WIDTH,
+  SEATED_DROP_ROWS,
   characterFrameRect,
+  downedFrame,
 } from "../../src/client/rendering/characters.js";
 import {
   CHARACTER_COLOURS,
@@ -188,6 +192,59 @@ describe("the committed character sheet", () => {
   });
 });
 
+describe("the seated, attack and downed frames", () => {
+  const sheet = decodePng(readFileSync(CHARACTER_SHEET_PATH));
+  const pixels = (name: string, width: number, height: number): (string | null)[][] => {
+    const rect = characterFrameRect(name);
+    return Array.from({ length: height }, (_, y) =>
+      Array.from({ length: width }, (_, x) => sheet.colourAt(rect.x + x, rect.y + y)),
+    );
+  };
+  const standing = (name: string) => pixels(name, CHARACTER_FRAME_WIDTH, CHARACTER_FRAME_HEIGHT);
+  const BODY_TOP = 8;
+
+  it.each(["guy", "girl"] as const)("seats %s's head exactly the drop below a standing head", (body) => {
+    for (const facing of ["down", "up", "side"] as const) {
+      const stand = standing(bodyFrame(body, facing, "stand"));
+      const seated = standing(bodyFrame(body, facing, "seated"));
+      // The head and neck are the first nine body rows; hair, hats and cloaks follow them down.
+      for (let row = BODY_TOP; row < BODY_TOP + 9; row += 1) {
+        expect(seated[row + SEATED_DROP_ROWS], `${body} ${facing} row ${row}`).toEqual(stand[row]);
+      }
+    }
+  });
+
+  it.each(["guy", "girl"] as const)("keeps %s's head still through a swing, so hair and hats line up", (body) => {
+    for (const facing of ["down", "up", "side"] as const) {
+      const stand = standing(bodyFrame(body, facing, "stand"));
+      for (const phase of ["windup", "strike", "recover"] as const) {
+        const attack = standing(bodyFrame(body, facing, phase));
+        // Rows above the shoulders are the head; the raised fist may sit beside it, never over it.
+        for (let row = BODY_TOP; row < BODY_TOP + 8; row += 1) {
+          expect(attack[row]!.slice(2, 12), `${body} ${facing} ${phase} row ${row}`).toEqual(
+            stand[row]!.slice(2, 12),
+          );
+        }
+        expect(attack, `${body} ${facing} ${phase} differs from standing`).not.toEqual(stand);
+      }
+    }
+  });
+
+  it.each(["guy", "girl"] as const)("turns %s onto their back for the downed frame, head to the left", (body) => {
+    const stand = standing(bodyFrame(body, "down", "stand"));
+    const downed = pixels(downedFrame(body), LYING_FRAME_WIDTH, LYING_FRAME_HEIGHT);
+    // Standing (column c, row r) lies at (x = r, y = 15 - c). Only the eyes change, up to a girl's lashes: they are shut.
+    let differing = 0;
+    for (let r = 0; r < CHARACTER_FRAME_HEIGHT; r += 1) {
+      for (let c = 0; c < CHARACTER_FRAME_WIDTH; c += 1) {
+        if (downed[LYING_FRAME_HEIGHT - 1 - c]![r] !== stand[r]![c]) differing += 1;
+      }
+    }
+    expect(differing).toBeGreaterThan(0);
+    expect(differing).toBeLessThanOrEqual(8);
+  });
+});
+
 describe("the tilesheet", () => {
   it("contains none of the character key colours", () => {
     // A key colour on the floor would be recoloured along with whoever stood on it.
@@ -201,15 +258,30 @@ describe("characters.ts", () => {
     const cells = new Set<string>();
     for (const frame of CHARACTER_FRAMES) {
       const rect = characterFrameRect(frame.name);
-      expect(rect.x + CHARACTER_FRAME_WIDTH).toBeLessThanOrEqual(CHARACTER_SHEET_WIDTH);
-      expect(rect.y + CHARACTER_FRAME_HEIGHT).toBeLessThanOrEqual(CHARACTER_SHEET_HEIGHT);
+      expect(rect.x + frame.width).toBeLessThanOrEqual(CHARACTER_SHEET_WIDTH);
+      expect(rect.y + frame.height).toBeLessThanOrEqual(CHARACTER_SHEET_HEIGHT);
       cells.add(`${rect.x},${rect.y}`);
     }
     expect(cells.size).toBe(CHARACTER_FRAMES.length);
   });
 
   it("declares a body and a hair layer per facing, a hat facing down and up, and three cloak parts", () => {
-    expect(CHARACTER_LAYERS).toHaveLength(2 * 3 + 6 * 3 + HAT_IDS.length * 2 + 3);
+    // Each body also has a seated frame and three attack frames per facing, and one downed frame.
+    expect(CHARACTER_LAYERS).toHaveLength(2 * 3 * 5 + 6 * 3 + HAT_IDS.length * 2 + 3 + 2);
+  });
+
+  it("gives the downed frames a band of their own, a lying frame's size, under the standing ones", () => {
+    const downed = CHARACTER_FRAMES.filter((frame) => frame.height !== CHARACTER_FRAME_HEIGHT);
+    expect(downed.map((frame) => frame.name)).toEqual(["body-guy-downed", "body-girl-downed"]);
+    const standingBottom = Math.max(
+      ...CHARACTER_FRAMES.filter((frame) => frame.height === CHARACTER_FRAME_HEIGHT).map(
+        (frame) => characterFrameRect(frame.name).y + CHARACTER_FRAME_HEIGHT,
+      ),
+    );
+    for (const frame of downed) {
+      expect([frame.width, frame.height]).toEqual([LYING_FRAME_WIDTH, LYING_FRAME_HEIGHT]);
+      expect(characterFrameRect(frame.name).y).toBeGreaterThanOrEqual(standingBottom);
+    }
   });
 });
 

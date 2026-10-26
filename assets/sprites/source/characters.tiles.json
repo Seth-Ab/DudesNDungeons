@@ -7,6 +7,7 @@
     "s S T, h H G and C c d are key colours the renderer swaps for skin, hair and tunic.",
     "7 8 9 and R W Y F are a hat's ramp and accents, swapped per hat; 1 to 6 are a cloak's palette,",
     "swapped per cloak. The bible's hat 1 2 3 r w y f are 7 8 9 R W Y F here.",
+    "Seated, attack and downed layers are authored here too (#313); the downed ones are 24 x 16.",
     "See assets/sprites/README.md."
   ],
   "frameWidth": 16,
@@ -688,6 +689,508 @@
         "17*0000000000000000",
         "000000k44k000000",
         "6*0000000000000000"
+      ]
+    },
+    "body-guy-down-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000kSeSSSSeSk000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdcCCCCcdk000",
+        "00kSdcCCCCcdSk00",
+        "0000kppppppk0000",
+        "000kbbk00kbbk000"
+      ]
+    },
+    "body-guy-down-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000kSeSSSSeSkkSk",
+        "000kSeSSSSeSkSSS",
+        "000kTSSTTSSTkkTk",
+        "0000kTTTTTTkS000",
+        "000kdcCCCCcdS000",
+        "00kSdcCCCCcdk000",
+        "00kSdccccccdk000",
+        "00kTkllLLllk0000",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-down-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000kSeSSSSeSk000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdcCCCCcdS000",
+        "00kSdcCCCCcdS000",
+        "00kSdccccccdS000",
+        "00kTkllLLllk0S00",
+        "000kdccccccdkkSk",
+        "0000kppkkppk0SSS",
+        "0000kbbkkbbk0kTk"
+      ]
+    },
+    "body-guy-down-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000kSeSSSSeSk000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdcCCCCcdS000",
+        "00kSdcCCCCcdS000",
+        "00kSdccccccdkS00",
+        "00kTkllLLllk0kSk",
+        "000kdccccccdkSSS",
+        "0000kppkkppk0kTk",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-up-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0000",
+        "000kdccccccdk000",
+        "00kSdcCccCcdSk00",
+        "0000kppppppk0000",
+        "000kbbk00kbbk000"
+      ]
+    },
+    "body-guy-up-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0kSk",
+        "000kdccccccdSSSS",
+        "00kSdcCccCcdkkTk",
+        "00kSdccccccdk000",
+        "00kTkllllllk0000",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-up-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSkkSk",
+        "000kSSSSSSSSkSSS",
+        "000kSSSSSSSSkkTk",
+        "000kSSSSSSSSkS00",
+        "000kTSSSSSSTS000",
+        "0000kTTTTTTkS000",
+        "000kdccccccdS000",
+        "00kSdcCccCcdk000",
+        "00kSdccccccdk000",
+        "00kTkllllllk0000",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-up-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTkkSk",
+        "0000kTTTTTTk0SSS",
+        "000kdccccccdSkTk",
+        "00kSdcCccCcdk000",
+        "00kSdccccccdk000",
+        "00kTkllllllk0000",
+        "000kdccccccdk000",
+        "0000kppkkppk0000",
+        "0000kbbkkbbk0000"
+      ]
+    },
+    "body-guy-side-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeSk000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCck00000",
+        "00000kpppppppppk",
+        "00000000000kbbk0"
+      ]
+    },
+    "body-guy-side-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeSk000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00kSkkdcCCk00000",
+        "00SSSScdCck00000",
+        "00kTkkcdcck00000",
+        "00000kldSlk00000",
+        "00000kdccck00000",
+        "00000kpkkpk00000",
+        "00000kbbkbbk0000"
+      ]
+    },
+    "body-guy-side-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeSk000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk0kSk0",
+        "00000kcdCcSSSSS0",
+        "00000kcdcck0kTk0",
+        "00000kldSlk00000",
+        "00000kdccck00000",
+        "00000kpkkpk00000",
+        "00000kbbkbbk0000"
+      ]
+    },
+    "body-guy-side-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeSk000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCcS00000",
+        "00000kcdcckkSk00",
+        "00000kldSlkSSS00",
+        "00000kdccckkTk00",
+        "00000kpkkpk00000",
+        "00000kbbkbbk0000"
+      ]
+    },
+    "body-guy-downed": {
+      "rows": [
+        "000000000000000000000000",
+        "000000000000000000000000",
+        "000000000000000000kkk000",
+        "00000000000kkkkk0kSSTk00",
+        "0000000000kSSSSTkdddkdkk",
+        "000000000kSSSTTSTccclcpb",
+        "000000000kSSSSSSTCCclcpb",
+        "000000000kSSSSSTTCCcLckk",
+        "000000000kSSSSSTTCCcLckk",
+        "000000000kSSSSSSTCCclcpb",
+        "000000000kSssTTSTccclcpb",
+        "0000000000kSSSSTkdddkdkk",
+        "00000000000kkkkk0kSSTk00",
+        "000000000000000000kkk000",
+        "000000000000000000000000",
+        "000000000000000000000000"
+      ]
+    },
+    "body-girl-down-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000keeSSSSeek000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCCCCck0000",
+        "000kScCCCCcSk000",
+        "000kddddddddk000",
+        "000kbbk00kbbk000"
+      ]
+    },
+    "body-girl-down-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000keeSSSSeekkSk",
+        "000kSeSSSSeSkSSS",
+        "000kTSSTTSSTSkTk",
+        "0000kTTTTTTkS000",
+        "0000kcCCCCcS0000",
+        "000kScCCCCck0000",
+        "000kSdccccdk0000",
+        "000kTlllLll00000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-down-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000keeSSSSeek000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCCCCcS0000",
+        "000kScCCCCcS0000",
+        "000kSdccccdkS000",
+        "000kTlllLll0S000",
+        "00kdccccccccdkSk",
+        "000kkddddddkkSSS",
+        "0000kbk00kbk0kTk"
+      ]
+    },
+    "body-girl-down-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSsSSSSSSk000",
+        "000kSsSSSSSSk000",
+        "000keeSSSSeek000",
+        "000kSeSSSSeSk000",
+        "000kTSSTTSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCCCCcS0000",
+        "000kScCCCCckS000",
+        "000kSdccccdkS000",
+        "000kTlllLll00kSk",
+        "00kdccccccccdSSS",
+        "000kkddddddkkkTk",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-up-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0000",
+        "0000kcCccCck0000",
+        "000kSccccccSk000",
+        "000kddddddddk000",
+        "000kbbk00kbbk000"
+      ]
+    },
+    "body-girl-up-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTk000",
+        "0000kTTTTTTk0kSk",
+        "0000kcCccCcSSSSS",
+        "000kScccccck0kTk",
+        "000kSdccccdk0000",
+        "000kTllllll00000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-up-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSkkSk",
+        "000kSSSSSSSSkSSS",
+        "000kSSSSSSSSkkTk",
+        "000kSSSSSSSSS000",
+        "000kTSSSSSSTS000",
+        "0000kTTTTTTS0000",
+        "0000kcCccCcS0000",
+        "000kScccccck0000",
+        "000kSdccccdk0000",
+        "000kTllllll00000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-up-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSSSk000",
+        "000kTSSSSSSTkkSk",
+        "0000kTTTTTTk0SSS",
+        "0000kcCccCcSSkTk",
+        "000kScccccck0000",
+        "000kSdccccdk0000",
+        "000kTllllll00000",
+        "00kdccccccccdk00",
+        "000kkddddddkk000",
+        "0000kbk00kbk0000"
+      ]
+    },
+    "body-girl-side-seated": {
+      "rows": [
+        "12*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeek000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCck00000",
+        "00000kdddddddddk",
+        "00000000000kbbk0"
+      ]
+    },
+    "body-girl-side-attack-windup": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeek000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00kSkkdcCCk00000",
+        "00SSSScdCck00000",
+        "00kTkkcdcck00000",
+        "00000kldSlk00000",
+        "0000kdcccck00000",
+        "0000kkddddkk0000",
+        "00000kbk0kbk0000"
+      ]
+    },
+    "body-girl-side-attack-strike": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeek000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk0kSk0",
+        "00000kcdCcSSSSS0",
+        "00000kcdcck0kTk0",
+        "00000kldSlk00000",
+        "0000kdcccck00000",
+        "0000kkddddkk0000",
+        "00000kbk0kbk0000"
+      ]
+    },
+    "body-girl-side-attack-recover": {
+      "rows": [
+        "9*0000000000000000",
+        "00000kkkkkk00000",
+        "0000kSSSSSSk0000",
+        "000kSSSSSsSSk000",
+        "000kSSSSSSSSk000",
+        "000kSSSSSSeek000",
+        "000kSSSSSSeSSk00",
+        "000kTSSSSSSSk000",
+        "0000kTTTTTTk0000",
+        "00000kdcCCk00000",
+        "00000kcdCcS00000",
+        "00000kcdcckkSk00",
+        "00000kldSlkSSS00",
+        "0000kdcccckkTk00",
+        "0000kkddddkk0000",
+        "00000kbk0kbk0000"
+      ]
+    },
+    "body-girl-downed": {
+      "rows": [
+        "000000000000000000000000",
+        "000000000000000000000000",
+        "000000000000000000000k00",
+        "00000000000kkkkk00kkkdk0",
+        "0000000000kSSTSTkkSSTckk",
+        "000000000kSSSTTSTccdlcdb",
+        "000000000kSSSSSSTCCclcdk",
+        "000000000kSSSSSTTCCcLcd0",
+        "000000000kSSSSSTTCCclcd0",
+        "000000000kSSSSSSTCCclcdk",
+        "000000000kSssTTSTccdlcdb",
+        "0000000000kSSTSTkkSSTckk",
+        "00000000000kkkkk00kkkdk0",
+        "000000000000000000000k00",
+        "000000000000000000000000",
+        "000000000000000000000000"
       ]
     }
   }

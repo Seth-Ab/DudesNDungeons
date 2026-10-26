@@ -8,6 +8,8 @@
  *
  * The baker also derives the walk frames, so the renderer only ever picks a cell: hand-authoring
  * them would be eighteen more frames that each differ from a standing one by a few boot pixels.
+ * Seated, attack and downed frames are authored: they differ by more than a boot. The downed frame is
+ * the one that is not 16 x 24; it sits in a band of its own under the standing frames.
  */
 
 import { readFileSync } from "node:fs";
@@ -96,25 +98,25 @@ function readPalette(source: CharacterSourceArt): Map<string, Rgba> {
   return palette;
 }
 
-function readLayer(name: string, layer: AuthoredLayer, palette: Map<string, Rgba>): Bitmap {
+function readLayer(
+  name: string,
+  layer: AuthoredLayer,
+  palette: Map<string, Rgba>,
+  frameWidth: number,
+  frameHeight: number,
+): Bitmap {
   const rows = expandRows(name, layer.rows, "layer");
 
-  if (rows.length !== CHARACTER_FRAME_HEIGHT) {
-    fail(
-      `layer '${name}' expands to ${rows.length} rows but a frame is ` +
-        `${CHARACTER_FRAME_HEIGHT} pixels tall`,
-    );
+  if (rows.length !== frameHeight) {
+    fail(`layer '${name}' expands to ${rows.length} rows but a frame is ${frameHeight} pixels tall`);
   }
 
   const pixels: Rgba[] = [];
 
   rows.forEach((row, y) => {
     const characters = [...row];
-    if (characters.length !== CHARACTER_FRAME_WIDTH) {
-      fail(
-        `layer '${name}' row ${y} is ${characters.length} pixels wide, expected ` +
-          `${CHARACTER_FRAME_WIDTH}`,
-      );
+    if (characters.length !== frameWidth) {
+      fail(`layer '${name}' row ${y} is ${characters.length} pixels wide, expected ${frameWidth}`);
     }
 
     for (const character of characters) {
@@ -124,7 +126,7 @@ function readLayer(name: string, layer: AuthoredLayer, palette: Map<string, Rgba
     }
   });
 
-  return { width: CHARACTER_FRAME_WIDTH, height: CHARACTER_FRAME_HEIGHT, pixels };
+  return { width: frameWidth, height: frameHeight, pixels };
 }
 
 /**
@@ -168,7 +170,8 @@ export function bakeCharacterSheet(source: CharacterSourceArt): Buffer {
   for (const name of CHARACTER_LAYERS) {
     const layer = source.layers[name];
     if (!layer) fail(`characters.ts declares layer '${name}' but the source art does not provide it`);
-    layers.set(name, readLayer(name, layer, palette));
+    const frame = CHARACTER_FRAMES.find((candidate) => candidate.layer === name)!;
+    layers.set(name, readLayer(name, layer, palette, frame.width, frame.height));
   }
 
   const sheet: Bitmap = {
@@ -181,10 +184,10 @@ export function bakeCharacterSheet(source: CharacterSourceArt): Buffer {
     const bitmap = poseFrame(layers.get(frame.layer) as Bitmap, frame.pose);
     const rect = characterFrameRect(frame.name);
 
-    for (let y = 0; y < CHARACTER_FRAME_HEIGHT; y += 1) {
-      for (let x = 0; x < CHARACTER_FRAME_WIDTH; x += 1) {
+    for (let y = 0; y < frame.height; y += 1) {
+      for (let x = 0; x < frame.width; x += 1) {
         sheet.pixels[(rect.y + y) * CHARACTER_SHEET_WIDTH + rect.x + x] =
-          bitmap.pixels[y * CHARACTER_FRAME_WIDTH + x] ?? CLEAR;
+          bitmap.pixels[y * frame.width + x] ?? CLEAR;
       }
     }
   }

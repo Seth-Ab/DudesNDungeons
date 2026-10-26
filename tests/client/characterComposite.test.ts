@@ -29,7 +29,12 @@ import {
   PORTRAIT_SIZE,
   SILHOUETTE_COLOUR,
   WALK_HOLD_MS,
-  WALK_POSES,
+  BODY_POSES,
+  LYING_FRAME_HEIGHT,
+  LYING_FRAME_WIDTH,
+  STANDING,
+  attackPhase,
+  bodyFrame,
   bodyLayer,
   characterLookKey,
   characterSwaps,
@@ -41,7 +46,9 @@ import {
   flickerPhase,
   hairClipRow,
   lookOf,
+  lyingCell,
   pickCharacterPose,
+  pickDrawnPose,
   portraitRect,
   recolourPixels,
   silhouettePixels,
@@ -226,13 +233,85 @@ describe("composite cache", () => {
 describe("composite layout", () => {
   it("gives every facing, pose and blink its own cell inside the composite", () => {
     const cells = CHARACTER_FACINGS.flatMap((facing) =>
-      WALK_POSES.flatMap((pose) => [false, true].map((blink) => compositeCell(facing, pose, blink))),
+      BODY_POSES.flatMap((pose) => [false, true].map((blink) => compositeCell(facing, pose, blink))),
     );
     expect(new Set(cells.map(({ x, y }) => `${x},${y}`)).size).toBe(cells.length);
     for (const { x, y } of cells) {
       expect(x + CHARACTER_FRAME_WIDTH).toBeLessThanOrEqual(COMPOSITE_WIDTH);
       expect(y + CHARACTER_FRAME_HEIGHT).toBeLessThanOrEqual(COMPOSITE_HEIGHT);
     }
+  });
+
+  it("puts the lying cell after every standing cell, inside the composite", () => {
+    const { x, y } = lyingCell();
+    const standingRight = Math.max(
+      ...CHARACTER_FACINGS.flatMap((facing) =>
+        BODY_POSES.map((pose) => compositeCell(facing, pose, false).x + CHARACTER_FRAME_WIDTH),
+      ),
+    );
+    expect(x).toBeGreaterThanOrEqual(standingRight);
+    expect(x + LYING_FRAME_WIDTH).toBeLessThanOrEqual(COMPOSITE_WIDTH);
+    expect(y + LYING_FRAME_HEIGHT).toBeLessThanOrEqual(COMPOSITE_HEIGHT);
+  });
+
+  it("names a seated and an attack frame after the layer it bakes", () => {
+    expect(bodyFrame("girl", "side", "seated")).toBe("body-girl-side-seated");
+    expect(bodyFrame("guy", "up", "strike")).toBe("body-guy-up-attack-strike");
+    expect(bodyFrame("guy", "down", "walk1")).toBe("body-guy-down-walk1");
+  });
+});
+
+describe("pose by state", () => {
+  const facingDown = { x: 0, y: 1 };
+
+  it("splits a swing into wind-up, strike and recover thirds", () => {
+    expect([0, 0.2, 0.34, 0.5, 0.67, 0.9, 1, 1.5].map(attackPhase)).toEqual([
+      "windup",
+      "windup",
+      "strike",
+      "strike",
+      "recover",
+      "recover",
+      "recover",
+      "recover",
+    ]);
+  });
+
+  it("walks or stands when nothing else is going on", () => {
+    expect(pickDrawnPose(facingDown, false, 0)).toEqual({ lying: false, facing: "down", mirror: false, pose: "stand" });
+    expect(pickDrawnPose({ x: -1, y: 0 }, true, 125, STANDING)).toEqual({
+      lying: false,
+      facing: "side",
+      mirror: true,
+      pose: "walk1",
+    });
+  });
+
+  it("sits a seated player facing where they look, ignoring a walk", () => {
+    const stance = { ...STANDING, seated: true };
+    expect(pickDrawnPose({ x: 1, y: 0 }, true, 125, stance)).toEqual({
+      lying: false,
+      facing: "side",
+      mirror: false,
+      pose: "seated",
+    });
+  });
+
+  it("shows the attack frame for the swing's phase, facing the way it struck rather than the way they look", () => {
+    const heading = -Math.PI / 2;
+    const swing = (progress: number) => ({ ...STANDING, swing: { heading, progress } });
+    expect(pickDrawnPose(facingDown, false, 0, swing(0.1))).toMatchObject({ facing: "up", pose: "windup" });
+    expect(pickDrawnPose(facingDown, false, 0, swing(0.5))).toMatchObject({ facing: "up", pose: "strike" });
+    expect(pickDrawnPose(facingDown, false, 0, swing(0.8))).toMatchObject({ facing: "up", pose: "recover" });
+    expect(pickDrawnPose(facingDown, false, 0, { ...STANDING, swing: { heading: Math.PI, progress: 0.5 } })).toMatchObject({
+      facing: "side",
+      mirror: true,
+    });
+  });
+
+  it("lays a downed player down over any other state", () => {
+    const downed = { downed: true, seated: true, swing: { heading: 0, progress: 0.5 } };
+    expect(pickDrawnPose(facingDown, true, 125, downed)).toEqual({ lying: true });
   });
 });
 
