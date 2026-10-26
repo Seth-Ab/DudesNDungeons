@@ -208,6 +208,14 @@ export interface Session {
   puzzleHeldSince: Map<EntityId, number>;
   /** When each burning flare in `dungeon.lightSources` goes out. Server-side only. */
   flareExpiresAt: Map<EntityId, number>;
+  /**
+   * When the standing party became fully seated at each camp (room id), and who it was. Absent while
+   * anyone is not seated; replaced when the party changes, so a disconnect restarts the count.
+   * Server-side only.
+   */
+  campSeatedSince: Map<EntityId, { since: number; party: string }>;
+  /** Camps (room ids) that have already rested the party this run. Server-side only, and saved with the run. */
+  campsRested: Set<EntityId>;
   /** Hits on each training dummy still inside the readout window. Server-side only. */
   dummyHits: Map<EntityId, DummyHit[]>;
   /**
@@ -370,6 +378,8 @@ export class SessionStore {
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
       flareExpiresAt: new Map(),
+      campSeatedSince: new Map(),
+      campsRested: new Set(),
       dummyHits: new Map(),
       vault: this.vaults.open(roomCode),
       saves: this.saves,

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import {
   ATTACK_STAMINA_COST,
+  CAMP_REST_RESISTANCE,
+  CAMP_REST_SEATED_MS,
   LIFT_STAMINA_COST,
   MAX_CLIENT_MESSAGE_BYTES,
   MAX_CLIENT_MESSAGE_CHARS,
@@ -14,6 +16,8 @@ import {
 } from "../../src/shared/constants/game.js";
 import { PLAYER_STEP_DISTANCE } from "../../src/shared/game/movement.js";
 import { createGameServer, type GameServer } from "../../src/server/gameServer.js";
+import { buildDungeon } from "../../src/server/game/dungeonState.js";
+import { standUp } from "../../src/server/game/seats.js";
 import { learnSkill } from "../../src/server/game/progression.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import { SessionStore } from "../../src/server/sessions/sessionStore.js";
@@ -1785,6 +1789,80 @@ describe("seats", () => {
       // Up onto the floor in front of the bench, even though the step pointed into it.
       expect(seen.position.y).toBeGreaterThan(seat.y);
     }
+  });
+});
+
+describe("campfire rest", () => {
+  it("rests two real clients' resistance once they have both sat at the fire, and only once", async () => {
+    const roomCode = await createRoom();
+    const alpha = await joinRoom(roomCode, "Alpha");
+    const beta = await joinRoom(roomCode, "Beta");
+    const session = server.store.getSession(roomCode)!;
+
+    // The ember vault has no camp, so play the party in a generated run that does.
+    let built = buildDungeon({ dungeonId: "vault-run", seed: 1, partySize: 2 });
+    for (
+      let seed = 2;
+      !built.dungeon.rooms.some((room) => room.kind === "camp");
+      seed += 1
+    ) {
+      built = buildDungeon({ dungeonId: "vault-run", seed, partySize: 2 });
+    }
+    session.location = "dungeon";
+    session.dungeon = built.dungeon;
+    session.spawnPoints = built.spawnPoints;
+    const seats = built.dungeon.map.seats!;
+    const players = [alpha, beta].map(({ joined }) =>
+      session.players.get(joined.playerId)!,
+    );
+    const start = performance.now();
+    frozenNow = start;
+    for (const player of players) player.enteredDungeonAt = start;
+
+    [alpha, beta].forEach(({ client }, index) => {
+      players[index]!.position = { x: seats[index]!.x, y: seats[index]!.y };
+      client.send({ type: "playerInteract", targetId: seats[index]!.id });
+    });
+    for (const { client } of [alpha, beta]) {
+      await client.nextWhere("stateSnapshot", (snapshot) =>
+        snapshot.players.every((player) => player.seatId !== null),
+      );
+    }
+
+    const resistanceOf = (
+      snapshot: { players: { id: string; resistance?: number }[] },
+      id: string,
+    ) => snapshot.players.find((player) => player.id === id)?.resistance;
+
+    frozenNow = start + CAMP_REST_SEATED_MS + 500;
+    for (const [index, { client }] of [alpha, beta].entries()) {
+      const rested = await client.nextWhere(
+        "stateSnapshot",
+        (snapshot) =>
+          resistanceOf(snapshot, players[index]!.id) ===
+          PLAYER_BASE_RESISTANCE + CAMP_REST_RESISTANCE,
+      );
+      expect(
+        rested.players.find((player) => player.id === players[index]!.id)
+          ?.seatId,
+      ).not.toBeNull();
+    }
+
+    // A second sit at the same fire changes nothing.
+    for (const player of players) standUp(session, player);
+    [alpha, beta].forEach(({ client }, index) => {
+      players[index]!.position = { x: seats[index]!.x, y: seats[index]!.y };
+      client.send({ type: "playerInteract", targetId: seats[index]!.id });
+    });
+    frozenNow = start + CAMP_REST_SEATED_MS * 4;
+    await alpha.client.nextWhere("stateSnapshot", (snapshot) =>
+      snapshot.players.every((player) => player.seatId !== null),
+    );
+    await alpha.client.next("stateSnapshot");
+    expect(players.map((player) => player.resistance)).toEqual([
+      PLAYER_BASE_RESISTANCE + CAMP_REST_RESISTANCE,
+      PLAYER_BASE_RESISTANCE + CAMP_REST_RESISTANCE,
+    ]);
   });
 });
 

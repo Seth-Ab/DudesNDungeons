@@ -147,6 +147,8 @@ export const persistedRunSchema = z.object({
   trapRearmInMs: durationsByIdSchema,
   puzzleHeldForMs: durationsByIdSchema,
   flareExpiresInMs: durationsByIdSchema,
+  /** Camps that have rested the party. Optional so runs saved before camps rested still load. */
+  campsRested: z.array(entityIdSchema).default([]),
   players: z.array(persistedRunPlayerSchema),
 });
 export type PersistedRun = z.infer<typeof persistedRunSchema>;
@@ -287,6 +289,7 @@ export function captureRun(
       [...session.puzzleHeldSince].map(([id, since]) => [id, Math.max(0, now - since)]),
     ),
     flareExpiresInMs: remaining(session.flareExpiresAt, now),
+    campsRested: [...session.campsRested],
     players,
   };
 }
@@ -347,6 +350,9 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   session.trapRearmAt = due(run.trapRearmInMs, now);
   session.puzzleHeldSince = new Map(Object.entries(run.puzzleHeldForMs).map(([id, heldFor]) => [id, now - heldFor]));
   session.flareExpiresAt = due(run.flareExpiresInMs, now);
+  // Seats are not saved, so everyone stands on load and a camp's countdown starts over.
+  session.campSeatedSince = new Map();
+  session.campsRested = new Set(run.campsRested);
   session.dummyHits = new Map();
 }
 

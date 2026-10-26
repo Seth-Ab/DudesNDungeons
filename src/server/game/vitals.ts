@@ -180,6 +180,9 @@ export function advanceVitals(session: Session, now: number, elapsedMs: number):
 
     // Only the part of this step that falls after the grace period decays, so decay starts at the
     // right moment rather than at the first tick after it.
+    // Sitting at a fire is a rest: the clock still runs, but resistance holds while they are seated.
+    if (player.seatId !== null) continue;
+
     const elapsedInDungeon = timeInDungeon(player, now);
     const decayingMs = Math.min(elapsedMs, Math.max(0, elapsedInDungeon - RESISTANCE_DECAY_GRACE_MS));
     if (decayingMs <= 0) continue;
