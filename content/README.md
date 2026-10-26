@@ -80,7 +80,7 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   when it stands south of what it serves; it is drawn from behind. `label` (32 characters at most) is drawn in the hub as a name plate when the player is within four authored tiles (a small icon marks a stall from farther off); `hanging-lantern` is a scenery lantern for an awning, paired with a `fixture: "none"` light. A stall,
   and only a stall, may set `tint` for its awning: `ember` (the default), `moss`, `azure` or
   `plum`. A light may add `tint` (`warm`, the default, or `red`, a red glow), `fixture` (`pillar`,
-  the default torch stand, `campfire`, or `none` for a light whose source is a prop already drawn) and
+  the default torch stand, `campfire`, `candle`, a shrine's tall candle, or `none` for a light whose source is a prop already drawn) and
   `flicker` (0 to 1, how much its reach wavers; every client shows the same waver).
   An authored dungeon may also list training `dummies`, `{ entityId, x, y }`, each on a floor tile
   with an id unique in the dungeon. A dummy is struck like a monster but never takes damage, dies,

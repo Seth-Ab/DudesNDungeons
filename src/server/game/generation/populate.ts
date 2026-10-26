@@ -373,7 +373,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     } else if (kind === "camp") {
       placeCampfire(room, center);
     } else if (kind === "shrine") {
-      addLight(nearest(floorOf(room), center), "Shrine Candle", SHRINE_CANDLE_RADIUS);
+      addLight(nearest(floorOf(room), center), "Shrine Candle", SHRINE_CANDLE_RADIUS, { fixture: "candle" });
     } else if (kind === "hall") {
       for (const tile of spread(rng, wallHugging(floorOf(room)), lightCount(2))) addLight(tile, "Wall Torch", 5);
     } else if (kind === "maze") {

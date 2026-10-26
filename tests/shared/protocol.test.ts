@@ -454,8 +454,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v57, the version that added shrine altars", () => {
-    expect(PROTOCOL_VERSION).toBe(57);
+  it("is on protocol v58, the version that added the candle light fixture", () => {
+    expect(PROTOCOL_VERSION).toBe(58);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

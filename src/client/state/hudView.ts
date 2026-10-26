@@ -35,6 +35,7 @@ import {
   nearestStandingAlly,
   usedOnDownedAlly,
 } from "./reach.js";
+import { scrollName } from "./altars.js";
 import { actionableItem } from "./selectedSlot.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
@@ -766,7 +767,7 @@ export interface ActionPromptView {
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
- * else lifting them, loot, then chests, doors, exits, seats, and the party vault.
+ * else lifting them, loot, then chests, doors, exits, seats, altars, and the party vault.
  */
 export function actionPrompt(
   view: SessionView,
@@ -808,6 +809,9 @@ export function actionPrompt(
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }
   if (target?.kind === "seat") return prompt("interact", "Sit");
+  if (target?.kind === "altar" && target.choiceItemId) {
+    return prompt("interact", `Take ${scrollName(view, target.choiceItemId)}`);
+  }
   if (inVaultArea(view.location, view.dungeon.rooms, position)) return prompt("interact", VAULT_PROMPT);
   if (inShopArea(view.location, view.dungeon.rooms, position)) return prompt("interact", SHOP_PROMPT);
   if (inWardrobeArea(view.location, view.dungeon.rooms, position)) return prompt("interact", WARDROBE_PROMPT);

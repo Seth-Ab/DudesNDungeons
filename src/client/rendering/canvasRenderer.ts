@@ -2,6 +2,7 @@ import { TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
 import type {
+  AltarState,
   ChestState,
   DoorState,
   DungeonMapState,
@@ -37,6 +38,7 @@ import {
   safeArea,
   type Rect,
 } from "./propLabels.js";
+import { ALTAR_PLATE, ALTAR_SCROLL_LIFT, altarPhase, altarSlots } from "../state/altars.js";
 import { createTileLayer } from "./tileLayer.js";
 import { loadTileset } from "./tileset.js";
 import {
@@ -98,6 +100,7 @@ const colors = {
   projectile: "#ffb347",
   loot: "#d6a84c",
   chest: "#856a42",
+  altar: "#6b6356",
   openChest: "#3b2f20",
   trapArmed: "#b5452f",
   trapSpent: "#4a3c36",
@@ -734,6 +737,10 @@ export function createCanvasRenderer(
           drawSprite("torch-flame", { x: light.position.x, y: light.position.y - 0.5 }, flame, flame, camera);
           break;
         }
+        if (light.fixture === "candle") {
+          drawSprite("prop-candle", { x: light.position.x, y: light.position.y - 0.5 }, 1, 2, camera);
+          break;
+        }
         // Two tiles tall and standing on its own tile, so the flame is above the floor the light
         // was authored on rather than buried in it.
         drawSprite("torch-pillar", { x: light.position.x, y: light.position.y - 0.5 }, 1, 2, camera);
@@ -771,6 +778,27 @@ export function createCanvasRenderer(
 
     drawSprite(chest.opened ? "chest-open" : "chest-closed", chest.position, 2, 2, camera);
     if (chest.locked) drawSprite("door-lock", chest.position, 1, 1, camera);
+  };
+
+  /**
+   * A shrine altar: the slab with a scroll resting on each plinth that is still on offer, a cage
+   * over each one the party's choice shut away, and a bare plinth where the chosen scroll was.
+   */
+  const drawAltar = (altar: AltarState, camera: Vector2, now: number): void => {
+    if (!tileset.ready) {
+      drawWorldRect(altar.position, 1.4, colors.altar, camera);
+      return;
+    }
+
+    drawSprite("altar", altar.position, 4, 2, camera);
+    altarSlots(altar).forEach((slot, index) => {
+      if (slot.state === "taken") return;
+
+      // Offered scrolls drift a little, so a choice reads as live; a caged one holds still.
+      const drift = slot.state === "offered" ? Math.sin(now / 500 + index * Math.PI) * 0.06 : 0;
+      drawSprite("loot-skill-scroll", { x: slot.position.x, y: slot.position.y - ALTAR_SCROLL_LIFT + drift }, 1, 1, camera);
+      if (slot.state === "caged") drawSprite("altar-cage", { x: slot.position.x, y: slot.position.y - 0.69 }, 2, 2, camera);
+    });
   };
 
   /**
@@ -949,6 +977,43 @@ export function createCanvasRenderer(
     ctx.restore();
   };
 
+  /**
+   * The name plate of each shrine altar the player is within reach of, held inside the part of the
+   * screen the HUD leaves free. Altars only arrive for rooms the player can see, so a plate never
+   * names a shrine the party has not found.
+   */
+  const drawAltarPlates = (scene: Scene, camera: Vector2, now: number): void => {
+    if (!scene.self || scene.dungeon.altars.length === 0) return;
+
+    const area = labelArea(now);
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "14px sans-serif";
+
+    for (const altar of scene.dungeon.altars) {
+      const distance = Math.hypot(altar.position.x - scene.localPosition.x, altar.position.y - scene.localPosition.y);
+      const opacity = labelOpacity(distance).plate;
+      if (opacity <= 0) continue;
+
+      const text = altarPhase(altar) === "offered" ? ALTAR_PLATE : `${ALTAR_PLATE} (sealed)`;
+      const anchor = worldToScreen({ x: altar.position.x, y: altar.position.y - 1.6 }, camera);
+      const width = ctx.measureText(text).width + 20;
+      const height = 26;
+      const { left, top } = clampPlate({ x: anchor.x, y: anchor.y }, width, height, area);
+
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = "rgba(20, 17, 14, 0.78)";
+      ctx.beginPath();
+      ctx.roundRect(left, top, width, height, 6);
+      ctx.fill();
+      ctx.fillStyle = colors.label;
+      ctx.fillText(text, left + 10, top + height / 2 + 1);
+    }
+
+    ctx.restore();
+  };
+
   // One pixel per world tile, refilled every frame and stretched over the screen.
   const lightmap = document.createElement("canvas");
   const lightmapContext = lightmap.getContext("2d");
@@ -1093,6 +1158,7 @@ export function createCanvasRenderer(
     );
     // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
     scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));
+    scene.dungeon.altars.forEach((altar) => drawAltar(altar, camera, now));
     // Every halo before any flame: a hub halo is added to what is under it, and one drawn after a
     // neighbouring flame would wash that flame out to white.
     if (tileset.ready) scene.dungeon.lightSources.forEach((light) => drawLightGlow(light, camera, scene, now));
@@ -1126,6 +1192,7 @@ export function createCanvasRenderer(
 
     drawLightmap(scene, camera, now);
     drawPropLabels(scene, camera, now);
+    drawAltarPlates(scene, camera, now);
     drawSigns(scene, camera);
     drawSwings(scene.swings, scene.self ? [...scene.others, scene.self] : scene.others, camera);
     drawBowAims(scene.bowAims, camera);

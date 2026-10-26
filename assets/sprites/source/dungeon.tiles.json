@@ -680,6 +680,71 @@
         "0000000000000000"
       ]
     },
+    "altar": {
+      "tilesWide": 4,
+      "tilesHigh": 2,
+      "rows": [
+        "10*0000000000000000000000000000000000000000000000000000000000000000",
+        "0000000011111111111111111000000000000000111111111111111110000000",
+        "000000001zzzzzzzzzzzzzzz10000000000000001zzzzzzzzzzzzzzz10000000",
+        "000000001zzijjjjijjjjizz10000000000000001zzijjjjijjjjizz10000000",
+        "000000001xxxxxxxxxxxxxxx10000000000000001xxxxxxxxxxxxxxx10000000",
+        "0011111111111111111111111111111111111111111111111111111111111100",
+        "3*001zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz100",
+        "4*001zyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyx100",
+        "001zxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx100",
+        "5*001zyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyyyyxyyyyyyx100",
+        "001vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv100",
+        "0011111111111111111111111111111111111111111111111111111111111100",
+        "2*0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    "altar-cage": {
+      "tilesWide": 2,
+      "tilesHigh": 2,
+      "rows": [
+        "5*00000000000000000000000000000000",
+        "00000000000MMMMMMMMMM00000000000",
+        "00000000LLLLLLLLLLLLLLLL00000000",
+        "0000000LLL000000000000LLL0000000",
+        "000000KKK00000000000000KKK000000",
+        "6*0000000ML00ML00ML00ML00ML0000000",
+        "0000000KKKKKKKKKKKKKKKKKK0000000",
+        "3*0000000ML00ML00ML00ML00ML0000000",
+        "0000000ML00ML0iiii0ML00ML0000000",
+        "2*0000000ML00ML0ijji0ML00ML0000000",
+        "0000000ML00ML0iiii0ML00ML0000000",
+        "00000IIMLIIMLIIMLIIMLIIMLII00000",
+        "00000IKKKKKKKKKKKKKKKKKKKKI00000",
+        "00000IIIIIIIIIIIIIIIIIIIIII00000",
+        "6*00000000000000000000000000000000"
+      ]
+    },
+    "prop-candle": {
+      "tilesWide": 1,
+      "tilesHigh": 2,
+      "rows": [
+        "3*0000000000000000",
+        "2*0000000f00000000",
+        "0000000ff0000000",
+        "0000000gg0000000",
+        "2*0000000hh0000000",
+        "000000fhhf000000",
+        "0000000hh0000000",
+        "0000000gg0000000",
+        "0000000110000000",
+        "0000011111100000",
+        "2*000001USST100000",
+        "2*000001UTST100000",
+        "000001USST100000",
+        "000001TSST100000",
+        "8*000001USST100000",
+        "0001y111111y1000",
+        "0001zzzzzzzz1000",
+        "0001111111111000",
+        "0000000000000000"
+      ]
+    },
     "glow-mote": {
       "tilesWide": 1,
       "tilesHigh": 1,
