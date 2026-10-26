@@ -24,7 +24,7 @@ import {
   trapInstance,
   type BuiltDungeon,
 } from "./dungeonBuilder.js";
-import { generateDelve } from "./generation/delve.js";
+import { generateDelve, type DelveOverrides } from "./generation/delve.js";
 import { createRng, type Rng } from "./random.js";
 
 /**
@@ -504,8 +504,9 @@ export function generateDungeon(
   content: GameContent,
   seed: number,
   partySize: number,
+  overrides: DelveOverrides = {},
 ): BuiltDungeon {
-  if (definition.layout === "delve") return generateDelve(definition, content, seed, partySize);
+  if (definition.layout === "delve") return generateDelve(definition, content, seed, partySize, overrides);
 
   const rng = createRng(seed);
   const grid = new TileGrid(definition.width, definition.height);
@@ -639,6 +640,7 @@ export function generateDungeon(
       projectiles: [],
       loot,
       chests,
+      altars: [],
       traps,
       puzzles,
       doors,

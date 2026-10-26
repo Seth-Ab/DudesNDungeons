@@ -52,6 +52,8 @@ export interface DungeonRequest {
   content?: GameContent;
   /** Players in the party. Omitted, generation assumes a full party of four. */
   partySize?: number;
+  /** Skill ids the party carries as scrolls, which a shrine altar will not offer again. */
+  carriedSkillIds?: readonly string[];
 }
 
 /** The party generation plans for when a request does not say how many are playing. */
@@ -71,7 +73,9 @@ export function buildDungeon(request: DungeonRequest = {}): BuiltDungeon {
   const built =
     definition.layout === "authored"
       ? buildAuthoredDungeon(definition, content)
-      : generateDungeon(definition, content, request.seed ?? randomSeed(), request.partySize ?? DEFAULT_PARTY_SIZE);
+      : generateDungeon(definition, content, request.seed ?? randomSeed(), request.partySize ?? DEFAULT_PARTY_SIZE, {
+          carriedSkillIds: request.carriedSkillIds,
+        });
 
   // Content is authored small and played large. Every session gets the scaled world; nothing
   // downstream of here ever sees authored tile coordinates.
@@ -107,6 +111,7 @@ export function cloneDungeonState(dungeon: DungeonState): DungeonState {
     })),
     loot: dungeon.loot.map((loot) => ({ ...loot, position: copyVector(loot.position) })),
     chests: dungeon.chests.map((chest) => ({ ...chest, position: copyVector(chest.position) })),
+    altars: dungeon.altars.map((altar) => ({ ...altar, position: copyVector(altar.position), offer: [...altar.offer] })),
     traps: dungeon.traps.map((trap) => ({ ...trap, position: copyVector(trap.position) })),
     puzzles: dungeon.puzzles.map((puzzle) => ({
       ...puzzle,

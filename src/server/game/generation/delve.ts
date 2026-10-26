@@ -18,7 +18,7 @@ import { carveDungeon } from "./carve.js";
 import { generateLayout } from "./layout.js";
 import { chooseOmens, omenEffects, rollOmens } from "./omens.js";
 import { populateDungeon } from "./populate.js";
-import { assignRoles } from "./roles.js";
+import { assignRoles, DEFAULT_SHRINE_CHANCE } from "./roles.js";
 import {
   generateRoomShape,
   rollTransform,
@@ -65,6 +65,11 @@ export interface DelveOverrides {
   readonly omens?: readonly string[];
   /** Whether the run has a vault, instead of rolling the flow's `vaultChance`. */
   readonly vault?: boolean;
+  /**
+   * Skill ids the party already carries as scrolls. A shrine altar never offers a scroll of one,
+   * and is left out when fewer than two others remain.
+   */
+  readonly carriedSkillIds?: readonly string[];
 }
 
 function recipe(
@@ -137,7 +142,7 @@ export function generateDelve(
       failures.push("layout");
       continue;
     }
-    const plan = assignRoles(rng, graph, flow, biome, wantsVault);
+    const plan = assignRoles(rng, graph, flow, biome, wantsVault, effects.shrine ? 1 : DEFAULT_SHRINE_CHANCE);
     if (!plan) {
       failures.push("roles");
       continue;
@@ -151,7 +156,16 @@ export function generateDelve(
 
     let built: BuiltDungeon;
     try {
-      const populated = populateDungeon(rng, { graph, plan, world, biome, content, partySize, omens: effects });
+      const populated = populateDungeon(rng, {
+        graph,
+        plan,
+        world,
+        biome,
+        content,
+        partySize,
+        omens: effects,
+        carriedSkillIds: overrides.carriedSkillIds,
+      });
       const width = grid.cols * grid.cell;
       const height = grid.rows * grid.cell;
       const roomStates: RoomState[] = world.rooms.map((room) => {
@@ -174,6 +188,7 @@ export function generateDelve(
           projectiles: [],
           loot: populated.loot,
           chests: populated.chests,
+          altars: populated.altars,
           traps: populated.traps,
           puzzles: populated.puzzles,
           doors: populated.doors,

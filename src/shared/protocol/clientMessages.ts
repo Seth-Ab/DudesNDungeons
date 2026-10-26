@@ -140,11 +140,14 @@ export const releaseDrawSchema = z.object({
 /**
  * An interact intent names only its target. Which key a locked door takes is the server's to
  * decide, so a message carrying a key id of any kind is refused rather than having it ignored.
+ * `choiceItemId` is the one extra a target may take: the scroll an altar's taker picks from its
+ * offer. The server refuses it for any other target and refuses an altar take without it.
  */
 export const playerInteractSchema = z
   .object({
     type: z.literal("playerInteract"),
     targetId: entityIdSchema,
+    choiceItemId: contentIdSchema.optional(),
   })
   .strict();
 

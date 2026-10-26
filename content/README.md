@@ -135,7 +135,7 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   own `omens` chances. An omen sets `name`, `type`, a one-line `description` and at least one knob:
   `lightMult` (how many fixed lights), `radiusMult` (light radius), `budgetMult` (threat budgets),
   `chestBonus` (added to every chest roll's chance), `corridorTraps` (a single-use trap id dropped
-  along the corridors) or `shrine` (a guaranteed skill scroll in a side room). `overrides`
+  along the corridors) or `shrine` (a guaranteed shrine, whose altar offers two skill scrolls). `overrides`
   (`decayGraceMs`, `voiceRangeMult`) are run-scoped rules the generator ignores. `smothering-dark`,
   `restless-dead`, `brittle-floors`, `golden-hoard`, `lantern-festival` and `scroll-cache` ship.
 - `skills/`: permanent skill definitions, with their stack limits and prerequisites, used by

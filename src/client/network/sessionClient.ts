@@ -402,8 +402,8 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "pickupItem", itemId });
     },
 
-    interact(targetId: string): boolean {
-      return send({ type: "playerInteract", targetId });
+    interact(targetId: string, choiceItemId?: string): boolean {
+      return send({ type: "playerInteract", targetId, ...(choiceItemId === undefined ? {} : { choiceItemId }) });
     },
 
     /** `targetPlayerId` names the downed ally for an item used on someone else, such as salts. */

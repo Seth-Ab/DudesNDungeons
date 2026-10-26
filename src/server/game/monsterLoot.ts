@@ -84,6 +84,19 @@ function dropPosition(dungeon: DungeonState, origin: Vector2, clearance = 0): Ve
 }
 
 /**
+ * Puts one item on open floor near `origin`, no closer than `clearance`, as ordinary loot. Throws
+ * on an unknown item id, which `source` names.
+ */
+export function dropItemNear(session: Session, itemId: string, origin: Vector2, source: string, clearance = 0): void {
+  const item = contentForSession(session).items.get(itemId);
+  if (!item) throw new Error(`${source} drops unknown item "${itemId}"`);
+
+  session.dungeon.loot.push(
+    lootInstance(item, dropPosition(session.dungeon, origin, clearance), session.lootRng.uuid()),
+  );
+}
+
+/**
  * Rolls `table` from the session's drop stream and puts each result on open floor near `origin`,
  * no closer than `clearance`. `source` names what dropped it, for the error a bad item id raises.
  */

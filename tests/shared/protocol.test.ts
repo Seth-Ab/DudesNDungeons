@@ -391,6 +391,16 @@ describe("typed door locks", () => {
     expect(parseClientMessage(JSON.stringify({ type: "playerInteract", targetId: DOOR_ID })).ok).toBe(true);
   });
 
+  it("takes an optional scroll choice for an altar, and only a content id", () => {
+    const choose = (extra: object) =>
+      parseClientMessage(JSON.stringify({ type: "playerInteract", targetId: DOOR_ID, ...extra })).ok;
+
+    expect(choose({ choiceItemId: "iron-will-scroll" })).toBe(true);
+    expect(choose({ choiceItemId: "" })).toBe(false);
+    expect(choose({ choiceItemId: 3 })).toBe(false);
+    expect(choose({ choiceItemId: "Not A Content Id!" })).toBe(false);
+  });
+
   it("parses each lock shape, and a key that predates typed keys counts as the generic key", () => {
     expect(doorLockSchema.parse({ type: "key", keyItemId: "boss-key" })).toEqual({ type: "key", keyItemId: "boss-key" });
     expect(doorLockSchema.parse({ type: "seal", groupId: "arena" })).toEqual({ type: "seal", groupId: "arena" });
@@ -444,8 +454,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v56, the version that added the player drawRange", () => {
-    expect(PROTOCOL_VERSION).toBe(56);
+  it("is on protocol v57, the version that added shrine altars", () => {
+    expect(PROTOCOL_VERSION).toBe(57);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1126,6 +1136,14 @@ describe("parseServerMessage", () => {
             locked: true,
           },
         ],
+        altars: [
+          {
+            id: "77777777-7777-4777-8777-777777777777",
+            position: { x: 3, y: 1 },
+            offer: ["iron-will-scroll", "lever-sense-scroll"],
+            taken: null,
+          },
+        ],
         traps: [],
         puzzles: [],
         doors: [],
@@ -1181,6 +1199,7 @@ describe("parseServerMessage", () => {
           projectiles: [],
           loot: [],
           chests: [],
+          altars: [],
           doors: [],
           exits: [],
           traps: [],

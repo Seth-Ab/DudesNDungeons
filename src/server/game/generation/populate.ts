@@ -15,6 +15,7 @@ import { ELITE_KEY_ITEM_ID } from "../../../shared/constants/game.js";
 import { SEAT_FACING_VECTORS } from "../../../shared/constants/scenery.js";
 import type { SeatFacing } from "../../../shared/constants/scenery.js";
 import type {
+  AltarState,
   ChestState,
   DoorState,
   ExitState,
@@ -30,6 +31,7 @@ import type { GameContent } from "../../content/loadContent.js";
 import type { BiomeDefinition, RoomKind } from "../../content/schema.js";
 import {
   BALLAST_ITEM_ID,
+  altarInstance,
   ballastNeeded,
   chestInstance,
   lootInstance,
@@ -76,8 +78,10 @@ const CORRIDOR_TRAP_OFFSET = 5;
 const BONUS_LIGHT_MULT = 1.2;
 const MAX_PLATES: Readonly<Record<string, number>> = { "paired-levers": 2 };
 const DEFAULT_MAX_PLATES = 3;
-/** Room kinds that may hold a Scroll Cache: the ones a biome fills, minus the puzzle. */
-const FILL_ROOMS: readonly RoomKind[] = ["hall", "maze", "trap"];
+/** How many skill scrolls a shrine altar offers. */
+const ALTAR_OFFER_SIZE = 2;
+/** Radius of a shrine's candle. */
+const SHRINE_CANDLE_RADIUS = 4;
 
 export interface PopulateInput {
   readonly graph: LayoutGraph;
@@ -89,6 +93,8 @@ export interface PopulateInput {
   readonly partySize: number;
   /** What the run's omens do to this population. Neutral, so no omen changes nothing, when absent. */
   readonly omens?: OmenEffects;
+  /** Skill ids of the scrolls the party carries. An altar never offers one of them. */
+  readonly carriedSkillIds?: readonly string[];
 }
 
 export interface RoomThreat {
@@ -106,6 +112,7 @@ export interface Populated {
   readonly monsters: MonsterState[];
   readonly loot: LootState[];
   readonly chests: ChestState[];
+  readonly altars: AltarState[];
   readonly traps: TrapState[];
   readonly puzzles: PuzzleState[];
   /** Somewhere to sit round each camp's fire. Empty when no room is a camp. */
@@ -268,6 +275,7 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     monsters: [] as MonsterState[],
     loot: [] as LootState[],
     chests: [] as ChestState[],
+    altars: [] as AltarState[],
     traps: [] as TrapState[],
     puzzles: [] as PuzzleState[],
     seats: [] as MapSeat[],
@@ -364,6 +372,8 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       addLight(nearest(floorOf(room), center), "Arena Fire", 7.5, { fixture: "campfire", flicker: 0.4 });
     } else if (kind === "camp") {
       placeCampfire(room, center);
+    } else if (kind === "shrine") {
+      addLight(nearest(floorOf(room), center), "Shrine Candle", SHRINE_CANDLE_RADIUS);
     } else if (kind === "hall") {
       for (const tile of spread(rng, wallHugging(floorOf(room)), lightCount(2))) addLight(tile, "Wall Torch", 5);
     } else if (kind === "maze") {
@@ -443,6 +453,20 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       for (let index = 0; index < chests; index += 1) dropChest(room, BOSS_CHEST_TABLE, 1);
     }
 
+    // A shrine's altar offers two skill scrolls, picked by seed from those the party is not already
+    // carrying. With fewer than two left there is nothing to choose between, so it stays bare.
+    if (kind === "shrine") {
+      const carried = new Set(input.carriedSkillIds ?? []);
+      const scrolls = [...content.items.values()]
+        .filter((item) => item.kind === "skillScroll" && !carried.has(item.skillId))
+        .sort((a, b) => a.id.localeCompare(b.id));
+      if (scrolls.length >= ALTAR_OFFER_SIZE) {
+        const tile = claim(nearest(floorOf(room), { x: center.x, y: center.y - 1 }));
+        const offer = rng.shuffle(scrolls).slice(0, ALTAR_OFFER_SIZE).map((item) => item.id);
+        if (tile) out.altars.push(altarInstance(offer, tile, rng.uuid()));
+      }
+    }
+
     // Loot and chests by room kind.
     if (kind === "hall") {
       dropLoot(room, rng.int(0, 2));
@@ -487,21 +511,6 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
       if (!tile) throw new Error(`Room ${spec.nodeId} has no room for a Ballast Stone`);
       out.loot.push(lootInstance(ballast!, tile, rng.uuid()));
     }
-  }
-
-  // A guaranteed skill scroll in a side room, for the Scroll Cache omen. A puzzle room is never
-  // used, and a run with no side room falls back to a body room on the path.
-  if (omens.shrine) {
-    const scrolls = [...content.items.values()]
-      .filter((item) => item.kind === "skillScroll")
-      .sort((a, b) => a.id.localeCompare(b.id));
-    const sides = graph.nodes.filter((node) => node.pathIndex === -1 && FILL_ROOMS.includes(plan.roles[node.id]!));
-    const rooms = sides.length > 0 ? sides : graph.nodes.filter((node) => FILL_ROOMS.includes(plan.roles[node.id]!));
-    if (scrolls.length === 0 || rooms.length === 0) throw new Error("No room or scroll for the Scroll Cache");
-    const room = world.rooms[rng.pick(rooms).id]!;
-    const tile = claim(nearest(floorOf(room), centerOf(room)));
-    if (!tile) throw new Error("No open floor left for the Scroll Cache");
-    out.loot.push(lootInstance(rng.pick(scrolls), tile, rng.uuid()));
   }
 
   // Corridor torches, every seventh tile, never on a socket where the door or a doorway stands. A

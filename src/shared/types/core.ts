@@ -406,6 +406,19 @@ export const chestStateSchema = z.object({
 });
 export type ChestState = z.infer<typeof chestStateSchema>;
 
+/**
+ * A shrine altar offering skill scrolls. The party takes one: the server drops it as ordinary loot
+ * and `taken` records which, and the rest of `offer` stay caged for the run. `offer` lists content
+ * item ids (always skill scrolls); `taken` is null until a take succeeds.
+ */
+export const altarStateSchema = z.object({
+  id: entityIdSchema,
+  position: vector2Schema,
+  offer: z.array(contentIdSchema).min(2),
+  taken: contentIdSchema.nullable(),
+});
+export type AltarState = z.infer<typeof altarStateSchema>;
+
 export const exitStateSchema = z.object({
   id: entityIdSchema,
   position: vector2Schema,
@@ -578,6 +591,8 @@ export const dungeonStateSchema = z.object({
   loot: z.array(lootStateSchema),
   /** Only chests on tiles the viewer can currently see, like loot. */
   chests: z.array(chestStateSchema),
+  /** Only altars on tiles the viewer can currently see, like chests. */
+  altars: z.array(altarStateSchema),
   doors: z.array(doorStateSchema),
   exits: z.array(exitStateSchema),
   /** Only traps on tiles the viewer can currently see, like loot. */

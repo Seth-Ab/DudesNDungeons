@@ -99,6 +99,7 @@ export function createPlaceholderDungeon(): DungeonState {
     projectiles: [],
     loot: [],
     chests: [],
+    altars: [],
     traps: [],
     puzzles: [],
     doors: [],

@@ -130,11 +130,11 @@ describe("rolling omens", () => {
     expect(new Set(rolled).size).toBeGreaterThan(2);
   });
 
-  it("keeps the same flow and biome whatever omens roll", () => {
+  it("keeps the same flow and biome whatever warning rolls", () => {
     const flowless = { ...profile, omens: { warningChance: 0, anomalyChance: 0 } };
     for (const seed of SEEDS) {
       const plain = generateDelve(flowless, content, seed, PARTY);
-      const omened = generateDelve({ ...profile, omens: { warningChance: 1, anomalyChance: 1 } }, content, seed, PARTY);
+      const omened = generateDelve({ ...profile, omens: { warningChance: 1, anomalyChance: 0 } }, content, seed, PARTY);
       expect(omened.dungeon.rooms.map((room) => room.kind)).toEqual(plain.dungeon.rooms.map((room) => room.kind));
     }
   });
@@ -208,10 +208,14 @@ describe("what each omen does to a run", () => {
     }
   });
 
-  it("Scroll Cache guarantees a skill scroll on the floor", () => {
+  it("Scroll Cache guarantees a shrine, and its altar offers two scrolls", () => {
     for (const seed of SEEDS) {
-      expect(scrolls(build(seed, ["scroll-cache"])), `seed ${seed}`).toBe(1);
-      expect(scrolls(build(seed, [])), `seed ${seed} baseline`).toBe(0);
+      const built = build(seed, ["scroll-cache"]);
+      const shrines = built.dungeon.rooms.filter((room) => room.kind === "shrine");
+      expect(shrines, `seed ${seed}`).toHaveLength(1);
+      expect(built.dungeon.altars, `seed ${seed}`).toHaveLength(1);
+      expect(built.dungeon.altars[0]!.offer).toHaveLength(2);
+      expect(scrolls(built), `seed ${seed} loose scrolls`).toBe(0);
     }
   });
 
@@ -230,7 +234,11 @@ describe("what each omen does to a run", () => {
         const built = build(seed, [omen]);
         expect(built.omens).toEqual([omen]);
         expect(validateDungeon(built, content, PARTY), `${omen} seed ${seed}`).toEqual([]);
-        expect(built.dungeon.map.tiles).toEqual(build(seed, []).dungeon.map.tiles);
+        // A guaranteed shrine changes the layout itself, and a darker run can fail the arrival-light
+        // check on an attempt the plain run passes, so it re-rolls. Every other omen leaves it alone.
+        if (omen !== "scroll-cache" && omen !== "smothering-dark") {
+          expect(built.dungeon.map.tiles, `${omen} seed ${seed}`).toEqual(build(seed, []).dungeon.map.tiles);
+        }
       }
     }
     const both = build(SEEDS[0]!, ["brittle-floors", "scroll-cache"]);

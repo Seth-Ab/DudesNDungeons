@@ -742,7 +742,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
                       ? withdrawVaultItem(member.session, playerId, message.itemId)
                       : message.type === "depositVaultItem"
                         ? depositVaultItem(member.session, playerId, message.itemId)
-                        : interact(member.session, playerId, message.targetId, now());
+                        : interact(member.session, playerId, message.targetId, now(), message.choiceItemId);
         if (!result.ok) {
           // These messages carry no sequence number, so the rejection cannot name one.
           send(socket, { type: "actionRejected", sequence: null, reason: result.reason });
