@@ -90,6 +90,7 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
       projectiles: [],
       loot: dungeon.loot.map((loot) => ({ ...loot, position: point(loot.position) })),
       chests: dungeon.chests.map((chest) => ({ ...chest, position: point(chest.position) })),
+      altars: dungeon.altars.map((altar) => ({ ...altar, position: point(altar.position) })),
       // A trap's radius is a distance in world units, so only its position scales.
       traps: dungeon.traps.map((trap) => ({ ...trap, position: point(trap.position) })),
       // Like a trap, a plate's reach is in world units and only its position scales.

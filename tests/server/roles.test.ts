@@ -238,4 +238,42 @@ describe("assignRoles", () => {
       expect(assignRoles(createRng(1), closed, flows[0]!, biome, true)).toBeNull();
     });
   });
+
+  it("puts a shrine on a free dead end, the farthest after the key and vault, never twice", () => {
+    for (const flow of flows) {
+      let shrines = 0;
+      for (let seed = 0; seed < SEEDS; seed += 1) {
+        const rng = createRng(seed);
+        const graph = generateLayout(rng, flow, GRID);
+        const plan = graph && assignRoles(rng, graph, flow, biome, false, 1);
+        if (!graph || !plan) continue;
+        const dist = hops(graph, 0);
+        const at = plan.roles.flatMap((kind, id) => (kind === "shrine" ? [id] : []));
+        expect(at, `${flow.id} seed ${seed}`).toHaveLength(1);
+        shrines += 1;
+        const spot = at[0]!;
+        if (degree(graph, spot) !== 1) {
+          // Only a guaranteed shrine with no free dead end falls back, to a side room.
+          expect(graph.nodes[spot]!.pathIndex).toBe(-1);
+          continue;
+        }
+        const free = graph.nodes.filter(
+          (node) => degree(graph, node.id) === 1 && node.id !== 0 && node.id !== graph.pathLength && node.id !== plan.bossKey.nodeId,
+        );
+        expect(dist[spot]).toBe(Math.max(...free.map((node) => dist[node.id]!)));
+      }
+      expect(shrines).toBeGreaterThan(SEEDS / 20);
+    }
+  });
+
+  it("leaves a shrine out when the chance is zero, and fills no other room with one", () => {
+    for (const flow of flows) {
+      for (let seed = 0; seed < 100; seed += 1) {
+        const rng = createRng(seed);
+        const graph = generateLayout(rng, flow, GRID);
+        const plan = graph && assignRoles(rng, graph, flow, { ...biome, roomWeights: { ...biome.roomWeights, shrine: 5 } }, false, 0);
+        if (plan) expect(plan.roles).not.toContain("shrine");
+      }
+    }
+  });
 });

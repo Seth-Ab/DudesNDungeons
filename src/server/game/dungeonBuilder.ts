@@ -1,5 +1,6 @@
 import { ELITE_HEALTH_MULT } from "../../shared/constants/game.js";
 import type {
+  AltarState,
   ChestState,
   DoorState,
   DummyState,
@@ -115,6 +116,10 @@ export const BALLAST_ITEM_ID = "ballast-stone";
  */
 export function ballastNeeded(plateCount: number, partySize: number): number {
   return Math.max(0, plateCount - partySize);
+}
+
+export function altarInstance(offer: readonly string[], position: Vector2, id: string): AltarState {
+  return { id, position: { ...position }, offer: [...offer], taken: null };
 }
 
 export function chestInstance(lootTableId: string, position: Vector2, id: string, locked: boolean): ChestState {
@@ -300,6 +305,7 @@ export function buildAuthoredDungeon(
       projectiles: [],
       loot,
       chests,
+      altars: [],
       traps,
       puzzles,
       doors,

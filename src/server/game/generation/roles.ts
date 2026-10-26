@@ -7,8 +7,8 @@
  * must lie beyond the lock's room so the party carries it back. Every other room is drawn from the
  * biome's weights, never the same kind twice in a row on the critical path and never a trap first
  * after the entrance. An optional vault takes the next far dead end, behind a `vault-key` door, and
- * an elite in a hall, cavern, maze or arena elsewhere carries that key. Shrines, camps and secrets
- * wait for their own issues.
+ * an elite in a hall, cavern, maze or arena elsewhere carries that key. A shrine takes the next far
+ * dead end, at a set chance (always, when an omen asks). Camps and secrets wait for their own issues.
  */
 import type {
   BiomeDefinition,
@@ -56,12 +56,14 @@ const FILL_KINDS: readonly RoomKind[] = [
   "cavern",
   "arena",
   "camp",
-  "shrine",
 ];
 /** Kinds with no threat budget: a party rests or prays there, so no guard or key holder is put in one. */
 const CALM_KINDS: readonly RoomKind[] = ["camp", "shrine"];
 /** Kinds an elite may roam: open enough to chase it through. */
 const ELITE_KINDS: readonly RoomKind[] = ["hall", "cavern", "maze", "arena"];
+
+/** How often a run has a shrine when no omen guarantees one. */
+export const DEFAULT_SHRINE_CHANCE = 0.5;
 
 function adjacency(graph: LayoutGraph): number[][] {
   const adjacent: number[][] = Array.from(
@@ -102,6 +104,7 @@ export function assignRoles(
   flow: RoleFlow,
   biome: RoleBiome,
   wantVault = false,
+  shrineChance = DEFAULT_SHRINE_CHANCE,
 ): RoleAssignment | null {
   if (flow.bossLock !== "key") return null;
   const { nodes, pathLength } = graph;
@@ -178,6 +181,17 @@ export function assignRoles(
   if (wantVault && !vaultSpot) return null;
   const vaultNodeId = wantVault ? vaultSpot!.id : null;
   if (vaultNodeId !== null) roles[vaultNodeId] = "vault";
+
+  // A shrine on the next far dead end, so reaching it feels earned. A guaranteed one (an omen) falls
+  // back to any free side room, and a layout with none cannot hold it: the caller retries.
+  if (rng.chance(shrineChance)) {
+    const free = nodes.filter((node) => roles[node.id] === undefined && node.id !== holder.id);
+    const deadEnds = free.filter((node) => adjacent[node.id]!.length === 1);
+    const spot = [...deadEnds].sort((a, b) => dist[b.id]! - dist[a.id]! || a.id - b.id)[0] ??
+      (shrineChance >= 1 ? free.filter((node) => node.pathIndex === -1)[0] : undefined);
+    if (spot) roles[spot.id] = "shrine";
+    else if (shrineChance >= 1) return null;
+  }
 
   // Fill the path in order, then the branches. A kind never follows itself along the path, and a
   // trap never comes first after the entrance.

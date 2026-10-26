@@ -10,6 +10,7 @@ import {
 import { distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
+  AltarState,
   ChestState,
   DoorState,
   EntityId,
@@ -23,7 +24,7 @@ import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
 import { placeFlare } from "./flares.js";
-import { spillLootTable } from "./monsterLoot.js";
+import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { seatById, sitOn } from "./seats.js";
@@ -544,17 +545,23 @@ function revive(
 }
 
 /**
- * Opens a door or a chest, sits on a seat, or uses the current world's exit to transition the whole
- * party.
+ * Opens a door or a chest, takes a scroll from a shrine altar, sits on a seat, or uses the current
+ * world's exit to transition the whole party. `choiceItemId` is only for an altar, which needs it.
  */
 export function interact(
   session: Session,
   playerId: PlayerId,
   targetId: EntityId,
   now = 0,
+  choiceItemId?: string,
 ): ItemResult {
   const player = actor(session, playerId);
   if (!player) return reject("notPermitted");
+
+  const altar = session.dungeon.altars.find((candidate) => candidate.id === targetId);
+  if (altar) return takeFromAltar(session, player, altar, choiceItemId);
+  // A choice means nothing anywhere else, so it is refused rather than ignored.
+  if (choiceItemId !== undefined) return reject("notPermitted");
 
   const door = session.dungeon.doors.find((candidate) => candidate.id === targetId);
   if (door) return openDoor(player, door);
@@ -578,6 +585,29 @@ export function interact(
   }
 
   return reject("targetMissing");
+}
+
+/** Keeps a taken scroll off the altar it came from, like a chest's spill. */
+const ALTAR_SPILL_CLEARANCE = 1.5;
+
+/**
+ * Takes one offered scroll from an altar: it drops beside the altar as ordinary loot and the rest
+ * of the offer stays caged for the run. The first take wins; the check and the change happen in one
+ * synchronous step, so two players reaching for it at once cannot both succeed.
+ */
+function takeFromAltar(
+  session: Session,
+  player: SessionPlayer,
+  altar: AltarState,
+  choiceItemId: string | undefined,
+): ItemResult {
+  if (!withinReach(player, altar.position)) return reject("outOfRange");
+  if (altar.taken !== null) return reject("notPermitted");
+  if (choiceItemId === undefined || !altar.offer.includes(choiceItemId)) return reject("notPermitted");
+
+  dropItemNear(session, choiceItemId, altar.position, `Altar "${altar.id}"`, ALTAR_SPILL_CLEARANCE);
+  altar.taken = choiceItemId;
+  return OK;
 }
 
 function openDoor(player: SessionPlayer, door: DoorState): ItemResult {

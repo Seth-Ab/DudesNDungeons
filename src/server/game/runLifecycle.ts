@@ -88,11 +88,22 @@ function placeParty(session: Session): void {
   }
 }
 
+/** The skill ids of every scroll the party holds, in a pack or in hand, as a run begins. */
+function carriedSkillIds(session: Session): string[] {
+  const ids: string[] = [];
+  for (const player of session.players.values()) {
+    for (const item of [...player.inventory, ...(player.held ? [player.held] : [])]) {
+      if (item.kind === "skillScroll") ids.push(item.skillId);
+    }
+  }
+  return ids;
+}
+
 function installWorld(session: Session, dungeonId: string, now: number | null): void {
   const built = buildDungeon(
     dungeonId === HUB_DUNGEON_ID
       ? { dungeonId: HUB_DUNGEON_ID, content: session.runDungeon.content }
-      : { ...session.runDungeon, partySize: session.players.size },
+      : { ...session.runDungeon, partySize: session.players.size, carriedSkillIds: carriedSkillIds(session) },
   );
 
   session.dungeon = built.dungeon;

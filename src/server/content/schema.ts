@@ -918,7 +918,7 @@ export const OMEN_TYPES = ["warning", "anomaly"] as const;
  * `lightMult` scales how many fixed lights a room gets, `radiusMult` the radius of every light,
  * `budgetMult` every room's threat budget, and `chestBonus` is added to the chance of every chest
  * roll (a chest that always spawns is unaffected). `corridorTraps` names a trap type dropped along
- * the corridors. `shrine` guarantees a skill scroll cache in a side room. `overrides` are run-scoped
+ * the corridors. `shrine` guarantees a shrine room, whose altar offers two skill scrolls. `overrides` are run-scoped
  * rules the generator does not read: the session applies them while the run is played.
  */
 export const omenDefinitionSchema = z

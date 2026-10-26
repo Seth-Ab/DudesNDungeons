@@ -80,6 +80,7 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   for (const monster of dungeon.monsters) solid("monster", monster.position);
   for (const loot of dungeon.loot) solid("loot", loot.position);
   for (const chest of dungeon.chests) solid("chest", chest.position);
+  for (const altar of dungeon.altars) solid("altar", altar.position);
   for (const trap of dungeon.traps) solid("trap", trap.position);
   for (const door of dungeon.doors) solid("door", door.position);
   for (const placed of dungeon.exits) solid("exit", placed.position);

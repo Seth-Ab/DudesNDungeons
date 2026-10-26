@@ -36,6 +36,8 @@ function campRun(
     const built = buildDungeon(request);
     const camp = built.dungeon.rooms.find((room) => room.kind === "camp");
     if (!camp) continue;
+    // A cramped camp seats fewer than four, which these tests do not mean to cover.
+    if ((built.dungeon.map.seats ?? []).filter((seat) => roomAt([camp], seat) !== null).length < 4) continue;
 
     const players = names.map((name) => testPlayer(name));
     const session = testSession(players, "vault-run");
