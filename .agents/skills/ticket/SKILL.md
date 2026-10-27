@@ -17,8 +17,12 @@ Check this before GitHub queries, branch creation, or other mutations:
 1. If the invocation contains the exact handoff marker `TICKET_HERDR_CHILD=1`, or that environment
    variable is exactly `1`, this is the delegated Claude worker. Do not create another tab; continue
    directly with step 1 below. Note any `TICKET_PARENT=<pane-id>` marker for the final handoff.
+   A `TICKET_HOST=mini` marker only says this worker runs on the Mac Mini; it changes nothing else
+   here except that the coordinator pane is on another host (see the completion rule at the end).
 2. Otherwise, if `HERDR_ENV` is exactly `1`, read
    [references/herdr-delegation.md](references/herdr-delegation.md) and perform that handoff.
+   Honor `TICKET_HOST=mini` from the invocation as that reference describes; without it the ticket
+   runs on this machine.
 3. Otherwise, continue with step 1 in the current agent.
 
 A successful handoff transfers the entire ticket workflow to Claude. The original agent monitors and
@@ -178,6 +182,10 @@ If this run used a separate worktree, do not remove it yet, since the PR is not 
 user it will show up in `npm run worktrees:prune --dry-run` once the PR merges.
 
 ## Report Completion to the Coordinator
+
+Skip this section when the invocation carries `TICKET_HOST=mini`: the coordinator pane is on
+another machine and the cross-host message is unverified, so the coordinator monitors this tab
+instead. Report in this tab as step 8 describes.
 
 Only when the invocation carried `TICKET_PARENT=<pane-id>`, and only after the PR is open, required
 checks are green, and the working tree is clean and pushed, send the coordinator one line:
