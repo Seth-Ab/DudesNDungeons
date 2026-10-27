@@ -48,7 +48,25 @@ new server feature. Confirm that `claude` is a supported agent kind. Also verify
 `.claude/skills/ticket/SKILL.md` resolves from the repository working directory, so the child can
 invoke the same skill.
 
-## 2. Create the Tab and Start Claude
+## 2. Check Capacity
+
+Apply the parallel-agent cap from `AGENTS.md` before creating anything:
+
+1. Run `herdr agent list` and count every agent it reports, in any workspace, including yourself.
+   An idle agent still holds memory, so it counts.
+2. If that count is already `${MAX_PARALLEL_AGENTS:-4}` or more, stop.
+3. On macOS, run `memory_pressure | tail -1`. If it reports less than 20% free, stop. Skip this
+   check where the command does not exist.
+
+For `TICKET_HOST=mini`, apply the mini's gate instead: run `herdr --machine mini agent list` and
+stop if two or more agents there are `working` or `blocked`, or if the mini is unreachable. The
+local count above does not apply, because no new agent starts on this machine.
+
+When a check stops you, create no tab and start no agent. Report the running agents with their
+names and states, the free-memory figure, and say the ticket can start once one finishes. Do not
+wait, poll, or fall back to running the ticket in the current agent.
+
+## 3. Create the Tab and Start Claude
 
 Create one tab in the caller's current workspace with the repository's current absolute directory.
 Keep the user's focus unchanged when the installed CLI supports doing so. Read the new tab and root
@@ -70,7 +88,7 @@ If tab creation or startup fails, inspect current Herdr state before retrying be
 failure does not prove the mutation was not applied. Do not silently fall back to local execution,
 create another tab, or close the tab. Report the failure and the IDs of anything already created.
 
-## 3. Delegate the Ticket with a Recursion Guard
+## 4. Delegate the Ticket with a Recursion Guard
 
 Prompt the named Claude agent through `herdr agent prompt`. The submitted prompt must begin with the
 skill invocation and include the exact child marker:
@@ -104,7 +122,7 @@ the handoff guard and proceeds locally in the child.
 Submit once with a bounded wait, for example `--wait --timeout 60000`. A timeout or stalled response
 does not prove the prompt was not delivered. Never resubmit blindly.
 
-## 4. Monitor Without Competing
+## 5. Monitor Without Competing
 
 After submission, the coordinator performs no repository or GitHub mutations. Monitor the named
 agent with `herdr agent get`, `herdr agent read --source recent-unwrapped`, and bounded
@@ -118,13 +136,13 @@ silently for long periods.
 - `idle` or `done` after observed work means read the final response and verify its claims.
 
 Do not close the tab, pane, workspace, or agent when the delegated run finishes, unless the closing
-rule in step 6 applies. The user may want to inspect it.
+rule in step 7 applies. The user may want to inspect it.
 
 The child may also send a one-line completion message into the coordinator's input (see the ticket
 skill's "Report Completion to the Coordinator"). Treat it as a hint to check now, never as proof.
 Verify everything it claims before acting on it.
 
-## 5. Verify and Report the Handoff Result
+## 6. Verify and Report the Handoff Result
 
 Read enough unwrapped output to capture Claude's issue URL, branch, commits, PR URL, tests, CI state,
 and blockers. When a PR was created, verify it through GitHub before reporting success. If Claude
@@ -135,7 +153,7 @@ The coordinator's final response should make clear that Claude performed the rep
 new Herdr tab and should include the tab, pane, and agent identifiers alongside the normal ticket
 handoff details.
 
-## 6. Close the Tab Only After Verification (default on)
+## 7. Close the Tab Only After Verification (default on)
 
 Close when the delegated prompt carried `TICKET_AUTOCLOSE=1`, which is the default. When the user
 opted out and the marker is absent, report and leave the tab open. Before closing, the coordinator verifies each of these itself, from GitHub and git rather
@@ -149,6 +167,6 @@ than from the child's message:
 - `herdr agent get <name>` reports `idle` or `done`, not `working` or `blocked`.
 
 If any check fails, leave the tab open and tell the user which one. If all pass, close the tab with
-`herdr tab close <tab-id>` using the tab id from step 2, which also ends the Claude session in it.
+`herdr tab close <tab-id>` using the tab id from step 3, which also ends the Claude session in it.
 Never close a tab or agent that this coordinator did not create. Do not remove the worktree or delete
 the branch here; the PR is usually still unmerged, and the prune script handles that after merge.

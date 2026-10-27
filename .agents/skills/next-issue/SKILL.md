@@ -47,6 +47,10 @@ an error.
 
 Print the in-flight list with its source and host (`local` or `mini`) before continuing.
 
+**Capacity gate (local).** Without `mini`, inside Herdr, run the capacity check from the `ticket`
+skill's [Herdr delegation](../ticket/references/herdr-delegation.md) (step 2) now. If it stops,
+report it and do not select an issue: there is no room to start one.
+
 **Capacity gate (`mini` only).** Count agents on the mini that are `working` or `blocked`. If the
 mini is unreachable or already runs two or more, stop and report the count; do not pick an issue
 and do not fall back to local. The mini has 16 GB, so at most two agents run at once and only one
