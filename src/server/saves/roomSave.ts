@@ -107,6 +107,7 @@ export const persistedRunPlayerSchema = z.object({
   inventory: z.array(inventoryItemSchema),
   held: inventoryItemSchema.nullable(),
   carryingTorch: z.boolean(),
+  torchLit: z.boolean().default(true),
   runSkillStacks: z.record(z.string().min(1), z.number().int().positive()),
   runCoin: z.number().int().nonnegative(),
   runStats: persistedRunStatsSchema,
@@ -308,6 +309,7 @@ function captureRunPlayer(player: SessionPlayer, now: number): PersistedRunPlaye
     inventory: structuredClone(player.inventory),
     held: player.held === null ? null : structuredClone(player.held),
     carryingTorch: player.carryingTorch,
+    torchLit: player.torchLit,
     runSkillStacks: Object.fromEntries(player.runSkillStacks),
     runCoin: player.runCoin,
     runStats: { ...player.runStats },
@@ -382,6 +384,7 @@ export function restoreRunPlayer(
   player.inventory = structuredClone(entry.inventory);
   player.held = entry.held === null ? null : structuredClone(entry.held);
   player.carryingTorch = entry.carryingTorch;
+  player.torchLit = entry.torchLit;
   player.runSkillStacks = new Map(Object.entries(entry.runSkillStacks));
   player.runCoin = entry.runCoin;
   player.runStats = { ...entry.runStats };

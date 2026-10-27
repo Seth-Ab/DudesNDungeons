@@ -241,6 +241,7 @@ describe("the held item alongside the rest of the kit", () => {
   it("is independent of a full inventory and the torch", () => {
     const player = testPlayer("alpha", {
       carryingTorch: true,
+      torchLit: true,
       held: SWORD,
       inventory: tonics(MAX_INVENTORY_SIZE),
     });

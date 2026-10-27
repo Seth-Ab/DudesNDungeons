@@ -254,6 +254,12 @@ describe("parseClientMessage", () => {
     expect(parseClientMessage(JSON.stringify({ type: "swapHeld", itemId: "nope" })).ok).toBe(false);
   });
 
+  it("accepts putOutTorch and lightTorch, and rejects extra fields' wrong types", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "putOutTorch" })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "lightTorch" })).ok).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: "lightTorchh" })).ok).toBe(false);
+  });
+
   it("accepts dropItem and giveItem, and rejects malformed ones", () => {
     const itemId = "a1111111-1111-4111-8111-111111111111";
     const targetPlayerId = "9a2e7c1f-7b5b-4a3f-8e2d-3c4b5d6e7f80";
@@ -457,6 +463,7 @@ describe("appearance contract", () => {
       drawFraction: null,
       drawRange: null,
       carryingTorch: false,
+      torchLit: true,
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: null,
@@ -468,8 +475,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v64, the version that added switches and seal locks", () => {
-    expect(PROTOCOL_VERSION).toBe(64);
+  it("is on protocol v65, the version that added putting out and relighting a torch", () => {
+    expect(PROTOCOL_VERSION).toBe(65);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -663,6 +670,7 @@ describe("seat contract", () => {
       drawFraction: null,
       drawRange: null,
       carryingTorch: false,
+      torchLit: true,
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: TARGET_ID,
@@ -728,6 +736,7 @@ describe("ready plate contract", () => {
           drawFraction: null,
           drawRange: null,
           carryingTorch: false,
+          torchLit: true,
           carryingPlayerId: null,
           carriedByPlayerId: null,
           seatId: null,
@@ -1269,6 +1278,7 @@ describe("parseServerMessage", () => {
         drawFraction: null,
         drawRange: null,
         carryingTorch: true,
+        torchLit: true,
         carryingPlayerId: null,
         carriedByPlayerId: null,
         seatId: null,
@@ -1304,6 +1314,7 @@ describe("parseServerMessage", () => {
           connected: true,
           inventory: [{ id: TARGET_ID, name: "Blank Scroll", kind: "skillScroll" }],
           carryingTorch: false,
+          torchLit: true,
           carryingPlayerId: null,
           carriedByPlayerId: null,
           seatId: null,

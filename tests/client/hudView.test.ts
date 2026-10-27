@@ -64,6 +64,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
@@ -536,6 +537,19 @@ describe("rebound keys", () => {
     expect(actionPrompt(lit("lever"), carrier, origin)).toBeNull();
   });
 
+  it("asks for a lit torch at a brazier once the carried torch is out", () => {
+    const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+    const brazier = view({
+      ...inSession,
+      players: [dark],
+      dungeon: dungeon({
+        lightSources: [],
+        switches: [{ id: "b", kind: "brazier", groupId: "g", position: { x: 0.5, y: 0 }, active: false }],
+      } as unknown as Partial<DungeonState>),
+    });
+    expect(actionPrompt(brazier, dark, origin)).toMatchObject({ action: "interact", text: "The brazier needs a lit torch" });
+  });
+
   it("prompts to give the held item to a standing ally in reach, and not to a downed one", () => {
     const ally = player("Rook", { position: { x: 0.5, y: 0 } });
     const standing = view({ ...inSession, players: [self, ally], dungeon: dungeon() });
@@ -685,6 +699,12 @@ describe("hotbar", () => {
     expect(torchView(player("Maya", { carryingTorch: true }))).toEqual({ lit: true, label: "Torch: carried" });
     expect(torchView(player("Maya", { carryingTorch: false }))).toEqual({ lit: false, label: "Torch: none" });
     expect(torchView(null)).toEqual({ lit: false, label: "Torch: none" });
+  });
+
+  it("dims the torch slot and says so while the torch is out", () => {
+    const out = player("Maya", { carryingTorch: true, torchLit: false });
+    expect(torchView(out)).toEqual({ lit: false, label: "Torch: out" });
+    expect(torchStatusLabel(out)).toBe("out");
   });
 
   it("disables every slot when outside a session or downed", () => {

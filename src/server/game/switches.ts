@@ -6,17 +6,17 @@ import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
  *
  * A switch stays on once lit. A seal door opens when every switch in its group is on, and once
  * open it never closes or reseals. The client only ever sends an interact intent: whether a
- * brazier lights is the server's call, from where the player stands and whether they carry a torch.
+ * brazier lights is the server's call, from where the player stands and whether they carry a lit torch.
  */
 
-/** Whether the player may light this switch: a brazier takes a carried torch; the rest are not lit this way yet. */
+/** Whether the player may light this switch: a brazier takes a lit carried torch; the rest are not lit this way yet. */
 function canLight(player: SessionPlayer, lever: SwitchState): boolean {
-  return lever.kind === "brazier" && player.carryingTorch;
+  return lever.kind === "brazier" && player.carryingTorch && player.torchLit;
 }
 
 /**
  * Lights a switch the player already reaches. False, changing nothing, when they cannot light this
- * kind (no torch) or it is already on, so a second light is a refusal rather than a second effect.
+ * kind (no lit torch) or it is already on, so a second light is a refusal rather than a second effect.
  * Opens any seal door this completes.
  */
 export function lightSwitch(session: Session, player: SessionPlayer, lever: SwitchState): boolean {

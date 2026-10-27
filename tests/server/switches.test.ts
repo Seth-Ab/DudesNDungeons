@@ -85,6 +85,13 @@ describe("switches and seal locks", () => {
     expect(lever(session, FIRST_ID).active).toBe(false);
   });
 
+  it("needs the torch to be lit to light a brazier", () => {
+    const { session } = sealed({ torchLit: false });
+
+    expect(interact(session, "alpha", FIRST_ID)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(lever(session, FIRST_ID).active).toBe(false);
+  });
+
   it("refuses a light out of reach", () => {
     const { session } = sealed();
 

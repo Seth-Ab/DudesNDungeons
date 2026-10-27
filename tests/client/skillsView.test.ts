@@ -88,6 +88,7 @@ function self(inventory: InventoryItem[]): PlayerState {
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,

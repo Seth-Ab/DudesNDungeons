@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 64;
+export const PROTOCOL_VERSION = 65;
 
 /**
  * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors

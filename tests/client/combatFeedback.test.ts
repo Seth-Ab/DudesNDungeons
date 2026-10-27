@@ -40,6 +40,7 @@ function player(id: string, x: number): PlayerState {
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,

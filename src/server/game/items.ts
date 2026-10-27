@@ -203,6 +203,7 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
 
     loot.pickedUp = true;
     player.carryingTorch = true;
+    player.torchLit = true;
     player.runStats.carriedTorch = true;
     return OK;
   }

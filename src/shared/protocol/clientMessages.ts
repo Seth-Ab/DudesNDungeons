@@ -214,6 +214,16 @@ export const dropItemSchema = z.object({
   itemId: entityIdSchema,
 });
 
+/** Puts out the sender's own lit torch. The server refuses a player without a lit torch, or a downed one. */
+export const putOutTorchSchema = z.object({
+  type: z.literal("putOutTorch"),
+});
+
+/** Relights the sender's unlit torch, only from another player's lit torch or a fixed light within reach. */
+export const lightTorchSchema = z.object({
+  type: z.literal("lightTorch"),
+});
+
 /** Hands a carried item (inventory or hand) to a standing, connected party member within reach who has a free slot. */
 export const giveItemSchema = z.object({
   type: z.literal("giveItem"),
@@ -294,6 +304,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   buyCosmeticSchema,
   equipCosmeticSchema,
   dropItemSchema,
+  putOutTorchSchema,
+  lightTorchSchema,
   giveItemSchema,
   swapHeldSchema,
   withdrawVaultItemSchema,

@@ -89,6 +89,8 @@ export interface SessionPlayer {
   runStats: RunStats;
   /** Equipped separately from the three inventory slots. Picked up deliberately in hub or dungeon. */
   carryingTorch: boolean;
+  /** Whether the carried torch is burning. Meaningless without `carryingTorch`; set true on every pickup. */
+  torchLit: boolean;
   /** The downed party member this player is carrying, or null. Set only by `src/server/game/carrying.ts`. */
   carryingPlayerId: PlayerId | null;
   /** The player carrying this one, or null. Set only while this player is downed. */
@@ -563,6 +565,7 @@ export class SessionStore {
       runCoin: 0,
       runStats: createRunStats(),
       carryingTorch: false,
+      torchLit: true,
       carryingPlayerId: null,
       carriedByPlayerId: null,
       seatId: null,
@@ -802,6 +805,7 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
     drawFraction: player.draw ? player.draw.fraction : null,
     drawRange: player.draw ? { ...player.draw.reach } : null,
     carryingTorch: player.carryingTorch,
+    torchLit: player.torchLit,
     carryingPlayerId: player.carryingPlayerId,
     carriedByPlayerId: player.carriedByPlayerId,
     seatId: player.seatId,

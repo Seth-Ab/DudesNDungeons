@@ -110,6 +110,7 @@ describe("visibility frames", () => {
     const viewer = testPlayer("viewer", {
       position: { x: 1, y: 1 },
       carryingTorch: false,
+      torchLit: true,
     });
     const session = testSession([viewer]);
     session.dungeon.map = flatMap(["########", "#......#", "########"]);

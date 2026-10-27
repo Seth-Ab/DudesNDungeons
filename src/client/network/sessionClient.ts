@@ -453,6 +453,16 @@ export function createSessionClient(options: SessionClientOptions) {
       return send({ type: "dropItem", itemId });
     },
 
+    /** Puts out the player's own lit torch. */
+    putOutTorch(): boolean {
+      return send({ type: "putOutTorch" });
+    },
+
+    /** Relights the player's unlit torch; the server checks a flame is in reach. */
+    lightTorch(): boolean {
+      return send({ type: "lightTorch" });
+    },
+
     giveItem(itemId: string, targetPlayerId: string): boolean {
       return send({ type: "giveItem", itemId, targetPlayerId });
     },

@@ -55,6 +55,7 @@ function other(position: { x: number; y: number }, overrides: Partial<PlayerStat
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
