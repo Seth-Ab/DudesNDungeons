@@ -28,6 +28,8 @@ export function createToastQueue(maxVisible = DEFAULT_MAX_VISIBLE) {
   let toasts: Toast[] = [];
   // The last text offered per source, whether or not its toast is still on screen.
   const lastOffered = new Map<string, string>();
+  // Ids of once-only messages that have shown; clearing a source does not forget them.
+  const shownOnce = new Set<string>();
 
   return {
     /** Returns true when the visible toasts changed. */
@@ -37,8 +39,14 @@ export function createToastQueue(maxVisible = DEFAULT_MAX_VISIBLE) {
       severity: ToastSeverity,
       now: number,
       ttlMs: number = DEFAULT_TOAST_TTL_MS[severity],
+      onceId?: string,
     ): boolean {
       if (text === "") return this.clear(key);
+      // A once-only message has had its turn, even if its source went quiet and came back since.
+      if (onceId !== undefined) {
+        if (shownOnce.has(onceId)) return false;
+        shownOnce.add(onceId);
+      }
       if (lastOffered.get(key) === text) return false;
 
       lastOffered.set(key, text);

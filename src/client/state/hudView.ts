@@ -381,10 +381,18 @@ export interface ToastMessage {
   severity: ToastSeverity;
   /** Overrides the severity's default lifetime. */
   ttlMs?: number;
+  /** Shows at most once however often the source goes quiet and speaks again. */
+  onceId?: string;
 }
 
 /** What the outcome banner showed, kept up longer than a warning: it is the last trip's result. */
 const OUTCOME_TOAST_TTL_MS = 12000;
+
+/** Names a settled bargain so its verdict toasts once, not on every re-entry; a countdown has none. */
+function settledBargainId(view: SessionView): string | undefined {
+  const bargain = view.dungeon?.bargain;
+  return bargain && bargain.status !== "counting" ? `bargain:${bargain.roomId}:${bargain.status}` : undefined;
+}
 
 /**
  * Every transient message source, in display order, with its current text. An empty text means the
@@ -397,7 +405,7 @@ export function toastMessages(view: SessionView, self: PlayerState | null): Toas
     { key: "error", text: actionableError(view), severity: "error" },
     { key: "decay", text: notices.decay, severity: "warning" },
     { key: "torch", text: notices.torch, severity: "warning" },
-    { key: "bargain", text: notices.bargain, severity: "info", ttlMs: 4000 },
+    { key: "bargain", text: notices.bargain, severity: "info", ttlMs: 4000, onceId: settledBargainId(view) },
     { key: "outcome", text: notices.outcome, severity: "info", ttlMs: OUTCOME_TOAST_TTL_MS },
   ];
 }

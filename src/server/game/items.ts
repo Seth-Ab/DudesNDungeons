@@ -31,6 +31,7 @@ import { placeIdol } from "./idols.js";
 import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
+import { noteTorchLit } from "./darkBargain.js";
 import { seatById, sitOn } from "./seats.js";
 import { lightSwitch } from "./switches.js";
 import { turnTwinLock } from "./twinLocks.js";
@@ -205,6 +206,7 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
     player.carryingTorch = true;
     player.torchLit = true;
     player.runStats.carriedTorch = true;
+    noteTorchLit(session, player);
     return OK;
   }
   if (loot.kind === "ammo") return pickupStack(session, player, loot);

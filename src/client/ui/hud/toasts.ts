@@ -27,7 +27,7 @@ export function createToasts(now: () => number = () => performance.now()) {
       const time = now();
       let changed = queue.expire(time);
       for (const message of messages) {
-        changed = queue.show(message.key, message.text, message.severity, time, message.ttlMs) || changed;
+        changed = queue.show(message.key, message.text, message.severity, time, message.ttlMs, message.onceId) || changed;
       }
       if (changed) render();
     },

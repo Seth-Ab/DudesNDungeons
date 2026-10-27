@@ -240,6 +240,22 @@ describe("notices", () => {
     expect(bargainNotice({ roomId: "r", status: "broken", remainingMs: 0 })).toContain("lost");
   });
 
+  it("names a settled bargain for once-only toasting, and a countdown not at all", () => {
+    const inShrine = (status: "counting" | "struck" | "broken") =>
+      toastMessages(
+        view({
+          phase: "inSession",
+          location: "dungeon",
+          dungeon: { bargain: { roomId: "r", status, remainingMs: 0 } } as never,
+        }),
+        null,
+      ).find((message) => message.key === "bargain")!;
+
+    expect(inShrine("counting").onceId).toBeUndefined();
+    expect(inShrine("struck").onceId).toBe("bargain:r:struck");
+    expect(inShrine("broken").onceId).toBe("bargain:r:broken");
+  });
+
   it("keeps the last outcome up in the hub", () => {
     const outcome = noticesView(
       view({ phase: "inSession", location: "hub", runOutcome: { kind: "lost", deposited: 0 } }),

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { simulate } from "../../src/server/game/combat.js";
+import { monsterStatsFor } from "../../src/server/game/dungeonState.js";
+import { pickupItem } from "../../src/server/game/items.js";
+import { MonsterPlanner } from "../../src/server/game/monsterAi.js";
 import { advanceDarkBargains, darkBargainFor } from "../../src/server/game/darkBargain.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { lootRngFor } from "../../src/server/game/monsterLoot.js";
@@ -7,7 +10,7 @@ import { lightTorch, putOutTorch } from "../../src/server/game/torches.js";
 import { captureRun, restoreRun } from "../../src/server/saves/roomSave.js";
 import type { Session, SessionPlayer } from "../../src/server/sessions/sessionStore.js";
 import { DARK_BARGAIN_MS, DARK_BARGAIN_WAVE_PER_PLAYER } from "../../src/shared/constants/game.js";
-import { isFloor } from "../../src/shared/game/movement.js";
+import { distance, isFloor } from "../../src/shared/game/movement.js";
 import { roomAt } from "../../src/shared/game/rooms.js";
 import { testPlayer, testSession } from "./fixtures.js";
 
@@ -198,6 +201,68 @@ describe("Dark Bargain", () => {
     simulate(session, DARK_BARGAIN_MS + 50);
     const posts = [...session.monsterPosts.values()].filter((post) => post.engaged);
     expect(posts.length).toBeGreaterThanOrEqual(players.length);
+  });
+
+  it("sends a wave that hunts the party even from beyond its ordinary aggro range", () => {
+    const { session, players } = shrineRun();
+    const known = new Set(session.dungeon.monsters.map((monster) => monster.id));
+    advanceDarkBargains(session, 0);
+    advanceDarkBargains(session, DARK_BARGAIN_MS);
+    const wave = session.dungeon.monsters.filter((monster) => !known.has(monster.id));
+    expect(wave.length).toBeGreaterThan(0);
+
+    // Stand the party just past the wave's own aggro range, still in sight of it.
+    const hunter = wave[0]!;
+    const stats = monsterStatsFor(hunter);
+    const spot = [...Array(session.dungeon.map.height).keys()]
+      .flatMap((y) => [...Array(session.dungeon.map.width).keys()].map((x) => ({ x: x + 0.5, y: y + 0.5 })))
+      .find((tile) => {
+        const gap = distance(hunter.position, tile);
+        return isFloor(session.dungeon, tile) && gap > stats.aggroRange + 0.5 && gap < stats.aggroRange * 1.8;
+      });
+    expect(spot).toBeDefined();
+    for (const player of players) player.position = { ...spot! };
+
+    const planner = new MonsterPlanner(session);
+    expect(planner.target(hunter, stats, DARK_BARGAIN_MS)).toBeDefined();
+  });
+
+  it("sizes the wave by standing players, not downed ones", () => {
+    const standing = shrineRun();
+    const known = new Set(standing.session.dungeon.monsters.map((monster) => monster.id));
+    advanceDarkBargains(standing.session, 0);
+    advanceDarkBargains(standing.session, DARK_BARGAIN_MS);
+    const full = standing.session.dungeon.monsters.filter((monster) => !known.has(monster.id)).length;
+
+    const downed = shrineRun();
+    downed.players[2]!.health = 0;
+    const knownDowned = new Set(downed.session.dungeon.monsters.map((monster) => monster.id));
+    advanceDarkBargains(downed.session, 0);
+    advanceDarkBargains(downed.session, DARK_BARGAIN_MS);
+    const fewer = downed.session.dungeon.monsters.filter((monster) => !knownDowned.has(monster.id)).length;
+
+    expect(full).toBe(3 * DARK_BARGAIN_WAVE_PER_PLAYER);
+    expect(fewer).toBe(2 * DARK_BARGAIN_WAVE_PER_PLAYER);
+  });
+
+  it("is broken by picking up a torch in the room, even if it is put out again at once", () => {
+    const { session, players, shrineId } = shrineRun();
+    players[2]!.carryingTorch = false;
+    players[2]!.torchLit = false;
+    session.dungeon.loot.push({
+      id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      name: "Torch",
+      kind: "torch",
+      position: { ...players[2]!.position },
+      pickedUp: false,
+    });
+    advanceDarkBargains(session, 0);
+    expect(session.darkBargains.get(shrineId)?.status).toBe("counting");
+
+    expect(pickupItem(session, players[2]!.id, "ffffffff-ffff-4fff-8fff-ffffffffffff")).toEqual({ ok: true });
+    expect(putOutTorch(session, players[2]!.id)).toEqual({ ok: true });
+    advanceDarkBargains(session, 1000);
+    expect(session.darkBargains.get(shrineId)?.status).toBe("broken");
   });
 
   it("keeps a settled bargain across a save", () => {

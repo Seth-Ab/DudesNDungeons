@@ -1,5 +1,6 @@
 import {
   DARK_BARGAIN_MS,
+  ELITE_CALL_MS,
   DARK_BARGAIN_WAVE_MAX_COST,
   DARK_BARGAIN_WAVE_PER_PLAYER,
 } from "../../shared/constants/game.js";
@@ -109,7 +110,7 @@ function sendWave(session: Session, room: RoomState, now: number): void {
   const roster = waveRoster(session);
   if (roster.length === 0) return;
 
-  const party = [...session.players.values()].filter((player) => player.connected && isSpawned(player));
+  const party = [...session.players.values()].filter((player) => player.connected && isSpawned(player) && !isDown(player));
   const count = party.length * DARK_BARGAIN_WAVE_PER_PLAYER;
   const spawns = doorwaySpawns(session, room);
   if (spawns.length === 0) return;
@@ -126,7 +127,7 @@ function sendWave(session: Session, room: RoomState, now: number): void {
     const { type } = session.lootRng.weighted(roster);
     const monster = monsterInstance(type, place, session.lootRng.uuid());
     session.dungeon.monsters.push(monster);
-    session.monsterPosts.set(monster.id, { spawn: { ...place }, engaged: true, lastThreatAt: now });
+    session.monsterPosts.set(monster.id, { spawn: { ...place }, engaged: true, lastThreatAt: now, calledUntil: now + ELITE_CALL_MS });
   }
 }
 
