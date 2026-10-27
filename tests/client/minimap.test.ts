@@ -190,6 +190,7 @@ describe("minimap icons", () => {
     locked: false,
     twinLock: false,
     keyTurnedBy: null,
+    mimic: false,
   });
 
   it("shows exits and chests only on discovered tiles", () => {
@@ -247,7 +248,7 @@ describe("minimap world lifecycle", () => {
   });
 
   it("remembers exits and chests once seen, and forgets them with the world", () => {
-    const chest: ChestState = { id: "c", lootTableId: "chest", position: { x: 2, y: 1 }, opened: false, locked: false, twinLock: false, keyTurnedBy: null };
+    const chest: ChestState = { id: "c", lootTableId: "chest", position: { x: 2, y: 1 }, opened: false, locked: false, twinLock: false, keyTurnedBy: null, mimic: false };
     const seen = rememberMarkers(NO_MARKERS, "a", { exits: [exit("x", 3)], chests: [chest] });
     expect(seen.exits.get("x")).toEqual({ x: 3, y: 1 });
     expect(seen.chests.get("c")).toEqual({ position: { x: 2, y: 1 }, opened: false });

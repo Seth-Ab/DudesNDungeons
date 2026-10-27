@@ -756,7 +756,7 @@ describe("action prompt", () => {
   });
 
   it("offers to open a closed chest, and to unlock a locked one", () => {
-    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: false, locked: false, twinLock: false, keyTurnedBy: null };
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: false, locked: false, twinLock: false, keyTurnedBy: null, mimic: false };
     const v = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) });
     expect(actionPrompt(v, self, origin)).toEqual({ action: "interact", keyHint: "E", text: "Open chest" });
 
@@ -775,7 +775,7 @@ describe("action prompt", () => {
       keyTurnedBy: null,
     };
     const promptFor = (keyTurnedBy: string | null) =>
-      actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [{ ...chest, keyTurnedBy }] }) }), self, origin)
+      actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [{ ...chest, keyTurnedBy, mimic: false }] }) }), self, origin)
         ?.text;
 
     expect(promptFor(null)).toBe("Turn a keyhole");
@@ -812,7 +812,7 @@ describe("action prompt", () => {
   });
 
   it("skips an opened chest, but still offers the loot it spilled", () => {
-    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: true, locked: false, twinLock: false, keyTurnedBy: null };
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: true, locked: false, twinLock: false, keyTurnedBy: null, mimic: false };
     expect(actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) }), self, origin)).toBeNull();
 
     const spilled = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest], loot: [loot("Tonic", 0.9)] }) });

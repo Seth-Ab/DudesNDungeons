@@ -197,6 +197,6 @@ describe("a Twin-lock Chest", () => {
   it("reads a chest saved before twin locks as an ordinary one", () => {
     const saved = { id: CHEST_ID, lootTableId: "vault-chest", position: at(4, 4), opened: false, locked: false };
 
-    expect(chestStateSchema.parse(saved)).toEqual({ ...saved, twinLock: false, keyTurnedBy: null });
+    expect(chestStateSchema.parse(saved)).toEqual({ ...saved, twinLock: false, keyTurnedBy: null, mimic: false });
   });
 });

@@ -8,7 +8,7 @@ import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
 } from "../../shared/constants/game.js";
-import { carriesIdol, distance, distanceToDoor } from "../../shared/game/movement.js";
+import { carriesIdol, distance, distanceToDoor, isOpen } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
   AltarState,
@@ -24,6 +24,7 @@ import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
+import { MIMIC_MONSTER_ID, monsterInstance } from "./dungeonBuilder.js";
 import { placeFlare } from "./flares.js";
 import { placeIdol } from "./idols.js";
 import { dropItemNear, spillLootTable } from "./monsterLoot.js";
@@ -656,6 +657,31 @@ function spendKey(player: SessionPlayer, keyItemId: string): boolean {
  */
 const CHEST_SPILL_CLEARANCE = 1.5;
 
+/** Candidate offsets for a woken mimic, nearest first, so it lands as close to its chest as it can. */
+const MIMIC_SPAWN_OFFSETS = (() => {
+  const offsets: Vector2[] = [];
+  for (let dx = -2; dx <= 2; dx += 0.25) {
+    for (let dy = -2; dy <= 2; dy += 0.25) offsets.push({ x: dx, y: dy });
+  }
+  return offsets.sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+})();
+
+/**
+ * Where a mimic wakes: the chest's own spot, or the nearest open one that overlaps no living player.
+ * Chests do not block movement, so a player can open one while standing on it, and a monster
+ * spawned under them would block every step they take away from it.
+ */
+function mimicSpawnPoint(session: Session, origin: Vector2): Vector2 {
+  const standing = [...session.players.values()]
+    .filter((player) => isSpawned(player) && !isDown(player))
+    .map((player) => player.position);
+  for (const offset of MIMIC_SPAWN_OFFSETS) {
+    const candidate = { x: origin.x + offset.x, y: origin.y + offset.y };
+    if (isOpen(session.dungeon, standing, candidate)) return candidate;
+  }
+  return { ...origin };
+}
+
 /**
  * Opens a chest once: rolls its table from the session's drop stream and spills the result beside
  * it as ordinary loot. An opened chest stays open and refuses every later try, so it pays out once
@@ -670,6 +696,14 @@ function openChest(session: Session, player: SessionPlayer, chest: ChestState, n
   if (!table) return reject("notPermitted");
 
   if (chest.twinLock && !turnTwinLock(session, player, chest, now)) return OK;
+
+  if (chest.mimic) {
+    const type = contentForSession(session).monsters.get(MIMIC_MONSTER_ID);
+    if (!type) throw new Error(`Mimic chest needs monster "${MIMIC_MONSTER_ID}"`);
+    chest.opened = true;
+    session.dungeon.monsters.push(monsterInstance(type, mimicSpawnPoint(session, chest.position), chest.id));
+    return OK;
+  }
 
   if (chest.locked) {
     if (!spendKey(player, GENERIC_KEY_ITEM_ID)) return reject("notPermitted");

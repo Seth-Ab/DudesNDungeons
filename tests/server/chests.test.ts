@@ -141,6 +141,7 @@ describe("opening a chest", () => {
         locked: false,
         twinLock: false,
         keyTurnedBy: null,
+        mimic: false,
       },
     ]);
     expect(JSON.stringify(visibilityFrameForPlayer(session, far))).not.toContain(CHEST_ID);

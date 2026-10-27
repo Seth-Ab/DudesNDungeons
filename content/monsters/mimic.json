@@ -1,0 +1,11 @@
+{
+  "id": "mimic",
+  "name": "Mimic",
+  "maxHealth": 24,
+  "speed": 3.8,
+  "aggroRange": 15,
+  "attackRange": 1.1,
+  "damage": 10,
+  "attackCooldownMs": 1100,
+  "windupMs": 400
+}
