@@ -115,6 +115,15 @@ room or locks never placed are rejected):
   the design's "from a vault" is read as that far room, since the locked vault would gate the boss
   key on the elite's. Every party size from one to four can solve it (a solo carrier sets it down
   to fight), so it has no minimum and needs no Ballast Stone.
+- The Door Vote (#293): `door-vote` is named by the biome's `doorVote`, not its puzzle pool. The
+  design puts it at "junctions with three or more exits"; unchosen doorways stay shut for the run,
+  so only a junction whose voted branches hold nothing the run needs (boss key, vault, its elite, a
+  puzzle) and never rejoin the path may host one. Real layouts rarely have two branches off one
+  path room, so a run that wants a vote (50% of runs for two or more players) draws its layout with
+  two branches grown from an early path room and holds out for a fit, then builds without. The
+  path doorways are never voted. Validation walks the run once per door a party could pick and
+  requires the exit in each, so no choice can strand a party. A party of one has nobody to vote
+  with, so `minParty` is 2.
 - Only today's room kinds, plus vaults, are generated. Shrines, camps, secrets and arenas (the rest
   of Phase 2) and omens (Phase 3) are not part of this record.
 - `ember-vault` stays an authored map that tests build on. The old `generated` chain layout

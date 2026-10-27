@@ -12,6 +12,7 @@ import {
 import { DEFAULT_GROUND, DEFAULT_MAP_THEME, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import type {
   DiscoveredRun,
+  DoorState,
   DungeonMapState,
   DungeonState,
   DungeonSnapshot,
@@ -447,6 +448,11 @@ function visibleDungeon(
   recordDiscovery(session, viewer, visible);
 
   const { map } = session.dungeon;
+  // A vote door's hint travels with the door, so it survives the plates before it leaving view.
+  const voteIcons = new Map<string, NonNullable<DoorState["voteIcon"]>>();
+  for (const puzzle of session.dungeon.puzzles) {
+    for (const plate of puzzle.plates) if (plate.doorId && plate.icon) voteIcons.set(plate.doorId, plate.icon);
+  }
 
   return {
     // A room appears once the player has seen any part of it. Sending the full room list would hand
@@ -493,7 +499,10 @@ function visibleDungeon(
         const tile = tileOf(door.position);
         return tileDiscovered(viewer, map, tile.x, tile.y);
       })
-      .map((door) => ({ ...door, position: { ...door.position } })),
+      .map((door) => {
+        const hint = voteIcons.get(door.id);
+        return { ...door, position: { ...door.position }, ...(hint ? { voteIcon: hint } : {}) };
+      }),
     exits: session.dungeon.exits
       .filter((exit) => tileVisible(visible, exit.position))
       .map((exit) => ({ ...exit, position: { ...exit.position } })),

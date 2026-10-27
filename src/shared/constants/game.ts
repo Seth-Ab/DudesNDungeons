@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 62;
+export const PROTOCOL_VERSION = 63;
 
 /**
  * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors
@@ -226,7 +226,11 @@ export const MAX_ITEM_DESCRIPTION_LENGTH = 80;
  * Icons a consumable may wear in the HUD and on the floor. A content file picks one by name, so
  * adding a consumable never needs a protocol change, while adding art for a new icon still does.
  */
-export const CONSUMABLE_ICONS = ["tonic", "ward", "draught", "flare", "salts"] as const;
+/** What a Door Vote's doorway hints lies beyond it. `unknown` is the honest answer for a plain room. */
+export const DOOR_VOTE_ICONS = ["loot", "danger", "shrine", "unknown"] as const;
+export type DoorVoteIcon = (typeof DOOR_VOTE_ICONS)[number];
+
+export const CONSUMABLE_ICONS =["tonic", "ward", "draught", "flare", "salts"] as const;
 
 /**
  * Who a consumable is used on. `self` items act on the user; `downedAlly` items, such as smelling

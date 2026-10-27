@@ -1175,6 +1175,138 @@
         "0011111111111100"
       ]
     },
+    "vote-icon-danger": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000011111100000",
+        "00011SSSSSS11000",
+        "0011SSSSSSSS1100",
+        "011SSSSSSSSSS110",
+        "011SNNSSSSNNS110",
+        "011SNN1SS1NNS110",
+        "011SSSSSSSSSS110",
+        "0011SSS11SSS1100",
+        "00011SSSSSS11000",
+        "000011SSSS110000",
+        "00001S1SS1S10000",
+        "00001SSSSSS10000",
+        "0000011111100000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ]
+    },
+    "vote-icon-loot": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "00000jjjjjj00000",
+        "0000jiiiiiij0000",
+        "000jiiiiiiiij000",
+        "00jiiihhhhiiij00",
+        "00jiihiiiihiij00",
+        "00jiihiiiihiij00",
+        "00jiiiiiiiiiij00",
+        "000jiiiiiiiij000",
+        "0000jiiiiiij0000",
+        "00000jjjjjj00000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ]
+    },
+    "vote-icon-shrine": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000000000000000",
+        "0000000gg0000000",
+        "000000ghhg000000",
+        "00000ghhhhg00000",
+        "00000ghhhhg00000",
+        "000000gffg000000",
+        "0000000ff0000000",
+        "0000000000000000",
+        "0000SSSSSSSS0000",
+        "0000SUSSSSUS0000",
+        "0000SUSSSSUS0000",
+        "0000SUSTTSUS0000",
+        "0000SUSTTSUS0000",
+        "00jjjjjjjjjjjj00",
+        "00iiiiiiiiiiii00",
+        "0000000000000000"
+      ]
+    },
+    "vote-icon-unknown": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000000000000000",
+        "0000000000000000",
+        "00000nnnnnn00000",
+        "0000nn0000nn0000",
+        "0000000000nn0000",
+        "000000000nn00000",
+        "00000000nn000000",
+        "0000000nn0000000",
+        "0000000nn0000000",
+        "0000000000000000",
+        "0000000nn0000000",
+        "0000000nn0000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ]
+    },
+    "vote-plate": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "00000zzzzzz00000",
+        "0000zyyyyyyz0000",
+        "000zyxxxxxxyz000",
+        "00zyxxmmmmxxyz00",
+        "0zyxxmnnnnmxxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxmnnnnnnmxyz0",
+        "0zyxxmnnnnmxxyz0",
+        "00zyxxmmmmxxyz00",
+        "000zyxxxxxxyz000",
+        "0000zyyyyyyz0000",
+        "00000zzzzzz00000"
+      ]
+    },
+    "vote-plate-held": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "00000zzzzzz00000",
+        "0000zyyyyyyz0000",
+        "000zyxxxxxxyz000",
+        "00zyxxjjjjxxyz00",
+        "0zyxxjhhhhjxxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxjhhhhhhjxyz0",
+        "0zyxxjhhhhjxxyz0",
+        "00zyxxjjjjxxyz00",
+        "000zyxxxxxxyz000",
+        "0000zyyyyyyz0000",
+        "00000zzzzzz00000"
+      ]
+    },
     "exit-stairs": {
       "tilesWide": 4,
       "tilesHigh": 4,

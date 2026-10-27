@@ -750,7 +750,8 @@ export function doorPromptText(lock: DoorLock | null, inventory: readonly Invent
       return held ? `Unlock door (${name})` : `Locked: needs ${name}`;
     }
     case "seal":
-      return "Sealed door";
+      // A Door Vote's doorway opens by the party's vote, not by anyone's hand.
+      return lock.groupId === "door-vote" ? "Sealed: the party chooses it by standing on its plates" : "Sealed door";
     case "hidden":
       return "Locked door";
   }

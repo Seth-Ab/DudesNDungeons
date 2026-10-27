@@ -751,6 +751,9 @@ describe("action prompt", () => {
     expect(text([vaultKey])).toBe("Locked: needs Boss Key");
     expect(text([bossKey])).toBe("Unlock door (Boss Key)");
     expect(doorPromptText({ type: "seal", groupId: "arena" }, [])).toBe("Sealed door");
+    expect(doorPromptText({ type: "seal", groupId: "door-vote" }, [])).toBe(
+      "Sealed: the party chooses it by standing on its plates",
+    );
     expect(doorPromptText({ type: "hidden" }, [])).toBe("Locked door");
     expect(doorPromptText(null, [])).toBe("Open door");
   });

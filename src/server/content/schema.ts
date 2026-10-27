@@ -230,15 +230,22 @@ export const puzzleTypeSchema = z
     holdMs: z.number().int().positive(),
     minHoldMs: z.number().int().positive(),
     holdReductionMsPerPower: z.number().int().nonnegative().default(0),
-    rewardItemId: contentIdSchema,
+    /** What solving it drops. A Door Vote drops nothing: its prize is the door it opens. */
+    rewardItemId: contentIdSchema.optional(),
     /**
-     * What holds a plate: players, with Ballast Stones for missing hands, or only a Heavy Idol set
-     * on it. An `idol` puzzle is the Idol Carry: one altar plate, and an idol to carry to it.
+     * What holds a plate: players, with Ballast Stones for missing hands, only a Heavy Idol set
+     * on it, or the party's votes. An `idol` puzzle is the Idol Carry: one altar plate, and an idol
+     * to carry to it. A `doors` puzzle is a Door Vote: a set of plates before each voted doorway.
      */
-    heldBy: z.enum(["players", "idol"]).default("players"),
+    heldBy: z.enum(["players", "idol", "doors"]).default("players"),
+    /** The smallest party a run draws this puzzle for; a vote of one is no vote. */
+    minParty: z.number().int().min(1).max(4).default(1),
   })
   .refine((puzzle) => puzzle.minHoldMs <= puzzle.holdMs, {
     message: "minHoldMs must not exceed holdMs",
+  })
+  .refine((puzzle) => puzzle.heldBy === "doors" || puzzle.rewardItemId !== undefined, {
+    message: "a puzzle that is not a Door Vote needs a rewardItemId",
   });
 export type PuzzleType = z.infer<typeof puzzleTypeSchema>;
 
@@ -900,6 +907,8 @@ export const biomeDefinitionSchema = z.object({
   roster: z.array(biomeRosterEntrySchema).min(1),
   traps: z.array(contentIdSchema).default([]),
   puzzles: z.array(contentIdSchema).default([]),
+  /** The Door Vote a junction may hold, a puzzle with `heldBy: "doors"`. Absent: no junction votes. */
+  doorVote: contentIdSchema.optional(),
   bosses: z.array(contentIdSchema).min(1),
   /** Relative odds of each room kind filling a body room. */
   roomWeights: z.record(roomKindSchema, z.number().int().positive()).refine((weights) => Object.keys(weights).length > 0, {

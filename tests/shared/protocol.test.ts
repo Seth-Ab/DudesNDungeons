@@ -468,8 +468,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v61, the version that added the Mimic Chest", () => {
-    expect(PROTOCOL_VERSION).toBe(62);
+  it("is on protocol v63, the version that added the Door Vote", () => {
+    expect(PROTOCOL_VERSION).toBe(63);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
