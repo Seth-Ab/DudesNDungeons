@@ -10,6 +10,7 @@ import { COSMETIC_RARITIES, COSMETIC_SLOTS } from "../constants/cosmetics.js";
 import {
   MONSTER_BEHAVIORS,
   CONSUMABLE_ICONS,
+  DOOR_VOTE_ICONS,
   CONSUMABLE_TARGETS,
   GENERIC_KEY_ITEM_ID,
   WEAPON_KINDS,
@@ -391,6 +392,8 @@ export const doorStateSchema = z.object({
   size: z.number().positive(),
   open: z.boolean(),
   lock: doorLockSchema.nullable(),
+  /** What lies beyond a sealed Door Vote doorway. Sent with the door, so it shows without its plates in view. */
+  voteIcon: z.enum(DOOR_VOTE_ICONS).optional(),
 });
 export type DoorState = z.infer<typeof doorStateSchema>;
 
@@ -573,6 +576,10 @@ export const puzzlePlateStateSchema = z.object({
    * or, on an Idol Carry altar, by the idol set on it.
    */
   held: z.boolean(),
+  /** On a Door Vote, the door this plate votes for. Standing on all of a door's plates picks it. */
+  doorId: entityIdSchema.optional(),
+  /** On a Door Vote, a hint of what lies beyond that door. */
+  icon: z.enum(DOOR_VOTE_ICONS).optional(),
 });
 export type PuzzlePlateState = z.infer<typeof puzzlePlateStateSchema>;
 
@@ -591,7 +598,7 @@ export const puzzleStateSchema = z.object({
    * What holds a plate: players (and Ballast Stones), or only a Heavy Idol set on it, which makes
    * the one plate an Idol Carry altar. Defaulted, so a run saved before idols still loads.
    */
-  heldBy: z.enum(["players", "idol"]).default("players"),
+  heldBy: z.enum(["players", "idol", "doors"]).default("players"),
   phase: puzzlePhaseSchema,
   /** Only plates on tiles the viewer can currently see. */
   plates: z.array(puzzlePlateStateSchema),

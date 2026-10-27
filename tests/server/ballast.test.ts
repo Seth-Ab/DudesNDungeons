@@ -156,7 +156,8 @@ describe("generation for a small party", () => {
     for (let partySize = 1; partySize <= 4; partySize += 1) {
       for (let seed = 0; seed < SEEDS; seed += 1) {
         const { dungeon } = buildDungeon({ dungeonId: DEFAULT_DUNGEON_ID, seed, content, partySize });
-        for (const puzzle of dungeon.puzzles) {
+        // A Door Vote has a plate for every player at each doorway, and no stones.
+        for (const puzzle of dungeon.puzzles.filter((candidate) => candidate.heldBy !== "doors")) {
           puzzles += 1;
           const tile: Vector2 = tileOf(puzzle.plates[0]!.position);
           const room = dungeon.rooms.find(

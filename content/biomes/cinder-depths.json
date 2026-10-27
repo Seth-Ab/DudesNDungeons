@@ -12,6 +12,7 @@
   ],
   "traps": ["spike-plate", "ember-vent", "snare-wire"],
   "puzzles": ["paired-levers", "idol-carry"],
+  "doorVote": "door-vote",
   "bosses": ["ember-warden"],
   "roomWeights": { "hall": 4, "maze": 2, "trap": 2, "camp": 1 },
   "lootTableId": "common-chest",

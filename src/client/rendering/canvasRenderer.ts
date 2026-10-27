@@ -660,7 +660,11 @@ export function createCanvasRenderer(
       }
     }
 
-    if (door.lock !== null) {
+    // A sealed Door Vote doorway shows what lies beyond it in place of the lock.
+    const hint = door.lock?.type === "seal" ? door.voteIcon : undefined;
+    if (hint) {
+      drawSprite(`vote-icon-${hint}`, door.position, 2, 2, camera);
+    } else if (door.lock !== null) {
       drawSprite("door-lock", door.position, 2, 2, camera);
     }
   };
@@ -1157,7 +1161,9 @@ export function createCanvasRenderer(
       puzzle.plates.forEach((plate) =>
         tileset.ready && puzzle.heldBy === "idol"
           ? drawSprite(puzzle.phase === "solved" ? "idol-altar-set" : "idol-altar", plate.position, 2, 2, camera)
-          : drawWorldRect(
+          : tileset.ready && puzzle.heldBy === "doors"
+            ? drawSprite(plate.held ? "vote-plate-held" : "vote-plate", plate.position, 1.6, 1.6, camera)
+            : drawWorldRect(
               plate.position,
               1.4,
               puzzle.phase === "solved" ? colors.plateSolved : plate.held ? colors.plateHeld : colors.plateIdle,

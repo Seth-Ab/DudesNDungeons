@@ -52,7 +52,11 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   The generator gives it one altar and puts the idol in the room farthest from it; the altar keeps
   the idol once solved. Lifting an idol costs the lift stamina, and its carrier moves at half
   speed, cannot attack, and is the monsters' first target. `idol-carry` is in the Cinder Depths
-  `puzzles` pool beside `paired-levers`.
+  `puzzles` pool beside `paired-levers`. `heldBy: "doors"` is a Door Vote (`door-vote`): there is no
+  reward item, and it is named by the biome's `doorVote` rather than its `puzzles` pool. The
+  generator seals two or more branch doorways at a junction and puts a plate for every player
+  before each; when every standing player holds one door's plates for `holdMs`, that door opens
+  and the others stay sealed. `minParty` is the smallest party a run draws it for.
 - `loot-tables/`: named loot tables with the same shape as a monster's `loot` (`rolls`, weighted
   `entries`, `nothingWeight`) plus an `id`. Chests refer to one by `lootTableId`; an unknown id or
   an unknown entry `itemId` fails validation.

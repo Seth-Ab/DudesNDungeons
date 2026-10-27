@@ -1,0 +1,9 @@
+{
+  "id": "door-vote",
+  "name": "Door Vote",
+  "heldBy": "doors",
+  "minParty": 2,
+  "plateRadius": 1.8,
+  "holdMs": 2000,
+  "minHoldMs": 2000
+}

@@ -153,7 +153,7 @@ describe("how often a run has a vault", () => {
   const vaultRuns = (flowId: string, seeds: number): number => {
     let count = 0;
     for (let seed = 0; seed < seeds; seed += 1) {
-      const built = generateDungeon({ ...delveProfile, flows: [flowId] }, content, seed, 2);
+      const built = generateDungeon({ ...delveProfile, flows: [flowId] }, content, seed, 2, { vote: false });
       if (built.dungeon.rooms.some((room) => room.kind === "vault")) count += 1;
     }
     return count;
@@ -335,5 +335,42 @@ describe("the Idol Carry", () => {
     idol.position = aside!;
 
     expect(validateDungeon(built, idolOnly, 3)).toContain("puzzle idol-carry has no idol in reach");
+  });
+});
+
+describe("the Door Vote seed sweep", { timeout: SWEEP_TIMEOUT_MS }, () => {
+  const VOTE_SEEDS = 300;
+
+  // The vote seals doorways for good, so the sweep that proves a run finishable must hold it to the
+  // constraint that matters: whichever door a party picks, the exit stays reachable. Validation
+  // walks every choice, so a clean sweep over runs that asked for a vote is that proof.
+  it.each([2, 3, 4])("builds a finishable run for every door a party of %i could pick", (partySize) => {
+    let votes = 0;
+    for (let seed = 0; seed < VOTE_SEEDS; seed += 1) {
+      const built = generateDungeon(delveProfile, content, seed, partySize, { vote: true });
+      expect(validateDungeon(built, content, partySize), `seed ${seed}`).toEqual([]);
+      const vote = built.dungeon.puzzles.find((puzzle) => puzzle.heldBy === "doors");
+      if (!vote) {
+        // A run holds out for a junction, then builds without rather than fail: no seal is left over.
+        expect(built.dungeon.doors.some((door) => door.lock?.type === "seal"), `seed ${seed}`).toBe(false);
+        continue;
+      }
+      votes += 1;
+      const sealed = built.dungeon.doors.filter((door) => door.lock?.type === "seal");
+      expect(sealed.map((door) => door.id).sort(), `seed ${seed}`).toEqual(
+        [...new Set(vote.plates.map((plate) => plate.doorId))].sort(),
+      );
+    }
+    // Some vote runs find a junction within their attempts; the rest fall back to a plain run.
+    expect(votes).toBeGreaterThan(VOTE_SEEDS / 8);
+  });
+
+  it("is absent for a party of one, and whenever a run does not ask for it", () => {
+    for (let seed = 0; seed < 150; seed += 1) {
+      for (const [partySize, vote] of [[1, true], [3, false]] as const) {
+        const built = generateDungeon(delveProfile, content, seed, partySize, { vote });
+        expect(built.dungeon.puzzles.some((puzzle) => puzzle.heldBy === "doors"), `seed ${seed}`).toBe(false);
+      }
+    }
   });
 });
