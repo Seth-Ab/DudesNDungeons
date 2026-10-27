@@ -8,7 +8,7 @@ import {
   PLAYER_MAX_STAMINA,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
-import type { DoorLock, InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
+import type { DarkBargainState, DoorLock, InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
 import {
   bankSummary,
   inShopArea,
@@ -348,7 +348,16 @@ function nameList(names: readonly string[]): string {
 export interface NoticesView {
   decay: string;
   torch: string;
+  bargain: string;
   outcome: string;
+}
+
+/** What the shrine candle says to someone standing in its room, while its Dark Bargain has news. */
+export function bargainNotice(bargain: DarkBargainState | undefined): string {
+  if (!bargain) return "";
+  if (bargain.status === "counting") return `The dark is listening: keep every torch out (${Math.ceil(bargain.remainingMs / 1000)}s)`;
+  if (bargain.status === "struck") return "The dark has taken its price. The chests are richer, and something is coming";
+  return "A torch was lit. The bargain is lost";
 }
 
 /** An empty string means the line is hidden. */
@@ -359,6 +368,7 @@ export function noticesView(view: SessionView, self: PlayerState | null): Notice
   return {
     decay: inSession && !inHub ? decayMessage(view.run) : "",
     torch: inSession ? torchNotice(self, view.location) : "",
+    bargain: inSession && !inHub ? bargainNotice(view.dungeon?.bargain) : "",
     // Kept up while the party is back in the hub, so the last trip is still readable after the
     // action line has moved on to whatever they did next.
     outcome: inSession && inHub && view.runOutcome ? outcomeMessage(view.runOutcome) : "",
@@ -387,6 +397,7 @@ export function toastMessages(view: SessionView, self: PlayerState | null): Toas
     { key: "error", text: actionableError(view), severity: "error" },
     { key: "decay", text: notices.decay, severity: "warning" },
     { key: "torch", text: notices.torch, severity: "warning" },
+    { key: "bargain", text: notices.bargain, severity: "info", ttlMs: 4000 },
     { key: "outcome", text: notices.outcome, severity: "info", ttlMs: OUTCOME_TOAST_TTL_MS },
   ];
 }

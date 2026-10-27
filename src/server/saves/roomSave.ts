@@ -150,6 +150,8 @@ export const persistedRunSchema = z.object({
   flareExpiresInMs: durationsByIdSchema,
   /** Camps that have rested the party. Optional so runs saved before camps rested still load. */
   campsRested: z.array(entityIdSchema).default([]),
+  /** Shrines whose Dark Bargain is settled: a countdown in progress is not saved. */
+  darkBargains: z.record(entityIdSchema, z.enum(["struck", "broken"])).default({}),
   /** Ids of the omens the run rolled, which still change its rules. Optional for older saves. */
   omens: z.array(z.string()).default([]),
   players: z.array(persistedRunPlayerSchema),
@@ -293,6 +295,9 @@ export function captureRun(
     ),
     flareExpiresInMs: remaining(session.flareExpiresAt, now),
     campsRested: [...session.campsRested],
+    darkBargains: Object.fromEntries(
+      [...session.darkBargains].flatMap(([id, bargain]) => (bargain.status === "counting" ? [] : [[id, bargain.status]])),
+    ),
     omens: [...session.runOmens],
     players,
   };
@@ -362,6 +367,9 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   // Seats are not saved, so everyone stands on load and a camp's countdown starts over.
   session.campSeatedSince = new Map();
   session.campsRested = new Set(run.campsRested);
+  session.darkBargains = new Map(
+    Object.entries(run.darkBargains).map(([id, status]) => [id, { status, since: 0, remainingMs: 0 }]),
+  );
   session.dummyHits = new Map();
 }
 

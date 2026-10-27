@@ -475,8 +475,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v65, the version that added putting out and relighting a torch", () => {
-    expect(PROTOCOL_VERSION).toBe(65);
+  it("is on protocol v66, the version that added the Dark Bargain snapshot field", () => {
+    expect(PROTOCOL_VERSION).toBe(66);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1250,6 +1250,45 @@ describe("parseServerMessage", () => {
       undefined,
     ]) {
       expect(parseServerMessage(snapshotWithLit(lit)).ok, JSON.stringify(lit)).toBe(false);
+    }
+  });
+
+  it("accepts a snapshot with a Dark Bargain and rejects a malformed one", () => {
+    const snapshotWithBargain = (bargain: unknown) =>
+      JSON.stringify({
+        type: "stateSnapshot",
+        tick: 1,
+        location: "dungeon",
+        players: [],
+        dungeon: {
+          map: { id: "w", name: "W", width: 4, height: 4, reset: false, discovered: [], lit: [] },
+          rooms: [],
+          monsters: [],
+          projectiles: [],
+          loot: [],
+          chests: [],
+          altars: [],
+          doors: [],
+          exits: [],
+          traps: [],
+          puzzles: [],
+          switches: [],
+          lightSources: [],
+          dummies: [],
+          bargain,
+        },
+        run: { elapsedMs: 0, decayGraceMs: 600_000, decayStartsInMs: 1000, decaying: false, decayPerSecond: 0 },
+      });
+    const room = "11111111-1111-4111-8111-111111111111";
+
+    expect(parseServerMessage(snapshotWithBargain(undefined)).ok).toBe(true);
+    expect(parseServerMessage(snapshotWithBargain({ roomId: room, status: "counting", remainingMs: 9000 })).ok).toBe(true);
+    for (const bargain of [
+      { roomId: room, status: "lit", remainingMs: 0 },
+      { roomId: room, status: "counting", remainingMs: -1 },
+      { status: "counting", remainingMs: 1 },
+    ]) {
+      expect(parseServerMessage(snapshotWithBargain(bargain)).ok, JSON.stringify(bargain)).toBe(false);
     }
   });
 

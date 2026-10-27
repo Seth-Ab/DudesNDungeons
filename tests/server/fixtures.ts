@@ -181,6 +181,7 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     flareExpiresAt: new Map(),
     campSeatedSince: new Map(),
     campsRested: new Set(),
+    darkBargains: new Map(),
     dummyHits: new Map(),
     vault: { roomCode: "ROOM01", items: [], runCount: 0, revision: 0 },
     saves: new RoomSaveStore(),

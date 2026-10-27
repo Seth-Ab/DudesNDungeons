@@ -32,6 +32,7 @@ import { resolveIdols } from "./idols.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
 import { advanceCamps } from "./camps.js";
+import { advanceDarkBargains } from "./darkBargain.js";
 import { advanceVitals, damagePlayer, markCombat, regenerateStamina, spendStamina } from "./vitals.js";
 
 export type AttackEvent = Extract<ServerMessage, { type: "attackResolved" }>;
@@ -234,6 +235,8 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   resolvePuzzles(session, now);
   resolveTwinLocks(session, now);
   advanceCamps(session, now);
+  // Before the monsters act, so a wave the dark just sent already hunts this tick.
+  advanceDarkBargains(session, now);
 
   const events: AttackEvent[] = [];
   const planner = new MonsterPlanner(session);

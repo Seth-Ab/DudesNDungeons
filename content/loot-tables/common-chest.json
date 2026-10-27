@@ -1,5 +1,6 @@
 {
   "id": "common-chest",
+  "upgradesTo": "vault-chest",
   "rolls": 2,
   "entries": [
     { "itemId": "minor-tonic", "weight": 3 },

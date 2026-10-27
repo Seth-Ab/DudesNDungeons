@@ -277,6 +277,9 @@ function validateReferences(content: GameContent, sources: ContentSources): void
   }
 
   for (const table of content.lootTables.values()) {
+    if (table.upgradesTo !== undefined && !content.lootTables.has(table.upgradesTo)) {
+      throw new Error(`Loot table "${table.id}" field upgradesTo names unknown loot table "${table.upgradesTo}"`);
+    }
     for (const [index, entry] of table.entries.entries()) {
       if (!content.items.has(entry.itemId)) {
         throw new Error(
