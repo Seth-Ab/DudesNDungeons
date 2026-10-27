@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
 import { position, walkTo } from "./walk.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /**
  * The fountain rim's west seat and the floor in front of it, as in `hubSeats.spec.ts`: the guest
@@ -18,7 +19,7 @@ async function openPlayer(browser: Browser, reportsDowned: boolean): Promise<Pag
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   if (reportsDowned) {
-    await page.routeWebSocket(/:8080/, (socket) => {
+    await page.routeWebSocket(GAME_SOCKET, (socket) => {
       const server = socket.connectToServer();
       socket.onMessage((message) => server.send(message));
       server.onMessage((message) => {

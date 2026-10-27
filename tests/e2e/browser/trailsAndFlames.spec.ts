@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { position, walkTo } from "./walk.js";
+import { GAME_SOCKET } from "./ports.js";
 
 const track = trackContexts();
 
@@ -67,7 +68,7 @@ async function openPlayer(browser: Browser, name: Name): Promise<Page> {
   const context = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
   await context.addInitScript(RECORD_DRAWING);
   const page = await context.newPage();
-  await page.routeWebSocket(/:8080/, (socket) => {
+  await page.routeWebSocket(GAME_SOCKET, (socket) => {
     const server = socket.connectToServer();
     server.onMessage((message) => {
       if (typeof message !== "string" || !message.includes('"players"')) {

@@ -67,6 +67,7 @@ Tooling uses Node.js, TypeScript, Vite for the browser client, and Vitest/ESLint
 - `npm run lint` runs ESLint.
 - `npm test` runs the Vitest suite.
 - `npm run test:e2e` runs the Playwright browser suite against the Vite dev server (starts it automatically). Install browsers once with `npx playwright install chromium`.
+  - It starts Vite on `CLIENT_PORT` (default 5173) and the game server on `SERVER_PORT` (default 8080), and reuses anything already listening there. A parallel agent in another worktree must set both to free ports, or it silently tests the other worktree's servers: pick two ports nothing answers on (`lsof -iTCP:<port> -sTCP:LISTEN` prints nothing), for example `CLIENT_PORT=5273 SERVER_PORT=8180 npm run test:e2e`. `npm run dev:client` reads `CLIENT_PORT` too; `npm run dev:server` reads `PORT`.
 
 GitHub Actions runs `npm ci`, `npm test`, `npm run test:e2e` (after installing Playwright's Chromium browser, split across four parallel shards), and `npm run build` for pull requests to `main`. The `Test and Build` check gates on all of those jobs. Keep these checks passing before requesting review or merge.
 

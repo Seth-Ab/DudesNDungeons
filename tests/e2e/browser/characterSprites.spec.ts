@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /**
  * A party in the hub, drawn as characters. Each page confirms the design screen's random look, then
@@ -24,7 +25,7 @@ async function openPlayer(
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
-  await page.routeWebSocket(/:8080/, (socket) => {
+  await page.routeWebSocket(GAME_SOCKET, (socket) => {
     const server = socket.connectToServer();
     socket.onMessage((message) => {
       if (typeof message !== "string") return server.send(message);

@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { walkTo } from "./walk.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /** The hub gate in world units, and the road up to it from the spawn beside the fountain. */
 const GATE = { x: 45.5, y: 5.5 };
@@ -22,7 +23,7 @@ type Theme = (typeof THEMES)[number];
  */
 async function themeTheRun(page: Page, theme: Theme): Promise<{ inDungeon: () => boolean }> {
   let inDungeon = false;
-  await page.routeWebSocket(/:8080/, (client) => {
+  await page.routeWebSocket(GAME_SOCKET, (client) => {
     const server = client.connectToServer();
     client.onMessage((message) => server.send(message));
     server.onMessage((message) => {
