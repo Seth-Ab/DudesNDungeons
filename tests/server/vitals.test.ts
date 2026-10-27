@@ -217,6 +217,7 @@ describe("the run timer", () => {
 
     expect(runStateFor(player, RESISTANCE_DECAY_GRACE_MS - 30_000)).toEqual({
       elapsedMs: RESISTANCE_DECAY_GRACE_MS - 30_000,
+      decayGraceMs: RESISTANCE_DECAY_GRACE_MS,
       decayStartsInMs: 30_000,
       decaying: false,
       decayPerSecond: 0,

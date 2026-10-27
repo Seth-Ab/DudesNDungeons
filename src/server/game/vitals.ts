@@ -11,7 +11,8 @@ import {
 import type { RunState } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
-import { effectiveResistance } from "./progression.js";
+import { overridesFor } from "./generation/omens.js";
+import { contentForSession, effectiveResistance } from "./progression.js";
 
 /**
  * Health, resistance, and stamina in one place.
@@ -147,6 +148,11 @@ export function regenerateStamina(session: Session, elapsedMs: number): void {
  * Downed players are skipped: a player on the floor neither recovers stamina nor bleeds resistance,
  * so being downed is not also a second, invisible punishment.
  */
+/** How long into this run before resistance decays: the constant, unless an omen shortens it. */
+export function decayGraceMs(session: Session): number {
+  return overridesFor(session.runOmens, contentForSession(session)).decayGraceMs;
+}
+
 export function advanceVitals(session: Session, now: number, elapsedMs: number): void {
   if (session.location !== "dungeon") return;
 
@@ -184,7 +190,7 @@ export function advanceVitals(session: Session, now: number, elapsedMs: number):
     if (player.seatId !== null) continue;
 
     const elapsedInDungeon = timeInDungeon(player, now);
-    const decayingMs = Math.min(elapsedMs, Math.max(0, elapsedInDungeon - RESISTANCE_DECAY_GRACE_MS));
+    const decayingMs = Math.min(elapsedMs, Math.max(0, elapsedInDungeon - decayGraceMs(session)));
     if (decayingMs <= 0) continue;
 
     player.resistance = clamp(
@@ -198,13 +204,14 @@ export function advanceVitals(session: Session, now: number, elapsedMs: number):
  * The run clock as the client sees it. Sent on every snapshot so a player can be warned before
  * resistance starts falling rather than discovering it from a bar that has already dropped.
  */
-export function runStateFor(player: SessionPlayer, now: number): RunState {
+export function runStateFor(player: SessionPlayer, now: number, graceMs = RESISTANCE_DECAY_GRACE_MS): RunState {
   const elapsedMs = timeInDungeon(player, now);
-  const decaying = elapsedMs >= RESISTANCE_DECAY_GRACE_MS;
+  const decaying = elapsedMs >= graceMs;
 
   return {
     elapsedMs,
-    decayStartsInMs: decaying ? 0 : RESISTANCE_DECAY_GRACE_MS - elapsedMs,
+    decayGraceMs: graceMs,
+    decayStartsInMs: decaying ? 0 : graceMs - elapsedMs,
     decaying,
     decayPerSecond: decaying ? RESISTANCE_DECAY_PER_SECOND : 0,
   };

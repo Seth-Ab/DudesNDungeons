@@ -1,0 +1,7 @@
+{
+  "id": "echoing-halls",
+  "name": "Echoing Halls",
+  "type": "anomaly",
+  "description": "Voices carry half as far again.",
+  "overrides": { "voiceRangeMult": 1.5 }
+}

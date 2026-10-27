@@ -87,7 +87,7 @@ function view(overrides: Partial<SessionView> = {}): SessionView {
 }
 
 function run(overrides: Partial<RunState> = {}): RunState {
-  return { elapsedMs: 0, decayStartsInMs: 600_000, decaying: false, decayPerSecond: 0, ...overrides };
+  return { elapsedMs: 0, decayGraceMs: 600_000, decayStartsInMs: 600_000, decaying: false, decayPerSecond: 0, ...overrides };
 }
 
 describe("connection and error labels", () => {

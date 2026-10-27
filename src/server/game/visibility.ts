@@ -29,6 +29,7 @@ import type {
 import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, withOwnBank, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
+import { overridesFor } from "./generation/omens.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
 import { buildRoomGrid, createDiscoveredGrid, LitTiles, type RoomGrid } from "./tileGrid.js";
 
@@ -735,12 +736,11 @@ export function visibilityFrameForPlayer(
   };
 }
 
-function voiceVolume(gap: number): number {
+function voiceVolume(gap: number, silenceDistance: number): number {
   if (gap <= VOICE_FULL_VOLUME_DISTANCE) return 1;
-  if (gap >= VOICE_SILENCE_DISTANCE) return 0;
+  if (gap >= silenceDistance) return 0;
 
-  const falloff =
-    (gap - VOICE_FULL_VOLUME_DISTANCE) / (VOICE_SILENCE_DISTANCE - VOICE_FULL_VOLUME_DISTANCE);
+  const falloff = (gap - VOICE_FULL_VOLUME_DISTANCE) / (silenceDistance - VOICE_FULL_VOLUME_DISTANCE);
   return Math.max(0, Math.min(1, 1 - falloff));
 }
 
@@ -753,6 +753,9 @@ export function voiceRangeForPlayer(
   viewer: SessionPlayer,
   frame: VisibilityFrame = visibilityFrameForPlayer(session, viewer),
 ): Extract<ServerMessage, { type: "voiceRangeUpdated" }> {
+  // An omen can stretch how far a voice carries, for this run only.
+  const silenceDistance =
+    VOICE_SILENCE_DISTANCE * overridesFor(session.runOmens, contentForSession(session)).voiceRangeMult;
   const peers = [...session.players.values()]
     .filter((player) => player.id !== viewer.id && frame.visiblePlayerIds.has(player.id))
     .map((player) => {
@@ -760,7 +763,7 @@ export function voiceRangeForPlayer(
       return {
         playerId: player.id,
         distance: gap,
-        volume: voiceVolume(gap),
+        volume: voiceVolume(gap, silenceDistance),
       };
     });
 

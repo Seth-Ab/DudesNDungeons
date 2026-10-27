@@ -119,7 +119,7 @@ room or locks never placed are rejected):
   design puts it at "junctions with three or more exits"; unchosen doorways stay shut for the run,
   so only a junction whose voted branches hold nothing the run needs (boss key, vault, its elite, a
   puzzle) and never rejoin the path may host one. Real layouts rarely have two branches off one
-  path room, so a run that wants a vote (40% of runs for two or more players) draws its layout with
+  path room, so a run that wants a vote (50% of runs for two or more players) draws its layout with
   two branches grown from an early path room and holds out for a fit, then builds without. The
   path doorways are never voted. Validation walks the run once per door a party could pick and
   requires the exit in each, so no choice can strand a party. A party of one has nobody to vote

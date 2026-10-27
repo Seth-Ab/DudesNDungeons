@@ -5,6 +5,7 @@
  * after the flow and the biome, so the same seed always rolls the same omens and a retry never
  * changes them. `omenEffects` folds the rolled omens into the knobs the populate stage reads.
  */
+import { RESISTANCE_DECAY_GRACE_MS } from "../../../shared/constants/game.js";
 import type { GameContent } from "../../content/loadContent.js";
 import type { DelveDungeon, OmenDefinition } from "../../content/schema.js";
 import type { Rng } from "../random.js";
@@ -81,4 +82,28 @@ export function omenEffects(omens: readonly OmenDefinition[]): OmenEffects {
     };
   }
   return effects;
+}
+
+/** What a run's omens do to the rules that are global constants otherwise. */
+export interface OmenOverrides {
+  /** How long into a run before resistance starts to decay, in milliseconds. */
+  readonly decayGraceMs: number;
+  /** Multiplier on how far a voice carries. */
+  readonly voiceRangeMult: number;
+}
+
+/** Folds omens into run-scoped rules: the shortest grace wins and voice multipliers multiply. */
+export function omenOverrides(omens: readonly Pick<OmenDefinition, "overrides">[]): OmenOverrides {
+  let decayGraceMs = RESISTANCE_DECAY_GRACE_MS;
+  let voiceRangeMult = 1;
+  for (const omen of omens) {
+    decayGraceMs = Math.min(decayGraceMs, omen.overrides?.decayGraceMs ?? decayGraceMs);
+    voiceRangeMult *= omen.overrides?.voiceRangeMult ?? 1;
+  }
+  return { decayGraceMs, voiceRangeMult };
+}
+
+/** The run-scoped rules for omens named by id; an id the content no longer holds is ignored. */
+export function overridesFor(ids: readonly string[], content: GameContent): OmenOverrides {
+  return omenOverrides(ids.flatMap((id) => content.omens.get(id) ?? []));
 }

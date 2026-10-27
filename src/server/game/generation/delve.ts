@@ -53,9 +53,9 @@ const VAULT_ATTEMPTS = 120;
  * Attempts a run that wants a Door Vote spends looking for a junction that can hold one, before it
  * builds without, so a vote can never be why a run fails to build. Few layouts have one.
  */
-const VOTE_ATTEMPTS = 30;
+const VOTE_ATTEMPTS = 14;
 /** The chance a run for a party big enough to vote has a Door Vote, and the stream that rolls it. */
-const VOTE_CHANCE = 0.4;
+const VOTE_CHANCE = 0.5;
 const VOTE_STREAM = 1_000_033;
 /** The `mixSeed` stream that decides whether a run has a vault, beyond any attempt number. */
 const VAULT_STREAM = 1_000_003;
@@ -87,7 +87,7 @@ export interface DelveOverrides {
   readonly carriedSkillIds?: readonly string[];
 }
 
-function recipe(
+export function recipe(
   definition: DelveDungeon,
   content: GameContent,
   seed: number,

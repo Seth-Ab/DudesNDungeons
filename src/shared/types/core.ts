@@ -976,6 +976,8 @@ export type PlayerState = z.infer<typeof playerStateSchema>;
 export const runStateSchema = z.object({
   /** How long this player has been in the dungeon. */
   elapsedMs: z.number().nonnegative(),
+  /** How long into this run before resistance starts falling; an omen can shorten it. */
+  decayGraceMs: z.number().positive(),
   /** Time left before resistance starts falling. Zero once it has. */
   decayStartsInMs: z.number().nonnegative(),
   decaying: z.boolean(),
