@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { position, walkTo } from "./walk.js";
 
@@ -45,8 +46,10 @@ function watchTorch(page: Page) {
   return () => seen.latest?.players.find((player) => player.id === seen.selfId) ?? null;
 }
 
+const track = trackContexts();
+
 async function openPlayer(browser: Browser, errors: string[]) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const context = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -54,7 +57,7 @@ async function openPlayer(browser: Browser, errors: string[]) {
   });
   const torch = watchTorch(page);
   await page.goto("/?debug");
-  return { page, torch, context };
+  return { page, torch };
 }
 
 async function takeTorch(page: Page, torch: () => { carryingTorch: boolean } | null, at: { x: number; y: number }, supplyX: number) {
@@ -130,7 +133,5 @@ test.describe("Putting out and relighting a torch", () => {
     await host.page.screenshot({ path: testInfo.outputPath("torch-relit.png") });
 
     expect(errors).toEqual([]);
-    await host.context.close();
-    await guest.context.close();
   });
 });
