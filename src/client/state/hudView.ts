@@ -5,7 +5,6 @@ import {
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
-  RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../shared/constants/game.js";
 import type { DoorLock, InventoryItem, PlayerState, RunState, Vector2 } from "../../shared/types/core.js";
@@ -244,7 +243,7 @@ export function runClockView(view: SessionView): RunClockView | null {
     label: `${elapsed} Decay in ${formatClock(Math.ceil(decayStartsInMs / 1000) * 1000)}.`,
     status: warning ? "Decay near" : "",
     mark: warning ? "!" : "",
-    ratio: Math.min(1, Math.max(0, decayStartsInMs / RESISTANCE_DECAY_GRACE_MS)),
+    ratio: Math.min(1, Math.max(0, decayStartsInMs / view.run.decayGraceMs)),
     stage: warning ? "warning" : "neutral",
   };
 }

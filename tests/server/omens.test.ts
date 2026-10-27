@@ -49,14 +49,16 @@ function shippedWith(files: Record<string, unknown>): string {
 }
 
 describe("omen content", () => {
-  it("ships three warnings and three anomalies", () => {
+  it("ships four warnings and four anomalies", () => {
     const omens = [...content.omens.values()];
     expect(omens.filter((omen) => omen.type === "warning").map((omen) => omen.id).sort()).toEqual([
       "brittle-floors",
       "restless-dead",
+      "short-fuse",
       "smothering-dark",
     ]);
     expect(omens.filter((omen) => omen.type === "anomaly").map((omen) => omen.id).sort()).toEqual([
+      "echoing-halls",
       "golden-hoard",
       "lantern-festival",
       "scroll-cache",

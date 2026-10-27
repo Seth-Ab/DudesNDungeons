@@ -111,5 +111,6 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
     },
     spawnPoints: built.spawnPoints.map(point),
     seed: built.seed,
+    ...(built.omens ? { omens: built.omens } : {}),
   };
 }

@@ -18,6 +18,7 @@ import {
   discardRunCoin,
   discardRunSkills,
 } from "./progression.js";
+import { randomSeed } from "./random.js";
 import { createDiscoveredGrid } from "./tileGrid.js";
 import { advanceRunCount } from "../vaults/partyVault.js";
 import { storeInVault } from "./vault.js";
@@ -103,12 +104,19 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   const built = buildDungeon(
     dungeonId === HUB_DUNGEON_ID
       ? { dungeonId: HUB_DUNGEON_ID, content: session.runDungeon.content }
-      : { ...session.runDungeon, partySize: session.players.size, carriedSkillIds: carriedSkillIds(session) },
+      : {
+          ...session.runDungeon,
+          // The seed the hub board was showing, so what it showed is what is built.
+          seed: session.nextRunSeed ?? session.runDungeon.seed,
+          partySize: session.players.size,
+          carriedSkillIds: carriedSkillIds(session),
+        },
   );
 
   session.dungeon = built.dungeon;
   session.spawnPoints = built.spawnPoints;
   session.seed = built.seed;
+  session.runOmens = built.omens ?? [];
   session.lootRng = lootRngFor(built.seed, dungeonId);
   session.simulatedAt = null;
   session.monsterCooldowns.clear();
@@ -214,4 +222,6 @@ export function returnToHub(session: Session, escaped: boolean): void {
   session.saves.clearRun(session.roomCode);
   installWorld(session, HUB_DUNGEON_ID, null);
   session.location = "hub";
+  // The run just played is spent; the board shows the next one's recipe.
+  session.nextRunSeed = session.runDungeon.seed ?? randomSeed();
 }

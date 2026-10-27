@@ -353,6 +353,27 @@ export const wardrobeCatalogSchema = z.object({
   entries: z.array(wardrobeEntrySchema),
 });
 
+/** An omen as the hub board shows it: a name and a line, never its numbers. */
+export const hubOmenSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  type: z.enum(["warning", "anomaly"]),
+  description: z.string().min(1),
+});
+
+/**
+ * What the next run will be, sent to the hub's party so the board shows what is built. Resent
+ * whenever it changes: a join, a leave, or a run ending. Nothing else about the run is revealed.
+ */
+export const hubStateSchema = z.object({
+  type: z.literal("hubState"),
+  nextRun: z.object({
+    flowName: z.string().min(1).optional(),
+    biomeName: z.string().min(1).optional(),
+    omens: z.array(hubOmenSchema).max(2),
+  }),
+});
+
 /**
  * Authoritative world state. Clients render from this rather than from their own predictions.
  *
@@ -453,6 +474,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   partyVaultSchema,
   skillShopStockSchema,
   wardrobeCatalogSchema,
+  hubStateSchema,
   stateSnapshotSchema,
   attackResolvedSchema,
   voiceRangeUpdatedSchema,
