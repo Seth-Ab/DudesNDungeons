@@ -2,6 +2,7 @@ import type { VoiceState } from "../audio/voiceMesh.js";
 import type { SessionView } from "../network/sessionState.js";
 import type { PartyRosterEntry } from "../../shared/protocol/index.js";
 import {
+  INTERACT_RANGE,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
   PLAYER_MAX_STAMINA,
@@ -472,7 +473,8 @@ export function newServerAction(view: SessionView, lastShown: string | null): st
  * the gate without one spends the whole run in somebody else's light.
  */
 export function torchStatusLabel(self: PlayerState | null): string {
-  return self?.carryingTorch ? "carried" : "none";
+  if (!self?.carryingTorch) return "none";
+  return self.torchLit ? "carried" : "out";
 }
 
 export interface TorchSlotView {
@@ -483,7 +485,7 @@ export interface TorchSlotView {
 
 /** The round torch slot beside the hotbar. */
 export function torchView(self: PlayerState | null): TorchSlotView {
-  return { lit: self?.carryingTorch === true, label: `Torch: ${torchStatusLabel(self)}` };
+  return { lit: self?.carryingTorch === true && self.torchLit, label: `Torch: ${torchStatusLabel(self)}` };
 }
 
 export interface BankEntryView {
@@ -776,6 +778,18 @@ function chestPromptText(view: SessionView, selfId: string, chestId: string, loc
 }
 
 /**
+ * Whether another lit torch or a fixed light is within interact range. The snapshot only holds
+ * what this player can see, which is everything within reach of them; the server still decides.
+ */
+function flameNearby(view: SessionView, self: PlayerState, position: Vector2): boolean {
+  const near = (other: Vector2) => Math.hypot(other.x - position.x, other.y - position.y) <= INTERACT_RANGE;
+  if (view.dungeon?.lightSources.some((light) => light.kind === "fixed" && near(light.position))) return true;
+  return view.players.some(
+    (player) => player.id !== self.id && player.connected && player.carryingTorch && player.torchLit && near(player.position),
+  );
+}
+
+/**
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
@@ -813,6 +827,11 @@ export function actionPrompt(
   const target = nearestInteraction(view, position);
   const idol = carriedIdol(self.inventory, self.held);
   if (idol && target?.kind === "idolAltar") return prompt("interact", `Set the ${idol.name} on the altar`);
+
+  // An unlit torch is worth a word only when a flame is close enough to light it from.
+  if (self.carryingTorch && !self.torchLit && flameNearby(view, self, position)) {
+    return prompt("torch", "Light your torch");
+  }
 
   const loot = nearestLoot(view, position);
   if (loot) {

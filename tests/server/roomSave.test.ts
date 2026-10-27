@@ -217,6 +217,18 @@ describe("saving and restoring a run", () => {
     expect(grix.mapSyncedTo).toBeNull();
   });
 
+  it("keeps a torch that was put out unlit across a save and reload", () => {
+    const original = runInProgress();
+    const grix = [...original.players.values()].find((player) => player.name === "Grix")!;
+    grix.carryingTorch = true;
+    grix.torchLit = false;
+
+    const session = restored(captureRun(original, 5_000, VERSION), 1_000_000);
+
+    const reloaded = [...session.players.values()].find((player) => player.name === "Grix")!;
+    expect(reloaded).toMatchObject({ carryingTorch: true, torchLit: false });
+  });
+
   it("pauses the run clock and trap timers while saved", () => {
     const original = runInProgress();
     const grixBefore = [...original.players.values()].find(

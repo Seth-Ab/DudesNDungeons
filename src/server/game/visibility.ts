@@ -216,7 +216,8 @@ function bodiesInSight(dungeon: DungeonState, a: Vector2, b: Vector2, reach: num
 }
 
 function carriedTorchFor(session: Session, player: SessionPlayer): ActiveLightSource | null {
-  if (!player.carryingTorch) return null;
+  // An unlit torch is still carried but gives no light.
+  if (!player.carryingTorch || !player.torchLit) return null;
 
   return {
     id: player.id,

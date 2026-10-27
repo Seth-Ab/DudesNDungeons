@@ -63,6 +63,11 @@ const CONTROL_GROUPS: ControlGroup[] = [
         rebind: "give",
       },
       {
+        input: bound("torch"),
+        action: "Put out your torch, or relight it from another torch or a fixed light in reach",
+        rebind: "torch",
+      },
+      {
         input: bound("swapHeld"),
         action: "Swap the item in hand with the selected slot, or stow it if the inventory is empty",
         rebind: "swapHeld",

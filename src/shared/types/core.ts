@@ -927,6 +927,8 @@ export const playerStateSchema = z.object({
   drawRange: z.object({ minRange: z.number().min(0), maxRange: z.number().min(0) }).nullable(),
   /** Separate from inventory: forgetting to take one from the hub means entering the run without it. */
   carryingTorch: z.boolean(),
+  /** Whether the carried torch is burning. An unlit torch is still carried but lights nothing. */
+  torchLit: z.boolean(),
   /** The downed party member this player is carrying, or null. Spent by Backend step 12. */
   carryingPlayerId: playerIdSchema.nullable(),
   /** The player carrying this one, or null. Set only while this player is downed. */

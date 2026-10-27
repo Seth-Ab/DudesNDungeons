@@ -23,6 +23,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     appearance: { ...DEFAULT_APPEARANCE },

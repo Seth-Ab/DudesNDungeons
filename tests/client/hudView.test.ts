@@ -64,6 +64,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,
@@ -669,6 +670,12 @@ describe("hotbar", () => {
     expect(torchView(player("Maya", { carryingTorch: true }))).toEqual({ lit: true, label: "Torch: carried" });
     expect(torchView(player("Maya", { carryingTorch: false }))).toEqual({ lit: false, label: "Torch: none" });
     expect(torchView(null)).toEqual({ lit: false, label: "Torch: none" });
+  });
+
+  it("dims the torch slot and says so while the torch is out", () => {
+    const out = player("Maya", { carryingTorch: true, torchLit: false });
+    expect(torchView(out)).toEqual({ lit: false, label: "Torch: out" });
+    expect(torchStatusLabel(out)).toBe("out");
   });
 
   it("disables every slot when outside a session or downed", () => {

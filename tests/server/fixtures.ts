@@ -117,6 +117,7 @@ export function testPlayer(id: string, overrides: Partial<SessionPlayer> = {}): 
     runCoin: 0,
     runStats: createRunStats(),
     carryingTorch: true,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,

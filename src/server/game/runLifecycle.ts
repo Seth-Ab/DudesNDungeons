@@ -213,6 +213,7 @@ export function returnToHub(session: Session, escaped: boolean): void {
     player.inventory = [];
     player.held = null;
     player.carryingTorch = false;
+    player.torchLit = true;
   }
 
   // An escape and a wipe both end a run, so both reroll the shop's rotating stock for this room.

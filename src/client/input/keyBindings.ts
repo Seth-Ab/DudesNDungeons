@@ -15,6 +15,7 @@ export type GameplayAction =
   | "drop"
   | "give"
   | "swapHeld"
+  | "torch"
   | "toggleMinimap"
   | "emoteWheel"
   | "useSlot1"
@@ -50,6 +51,7 @@ const DEFAULT_KEYS: Record<BindableAction, string> = {
   drop: "q",
   give: "t",
   swapHeld: "v",
+  torch: "y",
   toggleMinimap: "m",
   emoteWheel: "b",
   useSlot1: "1",
@@ -83,6 +85,7 @@ export const ACTION_NAMES: Record<BindableAction, string> = {
   drop: "Drop item",
   give: "Give item",
   swapHeld: "Swap held item",
+  torch: "Torch",
   toggleMinimap: "Toggle minimap",
   emoteWheel: "Emote wheel",
   useSlot1: "Use slot 1",

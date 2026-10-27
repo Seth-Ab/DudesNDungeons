@@ -34,6 +34,7 @@ function player(name: string, overrides: Partial<PlayerState> = {}): PlayerState
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,

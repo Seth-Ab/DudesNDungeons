@@ -550,6 +550,15 @@ function performAction(action: GameplayAction): void {
       client.dropItem(item.id);
       return;
     }
+    case "torch": {
+      if (!self.carryingTorch) {
+        hud.setActionStatus("No torch to put out or light");
+        return;
+      }
+      if (self.torchLit) client.putOutTorch();
+      else client.lightTorch();
+      return;
+    }
     case "swapHeld": {
       const incoming = selectedItem(self.inventory);
       if (incoming) {

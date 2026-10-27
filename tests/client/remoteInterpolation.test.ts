@@ -35,6 +35,7 @@ function player(position: { x: number; y: number }, overrides: Partial<PlayerSta
     drawFraction: null,
     drawRange: null,
     carryingTorch: false,
+    torchLit: true,
     carryingPlayerId: null,
     carriedByPlayerId: null,
     seatId: null,

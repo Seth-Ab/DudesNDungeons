@@ -35,6 +35,7 @@ import {
   useItem,
   withdrawVaultItem,
 } from "./game/items.js";
+import { lightTorch, putOutTorch } from "./game/torches.js";
 import { hubStateMessage } from "./game/hubState.js";
 import { buySkillScroll, skillShopStockMessage } from "./game/shop.js";
 import { buyCosmetic, equipCosmetic, wardrobeCatalogMessage } from "./game/wardrobe.js";
@@ -73,6 +74,8 @@ const REFUSED_WHILE_DESIGNING: ReadonlySet<ClientMessageType> = new Set<ClientMe
   "buyCosmetic",
   "equipCosmetic",
   "dropItem",
+  "putOutTorch",
+  "lightTorch",
   "giveItem",
   "swapHeld",
   "withdrawVaultItem",
@@ -726,6 +729,8 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         message.type === "convertSkillScroll" ||
         message.type === "buySkillScroll" ||
         message.type === "dropItem" ||
+        message.type === "putOutTorch" ||
+        message.type === "lightTorch" ||
         message.type === "giveItem" ||
         message.type === "swapHeld" ||
         message.type === "withdrawVaultItem" ||
@@ -749,6 +754,10 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
                 ? buySkillScroll(member.session, playerId, message.itemId)
                 : message.type === "dropItem"
                 ? dropItem(member.session, playerId, message.itemId)
+                : message.type === "putOutTorch"
+                ? putOutTorch(member.session, playerId)
+                : message.type === "lightTorch"
+                ? lightTorch(member.session, playerId)
                 : message.type === "giveItem"
                   ? giveItem(member.session, playerId, message.itemId, message.targetPlayerId)
                   : message.type === "swapHeld"
