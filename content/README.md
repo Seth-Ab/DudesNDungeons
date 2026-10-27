@@ -55,6 +55,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,
   and spill beside it as ordinary loot. A `locked` chest spends the generic `copper-key`. Authored
   dungeons place chests with a `chests` list of `x`, `y`, `lootTableId`, and optional `locked`.
+  Twin-lock Chests, which two players open together, are placed by the generator in vaults, not by
+  content.
   A template gives `doorways` by hand, or `sockets: "midpoints"` for one doorway at the middle of
   each side (then omit `doorways`). `transform: true` lets the generator rotate and mirror it, and
   needs `sockets` and an odd width and height so the sockets stay on side midpoints. Optional

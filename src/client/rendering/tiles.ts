@@ -207,6 +207,9 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // Drawn at twice a loot sprite's size, so a reward spot reads from across the room.
   ["chest-closed", { tilesWide: 1, tilesHigh: 1 }],
   ["chest-open", { tilesWide: 1, tilesHigh: 1 }],
+  // A Twin-lock Chest: an iron band and two keyholes, and the same with the left one turned and lit.
+  ["chest-twin", { tilesWide: 1, tilesHigh: 1 }],
+  ["chest-twin-turned", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
   // A shrine altar: a slab with a plinth under each of two scrolls (they sit a world unit either
   // side of its centre), the cage that comes down over a plinth, and the candle that lights the room.

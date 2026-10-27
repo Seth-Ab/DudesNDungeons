@@ -122,8 +122,14 @@ export function altarInstance(offer: readonly string[], position: Vector2, id: s
   return { id, position: { ...position }, offer: [...offer], taken: null };
 }
 
-export function chestInstance(lootTableId: string, position: Vector2, id: string, locked: boolean): ChestState {
-  return { id, lootTableId, position: { ...position }, opened: false, locked };
+export function chestInstance(
+  lootTableId: string,
+  position: Vector2,
+  id: string,
+  locked: boolean,
+  twinLock = false,
+): ChestState {
+  return { id, lootTableId, position: { ...position }, opened: false, locked, twinLock, keyTurnedBy: null };
 }
 
 /** `count` is the stack size for ammo, clamped to its `maxStack`, and ignored for anything else. */

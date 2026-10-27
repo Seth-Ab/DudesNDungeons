@@ -454,8 +454,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v58, the version that added the candle light fixture", () => {
-    expect(PROTOCOL_VERSION).toBe(58);
+  it("is on protocol v59, the version that added the Twin-lock Chest", () => {
+    expect(PROTOCOL_VERSION).toBe(59);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1134,6 +1134,8 @@ describe("parseServerMessage", () => {
             position: { x: 2, y: 1 },
             opened: false,
             locked: true,
+            twinLock: false,
+            keyTurnedBy: null,
           },
         ],
         altars: [

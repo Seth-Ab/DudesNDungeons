@@ -769,14 +769,18 @@ export function createCanvasRenderer(
     drawSprite(itemSprite(loot), loot.position, 1, 1, camera);
   };
 
-  /** Two world units across, twice a loot sprite, with a padlock on its face while it is locked. */
+  /**
+   * Two world units across, twice a loot sprite, with a padlock on its face while it is locked. A
+   * twin lock shows its two keyholes, one lit while it is turned and waiting for a second player.
+   */
   const drawChest = (chest: ChestState, camera: Vector2): void => {
     if (!tileset.ready) {
       drawWorldRect(chest.position, 1.4, chest.opened ? colors.openChest : colors.chest, camera);
       return;
     }
 
-    drawSprite(chest.opened ? "chest-open" : "chest-closed", chest.position, 2, 2, camera);
+    const closed = !chest.twinLock ? "chest-closed" : chest.keyTurnedBy === null ? "chest-twin" : "chest-twin-turned";
+    drawSprite(chest.opened ? "chest-open" : closed, chest.position, 2, 2, camera);
     if (chest.locked) drawSprite("door-lock", chest.position, 1, 1, camera);
   };
 

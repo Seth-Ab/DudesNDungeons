@@ -40,6 +40,7 @@ import {
   trapInstance,
 } from "../dungeonBuilder.js";
 import type { Rng } from "../random.js";
+import { TWIN_LOCK_MIN_PARTY } from "../twinLocks.js";
 import { NO_OMEN_EFFECTS, type OmenEffects } from "./omens.js";
 import type { CarvedRoom, CarvedWorld } from "./carve.js";
 import type { LayoutGraph } from "./layout.js";
@@ -58,6 +59,8 @@ export const ELITE_COST = 4;
 const ELITE_MAX_BASE_COST = 2;
 /** Chest table for the boss room, and for any chest the design calls a vault chest. */
 const BOSS_CHEST_TABLE = "vault-chest";
+/** How often a vault's first chest is a Twin-lock Chest, for a party large enough to open one. */
+const TWIN_LOCK_CHANCE = 0.5;
 
 /** Threat a room of each kind starts from, before depth and party size scale it. */
 export const BASE_BUDGET: Readonly<Partial<Record<RoomKind, number>>> = { hall: 5, maze: 3, trap: 2, puzzle: 1, cavern: 4, arena: 7 };
@@ -332,11 +335,11 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     }
   };
   /** A chest in one of the room's deepest nooks, the floor tiles with the most walls round them. */
-  const dropChest = (room: CarvedRoom, tableId: string, chance: number): void => {
+  const dropChest = (room: CarvedRoom, tableId: string, chance: number, twinLock = false): void => {
     if (!rng.chance(Math.min(1, chance + omens.chestBonus))) return;
     const nooks = floorOf(room).sort((a, b) => wallCount(b) - wallCount(a));
     const tile = claim(nooks[rng.int(0, Math.min(3, nooks.length - 1))] ?? null);
-    if (tile) out.chests.push(chestInstance(requireTable(tableId).id, tile, rng.uuid(), false));
+    if (tile) out.chests.push(chestInstance(requireTable(tableId).id, tile, rng.uuid(), false, twinLock));
   };
 
   // Doors first: the boss door sits in the boss room's own socket, so nothing else may land there.
@@ -448,9 +451,11 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     }
 
     // A vault holds one or two vault chests in its darkest nooks and nothing else: no lights, no guards.
+    // With two or more players the first is sometimes a Twin-lock Chest; a solo party never sees one.
     if (kind === "vault") {
       const chests = rng.int(1, 2);
-      for (let index = 0; index < chests; index += 1) dropChest(room, BOSS_CHEST_TABLE, 1);
+      const twinLock = partySize >= TWIN_LOCK_MIN_PARTY && rng.chance(TWIN_LOCK_CHANCE);
+      for (let index = 0; index < chests; index += 1) dropChest(room, BOSS_CHEST_TABLE, 1, twinLock && index === 0);
     }
 
     // A shrine's altar offers two skill scrolls, picked by seed from those the party is not already

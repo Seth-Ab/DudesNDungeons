@@ -27,6 +27,7 @@ import { advanceCharge, advanceProjectiles, fireProjectile, startCharge } from "
 import { hasLineOfSight } from "./visibility.js";
 import { damageMonster } from "./monsterDamage.js";
 import { resolvePuzzles } from "./puzzles.js";
+import { resolveTwinLocks } from "./twinLocks.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
 import { advanceCamps } from "./camps.js";
@@ -227,6 +228,7 @@ export function simulate(session: Session, now: number): AttackEvent[] {
   advanceVitals(session, now, elapsedMs);
   resolveTraps(session, now);
   resolvePuzzles(session, now);
+  resolveTwinLocks(session, now);
   advanceCamps(session, now);
 
   const events: AttackEvent[] = [];

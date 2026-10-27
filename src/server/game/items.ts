@@ -28,6 +28,7 @@ import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { seatById, sitOn } from "./seats.js";
+import { turnTwinLock } from "./twinLocks.js";
 import { inVaultArea, storeInVault } from "./vault.js";
 import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
 
@@ -567,7 +568,7 @@ export function interact(
   if (door) return openDoor(player, door);
 
   const chest = session.dungeon.chests.find((candidate) => candidate.id === targetId);
-  if (chest) return openChest(session, player, chest);
+  if (chest) return openChest(session, player, chest, now);
 
   const seat = seatById(session, targetId);
   if (seat) return sitOn(session, player, seat);
@@ -647,13 +648,16 @@ const CHEST_SPILL_CLEARANCE = 1.5;
  * Opens a chest once: rolls its table from the session's drop stream and spills the result beside
  * it as ordinary loot. An opened chest stays open and refuses every later try, so it pays out once
  * however many players reach it. A locked one spends a key first, exactly as a locked door does.
+ * A twin-lock one only turns a keyhole until a second player turns the other inside the window.
  */
-function openChest(session: Session, player: SessionPlayer, chest: ChestState): ItemResult {
+function openChest(session: Session, player: SessionPlayer, chest: ChestState, now: number): ItemResult {
   if (!withinReach(player, chest.position)) return reject("outOfRange");
   if (chest.opened) return reject("notPermitted");
 
   const table = contentForSession(session).lootTables.get(chest.lootTableId);
   if (!table) return reject("notPermitted");
+
+  if (chest.twinLock && !turnTwinLock(session, player, chest, now)) return OK;
 
   if (chest.locked) {
     if (!spendKey(player, GENERIC_KEY_ITEM_ID)) return reject("notPermitted");

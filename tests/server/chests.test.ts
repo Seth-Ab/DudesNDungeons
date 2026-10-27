@@ -133,7 +133,15 @@ describe("opening a chest", () => {
 
     const near = visibilityFrameForPlayer(session, session.players.get("alpha")!);
     expect(near.dungeon.chests).toEqual([
-      { id: CHEST_ID, lootTableId: TWO_TONICS.id, position: at(4, 4), opened: false, locked: false },
+      {
+        id: CHEST_ID,
+        lootTableId: TWO_TONICS.id,
+        position: at(4, 4),
+        opened: false,
+        locked: false,
+        twinLock: false,
+        keyTurnedBy: null,
+      },
     ]);
     expect(JSON.stringify(visibilityFrameForPlayer(session, far))).not.toContain(CHEST_ID);
 

@@ -1075,6 +1075,46 @@
         "2*0000000000000000"
       ]
     },
+    "chest-twin": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "2*0000000000000000",
+        "0011111111111100",
+        "01cccccccccccc10",
+        "01dbbbbbbbbbbd10",
+        "01dbbbbbbbbbbd10",
+        "01ddiiddddiidd10",
+        "01dajjaaaajjad10",
+        "01dbiibbbbiibd10",
+        "01dbbbbbbbbbbd10",
+        "01dddddddddddd10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "0011111111111100",
+        "2*0000000000000000"
+      ]
+    },
+    "chest-twin-turned": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "2*0000000000000000",
+        "0011111111111100",
+        "01cccccccccccc10",
+        "01dbbbbbbbbbbd10",
+        "01dbbbbbbbbbbd10",
+        "01ddggddddiidd10",
+        "01dahhaaaajjad10",
+        "01dbggbbbbiibd10",
+        "01dbbbbbbbbbbd10",
+        "01dddddddddddd10",
+        "01dbbbbbbbbbbd10",
+        "01daaaaaaaaaad10",
+        "0011111111111100",
+        "2*0000000000000000"
+      ]
+    },
     "exit-stairs": {
       "tilesWide": 4,
       "tilesHigh": 4,

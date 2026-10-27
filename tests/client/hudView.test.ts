@@ -755,7 +755,7 @@ describe("action prompt", () => {
   });
 
   it("offers to open a closed chest, and to unlock a locked one", () => {
-    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: false, locked: false };
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: false, locked: false, twinLock: false, keyTurnedBy: null };
     const v = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) });
     expect(actionPrompt(v, self, origin)).toEqual({ action: "interact", keyHint: "E", text: "Open chest" });
 
@@ -763,8 +763,27 @@ describe("action prompt", () => {
     expect(actionPrompt(locked, self, origin)?.text).toBe("Unlock chest");
   });
 
+  it("asks for a twin lock's keyhole, then tells the turner to wait and an ally to turn the other", () => {
+    const chest = {
+      id: "chest",
+      lootTableId: "vault-chest",
+      position: { x: 0.5, y: 0 },
+      opened: false,
+      locked: false,
+      twinLock: true,
+      keyTurnedBy: null,
+    };
+    const promptFor = (keyTurnedBy: string | null) =>
+      actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [{ ...chest, keyTurnedBy }] }) }), self, origin)
+        ?.text;
+
+    expect(promptFor(null)).toBe("Turn a keyhole");
+    expect(promptFor(self.id)).toBe("Waiting for a second key");
+    expect(promptFor("someone-else")).toBe("Turn the other keyhole");
+  });
+
   it("skips an opened chest, but still offers the loot it spilled", () => {
-    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: true, locked: false };
+    const chest = { id: "chest", lootTableId: "common-chest", position: { x: 0.5, y: 0 }, opened: true, locked: false, twinLock: false, keyTurnedBy: null };
     expect(actionPrompt(view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest] }) }), self, origin)).toBeNull();
 
     const spilled = view({ ...inSession, players: [self], dungeon: dungeon({ chests: [chest], loot: [loot("Tonic", 0.9)] }) });
