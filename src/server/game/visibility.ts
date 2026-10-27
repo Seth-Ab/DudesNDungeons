@@ -466,10 +466,10 @@ function visibleDungeon(
     loot: session.dungeon.loot
       .filter((loot) => !loot.pickedUp && tileVisible(visible, loot.position))
       .map((loot) => ({ ...loot, position: { ...loot.position } })),
-    // A mimic is sent as a plain chest, and not at all once it has woken: the monster stands where it
-    // was, so the snapshot never says what the chest was until the fight starts.
+    // A mimic is sent as a plain chest, opened once it has woken like any other, so the snapshot never
+    // says what the chest was before the fight and a remembered minimap icon flips to opened.
     chests: session.dungeon.chests
-      .filter((chest) => tileVisible(visible, chest.position) && !(chest.mimic && chest.opened))
+      .filter((chest) => tileVisible(visible, chest.position))
       .map((chest) => ({ ...chest, position: { ...chest.position }, mimic: false })),
     altars: session.dungeon.altars
       .filter((altar) => tileVisible(visible, altar.position))

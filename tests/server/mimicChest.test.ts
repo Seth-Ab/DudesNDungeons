@@ -4,6 +4,9 @@ import type { LootTableDefinition } from "../../src/server/content/schema.js";
 import { chestInstance } from "../../src/server/game/dungeonBuilder.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { interact } from "../../src/server/game/items.js";
+import { NO_MARKERS, rememberMarkers } from "../../src/client/state/minimap.js";
+import type { ChestState } from "../../src/shared/types/core.js";
+import { isOpen } from "../../src/shared/game/movement.js";
 import { damageMonster } from "../../src/server/game/monsterDamage.js";
 import { lootRngFor } from "../../src/server/game/monsterLoot.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
@@ -60,8 +63,34 @@ describe("a Mimic Chest", () => {
 
     const frame = visibilityFrameForPlayer(session, session.players.get("alpha")!).dungeon;
     expect(frame.monsters.map((monster) => monster.id)).toContain(CHEST_ID);
-    // The chest is gone from the snapshot; the monster stands in its place.
-    expect(frame.chests.map((chest) => chest.id)).not.toContain(CHEST_ID);
+    // The chest is still sent, opened like any other, so a remembered minimap icon stops showing it closed.
+    expect(frame.chests.find((chest) => chest.id === CHEST_ID)).toMatchObject({ opened: true, mimic: false });
+  });
+
+  it("flips a remembered minimap icon to opened once it wakes, without marking it a mimic", () => {
+    const session = vaultWithMimic();
+    const alpha = session.players.get("alpha")!;
+    const seen = (): ChestState[] => visibilityFrameForPlayer(session, alpha).dungeon.chests;
+
+    const before = rememberMarkers(NO_MARKERS, "run", { exits: [], chests: seen() });
+    expect(before.chests.get(CHEST_ID)?.opened).toBe(false);
+
+    interact(session, "alpha", CHEST_ID);
+    const after = rememberMarkers(before, "run", { exits: [], chests: seen() });
+    expect(after.chests.get(CHEST_ID)?.opened).toBe(true);
+  });
+
+  it("wakes clear of a player standing on the chest, who can then walk away", () => {
+    const session = vaultWithMimic();
+    const alpha = session.players.get("alpha")!;
+    alpha.position = at(4, 4);
+
+    expect(interact(session, "alpha", CHEST_ID)).toEqual({ ok: true });
+
+    const woken = session.dungeon.monsters.find((monster) => monster.id === CHEST_ID)!;
+    expect(Math.hypot(woken.position.x - alpha.position.x, woken.position.y - alpha.position.y)).toBeGreaterThanOrEqual(0.7);
+    const step = { x: alpha.position.x + 0.1, y: alpha.position.y };
+    expect(isOpen(session.dungeon, [], step, alpha.position)).toBe(true);
   });
 
   it("refuses a second open and wakes only one mimic", () => {
