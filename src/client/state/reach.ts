@@ -112,9 +112,10 @@ export function nearestInteraction(
         choiceItemId: null,
         gap: distance(position, chest.position),
       })),
-    // A lit switch stays lit, so it is a target only while it is still dark.
+    // A lit switch stays lit, and only a brazier takes a torch (the server refuses the rest), so a
+    // switch is a target only while it is a dark brazier.
     ...view.dungeon.switches
-      .filter((lever) => !lever.active)
+      .filter((lever) => !lever.active && lever.kind === "brazier")
       .map((lever) => ({
         id: lever.id,
         name: lever.kind,

@@ -521,6 +521,21 @@ describe("rebound keys", () => {
     expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
   });
 
+  it("prompts a torch carrier to light a dark brazier but not a bell or lever", () => {
+    const carrier = player("Maya", { id: SELF_ID, carryingTorch: true });
+    const lit = (kind: string) =>
+      view({
+        ...inSession,
+        players: [carrier],
+        dungeon: dungeon({
+          switches: [{ id: kind, kind, groupId: "g", position: { x: 0.5, y: 0 }, active: false }],
+        } as unknown as Partial<DungeonState>),
+      });
+    expect(actionPrompt(lit("brazier"), carrier, origin)).toMatchObject({ action: "interact", text: "Light the brazier" });
+    expect(actionPrompt(lit("bell"), carrier, origin)).toBeNull();
+    expect(actionPrompt(lit("lever"), carrier, origin)).toBeNull();
+  });
+
   it("prompts to give the held item to a standing ally in reach, and not to a downed one", () => {
     const ally = player("Rook", { position: { x: 0.5, y: 0 } });
     const standing = view({ ...inSession, players: [self, ally], dungeon: dungeon() });
