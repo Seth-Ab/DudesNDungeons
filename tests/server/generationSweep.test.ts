@@ -175,3 +175,60 @@ describe("how often a run has a vault", () => {
     }
   });
 });
+
+describe("the Twin-lock Chest", () => {
+  const SEEDS = 300;
+  const inRoom = (room: BuiltDungeon["dungeon"]["rooms"][number], point: { x: number; y: number }): boolean =>
+    point.x >= room.x && point.x < room.x + room.width && point.y >= room.y && point.y < room.y + room.height;
+  const runs = (partySize: number): BuiltDungeon[] =>
+    Array.from({ length: SEEDS }, (_, seed) => generateDungeon(delveProfile, content, seed, partySize));
+  const twinLocked = (built: BuiltDungeon) => built.dungeon.chests.filter((chest) => chest.twinLock);
+
+  it("never appears for a solo party", () => {
+    for (const built of runs(1)) expect(twinLocked(built)).toEqual([]);
+  });
+
+  it.each([2, 3, 4])("appears in some vaults for a party of %i, one at most, and every run validates", (partySize) => {
+    let vaults = 0;
+    let found = 0;
+    for (const built of runs(partySize)) {
+      const vault = built.dungeon.rooms.find((room) => room.kind === "vault");
+      const locks = twinLocked(built);
+      if (vault) vaults += 1;
+      found += locks.length;
+      expect(locks.length).toBeLessThanOrEqual(1);
+      for (const chest of locks) {
+        expect(vault && inRoom(vault, chest.position)).toBe(true);
+        expect(chest).toMatchObject({ lootTableId: "vault-chest", locked: false, opened: false, keyTurnedBy: null });
+      }
+      expect(validateDungeon(built, content, partySize)).toEqual([]);
+    }
+    // About half of all vaults, well clear of none and all.
+    expect(found).toBeGreaterThan(vaults * 0.3);
+    expect(found).toBeLessThan(vaults * 0.7);
+  }, 30_000);
+
+  const firstTwinLocked = (): BuiltDungeon => {
+    const built = runs(2).find((run) => twinLocked(run).length > 0);
+    expect(built).toBeDefined();
+    return built!;
+  };
+
+  it("is rejected by validation for a party too small to open it", () => {
+    expect(validateDungeon(firstTwinLocked(), content, 1)).toContain("a twin-lock chest needs 2 players, not 1");
+  });
+
+  it("is rejected by validation when no one can reach it", () => {
+    const built = firstTwinLocked();
+    // Without an elite there is no vault key, so the vault and the chest in it stay shut.
+    const keyless: BuiltDungeon = {
+      ...built,
+      dungeon: { ...built.dungeon, monsters: built.dungeon.monsters.map((monster) => ({ ...monster, elite: false })) },
+    };
+    const chest = twinLocked(built)[0]!;
+
+    expect(validateDungeon(keyless, content, 2)).toContain(
+      `the twin-lock chest at ${chest.position.x},${chest.position.y} cannot be reached`,
+    );
+  });
+});

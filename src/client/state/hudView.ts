@@ -764,6 +764,19 @@ export interface ActionPromptView {
 }
 
 /**
+ * A twin lock asks for a keyhole; once one is turned, it tells the turner to wait for an ally and
+ * anyone else to turn the other. Turning again only restarts the turner's own second.
+ */
+function chestPromptText(view: SessionView, selfId: string, chestId: string, locked: boolean): string {
+  const chest = view.dungeon?.chests.find((candidate) => candidate.id === chestId);
+  if (chest?.twinLock) {
+    if (chest.keyTurnedBy === null) return "Turn a keyhole";
+    return chest.keyTurnedBy === selfId ? "Waiting for a second key" : "Turn the other keyhole";
+  }
+  return locked ? "Unlock chest" : "Open chest";
+}
+
+/**
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
@@ -804,7 +817,7 @@ export function actionPrompt(
 
   const target = nearestInteraction(view, position);
   if (target?.kind === "door") return prompt("interact", doorPromptText(target.lock, self.inventory));
-  if (target?.kind === "chest") return prompt("interact", target.locked ? "Unlock chest" : "Open chest");
+  if (target?.kind === "chest") return prompt("interact", chestPromptText(view, self.id, target.id, target.locked));
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }

@@ -118,6 +118,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.projectileRuns.clear();
   session.trapRearmAt.clear();
   session.puzzleHeldSince.clear();
+  session.twinLockTurns.clear();
   session.flareExpiresAt.clear();
   session.campSeatedSince.clear();
   session.campsRested.clear();

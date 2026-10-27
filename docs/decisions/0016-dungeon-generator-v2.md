@@ -81,7 +81,8 @@ room or locks never placed are rejected):
 - collecting keys and solving puzzles in any reachable order opens a route to the exit, and every
   room is reachable by the end;
 - the first spawn point stands inside a light;
-- no puzzle needs more plates held than the party has players plus Ballast Stones.
+- no puzzle needs more plates held than the party has players plus Ballast Stones;
+- a Twin-lock Chest appears only for a party of two or more, and is reachable once keys are spent.
 
 ### Differences from the design
 
@@ -102,6 +103,11 @@ room or locks never placed are rejected):
   is never placed on the floor); validation reads its tile as the place the key is picked up, so a
   key carried inside or behind the vault door fails. If no layout in the first 120 attempts holds
   a vault the run builds without one rather than fail.
+- Twin-lock Chests (#292): for a party of two or more, half of all vaults make their first chest a
+  twin lock (`TWIN_LOCK_CHANCE`), which opens only when two players interact within a second of
+  each other (`src/server/game/twinLocks.ts`). A solo party never gets one, and no Ballast-Stone
+  equivalent stands in for the second hand. Secret rooms are not generated yet, so vaults are its
+  only home.
 - Only today's room kinds, plus vaults, are generated. Shrines, camps, secrets and arenas (the rest
   of Phase 2) and omens (Phase 3) are not part of this record.
 - `ember-vault` stays an authored map that tests build on. The old `generated` chain layout

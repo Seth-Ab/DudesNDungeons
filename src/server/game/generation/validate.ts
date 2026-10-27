@@ -11,7 +11,8 @@
  * - collecting keys and solving puzzles in whatever order they become reachable opens a route to
  *   the exit, and every room is reachable by the end;
  * - the first spawn point stands inside a light, so the party does not arrive in the dark;
- * - no puzzle needs more plates held than the party has players plus Ballast Stones.
+ * - no puzzle needs more plates held than the party has players plus Ballast Stones;
+ * - a Twin-lock Chest appears only for a party that can open it, and they can reach it.
  *
  * Pure: it reads the dungeon and changes nothing.
  */
@@ -19,6 +20,7 @@ import { ELITE_KEY_ITEM_ID, TILE_SCALE } from "../../../shared/constants/game.js
 import type { RoomState, Vector2 } from "../../../shared/types/core.js";
 import type { GameContent } from "../../content/loadContent.js";
 import type { BuiltDungeon } from "../dungeonBuilder.js";
+import { TWIN_LOCK_MIN_PARTY } from "../twinLocks.js";
 
 const FLOOR = ".";
 const STEPS: readonly Vector2[] = [
@@ -159,6 +161,13 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
 
   for (const puzzle of dungeon.puzzles) {
     if (!solved.has(puzzle.id)) errors.push(`puzzle ${puzzle.typeId} cannot be reached`);
+  }
+  // Two players turn a twin lock from beside it, so it needs two of them and a way to it. A chest
+  // sits on an authored tile, which scales to a block of open floor with room for both to stand.
+  for (const chest of dungeon.chests) {
+    if (!chest.twinLock) continue;
+    if (partySize < TWIN_LOCK_MIN_PARTY) errors.push(`a twin-lock chest needs ${TWIN_LOCK_MIN_PARTY} players, not ${partySize}`);
+    if (!reach.has(key(chest.position))) errors.push(`the twin-lock chest at ${key(chest.position)} cannot be reached`);
   }
   if (!reach.has(key(exit.position))) errors.push("the exit is unreachable after every key and puzzle");
   for (const room of dungeon.rooms) {

@@ -42,6 +42,7 @@ import type { DummyHit } from "../game/dummies.js";
 import type { Draw } from "../game/bow.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
+import type { TwinLockTurn } from "../game/twinLocks.js";
 import type { Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
@@ -206,6 +207,8 @@ export interface Session {
   trapRearmAt: Map<EntityId, number>;
   /** When each puzzle's plates all became held at once. Absent while any plate is free. */
   puzzleHeldSince: Map<EntityId, number>;
+  /** The first keyhole turned on each twin-lock chest waiting for a second player. Server-side only. */
+  twinLockTurns: Map<EntityId, TwinLockTurn>;
   /** When each burning flare in `dungeon.lightSources` goes out. Server-side only. */
   flareExpiresAt: Map<EntityId, number>;
   /**
@@ -377,6 +380,7 @@ export class SessionStore {
       projectileRuns: new Map(),
       trapRearmAt: new Map(),
       puzzleHeldSince: new Map(),
+      twinLockTurns: new Map(),
       flareExpiresAt: new Map(),
       campSeatedSince: new Map(),
       campsRested: new Set(),

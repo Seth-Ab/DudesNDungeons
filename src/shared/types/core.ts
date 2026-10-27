@@ -48,6 +48,9 @@ export type Vector2 = z.infer<typeof vector2Schema>;
 export const entityIdSchema = z.string().uuid();
 export type EntityId = z.infer<typeof entityIdSchema>;
 
+export const playerIdSchema = z.string().uuid();
+export type PlayerId = z.infer<typeof playerIdSchema>;
+
 /**
  * The map as a holder of it sees it.
  *
@@ -403,6 +406,16 @@ export const chestStateSchema = z.object({
   position: vector2Schema,
   opened: z.boolean(),
   locked: z.boolean(),
+  /**
+   * A Twin-lock Chest has two keyholes and opens only when two different players interact with it
+   * within a second of each other. Defaulted so a run saved before it existed still loads.
+   */
+  twinLock: z.boolean().default(false),
+  /**
+   * Who turned one keyhole of a twin lock, while it waits for a second player; null otherwise. Public
+   * so the turner is told to wait and an ally is told to turn the other.
+   */
+  keyTurnedBy: playerIdSchema.nullable().default(null),
 });
 export type ChestState = z.infer<typeof chestStateSchema>;
 
@@ -683,9 +696,6 @@ export type DungeonSnapshot = z.infer<typeof dungeonSnapshotSchema>;
 /** The whole party shares one place; fresh players may only join while it is the hub. */
 export const sessionLocationSchema = z.enum(["hub", "dungeon"]);
 export type SessionLocation = z.infer<typeof sessionLocationSchema>;
-
-export const playerIdSchema = z.string().uuid();
-export type PlayerId = z.infer<typeof playerIdSchema>;
 
 export const sessionIdSchema = z.string().uuid();
 export type SessionId = z.infer<typeof sessionIdSchema>;

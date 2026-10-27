@@ -350,6 +350,9 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   session.trapRearmAt = due(run.trapRearmInMs, now);
   session.puzzleHeldSince = new Map(Object.entries(run.puzzleHeldForMs).map(([id, heldFor]) => [id, now - heldFor]));
   session.flareExpiresAt = due(run.flareExpiresInMs, now);
+  // A turned keyhole lasts a second, so it is not saved: every twin lock loads with both unturned.
+  session.twinLockTurns = new Map();
+  for (const chest of session.dungeon.chests) chest.keyTurnedBy = null;
   // Seats are not saved, so everyone stands on load and a camp's countdown starts over.
   session.campSeatedSince = new Map();
   session.campsRested = new Set(run.campsRested);
