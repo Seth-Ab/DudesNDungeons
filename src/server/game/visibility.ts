@@ -494,6 +494,9 @@ function visibleDungeon(
           .map((plate) => ({ ...plate, position: { ...plate.position } })),
       }))
       .filter((puzzle) => puzzle.plates.length > 0),
+    switches: session.dungeon.switches
+      .filter((lever) => tileVisible(visible, lever.position))
+      .map((lever) => ({ ...lever, position: { ...lever.position } })),
     doors: session.dungeon.doors
       .filter((door) => {
         const tile = tileOf(door.position);

@@ -18,6 +18,7 @@ import type {
   InventoryItem,
   LootState,
   PlayerId,
+  SwitchState,
   Vector2,
 } from "../../shared/types/core.js";
 import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
@@ -31,6 +32,7 @@ import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { seatById, sitOn } from "./seats.js";
+import { lightSwitch } from "./switches.js";
 import { turnTwinLock } from "./twinLocks.js";
 import { inVaultArea, storeInVault } from "./vault.js";
 import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
@@ -576,6 +578,9 @@ export function interact(
   const door = session.dungeon.doors.find((candidate) => candidate.id === targetId);
   if (door) return openDoor(player, door);
 
+  const lever = session.dungeon.switches.find((candidate) => candidate.id === targetId);
+  if (lever) return lightBrazier(session, player, lever);
+
   const chest = session.dungeon.chests.find((candidate) => candidate.id === targetId);
   if (chest) return openChest(session, player, chest, now);
 
@@ -624,12 +629,18 @@ function takeFromAltar(
   return OK;
 }
 
+/** Lights a switch: needs reach and, for a brazier, a carried torch. A lit one refuses a second light. */
+function lightBrazier(session: Session, player: SessionPlayer, lever: SwitchState): ItemResult {
+  if (!withinReach(player, lever.position)) return reject("outOfRange");
+  return lightSwitch(session, player, lever) ? OK : reject("notPermitted");
+}
+
 function openDoor(player: SessionPlayer, door: DoorState): ItemResult {
   if (!withinReachOfDoor(player, door)) return reject("outOfRange");
   if (door.open) return reject("notPermitted");
 
   if (door.lock) {
-    // Only a key lock opens by interacting; seal and hidden locks are opened some other way.
+    // Only a key lock opens by interacting; a seal lock opens when its switches are lit.
     if (door.lock.type !== "key") return reject("notPermitted");
     if (!spendKey(player, door.lock.keyItemId)) return reject("notPermitted");
     door.lock = null;

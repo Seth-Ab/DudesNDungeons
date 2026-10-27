@@ -643,6 +643,7 @@ export function generateDungeon(
       altars: [],
       traps,
       puzzles,
+      switches: [],
       doors,
       exits,
       lightSources,

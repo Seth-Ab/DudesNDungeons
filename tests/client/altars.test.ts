@@ -22,7 +22,7 @@ function viewWith(altars: AltarState[]): SessionView {
     location: "dungeon",
     players: [self],
     visiblePlayerIds: [SELF_ID],
-    dungeon: { map: { name: "Test", width: 4, height: 4, tiles: [] }, monsters: [], loot: [], chests: [], altars, doors: [], exits: [], rooms: [] } as unknown as DungeonState,
+    dungeon: { map: { name: "Test", width: 4, height: 4, tiles: [] }, monsters: [], loot: [], chests: [], altars, doors: [], switches: [], exits: [], rooms: [] } as unknown as DungeonState,
   };
 }
 

@@ -322,6 +322,7 @@ export function buildAuthoredDungeon(
       altars: [],
       traps,
       puzzles,
+      switches: [],
       doors,
       exits,
       lightSources,

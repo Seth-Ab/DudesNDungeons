@@ -213,6 +213,7 @@ export function generateDelve(
           altars: populated.altars,
           traps: populated.traps,
           puzzles: populated.puzzles,
+          switches: [],
           doors: populated.doors,
           exits: populated.exits,
           lightSources: populated.lightSources,

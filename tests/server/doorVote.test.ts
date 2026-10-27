@@ -6,6 +6,7 @@ import { generateDungeon } from "../../src/server/game/dungeonGenerator.js";
 import { DEFAULT_DUNGEON_ID } from "../../src/server/game/dungeonState.js";
 import { validateDungeon } from "../../src/server/game/generation/validate.js";
 import { interact } from "../../src/server/game/items.js";
+import { openSealedDoors } from "../../src/server/game/switches.js";
 import { resolvePuzzles } from "../../src/server/game/puzzles.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
@@ -314,5 +315,56 @@ describe("Door Vote saves", () => {
     resolvePuzzles(session, type.holdMs);
     expect(vote.phase).toBe("idle");
     expect(vote.progress).toBe(0);
+  });
+});
+
+describe("Door Vote and switch seal doors", () => {
+  const SWITCH_DOOR = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const BRAZIER = "a2000000-0000-4000-8000-000000000001";
+
+  function withBoth() {
+    const base = withVote(3);
+    base.session.dungeon.doors.push({
+      id: SWITCH_DOOR,
+      position: at(8, 1),
+      size: 1,
+      open: false,
+      lock: { type: "seal", groupId: "braziers" },
+    });
+    base.session.dungeon.switches.push({
+      id: BRAZIER,
+      kind: "brazier",
+      position: at(8, 8),
+      groupId: "braziers",
+      active: false,
+    });
+    return base;
+  }
+
+  it("opens a vote door by its vote alone, never by lighting a switch group", () => {
+    const { session, leftPlates, stand } = withBoth();
+    session.dungeon.switches[0]!.active = true;
+    openSealedDoors(session);
+
+    expect(doorOf(session, SWITCH_DOOR)).toMatchObject({ open: true, lock: null });
+    expect(doorOf(session, LEFT_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "door-vote" } });
+    expect(doorOf(session, RIGHT_DOOR).open).toBe(false);
+
+    stand(leftPlates);
+    resolvePuzzles(session, 1000);
+    resolvePuzzles(session, 1000 + type.holdMs);
+    expect(doorOf(session, LEFT_DOOR)).toMatchObject({ open: true, lock: null });
+    expect(doorOf(session, RIGHT_DOOR).open).toBe(false);
+  });
+
+  it("opens a switch door by its switches alone, never by a vote", () => {
+    const { session, leftPlates, stand } = withBoth();
+    stand(leftPlates);
+    resolvePuzzles(session, 1000);
+    resolvePuzzles(session, 1000 + type.holdMs);
+    openSealedDoors(session);
+
+    expect(doorOf(session, LEFT_DOOR).open).toBe(true);
+    expect(doorOf(session, SWITCH_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "braziers" } });
   });
 });
