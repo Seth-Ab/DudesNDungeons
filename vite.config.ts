@@ -6,6 +6,7 @@ export default defineConfig({
     emptyOutDir: false,
   },
   server: {
-    port: 5173,
+    // Overridable so parallel worktrees can each run the browser suite on their own ports.
+    port: Number(process.env.CLIENT_PORT ?? 5173),
   },
 });

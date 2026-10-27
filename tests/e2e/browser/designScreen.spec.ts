@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { trackContexts } from "./contexts.js";
+import { GAME_SOCKET } from "./ports.js";
 
 type Sent = { type?: string; appearance?: Record<string, string> };
 
@@ -7,7 +8,7 @@ const CHOICE = { body: "girl", skinTone: "tan", hairStyle: "bun", hairColor: "gi
 
 /** Opens a page that records every message it sends and every player entry it is sent. */
 async function openRecordedPage(page: Page, sent: Sent[], seen: Array<{ name: string; appearance: unknown }>) {
-  await page.routeWebSocket(/:8080/, (socket) => {
+  await page.routeWebSocket(GAME_SOCKET, (socket) => {
     const server = socket.connectToServer();
     socket.onMessage((message) => {
       if (typeof message === "string") sent.push(JSON.parse(message) as Sent);

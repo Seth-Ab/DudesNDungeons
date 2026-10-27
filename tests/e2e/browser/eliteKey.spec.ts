@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { walkTo } from "./walk.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /** The hub gate in world units, and the road up to it from the spawn beside the fountain. */
 const GATE = { x: 45.5, y: 5.5 };
@@ -27,7 +28,7 @@ interface Frame {
 async function standEliteBeside(page: Page): Promise<{ frames: () => number; stand: () => void }> {
   let frames = 0;
   let standing = false;
-  await page.routeWebSocket(/:8080/, (client) => {
+  await page.routeWebSocket(GAME_SOCKET, (client) => {
     const server = client.connectToServer();
     client.onMessage((message) => server.send(message));
     server.onMessage((message) => {

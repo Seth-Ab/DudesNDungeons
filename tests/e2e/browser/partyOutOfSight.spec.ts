@@ -1,5 +1,6 @@
 import { expect, test, type Browser } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /**
  * Two real clients against the real server. The hub is lit end to end, so the host cannot lose sight
@@ -17,7 +18,7 @@ async function openPlayer(browser: Browser, errors: string[], hideOthers?: { on:
 
   if (hideOthers) {
     let selfId: string | null = null;
-    await page.routeWebSocket(/:8080/, (socket) => {
+    await page.routeWebSocket(GAME_SOCKET, (socket) => {
       const server = socket.connectToServer();
       socket.onMessage((message) => server.send(message));
       server.onMessage((message) => {

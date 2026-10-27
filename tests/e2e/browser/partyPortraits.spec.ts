@@ -1,5 +1,6 @@
 import { expect, test, type Browser } from "@playwright/test";
 import { enterHub } from "./designScreen.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /**
  * A teammate who joins but has not finished designing their character. There is no design screen
@@ -18,7 +19,7 @@ async function openPlayer(browser: Browser, errors: string[]) {
 
   let held: (() => void) | null = null;
   let holding = false;
-  await page.routeWebSocket(/:8080/, (socket) => {
+  await page.routeWebSocket(GAME_SOCKET, (socket) => {
     const server = socket.connectToServer();
     socket.onMessage((message) => {
       if (typeof message !== "string") return server.send(message);
