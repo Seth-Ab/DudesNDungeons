@@ -15,6 +15,7 @@ import type {
   FlowDefinition,
   RoomKind,
 } from "../../content/schema.js";
+import type { DoorVoteIcon } from "../../../shared/constants/game.js";
 import type { Rng } from "../random.js";
 import type { LayoutGraph } from "./layout.js";
 
@@ -42,6 +43,15 @@ export interface RoleAssignment {
     readonly typeId: string;
     readonly rewardsBossKey: boolean;
   }[];
+  /**
+   * A Door Vote at a junction: the room whose branch doorways are voted on, each with the branch it
+   * leads to and a hint of what lies in it. Null when the run asked for none or no junction fits.
+   */
+  readonly doorVote: {
+    readonly nodeId: number;
+    readonly typeId: string;
+    readonly doors: readonly { readonly toNodeId: number; readonly icon: DoorVoteIcon }[];
+  } | null;
 }
 
 type RoleFlow = Pick<FlowDefinition, "bossLock" | "keySource">;
@@ -92,6 +102,63 @@ function hopsFromEntrance(adjacent: readonly number[][]): number[] {
   return dist;
 }
 
+/** Room kinds a Door Vote may not stand in: the party arrives, fights, or is locked in there. */
+const NO_VOTE_KINDS: readonly RoomKind[] = ["entrance", "boss", "exit", "vault", "puzzle", "shrine"];
+
+/** What a branch's rooms hint at, loudest first: a shrine, a fight, then loot, else a plain room. */
+function iconFor(kinds: readonly RoomKind[]): DoorVoteIcon {
+  if (kinds.includes("shrine")) return "shrine";
+  if (kinds.some((kind) => kind === "trap" || kind === "arena")) return "danger";
+  if (kinds.includes("maze")) return "loot";
+  return "unknown";
+}
+
+/**
+ * The junction a Door Vote goes in: the first room on the path, past the entrance, with two or more
+ * branches growing from it. Each voted doorway leads into a branch that nothing the run needs lies
+ * in (the boss key, the vault and its elite, a puzzle) and that never rejoins the path, so
+ * whichever door the party picks, the way on stays open. The path doorways are never voted.
+ */
+function doorVoteJunction(
+  graph: LayoutGraph,
+  adjacent: readonly number[][],
+  roles: readonly RoomKind[],
+  mustStayOpen: ReadonlySet<number>,
+  typeId: string,
+): RoleAssignment["doorVote"] {
+  for (const node of graph.nodes) {
+    if (node.pathIndex < 1 || node.pathIndex >= graph.pathLength - 1 || NO_VOTE_KINDS.includes(roles[node.id]!)) continue;
+    const roots = graph.edges
+      .filter((edge) => edge.kind === "open" && (edge.a === node.id || edge.b === node.id))
+      .map((edge) => (edge.a === node.id ? edge.b : edge.a))
+      .filter((other) => graph.nodes[other]!.pathIndex === -1);
+    if (roots.length < 2) continue;
+
+    const doors: { toNodeId: number; icon: DoorVoteIcon }[] = [];
+    let fits = true;
+    for (const root of roots) {
+      const seen = new Set([node.id, root]);
+      const queue = [root];
+      for (let head = 0; head < queue.length; head += 1) {
+        for (const next of adjacent[queue[head]!]!) {
+          if (seen.has(next)) continue;
+          seen.add(next);
+          queue.push(next);
+        }
+      }
+      seen.delete(node.id);
+      const branch = [...seen];
+      if (branch.some((id) => graph.nodes[id]!.pathIndex !== -1 || mustStayOpen.has(id) || roles[id] === "puzzle")) {
+        fits = false;
+        break;
+      }
+      doors.push({ toNodeId: root, icon: iconFor(branch.map((id) => roles[id]!)) });
+    }
+    if (fits) return { nodeId: node.id, typeId, doors };
+  }
+  return null;
+}
+
 /**
  * Assigns a room kind to every node and places the boss lock and key. Returns null when the
  * layout cannot hold them: the flow asks for a lock this stage cannot build, no free dead end lies
@@ -105,6 +172,7 @@ export function assignRoles(
   biome: RoleBiome,
   wantVault = false,
   shrineChance = DEFAULT_SHRINE_CHANCE,
+  doorVoteTypeId: string | null = null,
 ): RoleAssignment | null {
   if (flow.bossLock !== "key") return null;
   const { nodes, pathLength } = graph;
@@ -236,11 +304,14 @@ export function assignRoles(
     };
   }
 
+  const finalRoles = roles as RoomKind[];
+  const mustStayOpen = new Set([holder.id, ...(vault ? [vault.nodeId, vault.eliteNodeId] : [])]);
   return {
-    roles: roles as RoomKind[],
+    roles: finalRoles,
     bossLock: { from: lockRoom, to: bossId },
     bossKey: { nodeId: holder.id, via },
     puzzles,
     vault,
+    doorVote: doorVoteTypeId ? doorVoteJunction(graph, adjacent, finalRoles, mustStayOpen, doorVoteTypeId) : null,
   };
 }

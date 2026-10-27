@@ -15,6 +15,10 @@ import { contentForSession, progressionEffectTotal } from "./progression.js";
  * player at the same moment and they all stay held for the required time. The server decides who
  * is holding what from where it has put each player; the client never says it pulled anything.
  *
+ * A Door Vote (`heldBy: "doors"`) has a group of plates before each voted doorway. The party commits
+ * to a door by standing on that door's plates, every standing player of them, and holding it. The
+ * door they chose opens and the others stay sealed for the rest of the run.
+ *
  * An Idol Carry puzzle (`heldBy: "idol"`) has one plate, its altar, which only a Heavy Idol lying
  * on it holds. Players never do, so the hold is the idol staying on the altar, and the altar keeps
  * the idol once it is solved.
@@ -58,7 +62,8 @@ function holders(session: Session, puzzle: PuzzleState, players: SessionPlayer[]
 
   return puzzle.plates.map((plate): Holder => {
     if (puzzle.heldBy === "idol") return lyingOn(session, puzzle, plate, "idol") ? "idol" : null;
-    if (lyingOn(session, puzzle, plate, "ballast")) return "ballast";
+    // A vote is the players' own, so a stone lying on a plate casts none.
+    if (puzzle.heldBy !== "doors" && lyingOn(session, puzzle, plate, "ballast")) return "ballast";
 
     let best: SessionPlayer | null = null;
     let bestDistance = Infinity;
@@ -73,6 +78,54 @@ function holders(session: Session, puzzle: PuzzleState, players: SessionPlayer[]
     if (best) taken.add(best.id);
     return best;
   });
+}
+
+/**
+ * Steps one Door Vote. A door is chosen once every standing, connected player is holding one of
+ * its plates, so a party of three needs three plates and a vote survives a player who left or
+ * went down. Splitting between doors, or stepping off, resets the hold. Returns true once the door
+ * has opened.
+ */
+function resolveDoorVote(
+  session: Session,
+  puzzle: PuzzleState,
+  type: PuzzleType,
+  players: SessionPlayer[],
+  now: number,
+): boolean {
+  // The door held last tick, read before the plates are restamped, so the timer itself can stay
+  // keyed by puzzle id like every other hold and a save never has to name a door.
+  const heldBefore = new Set(puzzle.plates.filter((plate) => plate.held).map((plate) => plate.doorId));
+  const assigned = holders(session, puzzle, players);
+  puzzle.plates.forEach((plate, index) => {
+    plate.held = assigned[index] !== null;
+  });
+
+  const doorIds = [...new Set(puzzle.plates.map((plate) => plate.doorId ?? ""))];
+  const heldOn = (doorId: string): number =>
+    puzzle.plates.filter((plate, index) => plate.doorId === doorId && assigned[index] !== null).length;
+  const chosen = players.length > 0 ? doorIds.find((doorId) => heldOn(doorId) === players.length) : undefined;
+
+  // Stepping off, or shifting to another door, starts the hold over.
+  if (chosen === undefined || (heldBefore.size > 0 && !heldBefore.has(chosen))) session.puzzleHeldSince.delete(puzzle.id);
+  if (chosen === undefined) {
+    puzzle.progress = 0;
+    return false;
+  }
+
+  const since = session.puzzleHeldSince.get(puzzle.id) ?? now;
+  session.puzzleHeldSince.set(puzzle.id, since);
+  puzzle.progress = Math.min(1, Math.max(0, (now - since) / type.holdMs));
+  if (puzzle.progress < 1) return false;
+
+  session.puzzleHeldSince.delete(puzzle.id);
+  const door = session.dungeon.doors.find((candidate) => candidate.id === chosen);
+  if (door) {
+    door.lock = null;
+    door.open = true;
+  }
+  puzzle.phase = "solved";
+  return true;
 }
 
 /**
@@ -103,6 +156,11 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     const type = content.puzzles.get(puzzle.typeId);
     if (!type) throw new Error(`No puzzle type "${puzzle.typeId}"`);
 
+    if (puzzle.heldBy === "doors") {
+      if (resolveDoorVote(session, puzzle, type, players, now)) solved.push(puzzle);
+      continue;
+    }
+
     const assigned = holders(session, puzzle, players);
     puzzle.plates.forEach((plate, index) => {
       plate.held = assigned[index] !== null;
@@ -127,7 +185,7 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     puzzle.progress = Math.min(1, Math.max(0, (now - since) / required));
     if (puzzle.progress < 1) continue;
 
-    const reward = content.items.get(type.rewardItemId);
+    const reward = type.rewardItemId === undefined ? undefined : content.items.get(type.rewardItemId);
     if (!reward) throw new Error(`Puzzle "${type.id}" rewards unknown item "${type.rewardItemId}"`);
     // The altar keeps its idol, so it cannot be carried off to solve a second one.
     const idol = puzzle.heldBy === "idol" ? lyingOn(session, puzzle, puzzle.plates[0]!, "idol") : undefined;

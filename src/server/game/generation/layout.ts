@@ -59,6 +59,17 @@ const WALK_BUDGET = 4000;
 /** Loops only join rooms at least this many hops apart, so a loop is a real shortcut. */
 const MIN_LOOP_HOPS = 3;
 
+export interface LayoutOptions {
+  /**
+   * Grow the first two branches from one early path room, a junction a Door Vote can stand in.
+   * The flow must draw at least two branches.
+   */
+  readonly junction?: boolean;
+}
+
+/** A junction is no later than this many rooms in, so the run's far dead ends are not in its branches. */
+const JUNCTION_MAX_PATH_INDEX = 3;
+
 type LayoutFlow = Pick<FlowDefinition, "path" | "branches" | "branchLength" | "loops" | "branchFrom" | "hubIndex">;
 
 const cellKey = (cell: GridCell): string => `${cell.c},${cell.r}`;
@@ -116,7 +127,12 @@ function hopsFrom(nodeCount: number, edges: readonly LayoutEdge[], from: number)
  * or when the grid has no room for the flow's minimum branches or loops, so the caller can retry
  * with another stream rather than loop forever or ship a run that is not the flow it drew.
  */
-export function generateLayout(rng: Rng, flow: LayoutFlow, grid: LayoutGrid): LayoutGraph | null {
+export function generateLayout(
+  rng: Rng,
+  flow: LayoutFlow,
+  grid: LayoutGrid,
+  options: LayoutOptions = {},
+): LayoutGraph | null {
   const pathLength = rng.int(flow.path.min, flow.path.max);
   const cells = walkPath(rng, grid, pathLength + 1);
   if (!cells) return null;
@@ -149,6 +165,7 @@ export function generateLayout(rng: Rng, flow: LayoutFlow, grid: LayoutGrid): La
 
   const branchCount = rng.int(flow.branches.min, flow.branches.max);
   let grownBranches = 0;
+  let junctionAnchor: LayoutNode | null = null;
   const hub = flow.hubIndex !== undefined ? nodes[flow.hubIndex] : undefined;
   for (let branch = 0; branch < branchCount; branch += 1) {
     // Branches grow only from rooms that are not the boss, the exit or another branch's room.
@@ -157,7 +174,22 @@ export function generateLayout(rng: Rng, flow: LayoutFlow, grid: LayoutGrid): La
     );
     if (anchors.length === 0) break;
     let anchor = rng.pick(anchors);
-    if (flow.branchFrom === "hub" && hub && hub !== boss && hub !== exit) {
+    if (options.junction && branch < 2) {
+      if (branch === 0) {
+        const early = anchors.filter(
+          (node) =>
+            node.pathIndex >= 1 && node.pathIndex <= JUNCTION_MAX_PATH_INDEX && freeNeighbors(node).length >= 2,
+        );
+        if (early.length === 0) return null;
+        anchor = rng.pick(early);
+        junctionAnchor = anchor;
+      } else if (junctionAnchor && freeNeighbors(junctionAnchor).length > 0) {
+        anchor = junctionAnchor;
+      } else {
+        return null;
+      }
+    }
+    if (flow.branchFrom === "hub" && hub && hub !== boss && hub !== exit && !(options.junction && branch < 2)) {
       if (freeNeighbors(hub).length > 0) {
         anchor = hub;
       } else {
@@ -181,6 +213,7 @@ export function generateLayout(rng: Rng, flow: LayoutFlow, grid: LayoutGrid): La
 
   if (grownBranches < flow.branches.min) return null;
 
+  const isVoted = (node: LayoutNode): boolean => node.branch === 0 || node.branch === 1;
   const loopCount = rng.int(flow.loops.min, flow.loops.max);
   let addedLoops = 0;
   if (loopCount > 0) {
@@ -191,6 +224,8 @@ export function generateLayout(rng: Rng, flow: LayoutFlow, grid: LayoutGrid): La
         const other = byCell.get(cellKey({ c: node.cell.c + dir.c, r: node.cell.r + dir.r }));
         if (!other || other.id <= node.id) continue;
         if (node === boss || node === exit || other === boss || other === exit) continue;
+        // A junction's voted branches stay dead ends, or sealing their doorways would shut nothing.
+        if (options.junction && (isVoted(node) || isVoted(other))) continue;
         if (dist[other.id]! < MIN_LOOP_HOPS) continue;
         candidates.push([node, other]);
       }

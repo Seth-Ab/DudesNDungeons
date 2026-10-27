@@ -3,6 +3,7 @@ import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery
 import { PLAYER_RADIUS, carriesIdol, tileAt } from "../../shared/game/movement.js";
 import type {
   AltarState,
+  SwitchState,
   ChestState,
   DoorState,
   DungeonMapState,
@@ -659,7 +660,11 @@ export function createCanvasRenderer(
       }
     }
 
-    if (door.lock !== null) {
+    // A sealed Door Vote doorway shows what lies beyond it in place of the lock.
+    const hint = door.lock?.type === "seal" ? door.voteIcon : undefined;
+    if (hint) {
+      drawSprite(`vote-icon-${hint}`, door.position, 2, 2, camera);
+    } else if (door.lock !== null) {
       drawSprite("door-lock", door.position, 2, 2, camera);
     }
   };
@@ -785,6 +790,11 @@ export function createCanvasRenderer(
     const closed = !chest.twinLock ? "chest-closed" : chest.keyTurnedBy === null ? "chest-twin" : "chest-twin-turned";
     drawSprite(chest.opened ? "chest-open" : closed, chest.position, 2, 2, camera);
     if (chest.locked) drawSprite("door-lock", chest.position, 1, 1, camera);
+  };
+
+  /** A switch has no art yet: a flat square, dark until lit and amber after. */
+  const drawSwitch = (lever: SwitchState, camera: Vector2): void => {
+    drawWorldRect(lever.position, 1.2, lever.active ? "#f2a33a" : "#3a3330", camera);
   };
 
   /**
@@ -1151,7 +1161,9 @@ export function createCanvasRenderer(
       puzzle.plates.forEach((plate) =>
         tileset.ready && puzzle.heldBy === "idol"
           ? drawSprite(puzzle.phase === "solved" ? "idol-altar-set" : "idol-altar", plate.position, 2, 2, camera)
-          : drawWorldRect(
+          : tileset.ready && puzzle.heldBy === "doors"
+            ? drawSprite(plate.held ? "vote-plate-held" : "vote-plate", plate.position, 1.6, 1.6, camera)
+            : drawWorldRect(
               plate.position,
               1.4,
               puzzle.phase === "solved" ? colors.plateSolved : plate.held ? colors.plateHeld : colors.plateIdle,
@@ -1170,6 +1182,7 @@ export function createCanvasRenderer(
     // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
     scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));
     scene.dungeon.altars.forEach((altar) => drawAltar(altar, camera, now));
+    scene.dungeon.switches.forEach((lever) => drawSwitch(lever, camera));
     // Every halo before any flame: a hub halo is added to what is under it, and one drawn after a
     // neighbouring flame would wash that flame out to white.
     if (tileset.ready) scene.dungeon.lightSources.forEach((light) => drawLightGlow(light, camera, scene, now));

@@ -475,7 +475,7 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v61, the version that added the Mimic Chest", () => {
+  it("is on protocol v65, the version that added putting out and relighting a torch", () => {
     expect(PROTOCOL_VERSION).toBe(65);
   });
 
@@ -1172,6 +1172,7 @@ describe("parseServerMessage", () => {
         ],
         traps: [],
         puzzles: [],
+        switches: [],
         doors: [],
         exits: [
           {
@@ -1230,6 +1231,7 @@ describe("parseServerMessage", () => {
           exits: [],
           traps: [],
           puzzles: [],
+          switches: [],
           lightSources: [],
           dummies: [],
         },

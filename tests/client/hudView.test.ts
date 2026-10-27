@@ -489,6 +489,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     chests: [],
     altars: [],
     puzzles: [],
+    switches: [],
     doors: [],
     exits: [],
     rooms: [],
@@ -519,6 +520,34 @@ describe("rebound keys", () => {
 
     const lootView = view({ ...inSession, players: [self], dungeon: dungeon({ loot: [loot("Tonic", 0.5)] }) });
     expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
+  });
+
+  it("prompts a torch carrier to light a dark brazier but not a bell or lever", () => {
+    const carrier = player("Maya", { id: SELF_ID, carryingTorch: true });
+    const lit = (kind: string) =>
+      view({
+        ...inSession,
+        players: [carrier],
+        dungeon: dungeon({
+          switches: [{ id: kind, kind, groupId: "g", position: { x: 0.5, y: 0 }, active: false }],
+        } as unknown as Partial<DungeonState>),
+      });
+    expect(actionPrompt(lit("brazier"), carrier, origin)).toMatchObject({ action: "interact", text: "Light the brazier" });
+    expect(actionPrompt(lit("bell"), carrier, origin)).toBeNull();
+    expect(actionPrompt(lit("lever"), carrier, origin)).toBeNull();
+  });
+
+  it("asks for a lit torch at a brazier once the carried torch is out", () => {
+    const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+    const brazier = view({
+      ...inSession,
+      players: [dark],
+      dungeon: dungeon({
+        lightSources: [],
+        switches: [{ id: "b", kind: "brazier", groupId: "g", position: { x: 0.5, y: 0 }, active: false }],
+      } as unknown as Partial<DungeonState>),
+    });
+    expect(actionPrompt(brazier, dark, origin)).toMatchObject({ action: "interact", text: "The brazier needs a lit torch" });
   });
 
   it("prompts to give the held item to a standing ally in reach, and not to a downed one", () => {
@@ -758,6 +787,9 @@ describe("action prompt", () => {
     expect(text([vaultKey])).toBe("Locked: needs Boss Key");
     expect(text([bossKey])).toBe("Unlock door (Boss Key)");
     expect(doorPromptText({ type: "seal", groupId: "arena" }, [])).toBe("Sealed door");
+    expect(doorPromptText({ type: "seal", groupId: "door-vote" }, [])).toBe(
+      "Sealed: the party chooses it by standing on its plates",
+    );
     expect(doorPromptText({ type: "hidden" }, [])).toBe("Locked door");
     expect(doorPromptText(null, [])).toBe("Open door");
   });

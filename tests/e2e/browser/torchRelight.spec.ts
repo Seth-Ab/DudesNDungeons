@@ -21,7 +21,7 @@ const AROUND_FOUNTAIN = [
  */
 const HOST_SPOT = { x: 36.5, y: 29.5 };
 /** A step south of the host, so neither blocks the other's way along the road. */
-const GUEST_SPOT = { x: 36, y: 30.5 };
+const GUEST_SPOT = { x: 35.5, y: 31.5 };
 /** Down the road, clear of every flame. */
 const AWAY = [
   { x: 33.5, y: 29.5 },
@@ -58,6 +58,12 @@ async function openPlayer(browser: Browser, errors: string[]) {
   const torch = watchTorch(page);
   await page.goto("/?debug");
   return { page, torch };
+}
+
+/** Walks to a spot north of the other player, well inside the reach of their flame. */
+async function standBeside(page: Page, other: Page) {
+  const at = await position(other);
+  await walkTo(page, { x: at.x, y: at.y - 1 }, 0.15);
 }
 
 async function takeTorch(page: Page, torch: () => { carryingTorch: boolean } | null, at: { x: number; y: number }, supplyX: number) {
@@ -112,6 +118,8 @@ test.describe("Putting out and relighting a torch", () => {
     await expect(hostSlot).not.toHaveClass(/hud__torch--lit/);
     await expect(hostSlot).toHaveAttribute("aria-label", "Torch: out");
     await expect(guestSlot).toHaveClass(/hud__torch--lit/);
+    // Each walk stops within half a tile of its spot, so close up on where Sam really stands.
+    await standBeside(host.page, guest.page);
     await expect(host.page.locator(".hud__prompt", { hasText: "Light your torch" })).toBeVisible();
     await host.page.screenshot({ path: testInfo.outputPath("torch-out-flame-in-reach.png") });
 
@@ -124,7 +132,7 @@ test.describe("Putting out and relighting a torch", () => {
 
     // Back beside Sam, the key relights it from his flame.
     for (const waypoint of [...AWAY].reverse()) await walkTo(host.page, waypoint, 0.6);
-    await walkTo(host.page, { x: 35.1, y: GUEST_SPOT.y }, 0.3);
+    await standBeside(host.page, guest.page);
     await expect(host.page.locator(".hud__prompt", { hasText: "Light your torch" })).toBeVisible();
     await host.page.keyboard.press("y");
     await expect.poll(() => host.torch()?.torchLit).toBe(true);

@@ -752,7 +752,8 @@ export function doorPromptText(lock: DoorLock | null, inventory: readonly Invent
       return held ? `Unlock door (${name})` : `Locked: needs ${name}`;
     }
     case "seal":
-      return "Sealed door";
+      // A Door Vote's doorway opens by the party's vote, not by anyone's hand.
+      return lock.groupId === "door-vote" ? "Sealed: the party chooses it by standing on its plates" : "Sealed door";
     case "hidden":
       return "Locked door";
   }
@@ -841,6 +842,10 @@ export function actionPrompt(
 
   if (target?.kind === "door") return prompt("interact", doorPromptText(target.lock, self.inventory));
   if (target?.kind === "chest") return prompt("interact", chestPromptText(view, self.id, target.id, target.locked));
+  if (target?.kind === "switch") {
+    const litTorch = self.carryingTorch && self.torchLit;
+    return prompt("interact", litTorch ? `Light the ${target.name}` : `The ${target.name} needs a lit torch`);
+  }
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }

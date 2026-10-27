@@ -1,4 +1,4 @@
-import { ELITE_HEALTH_MULT } from "../../shared/constants/game.js";
+import { ELITE_HEALTH_MULT, type DoorVoteIcon } from "../../shared/constants/game.js";
 import type {
   AltarState,
   ChestState,
@@ -322,6 +322,7 @@ export function buildAuthoredDungeon(
       altars: [],
       traps,
       puzzles,
+      switches: [],
       doors,
       exits,
       lightSources,
@@ -329,5 +330,22 @@ export function buildAuthoredDungeon(
     },
     spawnPoints: definition.spawnPoints.map((point) => ({ x: point.x, y: point.y })),
     seed: null,
+  };
+}
+
+/**
+ * A Door Vote: the plates before each voted doorway, grouped by the door they pick. Every plate
+ * carries its door and a hint of what lies beyond it, so a client can draw the choice.
+ */
+export function doorVoteInstance(
+  type: PuzzleType,
+  doors: readonly { doorId: string; icon: DoorVoteIcon; plates: readonly Vector2[] }[],
+  id: string,
+): PuzzleState {
+  return {
+    ...puzzleInstance(type, [], id),
+    plates: doors.flatMap((door) =>
+      door.plates.map((position) => ({ position: { ...position }, held: false, doorId: door.doorId, icon: door.icon })),
+    ),
   };
 }

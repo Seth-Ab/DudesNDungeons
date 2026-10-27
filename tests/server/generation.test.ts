@@ -257,12 +257,16 @@ describe("the delve generator", () => {
     expect(layouts.size).toBeGreaterThan(45);
   });
 
+  // About 2.4 ms alone, 2.2 without a Door Vote, which walks a run once for each door it could pick.
+  // It counts this process's CPU time rather than the clock, because the suite runs files in
+  // parallel and a loaded machine would otherwise decide the result.
   it("builds a run in well under 5 ms on average", () => {
     for (let seed = 0; seed < 20; seed += 1) generateDungeon(delveProfile, content, seed, 4);
     const runs = 300;
-    const startedAt = performance.now();
+    const startedAt = process.cpuUsage();
     for (let seed = 0; seed < runs; seed += 1) generateDungeon(delveProfile, content, seed, 1 + (seed % 4));
-    expect((performance.now() - startedAt) / runs).toBeLessThan(5);
+    const spent = process.cpuUsage(startedAt);
+    expect((spent.user + spent.system) / 1000 / runs).toBeLessThan(5);
   });
 
   it("retries a failed attempt from a new stream, and throws naming the seed when none works", () => {
