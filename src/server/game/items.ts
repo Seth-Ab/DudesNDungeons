@@ -24,6 +24,7 @@ import { consumableTarget, type ConsumableEffect } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
+import { MIMIC_MONSTER_ID, monsterInstance } from "./dungeonBuilder.js";
 import { placeFlare } from "./flares.js";
 import { placeIdol } from "./idols.js";
 import { dropItemNear, spillLootTable } from "./monsterLoot.js";
@@ -670,6 +671,14 @@ function openChest(session: Session, player: SessionPlayer, chest: ChestState, n
   if (!table) return reject("notPermitted");
 
   if (chest.twinLock && !turnTwinLock(session, player, chest, now)) return OK;
+
+  if (chest.mimic) {
+    const type = contentForSession(session).monsters.get(MIMIC_MONSTER_ID);
+    if (!type) throw new Error(`Mimic chest needs monster "${MIMIC_MONSTER_ID}"`);
+    chest.opened = true;
+    session.dungeon.monsters.push(monsterInstance(type, chest.position, chest.id));
+    return OK;
+  }
 
   if (chest.locked) {
     if (!spendKey(player, GENERIC_KEY_ITEM_ID)) return reject("notPermitted");

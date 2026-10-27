@@ -3,7 +3,7 @@ import { PLAYER_RADIUS, coversTile, isFloor } from "../../shared/game/movement.j
 import type { DungeonState, MonsterState, Vector2 } from "../../shared/types/core.js";
 import type { LootTable } from "../content/schema.js";
 import type { Session } from "../sessions/sessionStore.js";
-import { lootInstance, seedFromString } from "./dungeonBuilder.js";
+import { MIMIC_MONSTER_ID, lootInstance, seedFromString } from "./dungeonBuilder.js";
 import { contentForSession } from "./progression.js";
 import { createRng, type Rng } from "./random.js";
 
@@ -128,6 +128,13 @@ export function dropMonsterLoot(session: Session, monster: MonsterState): void {
   const content = contentForSession(session);
   const table = content.monsters.get(monster.typeId)?.loot;
   if (table) spillLootTable(session, table, monster.position, `Monster "${monster.typeId}"`);
+
+  // A mimic shares the id of the chest it woke from, and pays out that chest's table.
+  if (monster.typeId === MIMIC_MONSTER_ID) {
+    const chest = session.dungeon.chests.find((candidate) => candidate.mimic && candidate.id === monster.id);
+    const chestTable = chest && content.lootTables.get(chest.lootTableId);
+    if (chestTable) spillLootTable(session, chestTable, monster.position, `Mimic "${monster.id}"`);
+  }
 
   if (monster.elite) {
     const key = content.items.get(ELITE_KEY_ITEM_ID);

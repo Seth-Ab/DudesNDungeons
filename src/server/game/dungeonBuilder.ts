@@ -64,6 +64,9 @@ function telegraphShape(type: MonsterType): Pick<MonsterState, "hitRange" | "hit
 /** Cosine of a few degrees: a lane drawn as a sliver of a cone. */
 const LANE_ARC_COS = 0.985;
 
+/** The content id of the monster a Mimic Chest wakes as. */
+export const MIMIC_MONSTER_ID = "mimic";
+
 export function monsterInstance(type: MonsterType, position: Vector2, id: string, elite = false): MonsterState {
   const maxHealth = elite ? Math.round(type.maxHealth * ELITE_HEALTH_MULT) : type.maxHealth;
   return {
@@ -132,8 +135,9 @@ export function chestInstance(
   id: string,
   locked: boolean,
   twinLock = false,
+  mimic = false,
 ): ChestState {
-  return { id, lootTableId, position: { ...position }, opened: false, locked, twinLock, keyTurnedBy: null };
+  return { id, lootTableId, position: { ...position }, opened: false, locked, twinLock, keyTurnedBy: null, mimic };
 }
 
 /** `count` is the stack size for ammo, clamped to its `maxStack`, and ignored for anything else. */

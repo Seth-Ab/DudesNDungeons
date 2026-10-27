@@ -62,6 +62,8 @@ const ELITE_MAX_BASE_COST = 2;
 const BOSS_CHEST_TABLE = "vault-chest";
 /** How often a vault's first chest is a Twin-lock Chest, for a party large enough to open one. */
 const TWIN_LOCK_CHANCE = 0.5;
+/** How often a chest in a hall, maze or trap room is a Mimic Chest. */
+const MIMIC_CHANCE = 0.2;
 
 /** Threat a room of each kind starts from, before depth and party size scale it. */
 export const BASE_BUDGET: Readonly<Partial<Record<RoomKind, number>>> = { hall: 5, maze: 3, trap: 2, puzzle: 1, cavern: 4, arena: 7 };
@@ -363,11 +365,13 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     }
   };
   /** A chest in one of the room's deepest nooks, the floor tiles with the most walls round them. */
-  const dropChest = (room: CarvedRoom, tableId: string, chance: number, twinLock = false): void => {
+  const dropChest = (room: CarvedRoom, tableId: string, chance: number, twinLock = false, mimicChance = 0): void => {
     if (!rng.chance(Math.min(1, chance + omens.chestBonus))) return;
     const nooks = floorOf(room).sort((a, b) => wallCount(b) - wallCount(a));
     const tile = claim(nooks[rng.int(0, Math.min(3, nooks.length - 1))] ?? null);
-    if (tile) out.chests.push(chestInstance(requireTable(tableId).id, tile, rng.uuid(), false, twinLock));
+    if (!tile) return;
+    const mimic = mimicChance > 0 && rng.chance(mimicChance);
+    out.chests.push(chestInstance(requireTable(tableId).id, tile, rng.uuid(), false, twinLock, mimic));
   };
 
   // Doors first: the boss door sits in the boss room's own socket, so nothing else may land there.
@@ -503,13 +507,13 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     // Loot and chests by room kind.
     if (kind === "hall") {
       dropLoot(room, rng.int(0, 2));
-      dropChest(room, biome.lootTableId, 0.3);
+      dropChest(room, biome.lootTableId, 0.3, false, MIMIC_CHANCE);
     } else if (kind === "maze") {
       dropLoot(room, rng.int(0, 1));
-      dropChest(room, biome.lootTableId, 0.9);
+      dropChest(room, biome.lootTableId, 0.9, false, MIMIC_CHANCE);
     } else if (kind === "trap") {
       dropLoot(room, 1);
-      dropChest(room, biome.lootTableId, 0.5);
+      dropChest(room, biome.lootTableId, 0.5, false, MIMIC_CHANCE);
     }
 
     // Traps.

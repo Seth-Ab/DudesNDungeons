@@ -454,8 +454,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v60, the version that added the Idol Carry", () => {
-    expect(PROTOCOL_VERSION).toBe(60);
+  it("is on protocol v61, the version that added the Mimic Chest", () => {
+    expect(PROTOCOL_VERSION).toBe(61);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1136,6 +1136,7 @@ describe("parseServerMessage", () => {
             locked: true,
             twinLock: false,
             keyTurnedBy: null,
+            mimic: false,
           },
         ],
         altars: [

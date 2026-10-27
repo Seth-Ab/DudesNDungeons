@@ -416,6 +416,11 @@ export const chestStateSchema = z.object({
    * so the turner is told to wait and an ally is told to turn the other.
    */
   keyTurnedBy: playerIdSchema.nullable().default(null),
+  /**
+   * A Mimic Chest is a monster wearing a chest's sprite: opening it wakes a mimic instead of rolling
+   * the table. Server-only. A snapshot always sends false, so a client cannot tell one from a chest.
+   */
+  mimic: z.boolean().default(false),
 });
 export type ChestState = z.infer<typeof chestStateSchema>;
 
