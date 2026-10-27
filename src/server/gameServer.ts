@@ -35,6 +35,7 @@ import {
   useItem,
   withdrawVaultItem,
 } from "./game/items.js";
+import { hubStateMessage } from "./game/hubState.js";
 import { buySkillScroll, skillShopStockMessage } from "./game/shop.js";
 import { buyCosmetic, equipCosmetic, wardrobeCatalogMessage } from "./game/wardrobe.js";
 import { contentForSession, progressionCatalogFor, progressionUpdateFor } from "./game/progression.js";
@@ -45,7 +46,7 @@ import { partyWiped, returnToHub } from "./game/runLifecycle.js";
 import { saveAndQuit } from "./game/saveAndQuit.js";
 import { shareDiscoveredMaps } from "./game/mapSharing.js";
 import { takeMapDiscovery, visibilityFrameForPlayer, voiceRangeForPlayer } from "./game/visibility.js";
-import { runStateFor } from "./game/vitals.js";
+import { decayGraceMs, runStateFor } from "./game/vitals.js";
 import { gameContent } from "./content/loadContent.js";
 import { savedRunCardsFor } from "./saves/savedRunList.js";
 import { toProfileState } from "./profiles/profile.js";
@@ -159,6 +160,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   const lastProgressionSent = new Map<PlayerId, string>();
   /** The party roster each player last received, so it is resent only when it changes. */
   const lastRosterSent = new Map<PlayerId, string>();
+  const lastHubStateSent = new Map<PlayerId, string>();
   /** The vault revision each player last received, so the vault is resent only when it changes. */
   const lastVaultSent = new Map<PlayerId, number>();
   /** The run count whose shop stock each player last received, so it is resent only after a run ends. */
@@ -209,6 +211,13 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
   function sendPartyRoster(socket: WebSocket, playerId: PlayerId, serialized: string, message: ServerMessage): void {
     if (lastRosterSent.get(playerId) === serialized) return;
     lastRosterSent.set(playerId, serialized);
+    send(socket, message);
+  }
+
+  /** Sends the hub board's next-run recipe if it differs from what this player last had. */
+  function sendHubState(socket: WebSocket, playerId: PlayerId, serialized: string, message: ServerMessage): void {
+    if (lastHubStateSent.get(playerId) === serialized) return;
+    lastHubStateSent.set(playerId, serialized);
     send(socket, message);
   }
 
@@ -285,7 +294,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       dungeon: { ...frame.dungeon, map: takeMapDiscovery(session, player) },
       // The run clock belongs to the viewer, not the party: a player who joined late has been in
       // the dungeon for less time and their resistance reflects that.
-      run: runStateFor(player, now()),
+      run: runStateFor(player, now(), decayGraceMs(session)),
     });
     send(socket, voiceRangeForPlayer(session, player, frame));
   }
@@ -295,9 +304,12 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
     const roster = rosterOf(session);
     const partyRoster: ServerMessage = { type: "partyRoster", members: partyRosterOf(session) };
     const serializedRoster = JSON.stringify(partyRoster);
+    const hubState = session.location === "hub" ? hubStateMessage(session) : null;
+    const serializedHubState = JSON.stringify(hubState);
     for (const player of session.players.values()) {
       const socket = socketsByPlayer.get(player.id);
       if (socket) {
+        if (hubState) sendHubState(socket, player.id, serializedHubState, hubState);
         sendPartyRoster(socket, player.id, serializedRoster, partyRoster);
         sendPartyVault(socket, session, player.id);
         sendSkillShopStock(socket, session, player.id);
@@ -470,6 +482,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         lastProgressionSent.delete(player.id);
         // Likewise the roster and the vault: the next tick sends them whether or not they changed.
         lastRosterSent.delete(player.id);
+        lastHubStateSent.delete(player.id);
         lastVaultSent.delete(player.id);
         lastStockSent.delete(player.id);
         send(socket, progressionCatalogFor(contentForSession(session)));
@@ -511,6 +524,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);
+        lastHubStateSent.delete(playerId);
         lastVaultSent.delete(playerId);
         lastStockSent.delete(playerId);
         signalLimiter.forget(playerId);
@@ -547,6 +561,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
         socketsByPlayer.delete(playerId);
         lastProgressionSent.delete(playerId);
         lastRosterSent.delete(playerId);
+        lastHubStateSent.delete(playerId);
         lastVaultSent.delete(playerId);
         lastStockSent.delete(playerId);
         signalLimiter.forget(playerId);
@@ -937,6 +952,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       socketsByPlayer.delete(member.player.id);
       lastProgressionSent.delete(member.player.id);
       lastRosterSent.delete(member.player.id);
+      lastHubStateSent.delete(member.player.id);
       lastVaultSent.delete(member.player.id);
       lastStockSent.delete(member.player.id);
       signalLimiter.forget(member.player.id);
@@ -985,6 +1001,7 @@ export function createGameServer(options: GameServerOptions = {}): GameServer {
       socketsByPlayer.clear();
       lastProgressionSent.clear();
       lastRosterSent.clear();
+      lastHubStateSent.clear();
       lastVaultSent.clear();
       lastStockSent.clear();
       signalLimiter.clear();

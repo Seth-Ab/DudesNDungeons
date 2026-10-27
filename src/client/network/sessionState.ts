@@ -165,6 +165,8 @@ export interface SessionView {
   wardrobe: WardrobeEntry[];
   /** The refusal to show inside the wardrobe for the last buy or equip, or null. Set by the session client. */
   wardrobeNotice: string | null;
+  /** What the next run will be, from the latest `hubState`. Null until the hub has sent it. */
+  nextRun: HubNextRun | null;
   /** The refusal to show beside Save and quit in the camp menu, or null. Set by the session client. */
   saveQuitNotice: string | null;
   /**
@@ -179,6 +181,7 @@ export interface SessionView {
   savedRuns: SavedRunCard[] | null;
 }
 
+export type HubNextRun = Extract<ServerMessage, { type: "hubState" }>["nextRun"];
 export type SkillShopEntry = Extract<ServerMessage, { type: "skillShopStock" }>["entries"][number];
 
 export type VoicePeerRange = Extract<ServerMessage, { type: "voiceRangeUpdated" }>["peers"][number];
@@ -221,6 +224,7 @@ export const initialSessionView: SessionView = {
   shopNotice: null,
   wardrobe: [],
   wardrobeNotice: null,
+  nextRun: null,
   saveQuitNotice: null,
   savedQuitRoomCode: null,
   savedRuns: null,
@@ -311,6 +315,7 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
         shopNotice: null,
         wardrobe: [],
         wardrobeNotice: null,
+        nextRun: null,
       };
 
     case "partyRoster":
@@ -324,6 +329,9 @@ export function applyServerMessage(view: SessionView, message: ServerMessage): S
 
     case "wardrobeCatalog":
       return { ...view, wardrobe: message.entries };
+
+    case "hubState":
+      return { ...view, nextRun: message.nextRun };
 
     case "progressionCatalog":
       return {

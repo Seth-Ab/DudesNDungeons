@@ -72,7 +72,7 @@ export interface DelveOverrides {
   readonly carriedSkillIds?: readonly string[];
 }
 
-function recipe(
+export function recipe(
   definition: DelveDungeon,
   content: GameContent,
   seed: number,

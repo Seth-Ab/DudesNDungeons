@@ -161,6 +161,8 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     dungeon: built.dungeon,
     location: "dungeon",
     runDungeon: request,
+    nextRunSeed: TEST_SEED,
+    runOmens: built.omens ?? [],
     spawnPoints: built.spawnPoints,
     seed: built.seed,
     lootRng: lootRngFor(built.seed, dungeonId),

@@ -44,7 +44,7 @@ import type { Draw } from "../game/bow.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
 import type { TwinLockTurn } from "../game/twinLocks.js";
-import type { Rng } from "../game/random.js";
+import { randomSeed, type Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
 import type { PlayerProfile } from "../profiles/profile.js";
 import {
@@ -174,6 +174,13 @@ export interface Session {
   location: SessionLocation;
   /** What to generate when the ready party uses the hub entrance. */
   runDungeon: DungeonRequest;
+  /**
+   * The seed the next run is built from, rolled when the room opens and again after each run, so the
+   * board in the hub shows the recipe the party will get. Null only when nothing is generated.
+   */
+  nextRunSeed: number | null;
+  /** Ids of the omens the world in play rolled, for the rules they change. Empty in the hub. */
+  runOmens: string[];
   /**
    * Where players enter. Owned by the dungeon rather than by a module constant, because a generated
    * dungeon puts its entrance somewhere different every run.
@@ -368,6 +375,8 @@ export class SessionStore {
       dungeon: built.dungeon,
       location: "hub",
       runDungeon: { ...this.#dungeon },
+      nextRunSeed: this.#dungeon.seed ?? randomSeed(),
+      runOmens: [],
       spawnPoints: built.spawnPoints,
       seed: built.seed,
       lootRng: lootRngFor(built.seed, HUB_DUNGEON_ID),

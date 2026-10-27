@@ -1,0 +1,7 @@
+{
+  "id": "short-fuse",
+  "name": "Short Fuse",
+  "type": "warning",
+  "description": "Resistance starts falling after 6 minutes instead of 10.",
+  "overrides": { "decayGraceMs": 360000 }
+}

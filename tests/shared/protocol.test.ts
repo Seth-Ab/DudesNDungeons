@@ -166,6 +166,20 @@ describe("parseClientMessage", () => {
     }
   });
 
+  it("round-trips the hub board's next run and refuses more than two omens", () => {
+    const omen = (id: string, type: "warning" | "anomaly") => ({ id, name: id, type, description: "A line." });
+    const board: ServerMessage = {
+      type: "hubState",
+      nextRun: { flowName: "The Gauntlet", biomeName: "Cinder Depths", omens: [omen("short-fuse", "warning")] },
+    };
+    const parsed = parseServerMessage(serializeServerMessage(board));
+    expect(parsed.ok && parsed.message).toEqual(board);
+    expect(parseServerMessage(serializeServerMessage({ type: "hubState", nextRun: { omens: [] } })).ok).toBe(true);
+
+    const crowded = { type: "hubState", nextRun: { omens: [omen("a", "warning"), omen("b", "anomaly"), omen("c", "anomaly")] } };
+    expect(parseServerMessage(JSON.stringify(crowded)).ok).toBe(false);
+  });
+
   it("round-trips the skill shop stock and the purchase rejection reasons", () => {
     const stock: ServerMessage = {
       type: "skillShopStock",
@@ -455,7 +469,7 @@ describe("appearance contract", () => {
   }
 
   it("is on protocol v61, the version that added the Mimic Chest", () => {
-    expect(PROTOCOL_VERSION).toBe(61);
+    expect(PROTOCOL_VERSION).toBe(62);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1177,7 +1191,7 @@ describe("parseServerMessage", () => {
           },
         ],
       },
-      run: { elapsedMs: 1_000, decayStartsInMs: 599_000, decaying: false, decayPerSecond: 0 },
+      run: { elapsedMs: 1_000, decayGraceMs: 600_000, decayStartsInMs: 599_000, decaying: false, decayPerSecond: 0 },
     };
 
     const result = parseServerMessage(serializeServerMessage(message));
@@ -1210,7 +1224,7 @@ describe("parseServerMessage", () => {
           lightSources: [],
           dummies: [],
         },
-        run: { elapsedMs: 0, decayStartsInMs: 1000, decaying: false, decayPerSecond: 0 },
+        run: { elapsedMs: 0, decayGraceMs: 600_000, decayStartsInMs: 1000, decaying: false, decayPerSecond: 0 },
       });
 
     expect(parseServerMessage(snapshotWithLit([[0, 0, 2]])).ok).toBe(true);

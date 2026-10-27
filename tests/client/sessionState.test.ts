@@ -46,7 +46,7 @@ function player(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
 
 /** A run clock a minute into an untimed dungeon: nothing decaying yet. */
 function run(): RunState {
-  return { elapsedMs: 60_000, decayStartsInMs: 540_000, decaying: false, decayPerSecond: 0 };
+  return { elapsedMs: 60_000, decayGraceMs: 600_000, decayStartsInMs: 540_000, decaying: false, decayPerSecond: 0 };
 }
 
 function dungeon(overrides: Partial<DungeonSnapshot> = {}): DungeonSnapshot {
@@ -296,11 +296,12 @@ describe("snapshots", () => {
       location: "dungeon",
       players: [player(SELF_ID, { resistance: 12, stamina: 30 })],
       dungeon: dungeon(),
-      run: { elapsedMs: 601_000, decayStartsInMs: 0, decaying: true, decayPerSecond: 0.1 },
+      run: { elapsedMs: 601_000, decayGraceMs: 600_000, decayStartsInMs: 0, decaying: true, decayPerSecond: 0.1 },
     });
 
     expect(view.run).toEqual({
       elapsedMs: 601_000,
+      decayGraceMs: 600_000,
       decayStartsInMs: 0,
       decaying: true,
       decayPerSecond: 0.1,

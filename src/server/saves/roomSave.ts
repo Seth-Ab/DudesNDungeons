@@ -149,6 +149,8 @@ export const persistedRunSchema = z.object({
   flareExpiresInMs: durationsByIdSchema,
   /** Camps that have rested the party. Optional so runs saved before camps rested still load. */
   campsRested: z.array(entityIdSchema).default([]),
+  /** Ids of the omens the run rolled, which still change its rules. Optional for older saves. */
+  omens: z.array(z.string()).default([]),
   players: z.array(persistedRunPlayerSchema),
 });
 export type PersistedRun = z.infer<typeof persistedRunSchema>;
@@ -290,6 +292,7 @@ export function captureRun(
     ),
     flareExpiresInMs: remaining(session.flareExpiresAt, now),
     campsRested: [...session.campsRested],
+    omens: [...session.runOmens],
     players,
   };
 }
@@ -334,6 +337,7 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   session.location = "dungeon";
   session.spawnPoints = structuredClone(run.spawnPoints);
   session.seed = run.seed;
+  session.runOmens = [...run.omens];
   session.lootRng = createRng(run.lootRngState);
   session.tick = run.tick;
   session.simulatedAt = null;
