@@ -21,3 +21,19 @@ export function actionableItem(
 export function selectedItem(inventory: readonly InventoryItem[]): InventoryItem | null {
   return inventory[lastUsedSlot] ?? inventory[0] ?? null;
 }
+
+/**
+ * What the drop key sets down: a carried idol before anything else, since putting it down is how
+ * its carrier gets their hands back to fight; otherwise the same item as `actionableItem`.
+ */
+export function droppableItem(
+  inventory: readonly InventoryItem[],
+  held: InventoryItem | null,
+): InventoryItem | null {
+  return carriedIdol(inventory, held) ?? actionableItem(inventory, held);
+}
+
+/** The idol a player carries, in a slot or in hand, or null. */
+export function carriedIdol(inventory: readonly InventoryItem[], held: InventoryItem | null): InventoryItem | null {
+  return [...inventory, held].find((item): item is InventoryItem => item?.kind === "idol") ?? null;
+}

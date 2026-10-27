@@ -339,7 +339,7 @@ describe("validation", () => {
   });
 
   it("rejects a puzzle needing more plates than the party can hold", () => {
-    const built = firstRun((run) => run.dungeon.puzzles.length > 0);
+    const built = firstRun((run) => run.dungeon.puzzles.some((puzzle) => puzzle.heldBy === "players"));
     // Two plates, no stones, and a party of one: the second plate has nobody to stand on it.
     built.dungeon.loot = built.dungeon.loot.filter((loot) => loot.kind !== "ballast");
 
@@ -362,7 +362,9 @@ describe("generated puzzles", () => {
       const reachable = reachableFrom(dungeon, spawnPoints[0]!);
       for (const puzzle of dungeon.puzzles) {
         seen += 1;
-        expect(puzzle.plates.length).toBeGreaterThanOrEqual(2);
+        // An Idol Carry altar is a single plate; every other puzzle needs two hands at least.
+        if (puzzle.heldBy === "idol") expect(puzzle.plates).toHaveLength(1);
+        else expect(puzzle.plates.length).toBeGreaterThanOrEqual(2);
         expect(content.puzzles.has(puzzle.typeId)).toBe(true);
         for (const plate of puzzle.plates) {
           expect(isFloor(dungeon, plate.position)).toBe(true);

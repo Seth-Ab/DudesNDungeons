@@ -201,7 +201,7 @@ export type ProjectileState = z.infer<typeof projectileStateSchema>;
  * A weapon is carried in the hand slot (`PlayerState.held`) or, when the hand is full, an
  * inventory slot. Ammo is a stack: one entry, and so one slot, carrying a `count`.
  */
-export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon", "ammo", "ballast"]);
+export const itemKindSchema = z.enum(["key", "consumable", "torch", "skillScroll", "weapon", "ammo", "ballast", "idol"]);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
 export const consumableIconSchema = z.enum(CONSUMABLE_ICONS);
@@ -259,7 +259,7 @@ const keyFields = {
 const ordinaryLootStateSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["torch", "ballast"]),
+  kind: z.enum(["torch", "ballast", "idol"]),
   position: vector2Schema,
   pickedUp: z.boolean(),
 });
@@ -319,7 +319,7 @@ export type LootState = z.infer<typeof lootStateSchema>;
 const ordinaryInventoryItemSchema = z.object({
   id: entityIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["torch", "ballast"]),
+  kind: z.enum(["torch", "ballast", "idol"]),
 });
 
 const keyInventoryItemSchema = z.object({
@@ -545,7 +545,10 @@ export type PuzzlePhase = z.infer<typeof puzzlePhaseSchema>;
 
 export const puzzlePlateStateSchema = z.object({
   position: vector2Schema,
-  /** True while a standing, connected player is on this plate. */
+  /**
+   * True while the plate is held: by a standing, connected player or a Ballast Stone lying on it,
+   * or, on an Idol Carry altar, by the idol set on it.
+   */
   held: z.boolean(),
 });
 export type PuzzlePlateState = z.infer<typeof puzzlePlateStateSchema>;
@@ -561,6 +564,11 @@ export const puzzleStateSchema = z.object({
   name: z.string().min(1),
   /** Reach of each plate in world units, so a client can draw the footprint to stand in. */
   radius: z.number().positive(),
+  /**
+   * What holds a plate: players (and Ballast Stones), or only a Heavy Idol set on it, which makes
+   * the one plate an Idol Carry altar. Defaulted, so a run saved before idols still loads.
+   */
+  heldBy: z.enum(["players", "idol"]).default("players"),
   phase: puzzlePhaseSchema,
   /** Only plates on tiles the viewer can currently see. */
   plates: z.array(puzzlePlateStateSchema),

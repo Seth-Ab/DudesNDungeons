@@ -231,6 +231,11 @@ export const puzzleTypeSchema = z
     minHoldMs: z.number().int().positive(),
     holdReductionMsPerPower: z.number().int().nonnegative().default(0),
     rewardItemId: contentIdSchema,
+    /**
+     * What holds a plate: players, with Ballast Stones for missing hands, or only a Heavy Idol set
+     * on it. An `idol` puzzle is the Idol Carry: one altar plate, and an idol to carry to it.
+     */
+    heldBy: z.enum(["players", "idol"]).default("players"),
   })
   .refine((puzzle) => puzzle.minHoldMs <= puzzle.holdMs, {
     message: "minHoldMs must not exceed holdMs",
@@ -240,7 +245,7 @@ export type PuzzleType = z.infer<typeof puzzleTypeSchema>;
 const ordinaryItemDefinitionSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
-  kind: z.enum(["key", "torch", "ballast"]),
+  kind: z.enum(["key", "torch", "ballast", "idol"]),
 });
 
 /**

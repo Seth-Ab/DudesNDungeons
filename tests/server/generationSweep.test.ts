@@ -232,3 +232,108 @@ describe("the Twin-lock Chest", () => {
     );
   });
 });
+
+describe("the Idol Carry", () => {
+  const SEEDS = 200;
+  const inRoom = (room: BuiltDungeon["dungeon"]["rooms"][number], point: { x: number; y: number }): boolean =>
+    point.x >= room.x && point.x < room.x + room.width && point.y >= room.y && point.y < room.y + room.height;
+  /** The gauntlet keeps its boss key behind a puzzle; this biome only ever draws the Idol Carry. */
+  const idolOnly = (() => {
+    const biomes = new Map(content.biomes);
+    biomes.set("cinder-depths", { ...biomes.get("cinder-depths")!, puzzles: ["idol-carry"] });
+    return { ...content, biomes };
+  })();
+  const gauntlet = { ...delveProfile, flows: ["gauntlet"] };
+  const run = (seed: number, partySize: number): BuiltDungeon => generateDungeon(gauntlet, idolOnly, seed, partySize);
+
+  it.each(PARTY_SIZES)("builds a finishable run for a party of %i, the idol far from its altar", (partySize) => {
+    for (let seed = 0; seed < SEEDS; seed += 1) {
+      const built = run(seed, partySize);
+      const { dungeon } = built;
+      const altars = dungeon.puzzles.filter((puzzle) => puzzle.heldBy === "idol");
+      expect(altars, `seed ${seed}`).toHaveLength(1);
+      const altar = altars[0]!;
+      expect(altar).toMatchObject({ typeId: "idol-carry", phase: "idle", progress: 0 });
+      expect(altar.plates).toHaveLength(1);
+
+      const idols = dungeon.loot.filter((loot) => loot.kind === "idol");
+      expect(idols).toHaveLength(1);
+      const altarRoom = dungeon.rooms.find((room) => inRoom(room, altar.plates[0]!.position))!;
+      const idolRoom = dungeon.rooms.find((room) => inRoom(room, idols[0]!.position))!;
+      expect(idolRoom).not.toBe(altarRoom);
+      expect(["entrance", "boss", "exit", "vault"]).not.toContain(idolRoom.kind);
+      // Any party carries one idol, so an altar never needs a stone.
+      expect(dungeon.loot.filter((loot) => loot.kind === "ballast")).toEqual([]);
+
+      expect(validateDungeon(built, idolOnly, partySize), `seed ${seed}`).toEqual([]);
+    }
+  }, 30_000);
+
+  it.each(PARTY_SIZES)("turns up in shipped runs for a party of %i", (partySize) => {
+    let found = 0;
+    for (let seed = 0; seed < SEEDS; seed += 1) {
+      const built = generateDungeon(gauntlet, content, seed, partySize);
+      if (built.dungeon.puzzles.some((puzzle) => puzzle.heldBy === "idol")) found += 1;
+    }
+    // About half of all gauntlets, one of two puzzles the biome draws from.
+    expect(found).toBeGreaterThan(SEEDS * 0.3);
+    expect(found).toBeLessThan(SEEDS * 0.7);
+  }, 30_000);
+
+  it("is rejected by validation when the idol is missing", () => {
+    const built = run(0, 1);
+    built.dungeon.loot = built.dungeon.loot.filter((loot) => loot.kind !== "idol");
+
+    const errors = validateDungeon(built, idolOnly, 1);
+    expect(errors).toContain("puzzle idol-carry has no idol in reach");
+    expect(errors).toContain("the exit is unreachable after every key and puzzle");
+  });
+
+  it("is rejected by validation when the idol lies behind the boss door", () => {
+    const built = run(0, 2);
+    const boss = built.dungeon.rooms.find((room) => room.kind === "boss")!;
+    const idol = built.dungeon.loot.find((loot) => loot.kind === "idol")!;
+    const taken = new Set(built.dungeon.monsters.map((monster) => `${monster.position.x},${monster.position.y}`));
+    let spot: { x: number; y: number } | undefined;
+    for (let y = boss.y + 1; y < boss.y + boss.height - 1 && !spot; y += 1) {
+      for (let x = boss.x + 1; x < boss.x + boss.width - 1 && !spot; x += 1) {
+        const free =
+          built.dungeon.map.tiles[y]?.[x] === "." &&
+          !taken.has(`${x},${y}`) &&
+          !built.dungeon.loot.some((loot) => loot.position.x === x && loot.position.y === y) &&
+          !built.dungeon.chests.some((chest) => chest.position.x === x && chest.position.y === y) &&
+          !built.dungeon.lightSources.some((light) => light.position.x === x && light.position.y === y);
+        if (free) spot = { x, y };
+      }
+    }
+    expect(spot).toBeDefined();
+    idol.position = spot!;
+
+    expect(validateDungeon(built, idolOnly, 2)).toContain("puzzle idol-carry has no idol in reach");
+  });
+
+  it("is rejected by validation when one idol has to serve two altars", () => {
+    const built = run(0, 3);
+    const altar = built.dungeon.puzzles.find((puzzle) => puzzle.heldBy === "idol")!;
+    const idol = built.dungeon.loot.find((loot) => loot.kind === "idol")!;
+    // The idol steps one free floor tile aside, and a second altar takes the tile it lay on: both
+    // altars are in reach, but the first one solved keeps the only idol.
+    const entities = [...built.dungeon.loot, ...built.dungeon.monsters, ...built.dungeon.chests, ...built.dungeon.traps];
+    const aside = [-1, 1]
+      .flatMap((d) => [{ x: idol.position.x + d, y: idol.position.y }, { x: idol.position.x, y: idol.position.y + d }])
+      .find(
+        (point) =>
+          built.dungeon.map.tiles[point.y]?.[point.x] === "." &&
+          !entities.some((entity) => entity.position.x === point.x && entity.position.y === point.y),
+      );
+    expect(aside).toBeDefined();
+    built.dungeon.puzzles.push({
+      ...altar,
+      id: "e0000000-0000-4000-8000-000000000000",
+      plates: [{ position: { ...idol.position }, held: false }],
+    });
+    idol.position = aside!;
+
+    expect(validateDungeon(built, idolOnly, 3)).toContain("puzzle idol-carry has no idol in reach");
+  });
+});

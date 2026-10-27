@@ -1,6 +1,6 @@
 import { TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
-import { PLAYER_RADIUS, tileAt } from "../../shared/game/movement.js";
+import { PLAYER_RADIUS, carriesIdol, tileAt } from "../../shared/game/movement.js";
 import type {
   AltarState,
   ChestState,
@@ -190,6 +190,9 @@ const HUD_OBSTACLE_SELECTOR =
   ".hud__panel, .hud__corner, .hud__notices, .hud__hotbar, .hud__frames, .hud__draw";
 const HUD_MEASURE_INTERVAL_MS = 250;
 
+/** How far above a carrier's feet, in world units, the idol they hold up is drawn. */
+const IDOL_LIFT = 1.1;
+
 function measureHudObstacles(): Rect[] {
   const obstacles: Rect[] = [];
   for (const element of document.querySelectorAll(HUD_OBSTACLE_SELECTOR)) {
@@ -363,7 +366,7 @@ export function createCanvasRenderer(
   };
 
   const carryLabel = (player: PlayerState): string =>
-    player.carryingPlayerId ? `${player.name} [carrying]` : player.name;
+    player.carryingPlayerId ? `${player.name} [carrying]` : carriesIdol(player) ? `${player.name} [idol]` : player.name;
 
   /**
    * A player as drawn this frame, or null for one still designing their character, who is not in
@@ -1141,15 +1144,19 @@ export function createCanvasRenderer(
     scene.dungeon.traps.forEach((trap) =>
       drawWorldRect(trap.position, 1.1, trap.phase === "armed" ? colors.trapArmed : colors.trapSpent, camera),
     );
-    // Placeholder plates until puzzle art exists: blue while free, gold while held, green once solved.
+    // An Idol Carry altar is drawn as one, at a chest's size: its idol is ordinary loot on top
+    // until it is solved, when the altar keeps it. Other plates are placeholders until puzzle art
+    // exists: blue while free, gold while held, green once solved.
     scene.dungeon.puzzles.forEach((puzzle) =>
       puzzle.plates.forEach((plate) =>
-        drawWorldRect(
-          plate.position,
-          1.4,
-          puzzle.phase === "solved" ? colors.plateSolved : plate.held ? colors.plateHeld : colors.plateIdle,
-          camera,
-        ),
+        tileset.ready && puzzle.heldBy === "idol"
+          ? drawSprite(puzzle.phase === "solved" ? "idol-altar-set" : "idol-altar", plate.position, 2, 2, camera)
+          : drawWorldRect(
+              plate.position,
+              1.4,
+              puzzle.phase === "solved" ? colors.plateSolved : plate.held ? colors.plateHeld : colors.plateIdle,
+              camera,
+            ),
       ),
     );
     // The hub's ready plates, lit in the colour of whoever holds each.
@@ -1193,6 +1200,15 @@ export function createCanvasRenderer(
       scene.self ? drawnPlayer(scene.self, scene.localPosition, swings) : null,
     ].filter((player): player is DrawnPlayer => player !== null);
     characters.draw(ctx, players, toScreen, pixelsPerWorldUnit, performance.now());
+    // A carried idol is held up over the carrier's head, so the whole party can see who to cover.
+    if (tileset.ready) {
+      for (const player of players) {
+        const state = player.id === scene.self?.id ? scene.self : scene.others.find((other) => other.id === player.id);
+        if (state && carriesIdol(state)) {
+          drawSprite("loot-idol", { x: player.position.x, y: player.position.y - IDOL_LIFT }, 1, 1, camera);
+        }
+      }
+    }
 
     drawLightmap(scene, camera, now);
     drawPropLabels(scene, camera, now);

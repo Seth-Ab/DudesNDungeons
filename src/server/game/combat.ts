@@ -5,7 +5,7 @@ import {
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
 } from "../../shared/constants/game.js";
-import { distance, normalizeDirection } from "../../shared/game/movement.js";
+import { carriesIdol, distance, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason, ServerMessage } from "../../shared/protocol/index.js";
 import type {
   DummyState,
@@ -28,6 +28,7 @@ import { hasLineOfSight } from "./visibility.js";
 import { damageMonster } from "./monsterDamage.js";
 import { resolvePuzzles } from "./puzzles.js";
 import { resolveTwinLocks } from "./twinLocks.js";
+import { resolveIdols } from "./idols.js";
 import { resolveTraps } from "./traps.js";
 import { contentForSession, progressionEffectTotal } from "./progression.js";
 import { advanceCamps } from "./camps.js";
@@ -94,7 +95,8 @@ export function resolvePlayerAttack(
   now: number,
 ): AttackResult {
   const player = session.players.get(playerId);
-  if (!player || isDown(player)) return { ok: false, reason: "notPermitted" };
+  // An idol takes both hands: its carrier has to set it down to fight.
+  if (!player || isDown(player) || carriesIdol(player)) return { ok: false, reason: "notPermitted" };
 
   const heading = normalizeDirection(direction);
   if (!heading) return { ok: false, reason: "outOfRange" };
@@ -227,6 +229,8 @@ export function simulate(session: Session, now: number): AttackEvent[] {
 
   advanceVitals(session, now, elapsedMs);
   resolveTraps(session, now);
+  // Before the puzzles, so an idol a carrier let go of lies on the floor for this tick's hold.
+  resolveIdols(session);
   resolvePuzzles(session, now);
   resolveTwinLocks(session, now);
   advanceCamps(session, now);

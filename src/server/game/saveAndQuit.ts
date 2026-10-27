@@ -5,6 +5,7 @@ import type { PlayerId } from "../../shared/types/core.js";
 import { saveRoom } from "../saves/roomSaving.js";
 import type { SessionMember, SessionPlayer, Session, SessionStore } from "../sessions/sessionStore.js";
 import { isDown, isSpawned, monsterStatsFor } from "./dungeonState.js";
+import { setDownIdols } from "./idols.js";
 
 export type SaveAndQuitResult =
   | { ok: true; member: SessionMember }
@@ -59,6 +60,9 @@ export function saveAndQuit(
   const refusal = saveAndQuitRefusal(member.session, member.player, now);
   if (refusal) return { ok: false, reason: refusal };
 
+  // The idol stays with the party, so it is set down before the save captures this player's carry;
+  // otherwise it would come back with them and lie on the floor too.
+  setDownIdols(member.session, member.player);
   // Saved while they are still in the session, so their entry is captured live; once they are gone
   // the store only carries it forward.
   saveRoom(member.session, store.saves, now, wallNow);

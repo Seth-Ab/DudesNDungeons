@@ -454,8 +454,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v59, the version that added the Twin-lock Chest", () => {
-    expect(PROTOCOL_VERSION).toBe(59);
+  it("is on protocol v60, the version that added the Idol Carry", () => {
+    expect(PROTOCOL_VERSION).toBe(60);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

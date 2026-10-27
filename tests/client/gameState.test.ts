@@ -88,6 +88,13 @@ describe("predictMove", () => {
     });
   });
 
+  it("covers half a step for a carrier, as the server moves them", () => {
+    expect(predictMove(dungeon(), [], { x: 2, y: 1.5 }, { x: 1, y: 0 }, 0.5)).toEqual({
+      x: 2 + PLAYER_STEP_DISTANCE / 2,
+      y: 1.5,
+    });
+  });
+
   // Regression: remembered floor arrives as `,`, and prediction treated it as wall, freezing the
   // player at the edge of the light until reconciliation snapped them forward.
   it("predicts a step onto floor the viewer remembers but cannot see", () => {

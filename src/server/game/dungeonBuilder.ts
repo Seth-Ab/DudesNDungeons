@@ -101,11 +101,15 @@ export function puzzleInstance(type: PuzzleType, plates: Vector2[], id: string):
     typeId: type.id,
     name: type.name,
     radius: type.plateRadius,
+    heldBy: type.heldBy,
     phase: "idle",
     plates: plates.map((position) => ({ position: { ...position }, held: false })),
     progress: 0,
   };
 }
+
+/** The content id of the idol an Idol Carry puzzle's altar waits for. */
+export const IDOL_ITEM_ID = "heavy-idol";
 
 /** The content id of the stone that stands in for a missing player on a plate. */
 export const BALLAST_ITEM_ID = "ballast-stone";

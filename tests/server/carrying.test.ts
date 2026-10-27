@@ -230,6 +230,23 @@ describe("disconnect and extraction", () => {
     expect(carrier!.carryingPlayerId).toBeNull();
   });
 
+  it("sets an idol down where its carrier disconnects or leaves, so the party keeps it", () => {
+    const { store, session, players } = hubParty(["Alpha", "Beta"]);
+    const [alpha, beta] = players;
+    alpha!.inventory = [{ id: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1", name: "Heavy Idol", kind: "idol" }];
+    beta!.inventory = [{ id: "b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1", name: "Heavy Idol", kind: "idol" }];
+
+    store.markDisconnected(alpha!.id);
+    store.leave(beta!.id);
+
+    expect(alpha!.inventory).toEqual([]);
+    const idols = session.dungeon.loot.filter((loot) => loot.kind === "idol" && !loot.pickedUp);
+    expect(idols.map((loot) => [loot.id, loot.position])).toEqual([
+      ["a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1", alpha!.position],
+      ["b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1", beta!.position],
+    ]);
+  });
+
   it("extracts a downed player who is carried through the exit as a survivor", () => {
     const standing = testPlayer("standing", { carryingPlayerId: "downed" });
     const downed = testPlayer("downed", { health: 0, carriedByPlayerId: "standing" });

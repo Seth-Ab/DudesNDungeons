@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 59;
+export const PROTOCOL_VERSION = 60;
 
 /**
  * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors
@@ -123,6 +123,8 @@ export const ATTACK_STAMINA_COST = 15;
 export const LIFT_STAMINA_COST = 20;
 /** Cost of hefting a Ballast Stone off the floor. Setting it back down on a plate is free. */
 export const BALLAST_STAMINA_COST = LIFT_STAMINA_COST;
+/** Cost of lifting a Heavy Idol, the same as lifting a body; setting it down is free. */
+export const IDOL_STAMINA_COST = LIFT_STAMINA_COST;
 /** Drain per second while carrying something. Spent by Backend step 12. */
 export const CARRY_STAMINA_DRAIN_PER_SECOND = 6;
 /**

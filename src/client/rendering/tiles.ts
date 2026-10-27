@@ -189,6 +189,7 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   ["door-lock", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-key", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ballast", { tilesWide: 1, tilesHigh: 1 }],
+  ["loot-idol", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-tonic", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-ward", { tilesWide: 1, tilesHigh: 1 }],
   ["loot-draught", { tilesWide: 1, tilesHigh: 1 }],
@@ -210,6 +211,9 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // A Twin-lock Chest: an iron band and two keyholes, and the same with the left one turned and lit.
   ["chest-twin", { tilesWide: 1, tilesHigh: 1 }],
   ["chest-twin-turned", { tilesWide: 1, tilesHigh: 1 }],
+  // An Idol Carry altar, drawn at a chest's size: an empty gold-rimmed socket, and the idol set in it.
+  ["idol-altar", { tilesWide: 1, tilesHigh: 1 }],
+  ["idol-altar-set", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
   // A shrine altar: a slab with a plinth under each of two scrolls (they sit a world unit either
   // side of its centre), the cage that comes down over a plinth, and the candle that lights the room.
@@ -235,6 +239,7 @@ export type SpriteName = string;
 export const LOOT_SPRITES: Record<Exclude<LootState["kind"], "consumable">, SpriteName> = {
   key: "loot-key",
   ballast: "loot-ballast",
+  idol: "loot-idol",
   skillScroll: "loot-skill-scroll",
   torch: "loot-torch",
   weapon: "loot-weapon",

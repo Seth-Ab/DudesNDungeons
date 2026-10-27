@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { distance } from "../../shared/game/movement.js";
-import type { PuzzleState } from "../../shared/types/core.js";
+import type { LootState, PuzzleState } from "../../shared/types/core.js";
 import type { PuzzleType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { lootInstance } from "./dungeonBuilder.js";
@@ -14,6 +14,10 @@ import { contentForSession, progressionEffectTotal } from "./progression.js";
  * A puzzle is a set of pressure plates. It is solved when every plate is held by a different
  * player at the same moment and they all stay held for the required time. The server decides who
  * is holding what from where it has put each player; the client never says it pulled anything.
+ *
+ * An Idol Carry puzzle (`heldBy: "idol"`) has one plate, its altar, which only a Heavy Idol lying
+ * on it holds. Players never do, so the hold is the idol staying on the altar, and the altar keeps
+ * the idol once it is solved.
  */
 
 /**
@@ -24,17 +28,21 @@ function eligiblePlayers(session: Session): SessionPlayer[] {
   return [...session.players.values()].filter((player) => player.connected && !isDown(player));
 }
 
-/** Who or what is holding a plate: a player, a Ballast Stone lying on it, or nothing. */
-type Holder = SessionPlayer | "ballast" | null;
+/** Who or what is holding a plate: a player, a Ballast Stone or idol lying on it, or nothing. */
+type Holder = SessionPlayer | "ballast" | "idol" | null;
 
 /**
- * Whether a Ballast Stone lies on the plate. A stone that is carried is not on the floor, so it
+ * The first item of `kind` lying on the plate. One that is carried is not on the floor, so it
  * holds nothing: lifting it off, or dropping it anywhere else, releases the plate.
  */
-function ballasted(session: Session, puzzle: PuzzleState, plate: PuzzleState["plates"][number]): boolean {
-  return session.dungeon.loot.some(
-    (loot) =>
-      loot.kind === "ballast" && !loot.pickedUp && distance(loot.position, plate.position) <= puzzle.radius,
+function lyingOn(
+  session: Session,
+  puzzle: PuzzleState,
+  plate: PuzzleState["plates"][number],
+  kind: "ballast" | "idol",
+): LootState | undefined {
+  return session.dungeon.loot.find(
+    (loot) => loot.kind === kind && !loot.pickedUp && distance(loot.position, plate.position) <= puzzle.radius,
   );
 }
 
@@ -49,7 +57,8 @@ function holders(session: Session, puzzle: PuzzleState, players: SessionPlayer[]
   const taken = new Set<string>();
 
   return puzzle.plates.map((plate): Holder => {
-    if (ballasted(session, puzzle, plate)) return "ballast";
+    if (puzzle.heldBy === "idol") return lyingOn(session, puzzle, plate, "idol") ? "idol" : null;
+    if (lyingOn(session, puzzle, plate, "ballast")) return "ballast";
 
     let best: SessionPlayer | null = null;
     let bestDistance = Infinity;
@@ -109,7 +118,7 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
     const since = session.puzzleHeldSince.get(puzzle.id) ?? now;
     session.puzzleHeldSince.set(puzzle.id, since);
 
-    const holding = assigned.filter((holder): holder is SessionPlayer => holder !== null && holder !== "ballast");
+    const holding = assigned.filter((holder): holder is SessionPlayer => typeof holder === "object" && holder !== null);
     const power = holding.reduce(
       (total, holder) => total + progressionEffectTotal(holder, "puzzlePowerBonus", content),
       0,
@@ -120,6 +129,9 @@ export function resolvePuzzles(session: Session, now: number): PuzzleState[] {
 
     const reward = content.items.get(type.rewardItemId);
     if (!reward) throw new Error(`Puzzle "${type.id}" rewards unknown item "${type.rewardItemId}"`);
+    // The altar keeps its idol, so it cannot be carried off to solve a second one.
+    const idol = puzzle.heldBy === "idol" ? lyingOn(session, puzzle, puzzle.plates[0]!, "idol") : undefined;
+    if (idol) session.dungeon.loot = session.dungeon.loot.filter((loot) => loot !== idol);
     session.dungeon.loot.push(lootInstance(reward, puzzle.plates[0]!.position, randomUUID()));
     session.puzzleHeldSince.delete(puzzle.id);
     puzzle.phase = "solved";

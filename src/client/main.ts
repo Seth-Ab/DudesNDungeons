@@ -1,4 +1,4 @@
-import { MOVE_INTERVAL_MS } from "../shared/game/movement.js";
+import { MOVE_INTERVAL_MS, carrySpeedMultiplier } from "../shared/game/movement.js";
 import type { DungeonState, EntityId, MonsterState, Vector2 } from "../shared/types/core.js";
 import {
   captureMicrophone,
@@ -64,7 +64,7 @@ import {
   nearestStandingAlly,
   usedOnDownedAlly,
 } from "./state/reach.js";
-import { actionableItem, noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
+import { actionableItem, droppableItem, noteSlotUsed, selectedItem } from "./state/selectedSlot.js";
 import {
   entranceMessage,
   entranceStatus,
@@ -336,7 +336,8 @@ setInterval(() => {
   }
 
   lastPredictionAt = performance.now();
-  localPosition = predictMove(view.dungeon, spawnedOthersOf(view), localPosition, heading);
+  // A carrier covers half a step, as the server will move them.
+  localPosition = predictMove(view.dungeon, spawnedOthersOf(view), localPosition, heading, carrySpeedMultiplier(self));
   hud.setPosition(localPosition);
 }, MOVE_INTERVAL_MS);
 
@@ -541,7 +542,7 @@ function performAction(action: GameplayAction): void {
       return;
     }
     case "drop": {
-      const item = actionableItem(self.inventory, self.held);
+      const item = droppableItem(self.inventory, self.held);
       if (!item) {
         hud.setActionStatus("Nothing to drop");
         return;

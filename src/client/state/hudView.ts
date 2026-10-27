@@ -36,7 +36,7 @@ import {
   usedOnDownedAlly,
 } from "./reach.js";
 import { scrollName } from "./altars.js";
-import { actionableItem } from "./selectedSlot.js";
+import { actionableItem, carriedIdol } from "./selectedSlot.js";
 import type { ToastSeverity } from "./toastQueue.js";
 
 /**
@@ -780,7 +780,8 @@ function chestPromptText(view: SessionView, selfId: string, chestId: string, loc
  * The single most relevant thing in reach, or null when nothing is. Derived from the snapshot and
  * the local position only; the server still decides, and a wrong guess comes back as
  * `actionRejected`. Priority: dropping a carried ally, reviving a downed one with carried salts or
- * else lifting them, loot, then chests, doors, exits, seats, altars, and the party vault.
+ * else lifting them, setting a carried idol on its altar, loot, then chests, doors, exits, seats,
+ * altars, and the party vault; a carried idol's last word is how to set it down.
  */
 export function actionPrompt(
   view: SessionView,
@@ -809,13 +810,17 @@ export function actionPrompt(
     return prompt("carry", `Lift ${downed.name}`);
   }
 
+  // Whoever brings the idol is told where it goes before anything else in reach.
+  const target = nearestInteraction(view, position);
+  const idol = carriedIdol(self.inventory, self.held);
+  if (idol && target?.kind === "idolAltar") return prompt("interact", `Set the ${idol.name} on the altar`);
+
   const loot = nearestLoot(view, position);
   if (loot) {
     const text = loot.count === null ? `Pick up ${loot.name}` : `Pick up ${loot.name} (${loot.count})`;
     return prompt("pickup", text);
   }
 
-  const target = nearestInteraction(view, position);
   if (target?.kind === "door") return prompt("interact", doorPromptText(target.lock, self.inventory));
   if (target?.kind === "chest") return prompt("interact", chestPromptText(view, self.id, target.id, target.locked));
   if (target?.kind === "exit") {
@@ -828,6 +833,9 @@ export function actionPrompt(
   if (inVaultArea(view.location, view.dungeon.rooms, position)) return prompt("interact", VAULT_PROMPT);
   if (inShopArea(view.location, view.dungeon.rooms, position)) return prompt("interact", SHOP_PROMPT);
   if (inWardrobeArea(view.location, view.dungeon.rooms, position)) return prompt("interact", WARDROBE_PROMPT);
+
+  // An idol is never handed over; its carrier is reminded how to get their hands back instead.
+  if (idol) return prompt("drop", `Set down the ${idol.name}`);
 
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;

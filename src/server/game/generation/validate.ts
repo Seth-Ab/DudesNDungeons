@@ -12,6 +12,7 @@
  *   the exit, and every room is reachable by the end;
  * - the first spawn point stands inside a light, so the party does not arrive in the dark;
  * - no puzzle needs more plates held than the party has players plus Ballast Stones;
+ * - an Idol Carry altar has one plate, and an idol of its own in reach before it counts as solved;
  * - a Twin-lock Chest appears only for a party that can open it, and they can reach it.
  *
  * Pure: it reads the dungeon and changes nothing.
@@ -116,6 +117,9 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   const keys = new Map<string, number>();
   const addKey = (keyItemId: string): void => void keys.set(keyItemId, (keys.get(keyItemId) ?? 0) + 1);
   let reach = sealed;
+  let idolAltarsSolved = 0;
+  const idolsInReach = (tiles: ReadonlySet<string>): number =>
+    dungeon.loot.filter((loot) => loot.kind === "idol" && tiles.has(key(loot.position))).length;
   for (let round = 0; round <= dungeon.loot.length + dungeon.puzzles.length + lockedDoors.length; round += 1) {
     let changed = false;
     for (const loot of dungeon.loot) {
@@ -133,10 +137,17 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
     }
     for (const puzzle of dungeon.puzzles) {
       if (solved.has(puzzle.id) || !puzzle.plates.every((plate) => reach.has(key(plate.position)))) continue;
+      // An altar keeps the idol set on it, so each altar solved so far has used one up.
+      if (puzzle.heldBy === "idol" && idolsInReach(reach) <= idolAltarsSolved) continue;
       solved.add(puzzle.id);
-      const stones = dungeon.loot.filter((loot) => loot.kind === "ballast" && reach.has(key(loot.position))).length;
-      if (puzzle.plates.length > partySize + stones) {
-        errors.push(`puzzle ${puzzle.typeId} needs ${puzzle.plates.length} plates held by ${partySize} players and ${stones} stones`);
+      if (puzzle.heldBy === "idol") {
+        idolAltarsSolved += 1;
+        if (puzzle.plates.length !== 1) errors.push(`idol altar ${puzzle.typeId} has ${puzzle.plates.length} plates`);
+      } else {
+        const stones = dungeon.loot.filter((loot) => loot.kind === "ballast" && reach.has(key(loot.position))).length;
+        if (puzzle.plates.length > partySize + stones) {
+          errors.push(`puzzle ${puzzle.typeId} needs ${puzzle.plates.length} plates held by ${partySize} players and ${stones} stones`);
+        }
       }
       const reward = content.items.get(content.puzzles.get(puzzle.typeId)?.rewardItemId ?? "");
       if (reward?.kind === "key") addKey(reward.id);
@@ -160,7 +171,9 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   }
 
   for (const puzzle of dungeon.puzzles) {
-    if (!solved.has(puzzle.id)) errors.push(`puzzle ${puzzle.typeId} cannot be reached`);
+    if (solved.has(puzzle.id)) continue;
+    const idolMissing = puzzle.heldBy === "idol" && puzzle.plates.every((plate) => reach.has(key(plate.position)));
+    errors.push(idolMissing ? `puzzle ${puzzle.typeId} has no idol in reach` : `puzzle ${puzzle.typeId} cannot be reached`);
   }
   // Two players turn a twin lock from beside it, so it needs two of them and a way to it. A chest
   // sits on an authored tile, which scales to a block of open floor with room for both to stand.
