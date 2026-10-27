@@ -468,8 +468,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v61, the version that added the Mimic Chest", () => {
-    expect(PROTOCOL_VERSION).toBe(62);
+  it("is on protocol v64, the version that added switches and seal locks", () => {
+    expect(PROTOCOL_VERSION).toBe(64);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {
@@ -1163,6 +1163,7 @@ describe("parseServerMessage", () => {
         ],
         traps: [],
         puzzles: [],
+        switches: [],
         doors: [],
         exits: [
           {
@@ -1221,6 +1222,7 @@ describe("parseServerMessage", () => {
           exits: [],
           traps: [],
           puzzles: [],
+          switches: [],
           lightSources: [],
           dummies: [],
         },

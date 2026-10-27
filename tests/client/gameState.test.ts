@@ -30,6 +30,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     altars: [],
     traps: [],
     puzzles: [],
+    switches: [],
     doors: [],
     exits: [],
     lightSources: [],

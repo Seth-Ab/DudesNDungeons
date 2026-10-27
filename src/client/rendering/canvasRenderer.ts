@@ -3,6 +3,7 @@ import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery
 import { PLAYER_RADIUS, carriesIdol, tileAt } from "../../shared/game/movement.js";
 import type {
   AltarState,
+  SwitchState,
   ChestState,
   DoorState,
   DungeonMapState,
@@ -787,6 +788,11 @@ export function createCanvasRenderer(
     if (chest.locked) drawSprite("door-lock", chest.position, 1, 1, camera);
   };
 
+  /** A switch has no art yet: a flat square, dark until lit and amber after. */
+  const drawSwitch = (lever: SwitchState, camera: Vector2): void => {
+    drawWorldRect(lever.position, 1.2, lever.active ? "#f2a33a" : "#3a3330", camera);
+  };
+
   /**
    * A shrine altar: the slab with a scroll resting on each plinth that is still on offer, a cage
    * over each one the party's choice shut away, and a bare plinth where the chosen scroll was.
@@ -1170,6 +1176,7 @@ export function createCanvasRenderer(
     // Before loot, so whatever a chest spilled is drawn on the floor in front of it.
     scene.dungeon.chests.forEach((chest) => drawChest(chest, camera));
     scene.dungeon.altars.forEach((altar) => drawAltar(altar, camera, now));
+    scene.dungeon.switches.forEach((lever) => drawSwitch(lever, camera));
     // Every halo before any flame: a hub halo is added to what is under it, and one drawn after a
     // neighbouring flame would wash that flame out to white.
     if (tileset.ready) scene.dungeon.lightSources.forEach((light) => drawLightGlow(light, camera, scene, now));

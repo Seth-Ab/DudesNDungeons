@@ -98,6 +98,7 @@ export function scaleDungeon(built: BuiltDungeon, scale = TILE_SCALE): BuiltDung
         ...puzzle,
         plates: puzzle.plates.map((plate) => ({ ...plate, position: point(plate.position) })),
       })),
+      switches: dungeon.switches.map((lever) => ({ ...lever, position: point(lever.position) })),
       // A door spans its whole authored tile, so its span grows with the tile. Scaling the centre
       // alone would leave a locked door plugging one world tile of the sixteen it used to fill.
       doors: dungeon.doors.map((door) => ({

@@ -395,6 +395,24 @@ export const doorStateSchema = z.object({
 export type DoorState = z.infer<typeof doorStateSchema>;
 
 /**
+ * A switch that stays on once lit. A seal door lock (`doorLockSchema`) opens when every switch in
+ * its group is active, and it never closes again. Only the server sets `active`: a brazier is lit
+ * by a player carrying a torch who can reach it, and the client sends only an interact intent.
+ */
+export const switchKindSchema = z.enum(["brazier", "bell", "lever"]);
+export type SwitchKind = z.infer<typeof switchKindSchema>;
+
+export const switchStateSchema = z.object({
+  id: entityIdSchema,
+  kind: switchKindSchema,
+  position: vector2Schema,
+  /** The seal lock group this switch counts toward. */
+  groupId: contentIdSchema,
+  active: z.boolean(),
+});
+export type SwitchState = z.infer<typeof switchStateSchema>;
+
+/**
  * A chest placed by a room template. Its contents are not chosen until it is opened: the server
  * rolls `lootTableId` then and spills the result beside it as ordinary loot, so a client learns
  * what was inside only by seeing it on the floor. A locked chest takes a key, like a locked door.
@@ -625,6 +643,8 @@ export const dungeonStateSchema = z.object({
   traps: z.array(trapStateSchema),
   /** Only puzzles with a plate on a tile the viewer can currently see. */
   puzzles: z.array(puzzleStateSchema),
+  /** Only switches on tiles the viewer can currently see, like traps. */
+  switches: z.array(switchStateSchema),
   lightSources: z.array(lightSourceStateSchema),
   /** Only dummies on tiles the viewer can currently see, like loot. */
   dummies: z.array(dummyStateSchema),

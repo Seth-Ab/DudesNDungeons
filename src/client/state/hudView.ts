@@ -822,6 +822,9 @@ export function actionPrompt(
 
   if (target?.kind === "door") return prompt("interact", doorPromptText(target.lock, self.inventory));
   if (target?.kind === "chest") return prompt("interact", chestPromptText(view, self.id, target.id, target.locked));
+  if (target?.kind === "switch") {
+    return prompt("interact", self.carryingTorch ? `Light the ${target.name}` : `The ${target.name} needs a torch`);
+  }
   if (target?.kind === "exit") {
     return prompt("interact", view.location === "hub" ? "Enter the dungeon" : "Leave the dungeon");
   }

@@ -89,7 +89,7 @@ export function nearestInteraction(
   position: Vector2,
 ): (ReachTarget & {
   gap: number;
-  kind: "door" | "exit" | "chest" | "seat" | "altar" | "idolAltar";
+  kind: "door" | "exit" | "chest" | "seat" | "altar" | "idolAltar" | "switch";
   locked: boolean;
   lock: DoorLock | null;
   /** For an altar, the scroll nearest the viewer, which a take names; null for every other kind. */
@@ -111,6 +111,18 @@ export function nearestInteraction(
         lock: null,
         choiceItemId: null,
         gap: distance(position, chest.position),
+      })),
+    // A lit switch stays lit, so it is a target only while it is still dark.
+    ...view.dungeon.switches
+      .filter((lever) => !lever.active)
+      .map((lever) => ({
+        id: lever.id,
+        name: lever.kind,
+        kind: "switch" as const,
+        locked: false,
+        lock: null,
+        choiceItemId: null,
+        gap: distance(position, lever.position),
       })),
     ...view.dungeon.doors
       .filter((door) => !door.open)
