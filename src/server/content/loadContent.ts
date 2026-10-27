@@ -287,7 +287,7 @@ function validateReferences(content: GameContent, sources: ContentSources): void
   }
 
   for (const puzzle of content.puzzles.values()) {
-    if (!content.items.has(puzzle.rewardItemId)) {
+    if (puzzle.rewardItemId !== undefined && !content.items.has(puzzle.rewardItemId)) {
       throw new Error(`Puzzle "${puzzle.id}" rewards unknown item "${puzzle.rewardItemId}"`);
     }
   }
@@ -337,7 +337,12 @@ function validateReferences(content: GameContent, sources: ContentSources): void
       if (!content.traps.has(id)) throw new Error(`${file} field traps.${index} names unknown trap "${id}"`);
     }
     for (const [index, id] of biome.puzzles.entries()) {
-      if (!content.puzzles.has(id)) throw new Error(`${file} field puzzles.${index} names unknown puzzle "${id}"`);
+      const type = content.puzzles.get(id);
+      if (!type) throw new Error(`${file} field puzzles.${index} names unknown puzzle "${id}"`);
+      if (type.heldBy === "doors") throw new Error(`${file} field puzzles.${index} names "${id}", a Door Vote; use doorVote`);
+    }
+    if (biome.doorVote !== undefined && content.puzzles.get(biome.doorVote)?.heldBy !== "doors") {
+      throw new Error(`${file} field doorVote names "${biome.doorVote}", which is not a Door Vote puzzle`);
     }
     for (const [index, id] of biome.bosses.entries()) {
       const type = content.monsters.get(id);

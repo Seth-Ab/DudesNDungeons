@@ -257,12 +257,14 @@ describe("the delve generator", () => {
     expect(layouts.size).toBeGreaterThan(45);
   });
 
-  it("builds a run in well under 5 ms on average", () => {
+  // About 2.8 ms alone, 2.3 without a Door Vote, which walks a run once for each door it could pick.
+  // The suite runs files in parallel, so the bound leaves room for a loaded machine.
+  it("builds a run in well under 6 ms on average", () => {
     for (let seed = 0; seed < 20; seed += 1) generateDungeon(delveProfile, content, seed, 4);
     const runs = 300;
     const startedAt = performance.now();
     for (let seed = 0; seed < runs; seed += 1) generateDungeon(delveProfile, content, seed, 1 + (seed % 4));
-    expect((performance.now() - startedAt) / runs).toBeLessThan(5);
+    expect((performance.now() - startedAt) / runs).toBeLessThan(6);
   });
 
   it("retries a failed attempt from a new stream, and throws naming the seed when none works", () => {

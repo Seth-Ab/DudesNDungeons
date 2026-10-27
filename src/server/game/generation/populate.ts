@@ -37,6 +37,7 @@ import {
   chestInstance,
   lootInstance,
   monsterInstance,
+  doorVoteInstance,
   puzzleInstance,
   trapInstance,
 } from "../dungeonBuilder.js";
@@ -84,6 +85,8 @@ const CORRIDOR_TRAP_OFFSET = 5;
 const BONUS_LIGHT_MULT = 1.2;
 const MAX_PLATES: Readonly<Record<string, number>> = { "paired-levers": 2 };
 const DEFAULT_MAX_PLATES = 3;
+/** A Door Vote has a plate for each player, up to a full party, before every voted doorway. */
+const MAX_VOTE_PLATES = 4;
 /** How many skill scrolls a shrine altar offers. */
 const ALTAR_OFFER_SIZE = 2;
 /** Radius of a shrine's candle. */
@@ -577,6 +580,56 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
         out.traps.push(trapInstance(corridorTrap, claim(tile)!, rng.uuid()));
       }
     });
+  }
+
+  // A Door Vote last, so a run without one draws exactly the stream it did before. Each voted
+  // doorway is sealed and has a plate for every player in front of it. A junction too cramped for
+  // every plate gets no vote at all, and its doorways stay open.
+  const vote = plan.doorVote;
+  const voteType = vote ? content.puzzles.get(vote.typeId) : undefined;
+  if (vote && voteType && partySize >= voteType.minParty) {
+    const room = world.rooms[vote.nodeId]!;
+    const sockets = midpointSockets(room.width, room.height);
+    const doorways = vote.doors.map((door) => {
+      const side = sideToward(graph, vote.nodeId, door.toNodeId);
+      const wallTile = { x: room.x + sockets[side].wall.x, y: room.y + sockets[side].wall.y };
+      return { ...door, wallTile, inward: { x: room.x + sockets[side].inward.x, y: room.y + sockets[side].inward.y } };
+    });
+    // Every doorway the room has is a walkway; no plate stands on the tile just inside one.
+    const walkways = new Set(
+      used[vote.nodeId]!.map((side) => key({ x: room.x + sockets[side].inward.x, y: room.y + sockets[side].inward.y })),
+    );
+    const open = new Map<string, Vector2>();
+    for (let y = room.y + 1; y < room.y + room.height - 1; y += 1) {
+      for (let x = room.x + 1; x < room.x + room.width - 1; x += 1) {
+        const tile = { x, y };
+        if (!wall(x, y) && !reserved.has(key(tile)) && !walkways.has(key(tile))) open.set(key(tile), tile);
+      }
+    }
+    const count = Math.min(partySize, MAX_VOTE_PLATES);
+    const chosen: Vector2[][] = [];
+    for (const doorway of doorways) {
+      const plates = [...open.values()]
+        .sort((a, b) => distance(a, doorway.inward) - distance(b, doorway.inward) || byPosition(a, b))
+        .slice(0, count);
+      for (const tile of plates) open.delete(key(tile));
+      chosen.push(plates);
+    }
+    if (chosen.every((plates) => plates.length === count)) {
+      const doors = doorways.map((doorway, index) => {
+        const id = rng.uuid();
+        out.doors.push({
+          id,
+          position: { ...claim(doorway.wallTile)! },
+          size: 1,
+          open: false,
+          lock: { type: "seal", groupId: voteType.id },
+        });
+        for (const tile of chosen[index]!) claim(tile);
+        return { doorId: id, icon: doorway.icon, plates: chosen[index]! };
+      });
+      out.puzzles.push(doorVoteInstance(voteType, doors, rng.uuid()));
+    }
   }
 
   return { ...out, threat };

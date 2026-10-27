@@ -49,8 +49,21 @@ const SHAPES: Readonly<Partial<Record<RoomKind, { shapes: readonly RoomShapeId[]
  * builds without rather than fail to build at all.
  */
 const VAULT_ATTEMPTS = 120;
+/**
+ * Attempts a run that wants a Door Vote spends looking for a junction that can hold one, before it
+ * builds without, so a vote can never be why a run fails to build. Few layouts have one.
+ */
+const VOTE_ATTEMPTS = 30;
+/** The chance a run for a party big enough to vote has a Door Vote, and the stream that rolls it. */
+const VOTE_CHANCE = 0.4;
+const VOTE_STREAM = 1_000_033;
 /** The `mixSeed` stream that decides whether a run has a vault, beyond any attempt number. */
 const VAULT_STREAM = 1_000_003;
+
+/** A flow that draws the two branches a junction needs and one more for the boss key to lie in. */
+function withJunctionBranches(flow: FlowDefinition): FlowDefinition {
+  return { ...flow, branches: { min: Math.max(3, flow.branches.min), max: Math.max(3, flow.branches.max) } };
+}
 
 function withVaultBranch(flow: FlowDefinition): FlowDefinition {
   return { ...flow, branches: { min: flow.branches.min + 1, max: flow.branches.max + 1 } };
@@ -65,6 +78,8 @@ export interface DelveOverrides {
   readonly omens?: readonly string[];
   /** Whether the run has a vault, instead of rolling the flow's `vaultChance`. */
   readonly vault?: boolean;
+  /** Whether the run holds out for a Door Vote, instead of rolling `VOTE_CHANCE`. */
+  readonly vote?: boolean;
   /**
    * Skill ids the party already carries as scrolls. A shrine altar never offers a scroll of one,
    * and is left out when fewer than two others remain.
@@ -132,19 +147,26 @@ export function generateDelve(
   const effects = omenEffects(omens);
   const { grid } = definition;
   const failures: string[] = [];
+  const voteType = biome.doorVote ? content.puzzles.get(biome.doorVote) : undefined;
+  const canVote = voteType !== undefined && partySize >= voteType.minParty;
+  // Never more than half the attempts, so a profile with few of them keeps most for a plain run.
+  const voteAttempts = Math.min(VOTE_ATTEMPTS, Math.floor(definition.maxAttempts / 2));
+  const voteRun = canVote && (overrides.vote ?? createRng(mixSeed(seed, VOTE_STREAM)).chance(VOTE_CHANCE));
 
   for (let attempt = 0; attempt < definition.maxAttempts; attempt += 1) {
     const rng = createRng(mixSeed(seed, attempt));
     const wantsVault = vault && attempt < VAULT_ATTEMPTS;
     // A vault is one more dead-end branch than the flow draws, so a layout has one to spare for it.
-    const graph = generateLayout(rng, wantsVault ? withVaultBranch(flow) : flow, grid);
+    const wantsVote = voteRun && attempt < voteAttempts;
+    const drawn = wantsVote ? withJunctionBranches(flow) : flow;
+    const graph = generateLayout(rng, wantsVault ? withVaultBranch(drawn) : drawn, grid, { junction: wantsVote });
     if (!graph) {
       failures.push("layout");
       continue;
     }
-    const plan = assignRoles(rng, graph, flow, biome, wantsVault, effects.shrine ? 1 : DEFAULT_SHRINE_CHANCE);
-    if (!plan) {
-      failures.push("roles");
+    const plan = assignRoles(rng, graph, flow, biome, wantsVault, effects.shrine ? 1 : DEFAULT_SHRINE_CHANCE, wantsVote ? voteType!.id : null);
+    if (!plan || (wantsVote && !plan.doorVote)) {
+      failures.push(plan ? "doorVote" : "roles");
       continue;
     }
     const rooms = plan.roles.map((kind) => roomTiles(rng, kind, biome, content, grid.cell - 2 * grid.margin));
@@ -204,6 +226,12 @@ export function generateDelve(
     } catch (error) {
       // A room too cramped for what it was asked to hold: re-roll the layout, never ship it.
       failures.push(`populate: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    // A junction too cramped for its plates is left open, which is no vote at all.
+    if (wantsVote && !built.dungeon.puzzles.some((puzzle) => puzzle.heldBy === "doors")) {
+      failures.push("doorVote: no room for the plates");
       continue;
     }
 

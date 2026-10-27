@@ -214,6 +214,13 @@ const SPRITE_SIZES: ReadonlyArray<readonly [string, SpriteSize]> = [
   // An Idol Carry altar, drawn at a chest's size: an empty gold-rimmed socket, and the idol set in it.
   ["idol-altar", { tilesWide: 1, tilesHigh: 1 }],
   ["idol-altar-set", { tilesWide: 1, tilesHigh: 1 }],
+  // A Door Vote: the plate a player stands on, free and held, and the hint above each doorway.
+  ["vote-plate", { tilesWide: 1, tilesHigh: 1 }],
+  ["vote-plate-held", { tilesWide: 1, tilesHigh: 1 }],
+  ["vote-icon-loot", { tilesWide: 1, tilesHigh: 1 }],
+  ["vote-icon-danger", { tilesWide: 1, tilesHigh: 1 }],
+  ["vote-icon-shrine", { tilesWide: 1, tilesHigh: 1 }],
+  ["vote-icon-unknown", { tilesWide: 1, tilesHigh: 1 }],
   ["exit-stairs", { tilesWide: 4, tilesHigh: 4 }],
   // A shrine altar: a slab with a plinth under each of two scrolls (they sit a world unit either
   // side of its centre), the cage that comes down over a plinth, and the candle that lights the room.
