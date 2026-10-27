@@ -1,4 +1,4 @@
-import { TILE_SCALE, type DoorVoteIcon } from "../../shared/constants/game.js";
+import { TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SHADOWS, MAP_PROP_SIZES } from "../../shared/constants/scenery.js";
 import { PLAYER_RADIUS, carriesIdol, tileAt } from "../../shared/game/movement.js";
 import type {
@@ -619,9 +619,6 @@ export function createCanvasRenderer(
    * span is four tiles and one sprite stretched across it would be drawn at four times its size.
    * An open one is two jambs at the ends, so the floor the party is about to cross shows through.
    */
-  /** The hint above each Door Vote doorway, by door id, read from the plates before it each frame. */
-  const voteIcons = new Map<string, DoorVoteIcon>();
-
   const drawDoor = (map: DungeonMapState, door: DoorState, camera: Vector2): void => {
     const horizontal =
       doorOrientation(
@@ -663,7 +660,7 @@ export function createCanvasRenderer(
     }
 
     // A sealed Door Vote doorway shows what lies beyond it in place of the lock.
-    const hint = door.lock?.type === "seal" ? voteIcons.get(door.id) : undefined;
+    const hint = door.lock?.type === "seal" ? door.voteIcon : undefined;
     if (hint) {
       drawSprite(`vote-icon-${hint}`, door.position, 2, 2, camera);
     } else if (door.lock !== null) {
@@ -1145,10 +1142,6 @@ export function createCanvasRenderer(
         ? drawSprite("exit-stairs", exit.position, TILE_SCALE, TILE_SCALE, camera)
         : drawWorldRect(exit.position, 1.6, colors.exit, camera),
     );
-    voteIcons.clear();
-    for (const puzzle of scene.dungeon.puzzles) {
-      for (const plate of puzzle.plates) if (plate.doorId && plate.icon) voteIcons.set(plate.doorId, plate.icon);
-    }
     scene.dungeon.doors.forEach((door) => drawDoor(scene.dungeon.map, door, camera));
     // Placeholder footprints until trap art exists; a spent trap is drawn dull so a party can see
     // which plates are safe to cross.

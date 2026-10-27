@@ -80,9 +80,6 @@ function holders(session: Session, puzzle: PuzzleState, players: SessionPlayer[]
   });
 }
 
-/** The key a vote's hold is kept under: one timer per door, so a party that shifts doors starts over. */
-const voteKey = (puzzle: PuzzleState, doorId: string): string => `${puzzle.id}:${doorId}`;
-
 /**
  * Steps one Door Vote. A door is chosen once every standing, connected player is holding one of
  * its plates, so a party of three needs three plates and a vote survives a player who left or
@@ -96,6 +93,9 @@ function resolveDoorVote(
   players: SessionPlayer[],
   now: number,
 ): boolean {
+  // The door held last tick, read before the plates are restamped, so the timer itself can stay
+  // keyed by puzzle id like every other hold and a save never has to name a door.
+  const heldBefore = new Set(puzzle.plates.filter((plate) => plate.held).map((plate) => plate.doorId));
   const assigned = holders(session, puzzle, players);
   puzzle.plates.forEach((plate, index) => {
     plate.held = assigned[index] !== null;
@@ -106,18 +106,19 @@ function resolveDoorVote(
     puzzle.plates.filter((plate, index) => plate.doorId === doorId && assigned[index] !== null).length;
   const chosen = players.length > 0 ? doorIds.find((doorId) => heldOn(doorId) === players.length) : undefined;
 
-  for (const doorId of doorIds) if (doorId !== chosen) session.puzzleHeldSince.delete(voteKey(puzzle, doorId));
+  // Stepping off, or shifting to another door, starts the hold over.
+  if (chosen === undefined || (heldBefore.size > 0 && !heldBefore.has(chosen))) session.puzzleHeldSince.delete(puzzle.id);
   if (chosen === undefined) {
     puzzle.progress = 0;
     return false;
   }
 
-  const since = session.puzzleHeldSince.get(voteKey(puzzle, chosen)) ?? now;
-  session.puzzleHeldSince.set(voteKey(puzzle, chosen), since);
+  const since = session.puzzleHeldSince.get(puzzle.id) ?? now;
+  session.puzzleHeldSince.set(puzzle.id, since);
   puzzle.progress = Math.min(1, Math.max(0, (now - since) / type.holdMs));
   if (puzzle.progress < 1) return false;
 
-  session.puzzleHeldSince.delete(voteKey(puzzle, chosen));
+  session.puzzleHeldSince.delete(puzzle.id);
   const door = session.dungeon.doors.find((candidate) => candidate.id === chosen);
   if (door) {
     door.lock = null;

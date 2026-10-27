@@ -186,19 +186,27 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
       }
       if (!changed) break;
     }
-    return { reach, solved, idolsMissing: (puzzle: PuzzleState) => puzzle.heldBy === "idol" && puzzle.plates.every((plate) => reach.has(key(plate.position))) };
+    return { reach, solved, gathered, idolsMissing: (puzzle: PuzzleState) => puzzle.heldBy === "idol" && puzzle.plates.every((plate) => reach.has(key(plate.position))) };
   };
 
   const runs = choices.map((chosen) => ({ chosen, ...walk(chosen) }));
-  // Whichever door the party picks, it must be able to finish the run. What a choice leaves behind
-  // in the doors it did not pick is optional; the checks below that ask for everything count a
-  // room, puzzle or chest as found if any choice finds it.
+  // Whichever door the party picks, it must be able to finish the run: the exit, the boss room,
+  // the vault, every key and key-carrying elite, and every puzzle outside the vote must be had in
+  // every choice. Only rooms and chests inside a voted branch may be reachable in some choices.
   for (const run of runs) {
     if (!run.reach.has(key(exit.position))) errors.push("the exit is unreachable after every key and puzzle");
+    for (const room of dungeon.rooms) {
+      if ((room.kind === "boss" || room.kind === "vault") && !entersRoom(run.reach, room)) {
+        errors.push(`the ${room.kind} room is unreachable after a vote`);
+      }
+    }
+    for (const loot of dungeon.loot) {
+      if (loot.kind === "key" && !run.gathered.has(loot.id)) errors.push(`a key at ${key(loot.position)} is unreachable after a vote`);
+    }
+    for (const monster of dungeon.monsters) {
+      if (monster.elite && !run.gathered.has(monster.id)) errors.push(`the elite at ${key(monster.position)} is unreachable after a vote`);
+    }
   }
-  const solvedAnywhere = new Set(runs.flatMap((run) => [...run.solved]));
-  const reachedAnywhere = (tile: string): boolean => runs.some((run) => run.reach.has(tile));
-
   for (const puzzle of dungeon.puzzles) {
     if (puzzle.heldBy === "doors") {
       const doors = voteDoors(puzzle);
@@ -218,16 +226,19 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
       }
       continue;
     }
-    if (solvedAnywhere.has(puzzle.id)) continue;
-    const idolMissing = runs.some((run) => run.idolsMissing(puzzle));
-    errors.push(idolMissing ? `puzzle ${puzzle.typeId} has no idol in reach` : `puzzle ${puzzle.typeId} cannot be reached`);
+    for (const run of runs) {
+      if (run.solved.has(puzzle.id)) continue;
+      errors.push(
+        run.idolsMissing(puzzle) ? `puzzle ${puzzle.typeId} has no idol in reach` : `puzzle ${puzzle.typeId} cannot be reached`,
+      );
+    }
   }
   // Two players turn a twin lock from beside it, so it needs two of them and a way to it. A chest
   // sits on an authored tile, which scales to a block of open floor with room for both to stand.
   for (const chest of dungeon.chests) {
     if (!chest.twinLock) continue;
     if (partySize < TWIN_LOCK_MIN_PARTY) errors.push(`a twin-lock chest needs ${TWIN_LOCK_MIN_PARTY} players, not ${partySize}`);
-    if (!reachedAnywhere(key(chest.position))) errors.push(`the twin-lock chest at ${key(chest.position)} cannot be reached`);
+    if (runs.some((run) => !run.reach.has(key(chest.position)))) errors.push(`the twin-lock chest at ${key(chest.position)} cannot be reached`);
   }
   for (const room of dungeon.rooms) {
     if (!runs.some((run) => entersRoom(run.reach, room))) errors.push(`room "${room.name}" is unreachable`);

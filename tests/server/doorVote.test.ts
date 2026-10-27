@@ -10,8 +10,9 @@ import { resolvePuzzles } from "../../src/server/game/puzzles.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import { DOOR_VOTE_ICONS } from "../../src/shared/constants/game.js";
-import { puzzleStateSchema } from "../../src/shared/types/core.js";
+import { doorStateSchema, puzzleStateSchema } from "../../src/shared/types/core.js";
 import { at, testPlayer, testSession } from "./fixtures.js";
+import { captureRun, persistedRunSchema, restoreRun } from "../../src/server/saves/roomSave.js";
 
 const content = gameContent();
 const type = content.puzzles.get("door-vote")!;
@@ -242,5 +243,76 @@ describe("Door Vote resolution", () => {
     expect(seen[0]!.plates.every((plate) => plate.doorId === LEFT_DOOR && plate.icon === "loot")).toBe(true);
     expect(puzzleStateSchema.safeParse(seen[0]).success).toBe(true);
     expect(vote.plates.map((plate) => plate.icon)).toEqual(["loot", "loot", "loot", "danger", "danger", "danger"]);
+  });
+});
+
+describe("Door Vote validation of required things", () => {
+  it("refuses a run whose key-carrying elite stands in a branch only some votes reach", () => {
+    let refused = 0;
+    for (const { built } of voteRuns(3, 10)) {
+      expect(validateDungeon(built, content, 3)).toEqual([]);
+      const elite = built.dungeon.monsters.find((monster) => monster.elite);
+      if (!elite) continue;
+      for (const room of built.dungeon.rooms) {
+        const moved = structuredClone(built);
+        const monster = moved.dungeon.monsters.find((candidate) => candidate.id === elite.id)!;
+        monster.position = { x: room.x + Math.floor(room.width / 2), y: room.y + Math.floor(room.height / 2) };
+        if (validateDungeon(moved, content, 3).some((error) => /elite .* unreachable after a vote/.test(error))) refused += 1;
+      }
+    }
+    // Some room lies behind a single voted door, and an elite put there is no longer in every choice.
+    expect(refused).toBeGreaterThan(0);
+  });
+});
+
+describe("Door Vote hints", () => {
+  it("keeps a sealed door's hint when its plates are out of view", () => {
+    const { session, players } = withVote(2);
+    session.dungeon.lightSources = [];
+    players[0]!.position = at(8, 12);
+    const { map } = session.dungeon;
+    players[0]!.discoveredTiles = new Uint8Array(map.width * map.height).fill(1);
+
+    const dungeon = visibilityFrameForPlayer(session, players[0]!).dungeon;
+    expect(dungeon.puzzles).toEqual([]);
+    expect(dungeon.doors.map((door) => [door.id, door.voteIcon])).toEqual([
+      [LEFT_DOOR, "loot"],
+      [RIGHT_DOOR, "danger"],
+    ]);
+    expect(doorStateSchema.safeParse(dungeon.doors[0]).success).toBe(true);
+  });
+});
+
+describe("Door Vote saves", () => {
+  it("saves and restores a hold in progress, and finishes it after the reload", () => {
+    const { session, vote, leftPlates, stand } = withVote(3);
+    stand(leftPlates);
+    resolvePuzzles(session, 1000);
+    resolvePuzzles(session, 1000 + type.holdMs / 2);
+
+    // Every key of a save is validated as an id, so a vote's timer must be one.
+    const run = captureRun(session, 1000 + type.holdMs / 2, "test");
+    expect(() => persistedRunSchema.shape.puzzleHeldForMs.parse(run.puzzleHeldForMs)).not.toThrow();
+    expect(Object.keys(run.puzzleHeldForMs)).toEqual([VOTE_ID]);
+
+    const reloaded = withVote(3);
+    reloaded.stand(reloaded.leftPlates);
+    restoreRun(reloaded.session, run, 50_000);
+    expect(reloaded.session.puzzleHeldSince.get(VOTE_ID)).toBe(50_000 - type.holdMs / 2);
+
+    expect(resolvePuzzles(reloaded.session, 50_000 + type.holdMs / 2)).toHaveLength(1);
+    expect(doorOf(reloaded.session, LEFT_DOOR).open).toBe(true);
+    expect(vote.phase).toBe("idle");
+  });
+
+  it("starts over when the party shifts to another door", () => {
+    const { session, vote, rightPlates, leftPlates, stand } = withVote(3);
+    stand(leftPlates);
+    resolvePuzzles(session, 0);
+    resolvePuzzles(session, type.holdMs - 100);
+    stand(rightPlates);
+    resolvePuzzles(session, type.holdMs);
+    expect(vote.phase).toBe("idle");
+    expect(vote.progress).toBe(0);
   });
 });

@@ -392,6 +392,8 @@ export const doorStateSchema = z.object({
   size: z.number().positive(),
   open: z.boolean(),
   lock: doorLockSchema.nullable(),
+  /** What lies beyond a sealed Door Vote doorway. Sent with the door, so it shows without its plates in view. */
+  voteIcon: z.enum(DOOR_VOTE_ICONS).optional(),
 });
 export type DoorState = z.infer<typeof doorStateSchema>;
 
