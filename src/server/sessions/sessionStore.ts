@@ -35,6 +35,7 @@ import {
   type DungeonRequest,
 } from "../game/dungeonState.js";
 import { createRunStats, type RunStats } from "../game/milestones.js";
+import { setDownIdols } from "../game/idols.js";
 import { lootRngFor } from "../game/monsterLoot.js";
 import { pressReady } from "../game/readyPlates.js";
 import { standUp } from "../game/seats.js";
@@ -669,6 +670,8 @@ export class SessionStore {
     // stand. The reverse is left alone: a carried player is an inert body regardless of their own
     // connection, so their carrier keeps carrying them.
     this.#dropCarryFor(member.session, member.player);
+    // An idol is set down the same way, so the party can carry it on without them.
+    setDownIdols(member.session, member.player);
     // Nor is anyone left sitting: a reconnect within the grace window comes back standing.
     standUp(member.session, member.player);
     return member;
@@ -739,8 +742,10 @@ export class SessionStore {
 
   #removePlayer({ session, player }: SessionMember): void {
     // A removed player can neither keep carrying nor keep being carried: the slot they occupied is
-    // about to disappear, so both sides of any carry link must be cleared before it does.
+    // about to disappear, so both sides of any carry link must be cleared before it does. An idol
+    // stays in the dungeon for the rest of the party.
     this.#dropCarryFor(session, player);
+    setDownIdols(session, player);
     if (player.carriedByPlayerId) {
       const carrier = session.players.get(player.carriedByPlayerId);
       if (carrier) carrier.carryingPlayerId = null;

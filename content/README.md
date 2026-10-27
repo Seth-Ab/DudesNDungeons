@@ -47,6 +47,12 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   among the players holding a plate shortens the hold by `holdReductionMsPerPower`, never below
   `minHoldMs`. Solving drops `rewardItemId` on the first plate. Templates spawn puzzles with a
   `puzzles` rule list (`typeId` plus two or more local `plates`) and authored dungeons place them.
+  `heldBy` is `players` (the default) or `idol`: an `idol` puzzle is an Idol Carry, whose one plate
+  is an altar held only by a Heavy Idol (`heavy-idol`, kind `idol`) set on it, never by a player.
+  The generator gives it one altar and puts the idol in the room farthest from it; the altar keeps
+  the idol once solved. Lifting an idol costs the lift stamina, and its carrier moves at half
+  speed, cannot attack, and is the monsters' first target. `idol-carry` is in the Cinder Depths
+  `puzzles` pool beside `paired-levers`.
 - `loot-tables/`: named loot tables with the same shape as a monster's `loot` (`rolls`, weighted
   `entries`, `nothingWeight`) plus an `id`. Chests refer to one by `lootTableId`; an unknown id or
   an unknown entry `itemId` fails validation.

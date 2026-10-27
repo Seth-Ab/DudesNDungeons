@@ -82,7 +82,8 @@ room or locks never placed are rejected):
   room is reachable by the end;
 - the first spawn point stands inside a light;
 - no puzzle needs more plates held than the party has players plus Ballast Stones;
-- a Twin-lock Chest appears only for a party of two or more, and is reachable once keys are spent.
+- a Twin-lock Chest appears only for a party of two or more, and is reachable once keys are spent;
+- an Idol Carry altar has one plate, and counts as solved only with an idol of its own in reach.
 
 ### Differences from the design
 
@@ -108,6 +109,12 @@ room or locks never placed are rejected):
   each other (`src/server/game/twinLocks.ts`). A solo party never gets one, and no Ballast-Stone
   equivalent stands in for the second hand. Secret rooms are not generated yet, so vaults are its
   only home.
+- The Idol Carry (#289): `idol-carry` joins `paired-levers` in the Cinder Depths puzzle pool, so a
+  gauntlet's key puzzle is either. Its altar sits in the middle of the puzzle room and the Heavy
+  Idol in the room farthest from it by hops (`idolRoom`), never the entrance, boss, exit or vault;
+  the design's "from a vault" is read as that far room, since the locked vault would gate the boss
+  key on the elite's. Every party size from one to four can solve it (a solo carrier sets it down
+  to fight), so it has no minimum and needs no Ballast Stone.
 - Only today's room kinds, plus vaults, are generated. Shrines, camps, secrets and arenas (the rest
   of Phase 2) and omens (Phase 3) are not part of this record.
 - `ember-vault` stays an authored map that tests build on. The old `generated` chain layout

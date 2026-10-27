@@ -1,5 +1,5 @@
 import { INTERACT_RANGE, LIFT_STAMINA_COST } from "../../shared/constants/game.js";
-import { distance } from "../../shared/game/movement.js";
+import { carriesIdol, distance } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { PlayerId } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
@@ -15,11 +15,12 @@ function reject(reason: RejectionReason): CarryResult {
   return { ok: false, reason };
 }
 
-/** Standing, and not already on either side of a carry. */
+/** Standing, not already on either side of a carry, and not carrying an idol. */
 function eligibleCarrier(session: Session, playerId: PlayerId): SessionPlayer | null {
   const player = session.players.get(playerId);
   if (!player || isDown(player)) return null;
   if (player.carryingPlayerId !== null || player.carriedByPlayerId !== null) return null;
+  if (carriesIdol(player)) return null;
   return player;
 }
 

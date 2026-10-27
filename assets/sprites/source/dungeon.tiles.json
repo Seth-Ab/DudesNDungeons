@@ -847,6 +847,28 @@
         "4*0000000000000000"
       ]
     },
+    "loot-idol": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000000000000000",
+        "0000001111000000",
+        "000001ihhi100000",
+        "00001iihhii10000",
+        "00001iOiiOi10000",
+        "00001jiiiij10000",
+        "000001jjjj100000",
+        "0001111ii1111000",
+        "001ijiiiiiiji100",
+        "001ij1iggi1ji100",
+        "0001101gg1011000",
+        "000001igggi10000",
+        "00001jjiiijj1000",
+        "0001jjjjjjjjj100",
+        "0000111111111000",
+        "0000000000000000"
+      ]
+    },
     "loot-tonic": {
       "tilesWide": 1,
       "tilesHigh": 1,
@@ -1113,6 +1135,44 @@
         "01daaaaaaaaaad10",
         "0011111111111100",
         "2*0000000000000000"
+      ]
+    },
+    "idol-altar": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "5*0000000000000000",
+        "0011111111111100",
+        "01ijjjjjjjjjji10",
+        "01jjj111111jjj10",
+        "0111111111111110",
+        "0001zzzzzzzz1000",
+        "2*0001zyyxyyxy1000",
+        "0001xxxxxxxx1000",
+        "0011zyxyyxyz1100",
+        "01vvvvvvvvvvvv10",
+        "0011111111111100"
+      ]
+    },
+    "idol-altar-set": {
+      "tilesWide": 1,
+      "tilesHigh": 1,
+      "rows": [
+        "0000001111000000",
+        "000001ihhi100000",
+        "00001iOiiOi10000",
+        "000011jjjj110000",
+        "0001jiiggiij1000",
+        "00011jgggggj1100",
+        "0011111111111100",
+        "01ijjjjjjjjjji10",
+        "01jjjiiiiiijjj10",
+        "0111111111111110",
+        "2*0001zyyxyyxy1000",
+        "0001xxxxxxxx1000",
+        "0011zyxyyxyz1100",
+        "01vvvvvvvvvvvv10",
+        "0011111111111100"
       ]
     },
     "exit-stairs": {

@@ -1,4 +1,4 @@
-import { PLAYER_MOVE_SPEED, SERVER_TICK_RATE_HZ } from "../constants/game.js";
+import { CARRY_MOVE_SPEED_MULTIPLIER, PLAYER_MOVE_SPEED, SERVER_TICK_RATE_HZ } from "../constants/game.js";
 import type { DoorState, DungeonMapState, DungeonState, MonsterState, Vector2 } from "../types/core.js";
 
 /**
@@ -36,6 +36,26 @@ export function normalizeDirection(direction: Vector2): Vector2 | null {
   if (magnitude < MIN_DIRECTION_MAGNITUDE) return null;
 
   return { x: direction.x / magnitude, y: direction.y / magnitude };
+}
+
+/** What a player carries, as far as the carry rules need it. */
+export interface CarryingPlayer {
+  readonly carryingPlayerId: string | null;
+  readonly inventory: readonly { readonly kind: string }[];
+  readonly held: { readonly kind: string } | null;
+}
+
+/** Whether a player has a Heavy Idol in a slot or in hand, which slows them and draws monsters. */
+export function carriesIdol(player: Omit<CarryingPlayer, "carryingPlayerId">): boolean {
+  return player.held?.kind === "idol" || player.inventory.some((item) => item.kind === "idol");
+}
+
+/**
+ * The share of a step a player covers: `CARRY_MOVE_SPEED_MULTIPLIER` while carrying a body or an
+ * idol, which never stack because nobody carries both, and a full step otherwise.
+ */
+export function carrySpeedMultiplier(player: CarryingPlayer): number {
+  return player.carryingPlayerId !== null || carriesIdol(player) ? CARRY_MOVE_SPEED_MULTIPLIER : 1;
 }
 
 export interface Step {

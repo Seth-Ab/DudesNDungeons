@@ -5,6 +5,7 @@ import { generateLayout, type LayoutGraph } from "../../src/server/game/generati
 import {
   BOSS_KEY_ITEM_ID,
   ELITE_COST,
+  idolRoom,
   populateDungeon,
   roomDepth,
   threatBudget,
@@ -199,14 +200,21 @@ describe("populateDungeon", () => {
     }
   });
 
-  it("gives every planned puzzle two plates in its room and a monster to a guarded key room", () => {
+  it("gives every planned puzzle its plates in its room and a monster to a guarded key room", () => {
     for (const run of sweep(4)) {
       expect(run.populated.puzzles).toHaveLength(run.plan.puzzles.length);
       run.plan.puzzles.forEach((spec, index) => {
         const puzzle = run.populated.puzzles[index]!;
         expect(puzzle.typeId).toBe(spec.typeId);
-        expect(puzzle.plates).toHaveLength(2);
+        // Paired levers get two plates; an Idol Carry gets one altar, and its idol in another room.
+        expect(puzzle.plates).toHaveLength(puzzle.heldBy === "idol" ? 1 : 2);
         for (const plate of puzzle.plates) expect(roomAt(run, plate.position)).toBe(spec.nodeId);
+        if (puzzle.heldBy === "idol") {
+          const idols = run.populated.loot.filter((loot) => loot.kind === "idol");
+          expect(idols).toHaveLength(1);
+          expect(roomAt(run, idols[0]!.position)).toBe(idolRoom(run.graph, run.plan, spec.nodeId));
+          expect(idolRoom(run.graph, run.plan, spec.nodeId)).not.toBe(spec.nodeId);
+        }
       });
       if (run.plan.bossKey.via === "guardian") {
         const guards = run.populated.monsters.filter((monster) => roomAt(run, monster.position) === run.plan.bossKey.nodeId);

@@ -6,7 +6,7 @@ import {
   MONSTER_HEARING_RANGE,
   MONSTER_LEASH_MS,
 } from "../../shared/constants/game.js";
-import { distance, isOpen, normalizeDirection, tileOf } from "../../shared/game/movement.js";
+import { carriesIdol, distance, isOpen, normalizeDirection, tileOf } from "../../shared/game/movement.js";
 import type { MonsterState, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown, monsterStatsFor, type MonsterStats } from "./dungeonState.js";
@@ -90,26 +90,41 @@ export class MonsterPlanner {
    * and either seen or very close, so a wall hides a player from a monster as it does from the
    * party. A monster already hunting keeps any player in range even around a corner, provided a
    * route to them exists, because that is the point of walking round to find them.
+   *
+   * Anyone carrying a Heavy Idol it has noticed comes first, however close the rest are: the
+   * carrier cannot fight back, so the others have to cover them.
    */
   target(monster: MonsterState, stats: MonsterStats, now: number): SessionPlayer | undefined {
     const post = this.#postFor(monster, now);
 
     // A monster an elite has called is after the party wherever it is, within a longer range.
     const called = (post.calledUntil ?? 0) > now;
+    const range = stats.aggroRange * (called ? ELITE_CALL_AGGRO_FACTOR : 1);
     let nearest: SessionPlayer | undefined;
-    let nearestDistance = stats.aggroRange * (called ? ELITE_CALL_AGGRO_FACTOR : 1);
+    let nearestDistance = range;
+    let carrier: SessionPlayer | undefined;
+    let carrierDistance = range;
     for (const player of this.#targets) {
       const gap = distance(monster.position, player.position);
-      if (gap > nearestDistance) continue;
+      if (gap > range) continue;
+      const idol = carriesIdol(player);
+      if (gap > nearestDistance && !(idol && gap <= carrierDistance)) continue;
 
       const noticed =
         gap <= MONSTER_HEARING_RANGE ||
         hasLineOfSight(this.#session.dungeon, monster.position, player.position);
       if (!noticed && !((post.engaged || called) && this.#canReachHunted(monster))) continue;
 
-      nearest = player;
-      nearestDistance = gap;
+      if (idol && gap <= carrierDistance) {
+        carrier = player;
+        carrierDistance = gap;
+      }
+      if (gap <= nearestDistance) {
+        nearest = player;
+        nearestDistance = gap;
+      }
     }
+    nearest = carrier ?? nearest;
 
     if (nearest) {
       post.engaged = true;

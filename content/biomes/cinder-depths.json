@@ -11,7 +11,7 @@
     { "typeId": "slag-charger", "cost": 3, "weight": 1 }
   ],
   "traps": ["spike-plate", "ember-vent", "snare-wire"],
-  "puzzles": ["paired-levers"],
+  "puzzles": ["paired-levers", "idol-carry"],
   "bosses": ["ember-warden"],
   "roomWeights": { "hall": 4, "maze": 2, "trap": 2, "camp": 1 },
   "lootTableId": "common-chest",

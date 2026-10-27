@@ -8,8 +8,8 @@
  * lands on open floor away from the sockets a party walks through. Everything here is a pure
  * function of its inputs and the seeded stream, so a run replays exactly, ids included.
  *
- * Out of scope here: the session's party size reaching generation, and Ballast Stones for the
- * hands a puzzle is short of. A paired-levers puzzle always gets two plates.
+ * A puzzle held by players gets plates for the party and a Ballast Stone for each hand it is short
+ * of; an Idol Carry gets one altar plate and a Heavy Idol in the room farthest from it.
  */
 import { ELITE_KEY_ITEM_ID } from "../../../shared/constants/game.js";
 import { SEAT_FACING_VECTORS } from "../../../shared/constants/scenery.js";
@@ -31,6 +31,7 @@ import type { GameContent } from "../../content/loadContent.js";
 import type { BiomeDefinition, RoomKind } from "../../content/schema.js";
 import {
   BALLAST_ITEM_ID,
+  IDOL_ITEM_ID,
   altarInstance,
   ballastNeeded,
   chestInstance,
@@ -195,6 +196,33 @@ function spread(rng: Rng, tiles: readonly Vector2[], count: number): Vector2[] {
     picks.push(best!);
   }
   return picks;
+}
+
+/** Kinds an idol never lies in: behind a lock, at the end of the run, or where the party arrives. */
+const NO_IDOL_KINDS: readonly RoomKind[] = ["entrance", "boss", "exit", "vault"];
+
+/**
+ * The room an Idol Carry's idol lies in: the farthest by hops from the altar's room that is open to
+ * the party before the boss, ties to the lower id. A layout with no such room falls back to the
+ * entrance; validation still has to find the idol in reach.
+ */
+export function idolRoom(graph: LayoutGraph, plan: RoleAssignment, altarNodeId: number): number {
+  const hops = new Array<number>(graph.nodes.length).fill(Infinity);
+  hops[altarNodeId] = 0;
+  const queue = [altarNodeId];
+  for (let head = 0; head < queue.length; head += 1) {
+    const id = queue[head]!;
+    for (const edge of graph.edges) {
+      const next = edge.a === id ? edge.b : edge.b === id ? edge.a : -1;
+      if (next < 0 || hops[next] !== Infinity) continue;
+      hops[next] = hops[id]! + 1;
+      queue.push(next);
+    }
+  }
+  const candidates = graph.nodes.filter(
+    (node) => node.id !== altarNodeId && hops[node.id] !== Infinity && !NO_IDOL_KINDS.includes(plan.roles[node.id]!),
+  );
+  return candidates.sort((a, b) => hops[b.id]! - hops[a.id]! || a.id - b.id)[0]?.id ?? 0;
 }
 
 export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
@@ -500,6 +528,19 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     const type = content.puzzles.get(spec.typeId);
     if (!type) throw new Error(`Populate needs unknown puzzle "${spec.typeId}"`);
     const room = world.rooms[spec.nodeId]!;
+
+    // An Idol Carry: the altar in the middle of its room and the idol in the room farthest from it,
+    // so the party has to carry it the whole way. Any party size can, so it never needs a stone.
+    if (type.heldBy === "idol") {
+      const altar = claim(nearest(floorOf(room), centerOf(room)));
+      if (!altar) throw new Error(`Room ${spec.nodeId} has no room for an altar`);
+      out.puzzles.push(puzzleInstance(type, [altar], rng.uuid()));
+      const vault = world.rooms[idolRoom(graph, plan, spec.nodeId)]!;
+      const tile = claim(nearest(floorOf(vault), centerOf(vault)));
+      if (!tile) throw new Error(`Room ${vault.nodeId} has no room for an idol`);
+      out.loot.push(lootInstance(requireItem(IDOL_ITEM_ID), tile, rng.uuid()));
+      continue;
+    }
     const count = Math.max(2, Math.min(partySize, MAX_PLATES[spec.typeId] ?? DEFAULT_MAX_PLATES));
     const plates = spread(rng, floorOf(room), count).map((tile) => claim(tile)!);
     if (plates.length < count) throw new Error(`Room ${spec.nodeId} has no room for ${count} plates`);

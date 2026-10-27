@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import {
   BALLAST_STAMINA_COST,
   GENERIC_KEY_ITEM_ID,
+  IDOL_STAMINA_COST,
   INTERACT_RANGE,
   MAX_INVENTORY_SIZE,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_RESISTANCE,
 } from "../../shared/constants/game.js";
-import { distance, distanceToDoor } from "../../shared/game/movement.js";
+import { carriesIdol, distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type {
   AltarState,
@@ -24,6 +25,7 @@ import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { markVaultChanged } from "../vaults/partyVault.js";
 import { isDown, isSpawned } from "./dungeonState.js";
 import { placeFlare } from "./flares.js";
+import { placeIdol } from "./idols.js";
 import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
@@ -206,8 +208,11 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
   const item = inventoryItemFromLoot(loot);
   const destination = destinationFor(player, item);
   if (!destination) return reject("notPermitted");
-  // A stone is heavy: hefting it is what costs stamina, so a refusal leaves it where it lies.
+  // An idol is a load of its own: one at a time, and never while carrying a body.
+  if (loot.kind === "idol" && (carriesIdol(player) || player.carryingPlayerId !== null)) return reject("notPermitted");
+  // A stone or an idol is heavy: hefting it is what costs stamina, so a refusal leaves it where it lies.
   if (loot.kind === "ballast" && !spendStamina(player, BALLAST_STAMINA_COST)) return reject("exhausted");
+  if (loot.kind === "idol" && !spendStamina(player, IDOL_STAMINA_COST)) return reject("exhausted");
 
   loot.pickedUp = true;
   receive(player, item, destination);
@@ -277,6 +282,8 @@ export function giveItem(
 
   const item = carriedItem(player, itemId);
   if (!item) return reject("targetMissing");
+  // An idol changes hands only by being set down and lifted again, which costs the lift.
+  if (item.kind === "idol") return reject("notPermitted");
 
   const target = session.players.get(targetPlayerId);
   if (!target) return reject("targetMissing");
@@ -430,6 +437,7 @@ export function useItem(
     case "key":
     case "torch":
     case "ballast":
+    case "idol":
     case "weapon":
     case "ammo":
       // Keys are spent by interacting with a locked door, not used on their own.
@@ -572,6 +580,10 @@ export function interact(
 
   const seat = seatById(session, targetId);
   if (seat) return sitOn(session, player, seat);
+
+  // An Idol Carry altar takes the idol from whoever brings it.
+  const puzzle = session.dungeon.puzzles.find((candidate) => candidate.id === targetId);
+  if (puzzle) return placeIdol(session, player, puzzle);
 
   const exit = session.dungeon.exits.find((candidate) => candidate.id === targetId);
   if (exit) {

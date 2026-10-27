@@ -1,7 +1,8 @@
-import { CARRY_MOVE_SPEED_MULTIPLIER, ELITE_DAMAGE_MULT } from "../../shared/constants/game.js";
+import { ELITE_DAMAGE_MULT } from "../../shared/constants/game.js";
 import {
   MOVE_BURST_TOLERANCE_MS,
   MOVE_INTERVAL_MS,
+  carrySpeedMultiplier,
   isOpen,
   stepFrom,
 } from "../../shared/game/movement.js";
@@ -192,11 +193,7 @@ export function movePlayer(
   if (!player) return { ok: false, reason: "outOfRange" };
   if (isDown(player)) return { ok: false, reason: "notPermitted" };
 
-  const step = stepFrom(
-    player.position,
-    direction,
-    player.carryingPlayerId ? CARRY_MOVE_SPEED_MULTIPLIER : 1,
-  );
+  const step = stepFrom(player.position, direction, carrySpeedMultiplier(player));
   if (!step) return { ok: false, reason: "outOfRange" };
 
   const due = player.nextMoveAt ?? now;

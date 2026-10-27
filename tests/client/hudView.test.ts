@@ -42,7 +42,7 @@ import {
   RESISTANCE_DECAY_GRACE_MS,
   RESISTANCE_DECAY_WARNING_MS,
 } from "../../src/shared/constants/game.js";
-import type { DungeonState, InventoryItem, LootState, PlayerState, RunState } from "../../src/shared/types/core.js";
+import type { DungeonState, InventoryItem, LootState, PlayerState, PuzzleState, RunState } from "../../src/shared/types/core.js";
 import { PARTY_PALETTES } from "../../src/client/rendering/characterPalettes.js";
 
 const SELF_ID = "8f1d6b0e-6a4a-4f2e-9d1c-2b3a4c5d6e7f";
@@ -487,6 +487,7 @@ function dungeon(overrides: Partial<DungeonState> = {}): DungeonState {
     loot: [],
     chests: [],
     altars: [],
+    puzzles: [],
     doors: [],
     exits: [],
     rooms: [],
@@ -780,6 +781,34 @@ describe("action prompt", () => {
     expect(promptFor(null)).toBe("Turn a keyhole");
     expect(promptFor(self.id)).toBe("Waiting for a second key");
     expect(promptFor("someone-else")).toBe("Turn the other keyhole");
+  });
+
+  it("tells an idol's carrier to set it on the altar, before any loot, and otherwise how to set it down", () => {
+    const idol = { id: "idol", name: "Heavy Idol", kind: "idol" as const };
+    const carrier = { ...self, inventory: [idol] };
+    const altar: PuzzleState = {
+      id: "altar",
+      typeId: "idol-carry",
+      name: "Idol Carry",
+      radius: 1.8,
+      heldBy: "idol",
+      phase: "idle",
+      plates: [{ position: { x: 0.6, y: 0 }, held: false }],
+      progress: 0,
+    };
+    const promptAt = (who: typeof self, puzzles: PuzzleState[]) =>
+      actionPrompt(
+        view({ ...inSession, players: [who], dungeon: dungeon({ puzzles, loot: [loot("Tonic", 0.9)] }) }),
+        who,
+        origin,
+      );
+
+    expect(promptAt(carrier, [altar])).toEqual({ action: "interact", keyHint: "E", text: "Set the Heavy Idol on the altar" });
+    // A solved altar takes no idol; nor is an altar anything to do for someone without one.
+    expect(promptAt(carrier, [{ ...altar, phase: "solved" }])?.text).toBe("Pick up Tonic");
+    expect(promptAt(self, [altar])?.text).toBe("Pick up Tonic");
+    const away = actionPrompt(view({ ...inSession, players: [carrier], dungeon: dungeon() }), carrier, origin);
+    expect(away).toMatchObject({ action: "drop", text: "Set down the Heavy Idol" });
   });
 
   it("skips an opened chest, but still offers the loot it spilled", () => {

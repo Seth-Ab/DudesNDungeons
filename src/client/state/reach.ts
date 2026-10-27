@@ -1,5 +1,5 @@
 import { INTERACT_RANGE } from "../../shared/constants/game.js";
-import { distance, distanceToDoor } from "../../shared/game/movement.js";
+import { carriesIdol, distance, distanceToDoor } from "../../shared/game/movement.js";
 import type { DoorLock, EntityId, InventoryItem, PlayerState, Vector2 } from "../../shared/types/core.js";
 import type { SessionView } from "../network/sessionState.js";
 import { nearestOfferedSlot } from "./altars.js";
@@ -81,14 +81,15 @@ export function nearestLoot(
  * A door is measured to the nearest point of its span, the way the server judges reach; measured
  * to the centre, no locked door could be opened from the UI. An opened chest is spent and is no
  * longer a target, and neither is a taken altar. A seat is one only while nobody is on it and the viewer is standing: the server
- * refuses a taken seat, and a sitter has to stand up before taking another.
+ * refuses a taken seat, and a sitter has to stand up before taking another. An Idol Carry altar is
+ * one only for a viewer carrying an idol, until it is solved.
  */
 export function nearestInteraction(
   view: SessionView,
   position: Vector2,
 ): (ReachTarget & {
   gap: number;
-  kind: "door" | "exit" | "chest" | "seat" | "altar";
+  kind: "door" | "exit" | "chest" | "seat" | "altar" | "idolAltar";
   locked: boolean;
   lock: DoorLock | null;
   /** For an altar, the scroll nearest the viewer, which a take names; null for every other kind. */
@@ -96,7 +97,9 @@ export function nearestInteraction(
 }) | null {
   if (!view.dungeon) return null;
   const taken = new Set(view.players.map((p) => p.seatId));
-  const sitting = view.players.some((p) => p.id === view.selfId && p.seatId !== null);
+  const self = view.players.find((p) => p.id === view.selfId);
+  const sitting = self !== undefined && self.seatId !== null;
+  const bringingIdol = self !== undefined && carriesIdol(self);
   return closest([
     ...view.dungeon.chests
       .filter((chest) => !chest.opened)
@@ -145,6 +148,19 @@ export function nearestInteraction(
         },
       ];
     }),
+    ...(bringingIdol ? view.dungeon.puzzles : [])
+      .filter((puzzle) => puzzle.heldBy === "idol" && puzzle.phase !== "solved")
+      .flatMap((puzzle) =>
+        puzzle.plates.slice(0, 1).map((plate) => ({
+          id: puzzle.id,
+          name: "altar",
+          kind: "idolAltar" as const,
+          locked: false,
+          lock: null,
+          choiceItemId: null,
+          gap: distance(position, plate.position),
+        })),
+      ),
     ...(sitting ? [] : (view.dungeon.map.seats ?? []))
       .filter((seat) => !taken.has(seat.id))
       .map((seat) => ({

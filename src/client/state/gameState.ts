@@ -128,8 +128,9 @@ export function predictMove(
   others: readonly PlayerState[],
   from: Vector2,
   direction: Vector2,
+  speedMultiplier = 1,
 ): Vector2 {
-  const step = stepFrom(from, direction);
+  const step = stepFrom(from, direction, speedMultiplier);
   if (!step) return from;
 
   // Downed players block nobody on the server, so they must not block the prediction either.

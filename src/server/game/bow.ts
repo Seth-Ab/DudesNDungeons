@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { normalizeDirection } from "../../shared/game/movement.js";
+import { carriesIdol, normalizeDirection } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { PlayerId, Vector2 } from "../../shared/types/core.js";
 import type { GameContent } from "../content/loadContent.js";
@@ -92,7 +92,7 @@ export function beginDraw(
   now: number,
 ): DrawResult {
   const player = session.players.get(playerId);
-  if (!player || isDown(player)) return { ok: false, reason: "notPermitted" };
+  if (!player || isDown(player) || carriesIdol(player)) return { ok: false, reason: "notPermitted" };
 
   const heading = normalizeDirection(direction);
   if (!heading) return { ok: false, reason: "outOfRange" };
