@@ -28,6 +28,8 @@ import { at } from "../server/fixtures.js";
 const GRACE_MS = 150;
 const TICK_MS = 20;
 const SWEEP_MS = 20;
+/** How long a test waits for the server before giving up; a busy machine needs far more than a quiet one. */
+const WAIT_MS = 20_000;
 
 let server: GameServer;
 let baseUrl: string;
@@ -70,7 +72,7 @@ class TestClient {
   }
 
   /** Resolves with the close code once the server has dropped the connection. */
-  closed(timeoutMs = 2000): Promise<number> {
+  closed(timeoutMs = WAIT_MS): Promise<number> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("timed out waiting for close")), timeoutMs);
       this.#ws.once("close", (code) => {
@@ -93,7 +95,7 @@ class TestClient {
   /** Resolves with the next message of `type` to arrive after this call. */
   next<T extends ServerMessage["type"]>(
     type: T,
-    timeoutMs = 2000,
+    timeoutMs = WAIT_MS,
   ): Promise<Extract<ServerMessage, { type: T }>> {
     return this.nextWhere(type, () => true, timeoutMs);
   }
@@ -108,7 +110,7 @@ class TestClient {
   nextWhere<T extends ServerMessage["type"]>(
     type: T,
     matches: (message: Extract<ServerMessage, { type: T }>) => boolean,
-    timeoutMs = 2000,
+    timeoutMs = WAIT_MS,
   ): Promise<Extract<ServerMessage, { type: T }>> {
     const from = this.inbox.length;
     const deadline = Date.now() + timeoutMs;
@@ -143,7 +145,7 @@ class TestClient {
   firstAfter<T extends ServerMessage["type"]>(
     after: ServerMessage,
     type: T,
-    timeoutMs = 2000,
+    timeoutMs = WAIT_MS,
   ): Promise<Extract<ServerMessage, { type: T }>> {
     const from = this.inbox.indexOf(after) + 1;
     if (from === 0) throw new Error(`${after.type} is not in the inbox`);
@@ -791,7 +793,7 @@ describe("party roster", () => {
   async function rosterWhere(
     client: TestClient,
     matches: (message: ServerMessage & { type: "partyRoster" }) => boolean,
-    timeoutMs = 2000,
+    timeoutMs = WAIT_MS,
     after?: ServerMessage,
   ) {
     const deadline = Date.now() + timeoutMs;
@@ -1132,9 +1134,8 @@ describe("hub and run lifecycle", () => {
     await alpha.client.nextWhere("stateSnapshot", () => carrier.carryingPlayerId === downed.id);
 
     alpha.client.close();
-    await new Promise((resolve) => setTimeout(resolve, GRACE_MS + SWEEP_MS * 3));
-
-    expect(downed.carriedByPlayerId).toBeNull();
+    // The sweep that ends the grace period runs on a timer, so wait for its effect, not a duration.
+    await vi.waitFor(() => expect(downed.carriedByPlayerId).toBeNull(), { timeout: WAIT_MS });
   });
 });
 

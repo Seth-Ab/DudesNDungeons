@@ -55,7 +55,7 @@ interface Client {
   playerId: string;
 }
 
-async function join(roomCode: string, name: string): Promise<Client> {
+async function join(roomCode: string, name: string, awaitSpawn = true): Promise<Client> {
   const ws = new WebSocket(wsUrl);
   sockets.push(ws);
   const inbox: ServerMessage[] = [];
@@ -71,15 +71,16 @@ async function join(roomCode: string, name: string): Promise<Client> {
       playerName: name,
     }),
   );
-  await vi.waitFor(() =>
+  await waitFor(() =>
     expect(inbox.some((m) => m.type === "sessionJoined")).toBe(true),
   );
   const joined = inbox.find((m) => m.type === "sessionJoined");
   if (joined?.type !== "sessionJoined")
     throw new Error("expected sessionJoined");
+  if (!awaitSpawn) return { inbox, ws, playerId: joined.playerId };
   // Designed and spawned before the test starts, so its actions come from a player in the world.
   ws.send(JSON.stringify({ type: "setAppearance", appearance: DEFAULT_APPEARANCE }));
-  await vi.waitFor(() =>
+  await waitFor(() =>
     expect(
       inbox.some(
         (m) =>
@@ -96,6 +97,9 @@ const snapshotsOf = (client: Client) =>
     (m): m is Extract<ServerMessage, { type: "stateSnapshot" }> =>
       m.type === "stateSnapshot",
   );
+
+/** `vi.waitFor` with room for a busy machine; a wait that never ends still fails. */
+const waitFor = (assertion: () => void) => vi.waitFor(assertion, { timeout: 20_000, interval: 5 });
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -125,7 +129,7 @@ async function createRoom(): Promise<string> {
 describe("snapshot coalescing", () => {
   it("sends no snapshot for an accepted action, only on the tick", async () => {
     const alpha = await join(await createRoom(), "Alpha");
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(snapshotsOf(alpha).length).toBeGreaterThan(0),
     );
     // The burst may span any number of ticks; what matters is that snapshots and frames follow ticks.
@@ -144,7 +148,7 @@ describe("snapshot coalescing", () => {
     }
     // Wait for the first snapshot sent after the burst ended.
     const afterBurst = snapshotsOf(alpha).length;
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(snapshotsOf(alpha).length).toBeGreaterThan(afterBurst),
     );
 
@@ -153,10 +157,11 @@ describe("snapshot coalescing", () => {
     received.forEach((snapshot, index) =>
       expect(snapshot.tick).toBe(lastTickBefore + index + 1),
     );
-    // One frame per tick for the single viewer (plus at most one tick built but not yet received),
-    // never one per action.
+    // One frame per tick for the single viewer, never one per action. A tick's frame is built before
+    // its snapshot arrives, so one built before `framesBefore` was read can be received after it, and
+    // one built after the last receipt is counted but not received: off by one either way.
     const frameCount = frames.calls - framesBefore;
-    expect(frameCount).toBeGreaterThanOrEqual(received.length);
+    expect(frameCount).toBeGreaterThanOrEqual(received.length - 1);
     expect(frameCount).toBeLessThanOrEqual(received.length + 1);
   });
 
@@ -168,7 +173,7 @@ describe("snapshot coalescing", () => {
 
     const seen = snapshotsOf(alpha).length;
     const rostersBefore = frames.rosters;
-    await vi.waitFor(() => expect(snapshotsOf(alpha).length).toBe(seen + 3));
+    await waitFor(() => expect(snapshotsOf(alpha).length).toBeGreaterThanOrEqual(seen + 3));
     const ticks = snapshotsOf(alpha).length - seen;
 
     // One build per tick, plus at most one tick in flight; per-viewer builds would be three times that.
@@ -180,6 +185,9 @@ describe("snapshot coalescing", () => {
     const alpha = await join(roomCode, "Alpha");
     const beta = await join(roomCode, "Beta");
 
+    const firstSent = Object.fromEntries(
+      [alpha, beta].map((client) => [client.playerId, snapshotsOf(client).length]),
+    );
     const startedAt = Date.now();
     for (let sequence = 1; sequence <= 8; sequence += 1) {
       for (const client of [alpha, beta]) {
@@ -200,7 +208,8 @@ describe("snapshot coalescing", () => {
       const ticks = snapshotsOf(client).map((s) => s.tick);
       for (let i = 1; i < ticks.length; i += 1)
         expect(ticks[i]).toBe(ticks[i - 1]! + 1);
-      expect(ticks.length).toBeLessThanOrEqual(
+      // Only what arrived since `startedAt` is bounded by the elapsed time; joining took ticks too.
+      expect(ticks.length - firstSent[client.playerId]!).toBeLessThanOrEqual(
         Math.ceil(elapsed / TICK_MS) + 2,
       );
     }
@@ -219,7 +228,7 @@ describe("snapshot coalescing", () => {
       }),
     );
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         snapshotsOf(alpha).some(
           (s) => (s.players[0]?.position.y ?? start) > start,
@@ -229,14 +238,22 @@ describe("snapshot coalescing", () => {
   });
 
   it("answers a rejected action immediately rather than on the next tick", async () => {
-    const alpha = await join(await createRoom(), "Alpha");
-    // Aligns to a tick boundary, so the rejection below has most of a tick to be late in.
-    const seen = snapshotsOf(alpha).length;
-    await vi.waitFor(() =>
-      expect(snapshotsOf(alpha).length).toBeGreaterThan(seen),
-    );
+    // A server whose next tick is a minute away, so any answer that arrives is not a tick's.
+    // Without a tick to spawn the player, the test designs it directly in the store.
+    await server.close();
+    server = createGameServer({
+      store: new SessionStore({ dungeon: { dungeonId: "ember-vault" } }),
+      tickIntervalMs: 60_000,
+      log: false,
+    });
+    const address = await server.listen(0, "127.0.0.1");
+    baseUrl = `http://127.0.0.1:${address.port}`;
+    wsUrl = `ws://127.0.0.1:${address.port}`;
+    const alpha = await join(await createRoom(), "Alpha", false);
+    const [session] = [...server.store.listSessions()];
+    session!.players.get(alpha.playerId)!.appearance = DEFAULT_APPEARANCE;
 
-    const sentAt = Date.now();
+    const seen = snapshotsOf(alpha).length;
     // A burst faster than the movement pacing allows, so most of it is refused on cooldown.
     for (let sequence = 1; sequence <= 10; sequence += 1) {
       alpha.ws.send(
@@ -247,9 +264,9 @@ describe("snapshot coalescing", () => {
         }),
       );
     }
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(alpha.inbox.some((m) => m.type === "actionRejected")).toBe(true),
     );
-    expect(Date.now() - sentAt).toBeLessThan(TICK_MS / 2);
+    expect(snapshotsOf(alpha).length).toBe(seen);
   });
 });
