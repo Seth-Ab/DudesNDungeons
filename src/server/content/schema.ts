@@ -71,7 +71,13 @@ export type LootTable = z.infer<typeof lootTableSchema>;
  * A named loot table under `content/loot-tables/`, for whatever refers to one by id rather than
  * carrying its own. Chests do: a template says which table a chest rolls, not what is in it.
  */
-export const lootTableDefinitionSchema = lootTableSchema.extend({ id: contentIdSchema }).strict();
+export const lootTableDefinitionSchema = lootTableSchema
+  .extend({
+    id: contentIdSchema,
+    /** The table a chest rolling this one improves to when a Dark Bargain is struck. Absent: it is the best tier. */
+    upgradesTo: contentIdSchema.optional(),
+  })
+  .strict();
 export type LootTableDefinition = z.infer<typeof lootTableDefinitionSchema>;
 
 /** A ranged monster's bolt. World units, like every distance here. */

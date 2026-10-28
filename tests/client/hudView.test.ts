@@ -25,6 +25,7 @@ import {
   staminaRefused,
   vitalChange,
   newServerAction,
+  bargainNotice,
   noticesView,
   partyFrameCaption,
   partyFrames,
@@ -232,6 +233,29 @@ describe("notices", () => {
     expect(dungeon.outcome).toBe("");
   });
 
+  it("tells a player in a shrine what the Dark Bargain is doing", () => {
+    expect(bargainNotice(undefined)).toBe("");
+    expect(bargainNotice({ roomId: "r", status: "counting", remainingMs: 12_300 })).toContain("(13s)");
+    expect(bargainNotice({ roomId: "r", status: "struck", remainingMs: 0 })).toContain("richer");
+    expect(bargainNotice({ roomId: "r", status: "broken", remainingMs: 0 })).toContain("lost");
+  });
+
+  it("names a settled bargain for once-only toasting, and a countdown not at all", () => {
+    const inShrine = (status: "counting" | "struck" | "broken") =>
+      toastMessages(
+        view({
+          phase: "inSession",
+          location: "dungeon",
+          dungeon: { bargain: { roomId: "r", status, remainingMs: 0 } } as never,
+        }),
+        null,
+      ).find((message) => message.key === "bargain")!;
+
+    expect(inShrine("counting").onceId).toBeUndefined();
+    expect(inShrine("struck").onceId).toBe("bargain:r:struck");
+    expect(inShrine("broken").onceId).toBe("bargain:r:broken");
+  });
+
   it("keeps the last outcome up in the hub", () => {
     const outcome = noticesView(
       view({ phase: "inSession", location: "hub", runOutcome: { kind: "lost", deposited: 0 } }),
@@ -244,6 +268,7 @@ describe("notices", () => {
     expect(noticesView(view({ phase: "connected", location: "hub" }), null)).toEqual({
       decay: "",
       torch: "",
+      bargain: "",
       outcome: "",
     });
   });
@@ -255,6 +280,7 @@ describe("toast messages", () => {
       ["error", ""],
       ["decay", ""],
       ["torch", ""],
+      ["bargain", ""],
       ["outcome", ""],
     ]);
   });

@@ -27,6 +27,7 @@ import type {
   RoomState,
   Vector2,
 } from "../../shared/types/core.js";
+import { darkBargainFor } from "./darkBargain.js";
 import type { ServerMessage } from "../../shared/protocol/index.js";
 import { rosterOf, withOwnBank, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
@@ -449,6 +450,7 @@ function visibleDungeon(
   recordDiscovery(session, viewer, visible);
 
   const { map } = session.dungeon;
+  const bargain = darkBargainFor(session, viewer);
   // A vote door's hint travels with the door, so it survives the plates before it leaving view.
   const voteIcons = new Map<string, NonNullable<DoorState["voteIcon"]>>();
   for (const puzzle of session.dungeon.puzzles) {
@@ -524,6 +526,7 @@ function visibleDungeon(
         position: { ...dummy.position },
         attackers: dummy.attackers.map((attacker) => ({ ...attacker })),
       })),
+    ...(bargain ? { bargain } : {}),
   };
 }
 

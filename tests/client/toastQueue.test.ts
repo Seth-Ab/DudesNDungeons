@@ -76,4 +76,15 @@ describe("toast queue", () => {
   it("clearing an unknown source changes nothing", () => {
     expect(createToastQueue().clear("missing")).toBe(false);
   });
+
+  it("shows a once-only message once, however often its source clears and speaks again", () => {
+    const queue = createToastQueue();
+
+    expect(queue.show("bargain", "The dark has taken its price.", "info", 0, 4000, "bargain:r:struck")).toBe(true);
+    queue.clear("bargain");
+    expect(queue.show("bargain", "The dark has taken its price.", "info", 100, 4000, "bargain:r:struck")).toBe(false);
+    expect(queue.visible()).toEqual([]);
+    // A different verdict is a different message.
+    expect(queue.show("bargain", "A torch was lit.", "info", 200, 4000, "bargain:r2:broken")).toBe(true);
+  });
 });

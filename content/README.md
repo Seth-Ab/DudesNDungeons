@@ -59,7 +59,9 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   and the others stay sealed. `minParty` is the smallest party a run draws it for.
 - `loot-tables/`: named loot tables with the same shape as a monster's `loot` (`rolls`, weighted
   `entries`, `nothingWeight`) plus an `id`. Chests refer to one by `lootTableId`; an unknown id or
-  an unknown entry `itemId` fails validation.
+  an unknown entry `itemId` fails validation. An optional `upgradesTo` names the table a struck
+  Dark Bargain moves an unopened chest to (`common-chest` to `vault-chest`); an unknown id fails
+  validation and a table without one is the top tier.
 - `dungeons/templates/`: reusable rooms for procedural generation. A `chests` rule list
   (`lootTableId`, inclusive `min`/`max`, optional `chance`, optional `locked`) places chests on the
   room's floor like loot. A chest's contents are rolled from its table only when a player opens it,

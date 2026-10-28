@@ -43,6 +43,7 @@ import type { DummyHit } from "../game/dummies.js";
 import type { Draw } from "../game/bow.js";
 import type { ChargeRun, ProjectileRun } from "../game/monsterAttacks.js";
 import type { MonsterPost } from "../game/monsterAi.js";
+import type { DarkBargain } from "../game/darkBargain.js";
 import type { TwinLockTurn } from "../game/twinLocks.js";
 import { randomSeed, type Rng } from "../game/random.js";
 import { contentForSession, effectiveResistance } from "../game/progression.js";
@@ -229,6 +230,11 @@ export interface Session {
   campSeatedSince: Map<EntityId, { since: number; party: string }>;
   /** Camps (room ids) that have already rested the party this run. Server-side only, and saved with the run. */
   campsRested: Set<EntityId>;
+  /**
+   * The Dark Bargain at each shrine room (room id): counting down, struck or broken. Absent while the
+   * shrine has not been offered one. Server-side only; `struck` and `broken` are saved with the run.
+   */
+  darkBargains: Map<EntityId, DarkBargain>;
   /** Hits on each training dummy still inside the readout window. Server-side only. */
   dummyHits: Map<EntityId, DummyHit[]>;
   /**
@@ -396,6 +402,7 @@ export class SessionStore {
       flareExpiresAt: new Map(),
       campSeatedSince: new Map(),
       campsRested: new Set(),
+      darkBargains: new Map(),
       dummyHits: new Map(),
       vault: this.vaults.open(roomCode),
       saves: this.saves,

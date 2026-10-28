@@ -1,5 +1,5 @@
 /** Bumped whenever a breaking protocol change ships; clients on another version are rejected. */
-export const PROTOCOL_VERSION = 65;
+export const PROTOCOL_VERSION = 66;
 
 /**
  * The key that opens a locked chest, and what a key banked before keys were typed counts as. Doors
@@ -326,3 +326,10 @@ export const MAX_CLIENT_MESSAGE_BYTES = MAX_CLIENT_MESSAGE_CHARS * 3;
 export const CAMP_REST_SEATED_MS = 10_000;
 /** Resistance each seated player regains when a camp rests the party, once per camp per run. */
 export const CAMP_REST_RESISTANCE = 15;
+
+/** How long every torch in a shrine room must stay out for the Dark Bargain to be struck. */
+export const DARK_BARGAIN_MS = 20_000;
+/** Monsters the dark sends per standing, connected player when a bargain is struck. */
+export const DARK_BARGAIN_WAVE_PER_PLAYER = 2;
+/** The dearest roster monster the dark's wave may send, by roster cost. */
+export const DARK_BARGAIN_WAVE_MAX_COST = 2;

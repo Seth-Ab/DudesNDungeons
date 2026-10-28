@@ -2,6 +2,7 @@ import { INTERACT_RANGE } from "../../shared/constants/game.js";
 import { distance } from "../../shared/game/movement.js";
 import type { PlayerId } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
+import { noteTorchLit } from "./darkBargain.js";
 import { isDown } from "./dungeonState.js";
 import type { ItemResult } from "./items.js";
 
@@ -53,5 +54,6 @@ export function lightTorch(session: Session, playerId: PlayerId): ItemResult {
   if (!flameInReach(session, player)) return { ok: false, reason: "outOfRange" };
 
   player.torchLit = true;
+  noteTorchLit(session, player);
   return OK;
 }

@@ -130,6 +130,7 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.flareExpiresAt.clear();
   session.campSeatedSince.clear();
   session.campsRested.clear();
+  session.darkBargains.clear();
   session.dummyHits.clear();
 
   for (const player of session.players.values()) {

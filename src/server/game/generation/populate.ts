@@ -517,6 +517,9 @@ export function populateDungeon(rng: Rng, input: PopulateInput): Populated {
     } else if (kind === "trap") {
       dropLoot(room, 1);
       dropChest(room, biome.lootTableId, 0.5, false, MIMIC_CHANCE);
+    } else if (kind === "shrine") {
+      // One plain chest, whether or not the party strikes the Dark Bargain, which upgrades it.
+      dropChest(room, biome.lootTableId, 1);
     }
 
     // Traps.

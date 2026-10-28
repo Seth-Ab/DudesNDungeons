@@ -632,6 +632,18 @@ export const dummyStateSchema = z.object({
 });
 export type DummyState = z.infer<typeof dummyStateSchema>;
 
+/**
+ * A Dark Bargain a shrine candle offers, as the viewer standing in that shrine room sees it.
+ * `counting`: every torch in the room is out and the dark is running down `remainingMs`; `struck`:
+ * the room's chests improved and the dark sent its wave; `broken`: a torch was lit and the reward is lost.
+ */
+export const darkBargainStateSchema = z.object({
+  roomId: entityIdSchema,
+  status: z.enum(["counting", "struck", "broken"]),
+  remainingMs: z.number().int().nonnegative(),
+});
+export type DarkBargainState = z.infer<typeof darkBargainStateSchema>;
+
 export const dungeonStateSchema = z.object({
   map: dungeonMapSchema,
   /** Only rooms the viewer has discovered part of. An unexplored wing is not on their map. */
@@ -655,6 +667,8 @@ export const dungeonStateSchema = z.object({
   lightSources: z.array(lightSourceStateSchema),
   /** Only dummies on tiles the viewer can currently see, like loot. */
   dummies: z.array(dummyStateSchema),
+  /** The Dark Bargain in the shrine room the viewer stands in, once it has begun. Absent otherwise; never held in the live world. */
+  bargain: darkBargainStateSchema.optional(),
 });
 export type DungeonState = z.infer<typeof dungeonStateSchema>;
 
