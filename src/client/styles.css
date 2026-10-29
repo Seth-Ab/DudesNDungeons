@@ -1660,6 +1660,36 @@ button:disabled {
   opacity: 0.45;
 }
 
+/* The next run's omens, one per row; the glyph's shape and the word carry the type, the accent only echoes it. */
+.hud__hub-omens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+}
+
+.hud__hub-omen {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud__hub-omen-glyph {
+  color: var(--omen-accent);
+}
+
+.hud__hub-omen--none {
+  opacity: 0.7;
+}
+
+.hud__hub-omens[hidden] {
+  display: none;
+}
+
 .hud__hub-status-detail {
   font-size: 0.78rem;
   opacity: 0.85;

@@ -54,6 +54,7 @@ import { exitCaption, SEALED_EXIT_PROMPT } from "../state/runFlow.js";
 import type { BowAim } from "../state/bowIndicator.js";
 import type { PlacedEmote } from "../state/emotes.js";
 import { drawEmoteBubbles } from "./emoteBubbles.js";
+import { NO_OMENS_TEXT, type OmenLine, type OmenShape } from "../state/omens.js";
 import { drawReadyPlates } from "./readyPlates.js";
 import { drawDummyPlates, drawTrainingDummies } from "./trainingDummies.js";
 import { createCharacterSprites, type DrawnPlayer } from "./characterSprites.js";
@@ -169,6 +170,8 @@ export interface Scene {
   location: SessionLocation | null;
   /** One line under the hub gate saying whether it will open. Null outside the hub. */
   gatePrompt: string | null;
+  /** The next run's omens for the quest board. Null outside the hub or until the server has sent them. */
+  omens: readonly OmenLine[] | null;
   /** Damage numbers currently floating, positioned in world units. */
   popups: readonly ActivePopup[];
   /** Player swings currently animating, with the geometry the server resolved. */
@@ -994,6 +997,77 @@ export function createCanvasRenderer(
     ctx.restore();
   };
 
+  /** A small triangle or diamond centred on a point, so a warning and an anomaly differ by shape. */
+  const drawOmenShape = (shape: OmenShape, cx: number, cy: number, radius: number, fill: string): void => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    if (shape === "triangle") {
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy + radius * 0.8);
+      ctx.lineTo(cx - radius, cy + radius * 0.8);
+    } else {
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy);
+      ctx.lineTo(cx, cy + radius);
+      ctx.lineTo(cx - radius, cy);
+    }
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  /**
+   * The next run's omens as name plates stacked above the quest board, shown while the player is
+   * within reach of it and held inside the part of the screen the HUD leaves free. Drawn after the
+   * lightmap, like the prop plates, so they read in the hub's shade.
+   */
+  const drawOmenBoard = (scene: Scene, camera: Vector2, now: number): void => {
+    if (scene.location !== "hub" || !scene.self || !scene.omens) return;
+
+    const board = (scene.dungeon.map.props ?? []).find((prop) => prop.kind === "quest-board");
+    if (!board) return;
+
+    const opacity = labelOpacity(distanceToProp(board, scene.localPosition)).plate;
+    if (opacity <= 0) return;
+
+    const area = labelArea(now);
+    const size = MAP_PROP_SIZES[board.kind];
+    const anchor = worldToScreen({ x: board.x - 0.5 + size.tilesWide / 2, y: board.y - 0.5 }, camera);
+    const lines = scene.omens.length > 0 ? scene.omens : null;
+    const rows = lines?.length ?? 1;
+    const height = 28;
+    const gap = 4;
+
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "14px sans-serif";
+    ctx.globalAlpha = opacity;
+
+    // Stacked upward from above the board's own name plate.
+    for (let row = 0; row < rows; row += 1) {
+      const line = lines?.[row] ?? null;
+      const text = line ? `${line.mark.word}: ${line.name}` : NO_OMENS_TEXT;
+      const width = ctx.measureText(text).width + (line ? 44 : 20);
+      const centerY = anchor.y - 18 - 26 - gap - height / 2 - (rows - 1 - row) * (height + gap);
+      const { left, top } = clampPlate({ x: anchor.x, y: centerY }, width, height, area);
+
+      ctx.fillStyle = "rgba(20, 17, 14, 0.82)";
+      ctx.beginPath();
+      ctx.roundRect(left, top, width, height, 6);
+      ctx.fill();
+      if (line) {
+        ctx.strokeStyle = line.mark.accent;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        drawOmenShape(line.mark.shape, left + 16, top + height / 2, 8, line.mark.accent);
+      }
+      ctx.fillStyle = colors.label;
+      ctx.fillText(text, left + (line ? 32 : 10), top + height / 2 + 1);
+    }
+
+    ctx.restore();
+  };
+
   /**
    * The name plate of each shrine altar the player is within reach of, held inside the part of the
    * screen the HUD leaves free. Altars only arrive for rooms the player can see, so a plate never
@@ -1225,6 +1299,7 @@ export function createCanvasRenderer(
 
     drawLightmap(scene, camera, now);
     drawPropLabels(scene, camera, now);
+    drawOmenBoard(scene, camera, now);
     drawAltarPlates(scene, camera, now);
     drawSigns(scene, camera);
     drawSwings(scene.swings, scene.self ? [...scene.others, scene.self] : scene.others, camera);
