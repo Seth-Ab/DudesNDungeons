@@ -95,6 +95,7 @@ export function trapInstance(type: TrapType, position: Vector2, id: string): Tra
     position: { ...position },
     radius: type.radius,
     phase: "armed",
+    ...(type.effect ? { effect: type.effect } : {}),
   };
 }
 

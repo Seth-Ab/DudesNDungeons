@@ -10,7 +10,7 @@
     { "typeId": "cinder-spitter", "cost": 2, "weight": 2 },
     { "typeId": "slag-charger", "cost": 3, "weight": 1 }
   ],
-  "traps": ["spike-plate", "ember-vent", "snare-wire"],
+  "traps": ["spike-plate", "ember-vent", "snare-wire", "snuffer-vent"],
   "puzzles": ["paired-levers", "idol-carry"],
   "doorVote": "door-vote",
   "bosses": ["ember-warden"],
