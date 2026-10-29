@@ -33,11 +33,25 @@ function groupActive(session: Session, groupId: string): boolean {
   return group.length > 0 && group.every((lever) => lever.active);
 }
 
-/** Opens every seal door whose group is fully active, clearing its lock. Open doors are left alone. */
+/** Ids of the doors a Door Vote owns; only the vote opens these, whatever group their seal names. */
+function voteDoorIds(session: Session): Set<string> {
+  const ids = new Set<string>();
+  for (const puzzle of session.dungeon.puzzles) {
+    if (puzzle.heldBy !== "doors") continue;
+    for (const plate of puzzle.plates) if (plate.doorId) ids.add(plate.doorId);
+  }
+  return ids;
+}
+
+/**
+ * Opens every seal door whose group is fully active, clearing its lock. Open doors are left alone,
+ * and so are Door Vote doors: a switch group can share a vote's group id without opening them.
+ */
 export function openSealedDoors(session: Session): DoorState[] {
   const opened: DoorState[] = [];
+  const voted = voteDoorIds(session);
   for (const door of session.dungeon.doors) {
-    if (door.open || door.lock?.type !== "seal" || !groupActive(session, door.lock.groupId)) continue;
+    if (voted.has(door.id) || door.open || door.lock?.type !== "seal" || !groupActive(session, door.lock.groupId)) continue;
     door.lock = null;
     door.open = true;
     opened.push(door);
