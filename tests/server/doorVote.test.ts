@@ -367,4 +367,24 @@ describe("Door Vote and switch seal doors", () => {
     expect(doorOf(session, LEFT_DOOR).open).toBe(true);
     expect(doorOf(session, SWITCH_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "braziers" } });
   });
+
+  it("keeps a lit switch group that shares the vote's group id from opening a vote door", () => {
+    const { session, leftPlates, stand } = withBoth();
+    session.dungeon.switches.push({
+      id: "a2000000-0000-4000-8000-000000000002",
+      kind: "brazier",
+      position: at(9, 8),
+      groupId: "door-vote",
+      active: true,
+    });
+
+    expect(openSealedDoors(session)).toEqual([]);
+    expect(doorOf(session, LEFT_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "door-vote" } });
+    expect(doorOf(session, RIGHT_DOOR).open).toBe(false);
+
+    stand(leftPlates);
+    resolvePuzzles(session, 1000);
+    resolvePuzzles(session, 1000 + type.holdMs);
+    expect(doorOf(session, LEFT_DOOR).open).toBe(true);
+  });
 });
