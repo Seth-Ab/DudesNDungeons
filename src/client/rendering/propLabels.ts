@@ -110,3 +110,21 @@ export function clampPlate(
     top: clamp(center.y - height / 2, safe.top, safe.bottom - height),
   };
 }
+
+/** Height of one omen plate above the quest board, and the gap between plates. */
+export const OMEN_ROW_HEIGHT = 28;
+export const OMEN_ROW_GAP = 4;
+/** Space kept under the omen stack for the board's own name plate. */
+export const OMEN_BOARD_CLEARANCE = 48;
+
+/**
+ * The top edge of each omen row, clamped as one stack (with room left below it for the board's own
+ * plate) so the rows keep their spacing wherever the board sits on screen instead of piling up on
+ * the same edge.
+ */
+export function layoutOmenRows(anchorY: number, rows: number, safe: Rect): number[] {
+  const stack = rows * OMEN_ROW_HEIGHT + (rows - 1) * OMEN_ROW_GAP;
+  const total = stack + OMEN_BOARD_CLEARANCE;
+  const { top } = clampPlate({ x: 0, y: anchorY - total / 2 }, 0, total, safe);
+  return Array.from({ length: rows }, (_, row) => top + row * (OMEN_ROW_HEIGHT + OMEN_ROW_GAP));
+}

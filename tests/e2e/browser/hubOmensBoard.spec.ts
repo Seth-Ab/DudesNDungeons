@@ -85,4 +85,15 @@ test.describe("Hub quest board omens", () => {
     await expect.poll(() => platesDrawn(page)).toBe(2);
     await page.screenshot({ path: testInfo.outputPath("hub-omens-board.png") });
   });
+
+  test("keeps the omen plates apart when the board is near the top of a short screen", async ({ page }) => {
+    await openHub(page, OMENS);
+    await page.setViewportSize({ width: 1280, height: 360 });
+    await walkTo(page, { x: 16, y: 29 }, 1);
+    await expect.poll(() => platesDrawn(page)).toBe(2);
+
+    const plates = await page.evaluate<{ y: number; height: number }[]>(`window.__omenPlates`);
+    const [upper, lower] = [...plates].sort((a, b) => a.y - b.y);
+    expect(lower!.y).toBeGreaterThanOrEqual(upper!.y + upper!.height);
+  });
 });

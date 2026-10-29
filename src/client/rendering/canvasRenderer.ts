@@ -33,6 +33,8 @@ import {
 } from "./lighting.js";
 import {
   clampPlate,
+  layoutOmenRows,
+  OMEN_ROW_HEIGHT,
   distanceToProp,
   labelMode,
   labelOpacity,
@@ -1034,8 +1036,8 @@ export function createCanvasRenderer(
     const anchor = worldToScreen({ x: board.x - 0.5 + size.tilesWide / 2, y: board.y - 0.5 }, camera);
     const lines = scene.omens.length > 0 ? scene.omens : null;
     const rows = lines?.length ?? 1;
-    const height = 28;
-    const gap = 4;
+    const height = OMEN_ROW_HEIGHT;
+    const rowTops = layoutOmenRows(anchor.y, rows, area);
 
     ctx.save();
     ctx.textAlign = "left";
@@ -1048,8 +1050,8 @@ export function createCanvasRenderer(
       const line = lines?.[row] ?? null;
       const text = line ? `${line.mark.word}: ${line.name}` : NO_OMENS_TEXT;
       const width = ctx.measureText(text).width + (line ? 44 : 20);
-      const centerY = anchor.y - 18 - 26 - gap - height / 2 - (rows - 1 - row) * (height + gap);
-      const { left, top } = clampPlate({ x: anchor.x, y: centerY }, width, height, area);
+      const top = rowTops[row];
+      const { left } = clampPlate({ x: anchor.x, y: 0 }, width, height, area);
 
       ctx.fillStyle = "rgba(20, 17, 14, 0.82)";
       ctx.beginPath();
