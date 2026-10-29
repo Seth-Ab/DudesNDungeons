@@ -78,8 +78,10 @@ function snuff(session: Session, trap: TrapState, type: TrapType, now: number): 
 function relightSnuffed(session: Session, now: number): void {
   for (const [playerId, until] of session.snuffedTorchUntil) {
     if (now < until) continue;
-    session.snuffedTorchUntil.delete(playerId);
     const player = session.players.get(playerId);
+    // A disconnected player keeps their wait: the torch relights on the first step after they return.
+    if (player && !player.connected) continue;
+    session.snuffedTorchUntil.delete(playerId);
     if (!player || !player.carryingTorch || player.torchLit) continue;
     player.torchLit = true;
     noteTorchLit(session, player);

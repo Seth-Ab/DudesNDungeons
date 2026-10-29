@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { contentVersion } from "../../src/server/content/contentVersion.js";
 import { loadContent } from "../../src/server/content/loadContent.js";
 import { createRng } from "../../src/server/game/random.js";
+import { resolveTraps } from "../../src/server/game/traps.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { timeInDungeon } from "../../src/server/game/vitals.js";
@@ -138,7 +139,7 @@ function restored(run: PersistedRun, now: number): Session {
     const entry = run.players.find(
       (candidate) => candidate.profileId === player.profile.id,
     );
-    if (entry) restoreRunPlayer(player, entry, session.dungeon.map, now);
+    if (entry) restoreRunPlayer(player, entry, session.dungeon.map, now, session);
   }
   return session;
 }
@@ -227,6 +228,23 @@ describe("saving and restoring a run", () => {
 
     const reloaded = [...session.players.values()].find((player) => player.name === "Grix")!;
     expect(reloaded).toMatchObject({ carryingTorch: true, torchLit: false });
+  });
+
+  it("keeps a trap's snuff wait across a reload and relights the torch when it ends", () => {
+    const original = runInProgress();
+    const grix = [...original.players.values()].find((player) => player.name === "Grix")!;
+    grix.carryingTorch = true;
+    grix.torchLit = false;
+    original.snuffedTorchUntil.set(grix.id, 8_000);
+
+    const session = restored(captureRun(original, 5_000, VERSION), 1_000_000);
+
+    const reloaded = [...session.players.values()].find((player) => player.name === "Grix")!;
+    expect(reloaded.torchLit).toBe(false);
+    expect(session.snuffedTorchUntil.get(reloaded.id)).toBe(1_003_000);
+    expect(session.snuffedTorchUntil.size).toBe(1);
+    resolveTraps(session, 1_003_000);
+    expect(reloaded.torchLit).toBe(true);
   });
 
   it("pauses the run clock and trap timers while saved", () => {

@@ -601,7 +601,7 @@ export class SessionStore {
       lastCombatAt: null,
     };
     if (run !== null && entry !== undefined) {
-      restoreRunPlayer(player, entry, session.dungeon.map, this.#now());
+      restoreRunPlayer(player, entry, session.dungeon.map, this.#now(), session);
     }
 
     session.players.set(player.id, player);

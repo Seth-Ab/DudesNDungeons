@@ -415,7 +415,7 @@ describe("snuffer vent", () => {
     expect(down.torchLit).toBe(true);
   });
 
-  it("does not snuff the torch of a disconnected player, and relights one who dropped out mid-wait", () => {
+  it("does not snuff the torch of a disconnected player, and holds the relight of one who dropped out mid-wait until they return", () => {
     const { session, player, trap } = withVent();
     const gone = testPlayer("p2", { position: { ...trap.position } });
     gone.connected = false;
@@ -427,7 +427,13 @@ describe("snuffer vent", () => {
 
     player.connected = false;
     resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(false);
+    expect(session.snuffedTorchUntil.has(player.id)).toBe(true);
+
+    player.connected = true;
+    resolveTraps(session, 1000 + SNUFF_MS + 50);
     expect(player.torchLit).toBe(true);
+    expect(session.snuffedTorchUntil.size).toBe(0);
   });
 
   it("snuffs again on a rearm, restarting the wait", () => {
@@ -458,6 +464,19 @@ describe("snuffer vent", () => {
     resolveTraps(session, 3000);
 
     expect(session.snuffedTorchUntil.get(player.id)).toBe(3000 + SNUFF_MS);
+  });
+
+  it("lets a player keep the torch out by putting it out during the wait", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    expect(player.torchLit).toBe(false);
+
+    expect(putOutTorch(session, player.id)).toEqual({ ok: true });
+    expect(session.snuffedTorchUntil.has(player.id)).toBe(false);
+
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(false);
+    expect(putOutTorch(session, player.id).ok).toBe(false);
   });
 
   it("is cleared when a run ends", () => {
