@@ -36,6 +36,7 @@ import { seatById, sitOn } from "./seats.js";
 import { lightSwitch } from "./switches.js";
 import { turnTwinLock } from "./twinLocks.js";
 import { inVaultArea, storeInVault } from "./vault.js";
+import { hasLineOfSight } from "./visibility.js";
 import { healPlayer, restoreResistance, restoreStamina, spendStamina } from "./vitals.js";
 
 export type ItemResult = { ok: true } | { ok: false; reason: RejectionReason };
@@ -681,7 +682,8 @@ const MIMIC_SPAWN_OFFSETS = (() => {
 })();
 
 /**
- * Where a mimic wakes: the chest's own spot, or the nearest open one that overlaps no living player.
+ * Where a mimic wakes: the chest's own spot, or the nearest open one that overlaps no living player
+ * and that the chest can see, so it never lands on the far side of a wall from the player who woke it.
  * Chests do not block movement, so a player can open one while standing on it, and a monster
  * spawned under them would block every step they take away from it.
  */
@@ -691,7 +693,9 @@ function mimicSpawnPoint(session: Session, origin: Vector2): Vector2 {
     .map((player) => player.position);
   for (const offset of MIMIC_SPAWN_OFFSETS) {
     const candidate = { x: origin.x + offset.x, y: origin.y + offset.y };
-    if (isOpen(session.dungeon, standing, candidate)) return candidate;
+    if (isOpen(session.dungeon, standing, candidate) && hasLineOfSight(session.dungeon, origin, candidate)) {
+      return candidate;
+    }
   }
   return { ...origin };
 }
