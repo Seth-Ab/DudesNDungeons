@@ -237,6 +237,7 @@ function activeLightSourcesForPlayer(session: Session, viewer: SessionPlayer): A
   if (ownTorch) sources.push(ownTorch);
 
   for (const light of session.dungeon.lightSources) {
+    if (session.snuffedFlareUntil.has(light.id)) continue;
     if (!hasLineOfSight(session.dungeon, viewer.position, light.position)) continue;
     sources.push({ ...light, position: { ...light.position }, origin: light.position });
   }

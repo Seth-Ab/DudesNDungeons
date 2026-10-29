@@ -14,6 +14,7 @@ import type {
   MonsterState,
   PlayerState,
   SessionLocation,
+  TrapState,
   Vector2,
 } from "../../shared/types/core.js";
 import {
@@ -105,6 +106,9 @@ const colors = {
   openChest: "#3b2f20",
   trapArmed: "#b5452f",
   trapSpent: "#4a3c36",
+  sootRing: "#0a0808",
+  sootAsh: "#8a7f76",
+  sootSmudge: "#241f1e",
   plateIdle: "#5b6f8c",
   plateHeld: "#d9b44a",
   plateSolved: "#4f8a5b",
@@ -273,6 +277,37 @@ export function createCanvasRenderer(
     const side = size * pixelsPerWorldUnit;
     ctx.fillStyle = color;
     ctx.fillRect(topLeft.x, topLeft.y, side, side);
+  };
+
+  /**
+   * The tell of a snuffing trap: a ring of soot on the floor out to its reach. Armed, it is a bold
+   * broken ring; once fired it fills in with a smudge, so every client reads the same phase.
+   */
+  const drawSootRing = (trap: TrapState, camera: Vector2): void => {
+    const center = worldToScreen(trap.position, camera);
+    const reach = trap.radius * pixelsPerWorldUnit;
+    ctx.save();
+    if (trap.phase !== "armed") {
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = colors.sootSmudge;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, reach, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = trap.phase === "armed" ? 1 : 0.55;
+    // A thick band of soot with a thin ash line along it, so the ring reads on dim floor.
+    for (const [color, width] of [
+      [colors.sootRing, Math.max(5, pixelsPerWorldUnit * 0.3)],
+      [colors.sootAsh, Math.max(2, pixelsPerWorldUnit * 0.08)],
+    ] as const) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash([pixelsPerWorldUnit * 0.5, pixelsPerWorldUnit * 0.3]);
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, reach, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   };
 
   /** Stamps a sprite over a `width` x `height` world-unit box centred on a world position. */
@@ -1152,7 +1187,9 @@ export function createCanvasRenderer(
     // Placeholder footprints until trap art exists; a spent trap is drawn dull so a party can see
     // which plates are safe to cross.
     scene.dungeon.traps.forEach((trap) =>
-      drawWorldRect(trap.position, 1.1, trap.phase === "armed" ? colors.trapArmed : colors.trapSpent, camera),
+      trap.effect === "snuffTorch"
+        ? drawSootRing(trap, camera)
+        : drawWorldRect(trap.position, 1.1, trap.phase === "armed" ? colors.trapArmed : colors.trapSpent, camera),
     );
     // An Idol Carry altar is drawn as one, at a chest's size: its idol is ordinary loot on top
     // until it is solved, when the altar keeps it. Other plates are placeholders until puzzle art

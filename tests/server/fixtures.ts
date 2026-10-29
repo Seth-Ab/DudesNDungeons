@@ -179,6 +179,8 @@ export function testSession(players: SessionPlayer[], dungeonId = TEST_DUNGEON_I
     puzzleHeldSince: new Map(),
     twinLockTurns: new Map(),
     flareExpiresAt: new Map(),
+    snuffedTorchUntil: new Map(),
+    snuffedFlareUntil: new Map(),
     campSeatedSince: new Map(),
     campsRested: new Set(),
     darkBargains: new Map(),

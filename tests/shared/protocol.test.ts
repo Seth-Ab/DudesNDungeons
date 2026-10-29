@@ -475,8 +475,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v66, the version that added the Dark Bargain snapshot field", () => {
-    expect(PROTOCOL_VERSION).toBe(66);
+  it("is on protocol v67, the version that added the trap effect field", () => {
+    expect(PROTOCOL_VERSION).toBe(67);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

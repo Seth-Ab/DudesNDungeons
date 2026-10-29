@@ -41,7 +41,8 @@ add or tune definitions without rebuilding TypeScript. Restart the server after 
   `seal` and `hidden` locks parse but cannot be opened by interacting yet. Key items are plain
   `kind: "key"` definitions; `copper-key` is the generic key, `boss-key` and `vault-key` the typed ones.
 - `traps/`: trap types (trigger radius, damage, resistance loss, stamina drain, optional rearm
-  delay). Templates spawn them with a `traps` rule list and authored dungeons place them.
+  delay, and an optional `effect` with its `effectMs`: `snuffTorch` puts out every held torch and
+  flare in reach for that long, and a flare is not spent while out). Templates spawn them with a `traps` rule list and authored dungeons place them.
 - `puzzles/`: cooperative puzzle types: pressure plates that must all be held at once, each by a
   different player, for `holdMs`. `plateRadius` is in world units. Each point of `puzzlePowerBonus`
   among the players holding a plate shortens the hold by `holdReductionMsPerPower`, never below

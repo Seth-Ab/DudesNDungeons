@@ -51,6 +51,8 @@ export function putOutTorch(session: Session, playerId: PlayerId): ItemResult {
 export function lightTorch(session: Session, playerId: PlayerId): ItemResult {
   const player = actor(session, playerId);
   if (!player || !player.carryingTorch || player.torchLit) return { ok: false, reason: "notPermitted" };
+  // A trap's soot holds the torch out until its wait is over, whatever flame is near.
+  if (session.snuffedTorchUntil.has(player.id)) return { ok: false, reason: "notPermitted" };
   if (!flameInReach(session, player)) return { ok: false, reason: "outOfRange" };
 
   player.torchLit = true;
