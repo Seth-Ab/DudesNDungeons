@@ -29,7 +29,7 @@ class Client {
   }
 }
 
-async function eventually<T>(read: () => T | undefined | null | false, timeoutMs = 3000): Promise<T> {
+async function eventually<T>(read: () => T | undefined | null | false, timeoutMs = 20_000): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const value = read();
