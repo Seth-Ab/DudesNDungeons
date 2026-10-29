@@ -108,6 +108,8 @@ export const persistedRunPlayerSchema = z.object({
   held: inventoryItemSchema.nullable(),
   carryingTorch: z.boolean(),
   torchLit: z.boolean().default(true),
+  /** How long a trap's soot still holds this torch out. Kept by profile, as a rejoining player gets a new id. */
+  torchSnuffedForMs: durationSchema.optional(),
   runSkillStacks: z.record(z.string().min(1), z.number().int().positive()),
   runCoin: z.number().int().nonnegative(),
   runStats: persistedRunStatsSchema,
@@ -148,8 +150,7 @@ export const persistedRunSchema = z.object({
   trapRearmInMs: durationsByIdSchema,
   puzzleHeldForMs: durationsByIdSchema,
   flareExpiresInMs: durationsByIdSchema,
-  /** Torches and flares a trap has snuffed, and how long until each burns again. Optional for older saves. */
-  snuffedTorchForMs: z.record(z.string().min(1), durationSchema).default({}),
+  /** Flares a trap has snuffed, and how long until each burns again. Optional for older saves. */
   snuffedFlareForMs: durationsByIdSchema.default({}),
   /** Camps that have rested the party. Optional so runs saved before camps rested still load. */
   campsRested: z.array(entityIdSchema).default([]),
@@ -269,7 +270,7 @@ export function captureRun(
 ): PersistedRun {
   if (session.location !== "dungeon") throw new Error(`Room ${session.roomCode} has no run to save`);
 
-  const players = [...session.players.values()].map((player) => captureRunPlayer(player, now));
+  const players = [...session.players.values()].map((player) => captureRunPlayer(player, now, session));
   const present = new Set(players.map((player) => player.profileId));
   for (const entry of previous?.players ?? []) {
     if (!present.has(entry.profileId)) players.push(structuredClone(entry));
@@ -297,7 +298,6 @@ export function captureRun(
       [...session.puzzleHeldSince].map(([id, since]) => [id, Math.max(0, now - since)]),
     ),
     flareExpiresInMs: remaining(session.flareExpiresAt, now),
-    snuffedTorchForMs: remaining(session.snuffedTorchUntil, now),
     snuffedFlareForMs: remaining(session.snuffedFlareUntil, now),
     campsRested: [...session.campsRested],
     darkBargains: Object.fromEntries(
@@ -308,7 +308,8 @@ export function captureRun(
   };
 }
 
-function captureRunPlayer(player: SessionPlayer, now: number): PersistedRunPlayer {
+function captureRunPlayer(player: SessionPlayer, now: number, session: Session): PersistedRunPlayer {
+  const snuffedUntil = session.snuffedTorchUntil.get(player.id);
   return {
     profileId: player.profile.id,
     position: { ...player.position },
@@ -320,6 +321,7 @@ function captureRunPlayer(player: SessionPlayer, now: number): PersistedRunPlaye
     held: player.held === null ? null : structuredClone(player.held),
     carryingTorch: player.carryingTorch,
     torchLit: player.torchLit,
+    ...(snuffedUntil === undefined ? {} : { torchSnuffedForMs: Math.max(0, snuffedUntil - now) }),
     runSkillStacks: Object.fromEntries(player.runSkillStacks),
     runCoin: player.runCoin,
     runStats: { ...player.runStats },
@@ -366,7 +368,8 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   session.trapRearmAt = due(run.trapRearmInMs, now);
   session.puzzleHeldSince = new Map(Object.entries(run.puzzleHeldForMs).map(([id, heldFor]) => [id, now - heldFor]));
   session.flareExpiresAt = due(run.flareExpiresInMs, now);
-  session.snuffedTorchUntil = due(run.snuffedTorchForMs, now);
+  // Waits are keyed by player id, which a rejoining player does not keep: restoreRunPlayer rebuilds them.
+  session.snuffedTorchUntil = new Map();
   session.snuffedFlareUntil = due(run.snuffedFlareForMs, now);
   // A turned keyhole lasts a second, so it is not saved: every twin lock loads with both unturned.
   session.twinLockTurns = new Map();
@@ -390,6 +393,7 @@ export function restoreRunPlayer(
   entry: PersistedRunPlayer,
   map: DungeonMapState,
   now: number,
+  session: Session,
 ): void {
   player.position = { ...entry.position };
   player.facing = { ...entry.facing };
@@ -400,6 +404,7 @@ export function restoreRunPlayer(
   player.held = entry.held === null ? null : structuredClone(entry.held);
   player.carryingTorch = entry.carryingTorch;
   player.torchLit = entry.torchLit;
+  if (entry.torchSnuffedForMs !== undefined) session.snuffedTorchUntil.set(player.id, now + entry.torchSnuffedForMs);
   player.runSkillStacks = new Map(Object.entries(entry.runSkillStacks));
   player.runCoin = entry.runCoin;
   player.runStats = { ...entry.runStats };
