@@ -71,6 +71,7 @@ import {
   gatePrompt,
   SEALED_EXIT_MESSAGE,
 } from "./state/runFlow.js";
+import { omenLines } from "./state/omens.js";
 import { createEmoteField, newEmotes, placeEmotes } from "./state/emotes.js";
 import { createDummyWobbles } from "./state/trainingDummies.js";
 import {
@@ -198,6 +199,7 @@ const renderer = createCanvasRenderer(() => {
     others,
     location: view.location,
     gatePrompt: view.location === "hub" ? gatePrompt(view.players) : null,
+    omens: view.location === "hub" && view.nextRun ? omenLines(view.nextRun) : null,
     popups: popupField.active(now),
     swings: swingField.active(now),
     bowAims: bowAims(self, localPosition, heldHeading(), others),

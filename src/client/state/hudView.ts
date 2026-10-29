@@ -22,6 +22,7 @@ import {
   outcomeMessage,
   torchNotice,
 } from "./runFlow.js";
+import { NO_OMENS_TEXT, omenLines, type OmenLine } from "./omens.js";
 import { keyLabel, USE_SLOT_ACTIONS, type GameplayAction } from "../input/keyBindings.js";
 import { itemSprite, type SpriteName } from "../rendering/tiles.js";
 import { PARTY_PALETTES } from "../rendering/characterPalettes.js";
@@ -274,6 +275,10 @@ export interface HubStatusView {
   pips: HubPipView[];
   /** The key that uses the gate, and what it does right now. */
   keyHint: { key: string; text: string };
+  /** The next run's omens, each led by a shape and its type in words. Empty until the hub sends them. */
+  omens: OmenLine[];
+  /** What the omen row says when there are none, or null before the hub has sent the next run. */
+  noOmensText: string | null;
 }
 
 const HUB_PIP_LABELS: Record<HubPipState, string> = {
@@ -318,6 +323,7 @@ export function hubStatusView(view: SessionView): HubStatusView | null {
       detail: entranceMessage(status),
       pips,
       keyHint: { key: keyLabel("interact"), text: "Enter the Dungeon Gate" },
+      ...omenFields(view),
     };
   }
 
@@ -336,7 +342,12 @@ export function hubStatusView(view: SessionView): HubStatusView | null {
     detail,
     pips,
     keyHint: { key: keyLabel("interact"), text: "Gate opens once everyone is ready" },
+    ...omenFields(view),
   };
+}
+
+function omenFields(view: SessionView): Pick<HubStatusView, "omens" | "noOmensText"> {
+  return { omens: omenLines(view.nextRun), noOmensText: view.nextRun ? NO_OMENS_TEXT : null };
 }
 
 /** "Maya", "Maya and Sam", "Maya, Sam and Iris". */
