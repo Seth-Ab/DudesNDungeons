@@ -222,6 +222,10 @@ export interface Session {
   twinLockTurns: Map<EntityId, TwinLockTurn>;
   /** When each burning flare in `dungeon.lightSources` goes out. Server-side only. */
   flareExpiresAt: Map<EntityId, number>;
+  /** When each torch a trap snuffed relights, by carrier. A torch a player put out is never here. */
+  snuffedTorchUntil: Map<PlayerId, number>;
+  /** When each snuffed flare in `dungeon.lightSources` burns again. Its burn-out time is pushed back by the same wait. */
+  snuffedFlareUntil: Map<EntityId, number>;
   /**
    * When the standing party became fully seated at each camp (room id), and who it was. Absent while
    * anyone is not seated; replaced when the party changes, so a disconnect restarts the count.
@@ -400,6 +404,8 @@ export class SessionStore {
       puzzleHeldSince: new Map(),
       twinLockTurns: new Map(),
       flareExpiresAt: new Map(),
+      snuffedTorchUntil: new Map(),
+      snuffedFlareUntil: new Map(),
       campSeatedSince: new Map(),
       campsRested: new Set(),
       darkBargains: new Map(),

@@ -148,6 +148,9 @@ export const persistedRunSchema = z.object({
   trapRearmInMs: durationsByIdSchema,
   puzzleHeldForMs: durationsByIdSchema,
   flareExpiresInMs: durationsByIdSchema,
+  /** Torches and flares a trap has snuffed, and how long until each burns again. Optional for older saves. */
+  snuffedTorchForMs: z.record(z.string().min(1), durationSchema).default({}),
+  snuffedFlareForMs: durationsByIdSchema.default({}),
   /** Camps that have rested the party. Optional so runs saved before camps rested still load. */
   campsRested: z.array(entityIdSchema).default([]),
   /** Shrines whose Dark Bargain is settled: a countdown in progress is not saved. */
@@ -294,6 +297,8 @@ export function captureRun(
       [...session.puzzleHeldSince].map(([id, since]) => [id, Math.max(0, now - since)]),
     ),
     flareExpiresInMs: remaining(session.flareExpiresAt, now),
+    snuffedTorchForMs: remaining(session.snuffedTorchUntil, now),
+    snuffedFlareForMs: remaining(session.snuffedFlareUntil, now),
     campsRested: [...session.campsRested],
     darkBargains: Object.fromEntries(
       [...session.darkBargains].flatMap(([id, bargain]) => (bargain.status === "counting" ? [] : [[id, bargain.status]])),
@@ -361,6 +366,8 @@ export function restoreRun(session: Session, run: PersistedRun, now: number): vo
   session.trapRearmAt = due(run.trapRearmInMs, now);
   session.puzzleHeldSince = new Map(Object.entries(run.puzzleHeldForMs).map(([id, heldFor]) => [id, now - heldFor]));
   session.flareExpiresAt = due(run.flareExpiresInMs, now);
+  session.snuffedTorchUntil = due(run.snuffedTorchForMs, now);
+  session.snuffedFlareUntil = due(run.snuffedFlareForMs, now);
   // A turned keyhole lasts a second, so it is not saved: every twin lock loads with both unturned.
   session.twinLockTurns = new Map();
   for (const chest of session.dungeon.chests) chest.keyTurnedBy = null;
