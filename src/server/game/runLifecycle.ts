@@ -128,6 +128,8 @@ function installWorld(session: Session, dungeonId: string, now: number | null): 
   session.puzzleHeldSince.clear();
   session.twinLockTurns.clear();
   session.flareExpiresAt.clear();
+  session.snuffedTorchUntil.clear();
+  session.snuffedFlareUntil.clear();
   session.campSeatedSince.clear();
   session.campsRested.clear();
   session.darkBargains.clear();

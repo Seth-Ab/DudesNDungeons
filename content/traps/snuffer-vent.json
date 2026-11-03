@@ -1,0 +1,8 @@
+{
+  "id": "snuffer-vent",
+  "name": "Snuffer Vent",
+  "radius": 3,
+  "effect": "snuffTorch",
+  "effectMs": 8000,
+  "rearmMs": 12000
+}

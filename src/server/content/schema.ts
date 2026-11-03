@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { doorLockSchema } from "../../shared/types/core.js";
+import { doorLockSchema, trapEffectSchema } from "../../shared/types/core.js";
 import {
   CONSUMABLE_ICONS,
   type CONSUMABLE_TARGETS,
@@ -211,9 +211,17 @@ export const trapTypeSchema = z
     /** Flat stamina removed, down to zero. */
     staminaDrain: z.number().int().nonnegative().default(0),
     rearmMs: z.number().int().positive().optional(),
+    /** A special effect, applied to everything in reach on top of any numbers above. */
+    effect: trapEffectSchema.optional(),
+    /** How long the effect lasts, required with an `effect`. */
+    effectMs: z.number().int().positive().optional(),
   })
-  .refine((trap) => trap.damage + trap.resistanceLoss + trap.staminaDrain > 0, {
+  .refine((trap) => trap.damage + trap.resistanceLoss + trap.staminaDrain > 0 || trap.effect !== undefined, {
     message: "A trap must have at least one effect",
+  })
+  .refine((trap) => (trap.effect === undefined) === (trap.effectMs === undefined), {
+    path: ["effectMs"],
+    message: "A trap has effectMs exactly when it has an effect",
   });
 export type TrapType = z.infer<typeof trapTypeSchema>;
 

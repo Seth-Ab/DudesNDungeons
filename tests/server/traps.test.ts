@@ -5,6 +5,7 @@ import { trapInstance } from "../../src/server/game/dungeonBuilder.js";
 import { buildDungeon, movePlayer } from "../../src/server/game/dungeonState.js";
 import { damageMultiplier } from "../../src/server/game/vitals.js";
 import { resolveTraps } from "../../src/server/game/traps.js";
+import { lightTorch, putOutTorch } from "../../src/server/game/torches.js";
 import { simulate } from "../../src/server/game/combat.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
@@ -277,5 +278,212 @@ describe("authored trap rooms", () => {
     const a = buildDungeon({ dungeonId: "vault-run", seed: 7, content }).dungeon.traps;
     const b = buildDungeon({ dungeonId: "vault-run", seed: 7, content }).dungeon.traps;
     expect(a).toEqual(b);
+  });
+});
+
+describe("snuffer vent", () => {
+  const SNUFF_MS = 8000;
+  const FLARE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  function withVent() {
+    const scene = withTrap("snuffer-vent");
+    scene.session.dungeon.lightSources = [];
+    standOn(scene.player, scene.trap);
+    return scene;
+  }
+
+  function lightFlare(session: ReturnType<typeof withVent>["session"], trap: TrapState, burnsOutAt: number) {
+    session.dungeon.lightSources.push({
+      id: FLARE_ID,
+      name: "Flare",
+      kind: "flare",
+      position: { ...trap.position },
+      radius: 6,
+    });
+    session.flareExpiresAt.set(FLARE_ID, burnsOutAt);
+  }
+
+  it("carries its effect on the trap state and does no damage", () => {
+    const { session, player, trap } = withVent();
+
+    expect(trap.effect).toBe("snuffTorch");
+    resolveTraps(session, 1000);
+
+    expect(player.health).toBe(100);
+    expect(trap.phase).toBe("triggered");
+  });
+
+  it("puts out a held torch for 8 seconds, then relights it", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    expect(player.torchLit).toBe(false);
+
+    player.position = at(2, 2);
+    resolveTraps(session, 1000 + SNUFF_MS - 1);
+    expect(player.torchLit).toBe(false);
+
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(true);
+    expect(session.snuffedTorchUntil.size).toBe(0);
+  });
+
+  it("gives no light while snuffed and refuses a relight from a nearby flame", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+
+    expect(lightTorch(session, player.id)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(player.torchLit).toBe(false);
+  });
+
+  it("leaves a torch the player had already put out unlit when the wait ends", () => {
+    const { session, player } = withVent();
+    putOutTorch(session, player.id);
+
+    resolveTraps(session, 1000);
+    player.position = at(2, 2);
+    resolveTraps(session, 1000 + SNUFF_MS);
+
+    expect(player.torchLit).toBe(false);
+  });
+
+  it("does not light a torch that was dropped while snuffed", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    player.carryingTorch = false;
+
+    resolveTraps(session, 1000 + SNUFF_MS);
+
+    expect(player.torchLit).toBe(false);
+  });
+
+  it("snuffs a flare for the same wait and does not spend it", () => {
+    const { session, trap } = withVent();
+    lightFlare(session, trap, 5000);
+
+    resolveTraps(session, 1000);
+    expect(session.snuffedFlareUntil.get(FLARE_ID)).toBe(1000 + SNUFF_MS);
+    expect(session.flareExpiresAt.get(FLARE_ID)).toBe(5000 + SNUFF_MS);
+
+    session.players.get("p1")!.position = at(2, 2);
+    simulate(session, 1000 + SNUFF_MS);
+    expect(session.snuffedFlareUntil.has(FLARE_ID)).toBe(false);
+    expect(session.dungeon.lightSources.map((light) => light.id)).toEqual([FLARE_ID]);
+  });
+
+  it("hides a snuffed flare from the viewer's lights until it burns again", () => {
+    const { session, player, trap } = withVent();
+    lightFlare(session, trap, 60_000);
+    const flaresSeen = () =>
+      visibilityFrameForPlayer(session, player).dungeon.lightSources.filter((light) => light.kind === "flare").length;
+    expect(flaresSeen()).toBe(1);
+
+    resolveTraps(session, 1000);
+    expect(flaresSeen()).toBe(0);
+
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(flaresSeen()).toBe(1);
+  });
+
+  it("leaves a torch and a flare outside its radius alone", () => {
+    const { session, player, trap } = withVent();
+    const bystander = testPlayer("p2", { position: { x: trap.position.x + trap.radius + 1, y: trap.position.y } });
+    session.players.set(bystander.id, bystander);
+    lightFlare(session, trap, 5000);
+    session.dungeon.lightSources[0]!.position = { x: trap.position.x + trap.radius + 1, y: trap.position.y };
+
+    resolveTraps(session, 1000);
+
+    expect(player.torchLit).toBe(false);
+    expect(bystander.torchLit).toBe(true);
+    expect(session.snuffedFlareUntil.size).toBe(0);
+  });
+
+  it("snuffs a downed player's torch, but does not fire for them alone", () => {
+    const { session, player, trap } = withVent();
+    const down = testPlayer("p2", { position: { ...trap.position } });
+    down.health = 0;
+    session.players.set(down.id, down);
+    player.position = at(2, 2);
+    expect(resolveTraps(session, 1000)).toEqual([]);
+    expect(down.torchLit).toBe(true);
+
+    standOn(player, trap);
+    resolveTraps(session, 2000);
+
+    expect(down.torchLit).toBe(false);
+    resolveTraps(session, 2000 + SNUFF_MS);
+    expect(down.torchLit).toBe(true);
+  });
+
+  it("does not snuff the torch of a disconnected player, and holds the relight of one who dropped out mid-wait until they return", () => {
+    const { session, player, trap } = withVent();
+    const gone = testPlayer("p2", { position: { ...trap.position } });
+    gone.connected = false;
+    session.players.set(gone.id, gone);
+
+    resolveTraps(session, 1000);
+    expect(gone.torchLit).toBe(true);
+    expect(player.torchLit).toBe(false);
+
+    player.connected = false;
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(false);
+    expect(session.snuffedTorchUntil.has(player.id)).toBe(true);
+
+    player.connected = true;
+    resolveTraps(session, 1000 + SNUFF_MS + 50);
+    expect(player.torchLit).toBe(true);
+    expect(session.snuffedTorchUntil.size).toBe(0);
+  });
+
+  it("snuffs again on a rearm, restarting the wait", () => {
+    const { session, player, trap } = withVent();
+    const rearmMs = content.traps.get("snuffer-vent")!.rearmMs!;
+    resolveTraps(session, 1000);
+
+    player.position = at(2, 2);
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(true);
+    expect(trap.phase).toBe("triggered");
+
+    resolveTraps(session, 1000 + rearmMs);
+    expect(trap.phase).toBe("armed");
+
+    standOn(player, trap);
+    resolveTraps(session, 20_000);
+    expect(player.torchLit).toBe(false);
+    expect(session.snuffedTorchUntil.get(player.id)).toBe(20_000 + SNUFF_MS);
+  });
+
+  it("does not shorten a wait when a second hit lands on an already snuffed torch", () => {
+    const { session, player, trap } = withVent();
+    resolveTraps(session, 1000);
+    trap.phase = "armed";
+    session.trapRearmAt.delete(trap.id);
+
+    resolveTraps(session, 3000);
+
+    expect(session.snuffedTorchUntil.get(player.id)).toBe(3000 + SNUFF_MS);
+  });
+
+  it("lets a player keep the torch out by putting it out during the wait", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    expect(player.torchLit).toBe(false);
+
+    expect(putOutTorch(session, player.id)).toEqual({ ok: true });
+    expect(session.snuffedTorchUntil.has(player.id)).toBe(false);
+
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(false);
+    expect(putOutTorch(session, player.id).ok).toBe(false);
+  });
+
+  it("is cleared when a run ends", () => {
+    const { session } = withVent();
+    resolveTraps(session, 1000);
+    returnToHub(session, true);
+
+    expect(session.snuffedTorchUntil.size).toBe(0);
   });
 });

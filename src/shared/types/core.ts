@@ -550,6 +550,11 @@ export type LightSourceState = z.infer<typeof lightSourceStateSchema>;
 export const trapPhaseSchema = z.enum(["armed", "triggered", "disabled"]);
 export type TrapPhase = z.infer<typeof trapPhaseSchema>;
 
+/** What a trap does beyond its numbers. `snuffTorch` puts out every held torch and flare in reach. */
+export const TRAP_EFFECTS = ["snuffTorch"] as const;
+export const trapEffectSchema = z.enum(TRAP_EFFECTS);
+export type TrapEffect = z.infer<typeof trapEffectSchema>;
+
 /**
  * A server-resolved hazard. The client sees where it is and what phase it is in, never what it does:
  * damage, resistance loss, and stamina drain are content the server applies on a trigger.
@@ -562,6 +567,8 @@ export const trapStateSchema = z.object({
   /** Reach of the trigger in world units, so a client can draw the footprint it must avoid. */
   radius: z.number().positive(),
   phase: trapPhaseSchema,
+  /** What kind of trap this is, so a client can draw its tell. Absent for a plain damage trap. */
+  effect: trapEffectSchema.optional(),
 });
 export type TrapState = z.infer<typeof trapStateSchema>;
 

@@ -41,7 +41,12 @@ export function flameInReach(session: Session, player: SessionPlayer): boolean {
 /** Puts out the sender's own lit torch. */
 export function putOutTorch(session: Session, playerId: PlayerId): ItemResult {
   const player = actor(session, playerId);
-  if (!player || !player.carryingTorch || !player.torchLit) return { ok: false, reason: "notPermitted" };
+  if (!player || !player.carryingTorch) return { ok: false, reason: "notPermitted" };
+  // A trap already put the torch out; choosing to keep it out cancels the relight at the end of the wait.
+  if (!player.torchLit) {
+    if (!session.snuffedTorchUntil.delete(player.id)) return { ok: false, reason: "notPermitted" };
+    return OK;
+  }
 
   player.torchLit = false;
   return OK;
@@ -51,6 +56,8 @@ export function putOutTorch(session: Session, playerId: PlayerId): ItemResult {
 export function lightTorch(session: Session, playerId: PlayerId): ItemResult {
   const player = actor(session, playerId);
   if (!player || !player.carryingTorch || player.torchLit) return { ok: false, reason: "notPermitted" };
+  // A trap's soot holds the torch out until its wait is over, whatever flame is near.
+  if (session.snuffedTorchUntil.has(player.id)) return { ok: false, reason: "notPermitted" };
   if (!flameInReach(session, player)) return { ok: false, reason: "outOfRange" };
 
   player.torchLit = true;
