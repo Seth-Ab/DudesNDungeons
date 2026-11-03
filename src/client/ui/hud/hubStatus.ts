@@ -1,3 +1,4 @@
+import type { OmenLine } from "../../state/omens.js";
 import type { HubPipView, HubStatusView } from "../../state/hudView.js";
 
 /**
@@ -26,10 +27,16 @@ export function createHubStatus() {
   const hintText = document.createElement("span");
   hint.append(hintKey, hintText);
 
-  element.append(headline, pips, detail, hint);
+  // The next run's omens: a shape, the type in words and the name, so colour is never the only cue.
+  const omens = document.createElement("ul");
+  omens.className = "hud__hub-omens";
+  omens.setAttribute("aria-label", "Next run's omens");
+
+  element.append(headline, pips, detail, omens, hint);
 
   // Snapshots arrive many times a second; rebuilding unchanged pips would re-announce the region.
   let renderedPips = "";
+  let renderedOmens = "";
 
   return {
     element,
@@ -43,6 +50,14 @@ export function createHubStatus() {
       if (pipKey !== renderedPips) {
         renderedPips = pipKey;
         pips.replaceChildren(...view.pips.map(pipElement));
+      }
+      const omenKey = JSON.stringify([view.omens, view.noOmensText]);
+      if (omenKey !== renderedOmens) {
+        renderedOmens = omenKey;
+        omens.hidden = view.noOmensText === null;
+        omens.replaceChildren(
+          ...(view.omens.length > 0 ? view.omens.map(omenElement) : [plainOmenElement(view.noOmensText ?? "")]),
+        );
       }
       detail.textContent = view.detail;
       hintKey.textContent = view.keyHint.key;
@@ -59,5 +74,25 @@ function pipElement(pip: HubPipView): HTMLElement {
   element.title = pip.label;
   element.setAttribute("aria-label", pip.label);
   element.textContent = pip.mark;
+  return element;
+}
+
+function omenElement(line: OmenLine): HTMLElement {
+  const element = document.createElement("li");
+  element.className = `hud__hub-omen hud__hub-omen--${line.mark.shape}`;
+  element.style.setProperty("--omen-accent", line.mark.accent);
+  element.title = line.label;
+  const glyph = document.createElement("span");
+  glyph.className = "hud__hub-omen-glyph";
+  glyph.setAttribute("aria-hidden", "true");
+  glyph.textContent = line.mark.glyph;
+  element.append(glyph, `${line.mark.word}: ${line.name}`);
+  return element;
+}
+
+function plainOmenElement(text: string): HTMLElement {
+  const element = document.createElement("li");
+  element.className = "hud__hub-omen hud__hub-omen--none";
+  element.textContent = text;
   return element;
 }

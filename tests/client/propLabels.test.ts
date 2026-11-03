@@ -7,6 +7,10 @@ import {
   LABEL_RANGE,
   labelMode,
   labelOpacity,
+  layoutOmenRows,
+  OMEN_BOARD_CLEARANCE,
+  OMEN_ROW_GAP,
+  OMEN_ROW_HEIGHT,
   safeArea,
   type Rect,
 } from "../../src/client/rendering/propLabels.js";
@@ -85,5 +89,31 @@ describe("clamping a plate", () => {
 
   it("pins a plate wider than the area to its start", () => {
     expect(clampPlate({ x: 300, y: 250 }, 600, 26, safe).left).toBe(100);
+  });
+});
+
+describe("omen row layout", () => {
+  const area: Rect = { left: 0, top: 80, right: 1280, bottom: 640 };
+  const overlaps = (tops: number[]): boolean =>
+    tops.some((top, i) => i > 0 && top < (tops[i - 1] ?? 0) + OMEN_ROW_HEIGHT);
+
+  it("stacks rows above the board's plate when there is room", () => {
+    const tops = layoutOmenRows(400, 3, area) as [number, number, number];
+    expect(tops[2] + OMEN_ROW_HEIGHT).toBe(400 - OMEN_BOARD_CLEARANCE);
+    expect(tops[1] - tops[0]).toBe(OMEN_ROW_HEIGHT + OMEN_ROW_GAP);
+  });
+
+  it("keeps rows apart when the board is at or far above the top of the screen", () => {
+    for (const anchorY of [60, 0, -200, -5000]) {
+      const tops = layoutOmenRows(anchorY, 3, area) as [number, number, number];
+      expect(overlaps(tops)).toBe(false);
+      expect(tops[0]).toBeGreaterThanOrEqual(area.top);
+    }
+  });
+
+  it("keeps rows apart when the board is below the screen", () => {
+    const tops = layoutOmenRows(5000, 3, area) as [number, number, number];
+    expect(overlaps(tops)).toBe(false);
+    expect(tops[2] + OMEN_ROW_HEIGHT + OMEN_BOARD_CLEARANCE).toBeLessThanOrEqual(area.bottom);
   });
 });
