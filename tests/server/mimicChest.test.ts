@@ -93,6 +93,51 @@ describe("a Mimic Chest", () => {
     expect(isOpen(session.dungeon, [], step, alpha.position)).toBe(true);
   });
 
+  describe("beside a wall", () => {
+    /** A one-tile pocket holding the chest at (3, 2), a one-tile wall, and open floor beyond it. */
+    function pocketWithMimic(): Session {
+      const session = vaultWithMimic();
+      session.dungeon.map = {
+        ...session.dungeon.map,
+        originX: 0,
+        originY: 0,
+        width: 9,
+        height: 5,
+        tiles: ["#########", "#########", "###.#...#", "#########", "#########"],
+      };
+      session.dungeon.monsters = [];
+      session.dungeon.doors = [];
+      session.dungeon.chests = [chestInstance(TWO_TONICS.id, { x: 3, y: 2 }, CHEST_ID, false, false, true)];
+      session.players.get("alpha")!.position = { x: 3, y: 2 };
+      return session;
+    }
+
+    it("never wakes on the far side, falling back to the chest's own spot when its side is full", () => {
+      const session = pocketWithMimic();
+      // Players on the pocket's four corners and its middle leave no spot on the chest's side.
+      [{ x: 2.5, y: 1.5 }, { x: 3.5, y: 1.5 }, { x: 2.5, y: 2.5 }, { x: 3.5, y: 2.5 }].forEach((position, index) => {
+        session.players.set(`guard${index}`, testPlayer(`guard${index}`, { position }));
+      });
+
+      expect(isOpen(session.dungeon, [], { x: 5, y: 2 })).toBe(true);
+      expect(interact(session, "alpha", CHEST_ID)).toEqual({ ok: true });
+
+      const woken = session.dungeon.monsters.find((monster) => monster.id === CHEST_ID)!;
+      expect(woken.position).toEqual({ x: 3, y: 2 });
+    });
+
+    it("still wakes beside the chest on its own side when there is room", () => {
+      const session = pocketWithMimic();
+      session.dungeon.map.tiles = ["#########", "#########", "#.....#.#", "#########", "#########"];
+
+      expect(interact(session, "alpha", CHEST_ID)).toEqual({ ok: true });
+
+      const woken = session.dungeon.monsters.find((monster) => monster.id === CHEST_ID)!;
+      expect(woken.position.x).toBeLessThan(5);
+      expect(Math.hypot(woken.position.x - 3, woken.position.y - 2)).toBeGreaterThanOrEqual(0.7);
+    });
+  });
+
   it("refuses a second open and wakes only one mimic", () => {
     const session = vaultWithMimic();
     interact(session, "alpha", CHEST_ID);
