@@ -86,6 +86,25 @@ describe("Door Vote generation", () => {
     vote.plates = vote.plates.filter((plate) => plate.doorId === vote.plates[0]!.doorId);
     expect(validateDungeon(single, content, 3).join("\n")).toMatch(/two or more sealed doors/);
   });
+
+  it("is refused by validation when a switch group shares the vote's seal group, and accepts any other", () => {
+    const built = voteRuns(3, 1)[0]!.built;
+    const lever = (groupId: string) => ({
+      id: "a2000000-0000-4000-8000-000000000003",
+      kind: "brazier" as const,
+      position: built.spawnPoints[0]!,
+      groupId,
+      active: false,
+    });
+
+    const colliding = structuredClone(built);
+    colliding.dungeon.switches.push(lever("door-vote"));
+    expect(validateDungeon(colliding, content, 3)).toContain('switch group "door-vote" collides with a Door Vote seal group');
+
+    const apart = structuredClone(built);
+    apart.dungeon.switches.push(lever("braziers"));
+    expect(validateDungeon(apart, content, 3)).toEqual([]);
+  });
 });
 
 /** A room with two voted doors, a row of three plates before each, and `count` players. */
@@ -366,5 +385,25 @@ describe("Door Vote and switch seal doors", () => {
 
     expect(doorOf(session, LEFT_DOOR).open).toBe(true);
     expect(doorOf(session, SWITCH_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "braziers" } });
+  });
+
+  it("keeps a lit switch group that shares the vote's group id from opening a vote door", () => {
+    const { session, leftPlates, stand } = withBoth();
+    session.dungeon.switches.push({
+      id: "a2000000-0000-4000-8000-000000000002",
+      kind: "brazier",
+      position: at(9, 8),
+      groupId: "door-vote",
+      active: true,
+    });
+
+    expect(openSealedDoors(session)).toEqual([]);
+    expect(doorOf(session, LEFT_DOOR)).toMatchObject({ open: false, lock: { type: "seal", groupId: "door-vote" } });
+    expect(doorOf(session, RIGHT_DOOR).open).toBe(false);
+
+    stand(leftPlates);
+    resolvePuzzles(session, 1000);
+    resolvePuzzles(session, 1000 + type.holdMs);
+    expect(doorOf(session, LEFT_DOOR).open).toBe(true);
   });
 });

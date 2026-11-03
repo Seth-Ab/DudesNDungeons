@@ -98,6 +98,17 @@ export function validateDungeon(built: BuiltDungeon, content: GameContent, party
   if (!arrivesLit) errors.push("the first spawn point is outside every light");
   if (errors.length > 0) return errors;
 
+  // A switch group named like a Door Vote seal group would read as opening that vote's doors.
+  const voteDoorIds = new Set(
+    dungeon.puzzles.filter((puzzle) => puzzle.heldBy === "doors").flatMap((puzzle) => puzzle.plates.map((plate) => plate.doorId)),
+  );
+  const voteGroups = new Set(
+    dungeon.doors.flatMap((door) => (voteDoorIds.has(door.id) && door.lock?.type === "seal" ? [door.lock.groupId] : [])),
+  );
+  for (const lever of dungeon.switches) {
+    if (voteGroups.has(lever.groupId)) errors.push(`switch group "${lever.groupId}" collides with a Door Vote seal group`);
+  }
+
   const lockedDoors = dungeon.doors.filter((door) => door.lock !== null);
   const closed = (opened: ReadonlySet<string>): Set<string> =>
     new Set(lockedDoors.filter((door) => !opened.has(door.id)).map((door) => key(door.position)));
