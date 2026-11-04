@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { gameContent, loadContent, resolveContentRoot } from "../../src/server/content/loadContent.js";
 import { monsterTypeSchema, roomKindSchema } from "../../src/server/content/schema.js";
 import { roomKindSchema as wireRoomKindSchema } from "../../src/shared/types/core.js";
+import { placeableKinds } from "../../src/server/game/generation/roles.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 
 const roots: string[] = [];
@@ -909,6 +910,22 @@ describe("flow and biome content", () => {
     maxAttempts: 40,
     exitDestination: "hub",
   };
+
+  it.each(["boss", "shrine", "vault"] as const)("refuses a biome with no room names for %s", (kind) => {
+    const { [kind]: _dropped, ...names } = biome().names;
+    const root = shippedWith({ "biomes/cinder-depths.json": { ...biome(), names } });
+
+    expect(() => loadContent(root)).toThrow(new RegExp(`biome "cinder-depths".*kind "${kind}"|kind "${kind}".*biome "cinder-depths"`));
+  });
+
+  it("only asks for names of weighted kinds the generator can place", () => {
+    expect(placeableKinds({ roomWeights: { hall: 1, cavern: 1 }, puzzles: [] }).sort()).toEqual(
+      ["boss", "cavern", "entrance", "exit", "hall", "shrine", "vault"],
+    );
+    expect(placeableKinds({ roomWeights: { puzzle: 1, corridor: 1 }, puzzles: [] }).sort()).toEqual(
+      ["boss", "entrance", "exit", "shrine", "vault"],
+    );
+  });
 
   it("ships Cinder Depths and the three key-lock flows", () => {
     const content = gameContent();

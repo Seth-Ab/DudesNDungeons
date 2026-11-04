@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { z } from "zod";
 import { packageRoot } from "../paths.js";
+import { placeableKinds } from "../game/generation/roles.js";
 import { scalePoint } from "../game/scale.js";
 import { READY_PLATE_SIZE, TILE_SCALE } from "../../shared/constants/game.js";
 import { MAP_PROP_SIZES, SEAT_FACING_VECTORS } from "../../shared/constants/scenery.js";
@@ -351,6 +352,11 @@ function validateReferences(content: GameContent, sources: ContentSources): void
       const type = content.monsters.get(id);
       if (!type) throw new Error(`${file} field bosses.${index} names unknown monster "${id}"`);
       if (!type.boss) throw new Error(`${file} field bosses.${index} names "${id}", which is not a boss`);
+    }
+    for (const kind of placeableKinds(biome)) {
+      if (!biome.names[kind]?.length) {
+        throw new Error(`${file} field names lacks room names for kind "${kind}" in biome "${biome.id}"`);
+      }
     }
     if (!content.lootTables.has(biome.lootTableId)) {
       throw new Error(`${file} field lootTableId names unknown loot table "${biome.lootTableId}"`);
