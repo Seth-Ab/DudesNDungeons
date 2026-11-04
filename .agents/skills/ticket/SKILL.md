@@ -87,6 +87,8 @@ client consumers, migration-safe content changes, tests, and durable documentati
   regressions identified by the issue.
 - Update `PROGRESS.md` when a roadmap step or substep is completed, changed, blocked, skipped, or
   materially re-scoped.
+  Record the ticket as one new line at the top of the `Activity Log` (newest first), not in `Current
+  Status`.
 - Update other durable docs when commands, configuration, architecture, or contributor workflow
   changes.
 - Do not edit `GAMEDESCRIPTION.md`.

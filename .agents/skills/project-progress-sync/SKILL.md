@@ -21,9 +21,10 @@ Use `README.md` only when commands or setup details are needed.
 
 Update `PROGRESS.md` whenever a step or substep is completed, changed, blocked, skipped, or materially re-scoped. Keep the update short and concrete:
 
-- Set `Current Status` to the most useful restart point.
+- Add one `Activity Log` bullet for the date of the work: the change, the issue number, and the protocol version when it changed. Put it at the top of the list; the log is newest first and is the only record of history.
+- Leave `Current Status` alone unless the restart point, blocker, or phase really changes. Never copy a ticket summary or the protocol version (`PROTOCOL_VERSION` is the source of truth) into it; that is the line parallel pull requests conflict on.
 - Check off matching roadmap items only when they are actually complete.
-- Add an `Activity Log` bullet for the date of the work.
+- Keep every `PROGRESS.md` line under about 400 characters; wrap longer text onto indented continuation lines.
 - Record blockers with the exact condition and what would unblock them.
 
 Do not mark a roadmap item complete just because scaffolding exists. For example, a WebSocket client stub is not the same as real backend snapshot integration.

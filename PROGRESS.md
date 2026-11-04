@@ -7,58 +7,8 @@ Use this file as the project ledger. Update it whenever a step or substep from `
 - Overall phase: Backend steps 7-10, 12, and 13 complete; Backend 14 (dungeon generator v2) Phase 1 done (the grid pipeline builds every `vault-run`, with validation and retry); Backend 11 partly done (profiles,
   persistence, first skill scroll, skill stacks, coin, milestones, the skill shop, cosmetics; run saves decided in 0015). Frontend steps 1, 2, 4, 5, 7, 8, 9, and 11 complete. Sessions
   start in a lit hub, a unanimously ready party generates a run, and escape or a wipe returns
-  everyone to the hub under protocol v66.
-- Last completed work: Cinder Depths names its boss and shrine rooms (issue #364, no protocol change): the biome gains `boss` and `shrine` room names, so the minimap and party status no longer show the raw kind, and `loadContent` now refuses a biome with no names for any kind the generator can place (entrance, exit, boss, vault, shrine and the weighted fill kinds), naming the biome and kind; a seed sweep asserts every generated room carries a biome name; earlier, Keeping the Heavy Idol off the benches (issue #365, no protocol change): `sitOn` refuses a player carrying an idol, `pickupItem` stands a seated player up when they take one, and the client offers no Sit prompt to an idol or body carrier; earlier, Keeping a snuffed torch out (issue #360, protocol v68): `PlayerState.torchSnuffedForMs` (optional, owner data like `bankedItems`) reaches only the snuffed player while a Snuffer Vent's wait is running, so the torch key sends `putOutTorch` (which the server already uses to cancel the relight) instead of a refused `lightTorch`, and the torch slot reads "Torch: out, relights in Ns (torch key keeps it out)"; teammates never see it, and the server still refuses `putOutTorch` with no torch or an unlit torch and no snuff; A downed player comes off their seat (issue #362, no protocol change): the three places that damage a player (monster hits, projectiles and charges, traps) call `standUp` once the hit downs them, so the seat is freed for a teammate and Campfire Rest can complete, and the player lies on the floor their seat faces rather than on a bench; The session store and game server share one clock by default (issue #361, protocol unchanged): the store defaulted to `Date.now` while the server ticks on `performance.now()`, so a continued run's restored timers (run clock, monster cooldowns, trap rearms, flares, puzzles) never came due in production; a test boots both with default wiring; earlier, Trap effects and the Snuffer Vent (issue #276, protocol v67): a trap type gains an optional `effect` (with `effectMs`, required together; a trap may now have an effect and no damage) and `trapState.effect` tells every client what it is, never the amounts; `snuffTorch` puts out every held torch within radius for 8 s through the existing `torchLit` state (#348), recording the carrier in `session.snuffedTorchUntil` so only torches the vent put out relight when the wait ends (one the player had put out stays unlit, a dropped one is skipped, a relight from another flame is refused meanwhile), snuffs a downed player's burning torch but not a disconnected one, and hides every flare in reach (`session.snuffedFlareUntil`) while pushing its burn-out back by the same wait so it is not wasted; a rearm snuffs again and restarts the wait; both maps are saved with the run and cleared at its end; `content/traps/snuffer-vent.json` (radius 3, rearm 12 s) joins the Cinder Depths pool and the `vent-run` template, and the client draws a soot ring that fills in once fired; earlier, the hub quest board shows the next run's omens (issue #269, client only, no protocol change): a name plate per omen stacked above the Quest Gallery while the player is within the prop-label range (a triangle and "Warning" for a warning, a diamond and "Anomaly" for an anomaly, "No omens" for none), and the same list under the party's hub status, from the `hubState` the client already stored and which updates after a run; earlier, The Dark Bargain (issue #280, protocol v66): a shrine room now holds one plain chest (the biome's table, `common-chest`) and its Shrine Candle stays lit and offers the bargain; when every torch carried into the room is out, with at least one carrier standing and holding an unlit torch, for `DARK_BARGAIN_MS` (20 s), the room's unopened, non-mimic chests improve one tier (`lootTableId` follows the new `upgradesTo` on the loot table, `common-chest` to `vault-chest`, the top tier stays) and the dark sends `DARK_BARGAIN_WAVE_PER_PLAYER` (2) monsters per connected, designed player from the run's biome roster (cost 2 or less) at the shrine's doorways, farthest from the party first, already hunting; lighting any torch in the room while it counts (relight from the candle or another torch, a carrier walking in lit, a late joiner, a downed carrier's burning torch) breaks it for the run, a disconnected player's torch and a lit torch outside the room do not count, and the countdown restarts when nobody standing is left in the room; `session.darkBargains` is server-side, `struck` and `broken` are saved with the run (a countdown is not), and `dungeon.bargain` (optional, `{ roomId, status, remainingMs }`) reaches only a viewer standing in that room, which the client words as a toast; owner decisions recorded: (1) shrines gain a chest so the reward has something to improve, shifting seeded layouts, and (2) the wave is existing roster monsters scaled by party size; earlier, Putting out and relighting a carried torch (issue #348, protocol v65): `SessionPlayer.torchLit` and `PlayerState.torchLit` (saved with the room, true on every pickup and at the end of a run); `putOutTorch` and `lightTorch` intents, server-validated by `src/server/game/torches.ts`: a connected, standing carrier may put out their own lit torch at any time, and may relight only within `INTERACT_RANGE` of another connected player's lit carried torch (a downed carrier's keeps burning) or a `fixed` world light (`outOfRange` otherwise, `notPermitted` for no torch, already lit, downed or disconnected); an unlit torch is still carried but `carriedTorchFor` gives no light, so the next snapshot lights nothing for anyone; the client binds the Y key (rebindable, "Torch"), shows a "Light your torch" prompt when a flame is in reach, and dims the torch slot with "Torch: out"; earlier, The Door Vote (issue #293, protocol v63): a puzzle `heldBy: "doors"` (`content/puzzles/door-vote.json`, `minParty` 2, 2 s hold) at a Cinder Depths junction whose two or more branch doorways are sealed (`seal` locks) with a plate for every player (up to four) before each; `PuzzlePlateState` gains `doorId` and `icon` (loot, danger, shrine or unknown, a hint of the branch beyond), the party chooses a door when every standing, connected player holds one of its plates for the hold time, that door opens and the others stay sealed for the run, and a split party, a plate stepped off or a Ballast Stone casts nothing; the layout grows two branches from an early path room only for a run that holds out for a vote (`vote` override, 50% of runs for a party of two or more), a junction is voted only where nothing the run needs lies in the branches, and `validateDungeon` walks the run once for every door a party could pick; earlier, The Mimic Chest (issue #279, protocol v61): `ChestState` gains a server-only `mimic` flag that every snapshot sends as false, so a mimic is indistinguishable from a chest; opening one wakes a `mimic` monster (melee, `content/monsters/mimic.json`) with the chest's id where it stood, drops nothing, and the chest leaves the snapshot; killing the mimic spills the chest's table; generated hall, maze and trap chests are mimics 20% of the time (never locked, twin-lock or vault chests); earlier, The Idol Carry (issue #289, protocol v60): a new `idol` item kind (the Heavy Idol) and a puzzle `heldBy` of `players` or `idol`; an `idol-carry` puzzle's one plate is an altar that only an idol lying on it holds, set there by interacting with the puzzle or dropping it, and the altar keeps the idol and drops the boss key once solved; lifting the idol costs the lift stamina, and its carrier moves at half speed (the client now predicts that, for a carried body too), cannot attack or lift a body, is the monsters' first target, and lets go of it on a disconnect, going down, leaving or Save and quit; the Cinder Depths puzzle pool draws it beside paired levers, with the idol in the room farthest from its altar, solvable at every party size and checked by validation; earlier, the Twin-lock Chest (issue #292, protocol v59): `ChestState` gains `twinLock` and a public `keyTurnedBy`, a turned keyhole waits `TWIN_LOCK_WINDOW_MS` (1 s) for a second, different player and lets go when its turner drops or goes down, and half of all vaults make their first chest a twin lock for a party of two or more (never solo, checked by validation), drawn with two keyholes and one lit while turned; earlier, Drawing shrine altars (issue #259, protocol v58): the `candle` light fixture (a shrine's candle is drawn as a tall candle, not a torch stand), `altar`, `altar-cage` and `prop-candle` sprites, an altar drawn with a scroll on each plinth, a cage over the ones the party's choice shut away and a bare plinth where the chosen one was, a "Shrine Altar" name plate within reach ("(sealed)" once taken), and an interact prompt "Take Scroll of ..." that names the scroll on the plinth nearest the player and sends it as `choiceItemId`; a spent altar is no longer a target; earlier, Shrine altars (issue #258, protocol v57): a new `altarState { id, position, offer, taken }` in the dungeon snapshot (only altars on visible tiles), a `choiceItemId` on `playerInteract` that names which offered scroll to take, and a server rule where the first take drops that scroll as ordinary loot and cages the rest for the run (a second take, an out-of-range one, a missing or unoffered choice, a downed or disconnected taker are all refused); the generator gives a far dead end a shrine room 50% of the time (always under Scroll Cache, which no longer drops a loose scroll), whose altar offers two scrolls picked by seed that the party is not already carrying; earlier, Campfire Rest (issue #260, no protocol change): the Cinder Depths biome now weights `camp` rooms, which hold a campfire light and four seats round it, and when every standing, connected player has sat at the camp for 10 s each of them regains 15 resistance, once per camp per run; resistance decay pauses while seated; earlier, a locked skill's scroll price in the Skills panel (protocol v55, issue #308): `skillShopStock` gains `rotatingSkillIds` (the whole rotating pool), and a locked entry shows "Sold at the hub shop - N coin" when its scroll is in stock, "Sometimes sold at the hub shop" when it is a rotating scroll out of stock, and nothing when the shop never lists it; earlier, designing members and last-known rooms in the party frames (protocol v54, issue #315): the `partyRoster` entry gains a `designing` flag and lists members who have no look yet, so the hub frames show "Designing…" for an unseen friend, and an out-of-sight frame names the discovered room the ally was last seen in (client-only, from snapshots already held); earlier, renaming on the design screen (protocol v53, issue #314): a new `setName { name }` intent, allowed only while the player has no look yet, validated like the join name plus a case-insensitive clash check against the room (`invalidName`, `nameTaken`, `nameLocked`), and shown to the party through the next snapshot and roster; the Name row is now an input, and **Enter the hub** sends the rename first and the look once the snapshot carries the new name, so a refused name never locks the look; the saved name reaches the room save and Continue list with the look, and the lobby's name field follows the rename so a resume or Continue sends it; earlier, locked vaults and the elite that carries their key (protocol v52, issue #257): `vaultChance` now builds a `vault` room on a far dead end behind a `vault-key` door, with an elite monster in a hall, cavern, maze or arena that flees when hurt, calls nearby monsters, and always drops the key; earlier, typed key locks, where a door carries `lock: { type: "key", keyItemId } | { type: "seal", groupId } | { type: "hidden" } | null` instead of `locked` and `interact` spends only the matching key item (protocol v50, issue #255); earlier, omens, run modifiers rolled from the run seed (at most one warning and one anomaly) that change generation, with Smothering Dark, Restless Dead, Brittle Floors, Golden Hoard, Lantern Festival and Scroll Cache in `content/omens/` (issue #267); earlier, closing out generator v2 Phase 1 in the docs: decision 0016 records the seven-stage pipeline, its invariants and where it departs from the design, `content/README.md` covers flows, biomes, the `delve` profile and template v2 fields, and 0007's chain layout is marked superseded (issue #254, documentation only); earlier, switching `vault-run` to the `delve` layout: `generateDungeon` runs recipe, layout, roles, room shapes (hand-made templates or procedural), carve and populate, then `generation/validate.ts` flood-fills the real tiles and a failed attempt retries from `mixSeed(seed, attempt)` up to the profile's `maxAttempts` (200), then throws naming the seed (issue #253); earlier, scaling puzzles to the party and the Ballast Stone: `startRun` passes the party size into generation, which spawns `max(0, plates - partySize)` Ballast Stones in a puzzle's room, and a stone lying on a plate holds it, so a small party can solve a paired-levers puzzle (protocol v49, a new `ballast` item kind; issue #252). It closes the generator v2 stages built in Backend 14, all of which are tested but not yet called by `generateDungeon`: seeded `chance`, `weighted` and `mixSeed` (#244); flow and biome content (#245); the grid layout stage (#246); the roles stage (#247); room sockets, transforms and procedural shapes (#248); the Cinder Depths templates (#249); the carve stage (#250); and the populate stage (#251); earlier, the lobby Continue list: `listSavedRuns { profileSecret }` before joining, answered with `savedRuns { runs }` (protocol v48); one card per room save whose run has an entry for the asking profile (so every card's Continue is a join the server accepts), with the player's head, the dungeon's name, room code, time in the run, last played and the teammates' heads, newest first, empty for an unknown secret; expired, content-changed and run-less saves are not listed; a saved look whose id left a shared list now falls back per field to that list's first entry; the run records its `dungeonId` for the card; and the session client no longer lets a closed socket's late `close` event clobber a socket opened right after (issue #135); earlier, Save and quit and the saved-room prompt: a Save and quit button in the camp menu's Party group, shown only in the dungeon, sends `saveAndQuit`; the server now answers an accepted one with `savedAndQuit { roomCode }` (protocol v47), and the client returns to the lobby with the room code filled in, while a refusal (`saveAndQuitRefused`: `inCombat`, `notPermitted`) shows beside the button and changes nothing; a join answered with `savedRunExists` opens a lobby prompt with Continue (`savedRun: "continue"`) and Start fresh, which asks a second time before rejoining with `savedRun: "discard"`; `notSaveMember` and `notPermitted` show as the lobby's message (issue #232); earlier, continuing a saved run: joining a room code whose save holds a run restores the session in the dungeon from it, after a restart or a sweep or into a live session, and places each member from their saved entry with a fresh resume token and their run clock resumed; members not yet back stay in the save; a profile not in the run (or a join with no secret) is refused with `notSaveMember`; a member joining without `savedRun` gets `savedRunExists`; `"discard"` deletes the room save and keeps the vault, refused with `notPermitted` while another member is connected; a returning member of a hub room skips the designer; a save unplayed for 7 days is not restored (issue #235, protocol v46); earlier, save triggers and Save and quit: a room save is written when a player sets their look, every 45 s while the room is in the dungeon, when the last connected member disconnects or leaves, before the sweep drops an emptied party, and at shutdown; an escape or a wipe clears the run and keeps the members; and `saveAndQuit` takes a player out of the run with their carry and position kept, refused with `inCombat` or `notPermitted` (issue #234, protocol v45); earlier, weapon trails and torch flames: two more cosmetic slots (`trail`, `flame`) with the bible's five trails and four flames as content, a trail drawn in art pixels over a swing and clipped to its server-resolved reach and arc for everyone who can see it, a carried torch's flame recoloured by its bearer's `e f g h` ramp with a faint halo while the lightmap stays untouched, and Weapon trails and Torch flames tabs with previews in the Wardrobe (issue #138, protocol v44); earlier, hats, cloaks and outfit dyes: a `cosmetic` content kind (17 items), permanent profile ownership with every profile owning the Leather Cap and Traveler's Cape, `buyCosmetic` at a new `wardrobe` hub room (stock fixed plus a rotation of two from a pool, by the skill shop's helper) and `equipCosmetic` anywhere in the hub, cosmetic milestones granted on extraction, a public `PlayerState.cosmetics` drawn as hat, cloak and dye layers in the character composite with flickering legendaries, and a Wardrobe panel with a try-on preview (issue #137, protocol v43); earlier, the hub skill shop: a `shop` room around a Scrolls stall, a content-defined stock (fixed scrolls plus a rotating pool that rerolls after every run, derived from the room code and a run count saved with the room's vault), a `buySkillScroll { itemId }` intent the server prices and refuses, and a shop panel with inline refusals (issue #216, protocol v42); earlier, a Skills panel in the camp menu, built from the owner-only progression catalog and state: permanent, this-run and locked skills with stacks, resolved effects, prerequisites and how each is earned, plus scrolls that cannot be used yet or are maxed, with the existing conversion prompt behind a button (issue #25, protocol unchanged); earlier, milestone stats on profiles (runs escaped, full-party escapes, wins, Ember Warden
-  kills, flawless kills, teammates carried out, lever puzzles solved, runs without a torch, items banked,
-  moth room) credited to players who extract, and milestone content that grants a skill stack once (issue
-  #215, protocol v41); earlier, profile coin, a per-player run purse credited with an escape reward on extraction
-  and lost otherwise, and confirmed conversion of a max-stack scroll to coin, with a small HUD
-  readout and confirmation prompt (issue #214, protocol v40); earlier, a scroll for every skill (Torchbearer and Lever Sense join Iron Will),
-  enforced by a content test, and rare skill-scroll drops from every ordinary monster, about one
-  kill in eighty (issue #217, protocol unchanged); earlier, skills that stack up to a per-skill
-  `maxStacks` and may require other skills, with Iron Will's two upgrades folded into its stacks 2 and 3, old profiles migrated on
-  read, and maxed or prerequisite-missing scrolls refused and kept (issue #213, protocol v39);
-  earlier, the progression economy decided and recorded in decision 0014, with
-  follow-ups #213-#217 (issue #23, documentation only); earlier, a party vault shared by the room code, which escapes deposit into and any
-  member can take from or store in at the hub's Bank, saved in `data/vaults.json` and reopened with
-  its room after a restart; personal banks are now a read-only legacy list (issue #126, protocol
-  v38); earlier, the final HUD Torch & Tally pass, comparing the finished HUD with the proposal and fixing the self frame's missing name, squat ally health bars, the allies' resistance bar and the camp menu's off-palette groups; this finishes the series, with no follow-up issues (issue #194, protocol unchanged); earlier, an e2e spec for the Torch & Tally HUD zones, density levels and touch layout, with three layout fixes it found (issue #176, HUD Torch & Tally, protocol unchanged); earlier, a server-sent party roster and greyed "out of sight" party frames for allies who left sight (issue #172, HUD Torch & Tally Phase 5, protocol v37); earlier, quiet HUD modules fading to 55% opacity after 4 s out of combat (issue #169, HUD Torch & Tally Phase 4, protocol unchanged); earlier, a redesigned hotbar with a 72px brass-edged hand slot, readable empty slots, violet skill-scroll glow with a SKILL badge, and a round torch slot that glows ember when lit (issue #168, HUD Torch & Tally Phase 3, protocol unchanged); earlier, a baked 9-slice HUD frame and brass corner studs on every panel (issue #166, HUD Torch & Tally Phase 2, protocol unchanged); earlier, a draw strength and aim indicator for the bow (issue #117, protocol unchanged); earlier, the Hunting Bow, drawn by holding a key, with range growing to a cap at
-  two seconds and arrows that fly in the hub too (issue #116, protocol v36); earlier, minimap allies marked in their party colour with an initial, and arch and
-  chest icons on discovered tiles (issue #171, HUD Torch & Tally Phase 5, protocol unchanged);
-  earlier, speaking rings on party portraits from per-peer remote voice levels, with a
-  hold and a proximity cutoff (issue #173, HUD Torch & Tally Phase 5, protocol unchanged); earlier,
-  readying up by standing on four plates in front of the hub gate, lit in the
-  holder's party colour, with a cue when the last one fills (issue #147, protocol v35); earlier, a
-  hotbar slot pulse on a confirmed item use and an icon fly-in on pickup (issue #175, HUD Torch &
-  Tally, protocol unchanged); earlier, toasts and the hub gate status merged into one top-centre
-  notice stack, with a party-colour ready pip per member (issue #163, HUD Torch & Tally Phase 1,
-  protocol unchanged);
-  earlier, sitting on hub benches and the fountain rim (issue #148, protocol v34);
-  earlier, the minimap given its own top-right frame with a room-name header (issue
-  #162, HUD Torch & Tally Phase 1, protocol unchanged); earlier, the session and voice controls
-  moved into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1, protocol unchanged); earlier, HUD colour tokens and the self-hosted
-  Silkscreen and Pixelify Sans fonts (issue #165, HUD Torch & Tally Phase 2, protocol unchanged); earlier, the Attack and Emote buttons
-  shown only on touch devices (issue #164, HUD Torch & Tally Phase 1); earlier, the hub re-authored as a ring round a 3x3 fountain, with stalls on the
-  diagonals, a gate road, a campfire clearing, a training yard, benches and a ragged forest edge
-  (issue #145, Hub Revamp Phase 3, protocol v33); earlier, ambient hub lighting with varied,
-  flickering lights and distance-based prop
-  name plates kept clear of the HUD (issue #146, Hub Revamp Phase 4, protocol v32); earlier, party frames with character portraits and a "Designing…" state, and a hub
-  banner that names who is still designing (issue #134, protocol unchanged at v31); earlier, players
-  drawn as layered pixel-art characters in their own look and party colour (issue #132); earlier, hub training dummies with a server-kept
-  damage-per-second readout (issue #150, protocol v31); earlier, an emote wheel with server-validated, rate-limited emotes (issue #149,
-  protocol v30); earlier, animated weapon swings drawn from server-resolved reach and arc (issue #129,
-  protocol v29); earlier, server-validated player appearance and party colours (issue #131, protocol
-  v28); earlier, stamina draught, flare, and smelling salts consumables, with revive of a
-  downed ally (issue #85, protocol v27); earlier, lootable chests placed by room templates (issue #88, protocol v26);
-  earlier, stackable arrows that take one inventory slot (issue #115, protocol v25); earlier, server-lit tiles, so remembered and shared map stays dark (issue #120, protocol v24); earlier, the Rusted Sword and swinging in the hub (issue #114, protocol v23);
-  earlier, a held-item slot and the `weapon` item kind (issue #113, protocol v22); earlier, ranged and charging monster behaviours (issue #91, protocol v21); earlier,
-  a minimap that fills in as the party explores (issue #105); earlier,
-  monsters route round walls on a shared flow field, aggro only on players
-  they can see or hear, and leash home (issue #89); earlier, dropping and handing over inventory
-  items (issue #87, protocol v19), owner-only banks and a once-per-tick roster (issue #81, protocol v17);
-  earlier, monster loot tables and drops on death (issue #86), content-driven consumable effects
-  (issue #84) and client WebRTC
-  proximity voice (issue #27), closing Frontend step 5.
+  everyone to the hub. The protocol version is `PROTOCOL_VERSION` in `src/shared/constants/game.ts`.
+- Last completed work: see the first entry of the `Activity Log` below (newest first).
 - Next recommended step: a wider item catalog, combat depth,
   and tick performance (see the open issues). Verifying Backend step 6 on a real
   deployment remains open.
@@ -180,7 +130,17 @@ Resolved:
 - [x] Add player join, leave, reconnect, and disconnect handling. A drop holds the slot for `RECONNECT_GRACE_MS`; reconnect uses the resume token from `sessionJoined`.
 - [x] Track player identity, position, health, and ready state. See `SessionPlayer` in `src/server/sessions/sessionStore.ts`.
 - [x] Broadcast authoritative player state to all clients in a session. Lifecycle events plus a `stateSnapshot` each tick.
-- [x] Add a server-validated character look and party colour (issue #131, protocol v28). Shared id lists live in `src/shared/constants/appearance.ts`. `PlayerState` carries a public `appearance` (null while still designing) and a `partyColor`, the first colour free in the session, which is kept through reconnects and reused once the slot is released. `sessionJoined.needsAppearance` asks for a look, and `setAppearance` sets it once (`invalidAppearance`, `appearanceLocked`). A player still designing holds a slot but blocks nobody, cannot be given items, and has their move, attack, interact, item, carry and ready intents refused. `partyReadyForRun` waits on them, and the server spawns them on free ground once the look is set. The client skips players without a look when it draws, predicts, and fills the minimap. Run-save persistence (#122), the design screen and roster, and sprites remain out of scope.
+- [x] Add a server-validated character look and party colour (issue #131, protocol v28). Shared id
+      lists live in `src/shared/constants/appearance.ts`. `PlayerState` carries a public
+      `appearance` (null while still designing) and a `partyColor`, the first colour free in the
+      session, which is kept through reconnects and reused once the slot is released.
+      `sessionJoined.needsAppearance` asks for a look, and `setAppearance` sets it once
+      (`invalidAppearance`, `appearanceLocked`). A player still designing holds a slot but blocks
+      nobody, cannot be given items, and has their move, attack, interact, item, carry and ready
+      intents refused. `partyReadyForRun` waits on them, and the server spawns them on free ground
+      once the look is set. The client skips players without a look when it draws, predicts, and
+      fills the minimap. Run-save persistence (#122), the design screen and roster, and sprites
+      remain out of scope.
 
 ### 3. Authoritative Dungeon State
 
@@ -209,17 +169,112 @@ Resolved:
   Boss phases and monster art (#63) remain out of scope.
 - [x] Add item pickup and inventory basics. `src/server/game/items.ts` handles pickup, tonics, key-locked doors, and the exit.
 - [x] Let players drop and hand over inventory items (issue #87, protocol v19). `dropItem` puts the item back on the floor as re-pickable loot with its own id (lost at run end, never banked); `giveItem` moves it to a standing, connected party member within `INTERACT_RANGE` with a free slot. Client keys: drop `Q`, give `T`, both acting on the last-used hotbar slot.
-- [x] Add a held-item ("in hand") slot and a `weapon` item kind (issue #113, protocol v22). `held` on the player is separate from the three inventory slots and the torch; a weapon pickup fills the hand, then inventory, then is refused. `swapHeld` swaps the hand with an inventory item (null stows it). Drop, give, banking and resume treat it like carried items. Client: hand slot beside the hotbar, rebindable swap key `V`. No concrete weapon or attack change yet; the sword, ammo and bow issues build on this.
-- [x] Animate player weapon swings (issue #129, protocol v29). `attackResolved` carries `swing` (attacker `origin`, `facing`, `range`, `arcCos`, taken from the held weapon or the unarmed constants, sent for misses too) and is `null` for monster attacks. The client's pure `swingArc` helper in `combatFeedback.ts` turns it into an arc and skips attackers outside the visible frame; the renderer sweeps a ~180 ms slash out to the exact reach, brighter with an impact flash on a hit. Held-weapon sprites and attack poses (#63), bow indicators (#117), and new weapons (#92) remain out of scope.
-- [x] Add hub training dummies with a damage readout (issue #150, protocol v31). A dummy is its own entity (`DummyState` in `dungeon.dummies`), not a monster kind, so monster AI, loot, boss gating, run results and progression never see it. Authored dungeons list `dummies` (`entityId`, `x`, `y`); content validation refuses one on a wall, off the map, or reusing an id. `resolvePlayerAttack` treats dummies as targets with the same reach and arc as monsters and reports the full damage (with `attackDamageBonus`), `targetHealth: 0`, never a defeat. `src/server/game/dummies.ts` keeps a 5 s rolling hit log per dummy and sends each viewer per-attacker `recentDamage` and `dps` (averaged over at least 1 s). The hub has two, in the training yard since #145. Client: `rendering/trainingDummies.ts` draws a straw dummy that wobbles when hit and a DPS plate while it has hits; damage numbers and swing impacts find dummies. Dummies do not block movement, like monsters.
-- [x] Let players sit on hub benches and the fountain rim (issue #148, protocol v34). Authored dungeons list `seats` (`entityId`, `x`, `y`, `facing` north/south/east/west); content validation refuses one off the map, facing no walkable floor, or reusing an id. The hub has two per bench and four on the rim, each placed just inside the solid tile's edge so a sitter is seen from the floor. Seats ride `map.seats` and arrive with map discovery once each. `playerInteract` on a seat (`src/server/game/seats.ts`) needs a designed, standing player who is not carrying, carried or already seated, within `INTERACT_RANGE`, and a free seat (`blocked` otherwise); it moves them onto it and sets the public `PlayerState.seatId`. Any move intent, an attack, a lift (either side), a disconnect and a world change stand them up onto free floor in front of the seat, so no step goes through the bench and a reconnect comes back standing. Client: a "Sit" prompt for a free seat in reach, no move prediction while seated, and the standing figure drawn slightly lower until #132 adds a seated frame.
-- [x] Add the Rusted Sword and allow attacks in the hub (issue #114, protocol v23). A `melee` weapon block carries `damage`, `range`, `arcCos`, `cooldownMs` and `staminaCost`; `resolvePlayerAttack` reads them from the held weapon's content at each swing (weapon items now carry their content `itemId`) and falls back to the unarmed constants otherwise. `attackDamageBonus` stacks on top. `rusted-sword` (today's unarmed values) lies in the hub spawn area. Hub swings hit nothing but cost stamina and cooldown, and stamina regenerates in the hub. Own sprite `loot-rusted-sword`, generic `loot-weapon` fallback. Bow, projectiles and weapon traits remain out of scope.
-- [x] Add stackable arrows (issue #115, protocol v25). New `ammo` item kind with a content `maxStack` (at most 99) and a `count` on loot and inventory entries; a stack takes one slot. Pickup tops up carried stacks of the same item, then takes a free slot, leaving any remainder on the floor. Drop and give move the whole stack, and give refuses unless it all fits. `consumeFromStack` spends from a stack and removes it at zero, ready for the bow. `arrow` (`maxStack` 8) lies as a stack of 5 beside the hub sword; authored placements take an optional `count`. Saved stacks without a `count` load as 1. HUD shows the count on the slot and in the pickup prompt; sprite `loot-arrow`. Splitting stacks and the bow remain out of scope.
-- [x] Add the chargeable Hunting Bow (issue #116, protocol v36). A `ranged` weapon block carries `drawMs`, `minDrawMs`, `minRange`/`maxRange`, `damage`, `projectileSpeed`, `projectileRadius`, `staminaCost` and `ammoItemId` (checked to be an ammo item at load). `beginDraw`/`releaseDraw` carry only an aim direction: the server keeps the draw clock (`player.draw`), derives the fraction itself, and `bowMaxRange` is the one place a later `bowRangeBonus` can raise the cap. Beginning needs the bow in hand, an arrow and the stamina; the release spends one arrow and the stamina, then spawns a player-owned projectile (`ProjectileRun.ownerId` is a player) that stops at walls and closed doors, passes the party, and hits the first monster (through the shared `damageMonster`, with `attackDamageBonus`) or training dummy. A release before `minDrawMs` fires nothing; swapping the held item, going down, disconnecting or a world change cancels the draw at no cost. `playerState.drawFraction` carries the server fraction for the indicator issue; the client holds a rebindable key (`R`) and shows a plain bar. `hunting-bow` lies on the hub Weapons counter. The draw indicator followed in #117 (below). The range upgrade (#23), the sling (#92), arrow retrieval and monster ammo drops remain out of scope.
-- [x] Show a draw strength and aim indicator while drawing the bow (issue #117, no protocol change). The pure `bowAims` in `src/client/state/bowIndicator.ts` turns `playerState.drawFraction` into an aim line from the player: the local player along the held keys' heading (or facing), a visible ally along their facing at half length. The line grows from `minRange` to `maxRange`, over a faint full-draw ghost line with an end tick; at full draw it thickens, turns green and ends in a ring. The HUD meter now has an end tick and a "FULL DRAW" label, so the cap never rests on colour alone, and prop labels avoid it. The snapshot carries no bow stats, so the client mirrored `minRange`/`maxRange` for `hunting-bow` in `BOW_RANGES` (replaced by the server-sent `drawRange` in #306). Walls are ignored visually; the server decides the hit. Bow audio, arrow art, aim assist and a sword crosshair remain out of scope.
-- [x] Draw the bow indicator from the server-computed range (issue #306, protocol v56). `playerState.drawRange` (`{ minRange, maxRange }`, null unless drawing) is built by `drawReach` in `bow.ts` from `bowMaxRange`, the same figure `releaseDraw` flies, and refreshed every tick with `drawFraction`. `bowAims` draws from it and `BOW_RANGES` is gone, so a bow the client never heard of still gets its line and a future `bowRangeBonus` shows up in the indicator with no client change. Tests: a stretched bow's snapshot range equals the arrow's `remaining`, and a two-socket e2e (`tests/e2e/bowIndicatorRange.test.ts`) shows the drawer and a watching ally the same range. Adding a range-modifying skill or item remains out of scope.
-- [x] Add lootable chests (issue #88, protocol v26). Named tables live in `content/loot-tables/` (the monster loot-table shape plus an `id`). A `ChestState` entity (`lootTableId`, `opened`, `locked`) is placed by a template `chests` rule or an authored `chests` list; the tile alphabet is unchanged. `playerInteract` on a chest in reach rolls its table once from the session drop stream and spills the items as loot at least 1.5 world units beside it; an opened chest refuses further tries, and a locked one spends a key like a locked door. Snapshots carry chests on tiles the viewer can see. `sunken-maze` always holds a `common-chest`, `ashen-hall` sometimes does, and `warden-crucible` holds a `vault-chest`; no shipped chest is locked. Client: "Open chest"/"Unlock chest" prompt and `chest-closed`/`chest-open` sprites. Mimics, trapped and two-player chests remain out of scope.
-- [x] Add stamina, light, and revive consumables (issue #85, protocol v27). Content-only Stamina Draught (`restoreStamina`). New consumable effects `flare` (`radius`, `durationMs`: a dungeon-owned light of kind `flare` at the user's feet, lit fresh each tick rather than cached, removed when `session.flareExpiresAt` passes) and `revive` (`healthFraction`, `staminaCost`: Smelling Salts stand a downed, connected, uncarried ally in `INTERACT_RANGE` back up; it must be the item's only effect). `useItem` takes an optional `targetPlayerId`, required for a revive item and refused for anything else; consumables carry `useOn` (`self`/`downedAlly`, defaulting to `self` for banked items). All three roll from the chest tables, and the Ashen Hall and Sunken Maze templates place them at low odds. Client: a "Revive <name>" prompt on the salts' slot key near a downed ally, plus `loot-draught`, `loot-flare`, `loot-salts`, and `flare-lit` sprites. Hub shops, rarity UI, and throwing physics remain out of scope.
+- [x] Add a held-item ("in hand") slot and a `weapon` item kind (issue #113, protocol v22). `held`
+      on the player is separate from the three inventory slots and the torch; a weapon pickup fills
+      the hand, then inventory, then is refused. `swapHeld` swaps the hand with an inventory item
+      (null stows it). Drop, give, banking and resume treat it like carried items. Client: hand slot
+      beside the hotbar, rebindable swap key `V`. No concrete weapon or attack change yet; the
+      sword, ammo and bow issues build on this.
+- [x] Animate player weapon swings (issue #129, protocol v29). `attackResolved` carries `swing`
+      (attacker `origin`, `facing`, `range`, `arcCos`, taken from the held weapon or the unarmed
+      constants, sent for misses too) and is `null` for monster attacks. The client's pure
+      `swingArc` helper in `combatFeedback.ts` turns it into an arc and skips attackers outside the
+      visible frame; the renderer sweeps a ~180 ms slash out to the exact reach, brighter with an
+      impact flash on a hit. Held-weapon sprites and attack poses (#63), bow indicators (#117), and
+      new weapons (#92) remain out of scope.
+- [x] Add hub training dummies with a damage readout (issue #150, protocol v31). A dummy is its own
+      entity (`DummyState` in `dungeon.dummies`), not a monster kind, so monster AI, loot, boss
+      gating, run results and progression never see it. Authored dungeons list `dummies`
+      (`entityId`, `x`, `y`); content validation refuses one on a wall, off the map, or reusing an
+      id. `resolvePlayerAttack` treats dummies as targets with the same reach and arc as monsters
+      and reports the full damage (with `attackDamageBonus`), `targetHealth: 0`, never a defeat.
+      `src/server/game/dummies.ts` keeps a 5 s rolling hit log per dummy and sends each viewer
+      per-attacker `recentDamage` and `dps` (averaged over at least 1 s). The hub has two, in the
+      training yard since #145. Client: `rendering/trainingDummies.ts` draws a straw dummy that
+      wobbles when hit and a DPS plate while it has hits; damage numbers and swing impacts find
+      dummies. Dummies do not block movement, like monsters.
+- [x] Let players sit on hub benches and the fountain rim (issue #148, protocol v34). Authored
+      dungeons list `seats` (`entityId`, `x`, `y`, `facing` north/south/east/west); content
+      validation refuses one off the map, facing no walkable floor, or reusing an id. The hub has
+      two per bench and four on the rim, each placed just inside the solid tile's edge so a sitter
+      is seen from the floor. Seats ride `map.seats` and arrive with map discovery once each.
+      `playerInteract` on a seat (`src/server/game/seats.ts`) needs a designed, standing player who
+      is not carrying, carried or already seated, within `INTERACT_RANGE`, and a free seat
+      (`blocked` otherwise); it moves them onto it and sets the public `PlayerState.seatId`. Any
+      move intent, an attack, a lift (either side), a disconnect and a world change stand them up
+      onto free floor in front of the seat, so no step goes through the bench and a reconnect comes
+      back standing. Client: a "Sit" prompt for a free seat in reach, no move prediction while
+      seated, and the standing figure drawn slightly lower until #132 adds a seated frame.
+- [x] Add the Rusted Sword and allow attacks in the hub (issue #114, protocol v23). A `melee` weapon
+      block carries `damage`, `range`, `arcCos`, `cooldownMs` and `staminaCost`;
+      `resolvePlayerAttack` reads them from the held weapon's content at each swing (weapon items
+      now carry their content `itemId`) and falls back to the unarmed constants otherwise.
+      `attackDamageBonus` stacks on top. `rusted-sword` (today's unarmed values) lies in the hub
+      spawn area. Hub swings hit nothing but cost stamina and cooldown, and stamina regenerates in
+      the hub. Own sprite `loot-rusted-sword`, generic `loot-weapon` fallback. Bow, projectiles and
+      weapon traits remain out of scope.
+- [x] Add stackable arrows (issue #115, protocol v25). New `ammo` item kind with a content
+      `maxStack` (at most 99) and a `count` on loot and inventory entries; a stack takes one slot.
+      Pickup tops up carried stacks of the same item, then takes a free slot, leaving any remainder
+      on the floor. Drop and give move the whole stack, and give refuses unless it all fits.
+      `consumeFromStack` spends from a stack and removes it at zero, ready for the bow. `arrow`
+      (`maxStack` 8) lies as a stack of 5 beside the hub sword; authored placements take an optional
+      `count`. Saved stacks without a `count` load as 1. HUD shows the count on the slot and in the
+      pickup prompt; sprite `loot-arrow`. Splitting stacks and the bow remain out of scope.
+- [x] Add the chargeable Hunting Bow (issue #116, protocol v36). A `ranged` weapon block carries
+      `drawMs`, `minDrawMs`, `minRange`/`maxRange`, `damage`, `projectileSpeed`, `projectileRadius`,
+      `staminaCost` and `ammoItemId` (checked to be an ammo item at load). `beginDraw`/`releaseDraw`
+      carry only an aim direction: the server keeps the draw clock (`player.draw`), derives the
+      fraction itself, and `bowMaxRange` is the one place a later `bowRangeBonus` can raise the cap.
+      Beginning needs the bow in hand, an arrow and the stamina; the release spends one arrow and
+      the stamina, then spawns a player-owned projectile (`ProjectileRun.ownerId` is a player) that
+      stops at walls and closed doors, passes the party, and hits the first monster (through the
+      shared `damageMonster`, with `attackDamageBonus`) or training dummy. A release before
+      `minDrawMs` fires nothing; swapping the held item, going down, disconnecting or a world change
+      cancels the draw at no cost. `playerState.drawFraction` carries the server fraction for the
+      indicator issue; the client holds a rebindable key (`R`) and shows a plain bar. `hunting-bow`
+      lies on the hub Weapons counter. The draw indicator followed in #117 (below). The range
+      upgrade (#23), the sling (#92), arrow retrieval and monster ammo drops remain out of scope.
+- [x] Show a draw strength and aim indicator while drawing the bow (issue #117, no protocol change).
+      The pure `bowAims` in `src/client/state/bowIndicator.ts` turns `playerState.drawFraction` into
+      an aim line from the player: the local player along the held keys' heading (or facing), a
+      visible ally along their facing at half length. The line grows from `minRange` to `maxRange`,
+      over a faint full-draw ghost line with an end tick; at full draw it thickens, turns green and
+      ends in a ring. The HUD meter now has an end tick and a "FULL DRAW" label, so the cap never
+      rests on colour alone, and prop labels avoid it. The snapshot carries no bow stats, so the
+      client mirrored `minRange`/`maxRange` for `hunting-bow` in `BOW_RANGES` (replaced by the
+      server-sent `drawRange` in #306). Walls are ignored visually; the server decides the hit. Bow
+      audio, arrow art, aim assist and a sword crosshair remain out of scope.
+- [x] Draw the bow indicator from the server-computed range (issue #306, protocol v56).
+      `playerState.drawRange` (`{ minRange, maxRange }`, null unless drawing) is built by
+      `drawReach` in `bow.ts` from `bowMaxRange`, the same figure `releaseDraw` flies, and refreshed
+      every tick with `drawFraction`. `bowAims` draws from it and `BOW_RANGES` is gone, so a bow the
+      client never heard of still gets its line and a future `bowRangeBonus` shows up in the
+      indicator with no client change. Tests: a stretched bow's snapshot range equals the arrow's
+      `remaining`, and a two-socket e2e (`tests/e2e/bowIndicatorRange.test.ts`) shows the drawer and
+      a watching ally the same range. Adding a range-modifying skill or item remains out of scope.
+- [x] Add lootable chests (issue #88, protocol v26). Named tables live in `content/loot-tables/`
+      (the monster loot-table shape plus an `id`). A `ChestState` entity (`lootTableId`, `opened`,
+      `locked`) is placed by a template `chests` rule or an authored `chests` list; the tile
+      alphabet is unchanged. `playerInteract` on a chest in reach rolls its table once from the
+      session drop stream and spills the items as loot at least 1.5 world units beside it; an opened
+      chest refuses further tries, and a locked one spends a key like a locked door. Snapshots carry
+      chests on tiles the viewer can see. `sunken-maze` always holds a `common-chest`, `ashen-hall`
+      sometimes does, and `warden-crucible` holds a `vault-chest`; no shipped chest is locked.
+      Client: "Open chest"/"Unlock chest" prompt and `chest-closed`/`chest-open` sprites. Mimics,
+      trapped and two-player chests remain out of scope.
+- [x] Add stamina, light, and revive consumables (issue #85, protocol v27). Content-only Stamina
+      Draught (`restoreStamina`). New consumable effects `flare` (`radius`, `durationMs`: a
+      dungeon-owned light of kind `flare` at the user's feet, lit fresh each tick rather than
+      cached, removed when `session.flareExpiresAt` passes) and `revive` (`healthFraction`,
+      `staminaCost`: Smelling Salts stand a downed, connected, uncarried ally in `INTERACT_RANGE`
+      back up; it must be the item's only effect). `useItem` takes an optional `targetPlayerId`,
+      required for a revive item and refused for anything else; consumables carry `useOn`
+      (`self`/`downedAlly`, defaulting to `self` for banked items). All three roll from the chest
+      tables, and the Ashen Hall and Sunken Maze templates place them at low odds. Client: a "Revive
+      <name>" prompt on the salts' slot key near a downed ally, plus `loot-draught`, `loot-flare`,
+      `loot-salts`, and `flare-lit` sprites. Hub shops, rarity UI, and throwing physics remain out
+      of scope.
 - [x] Resolve all combat outcomes on the server. Clients send intent only; `attackResolved` and snapshots carry results.
 - [x] Add tests for movement, combat, session joins, and invalid messages. `tests/server/combat.test.ts`, `tests/server/items.test.ts`, plus protocol and e2e coverage.
 
@@ -319,7 +374,16 @@ check remains.
 - [x] Stitch templates into a dungeon: halls, mazes, traps, puzzles, bosses, exit. Seven templates covering every kind; rooms chained entrance to exit with BFS-routed corridors.
 - [x] Place loot, monsters, and lights from a seeded random source. `src/server/game/random.ts`; the seed is stored on the session so a run replays exactly.
 - [x] Add `chance(p)`, `weighted(entries)` and an exported `mixSeed(seed, salt)` to the seeded stream (issue #244, 2026-10-23). The existing methods are unchanged (golden-value test); `chance(0)` and `chance(1)` draw nothing; `mixSeed` derives a child stream for a generation retry without changing the run seed. Nothing in the generator uses them yet; later generator v2 issues do.
-- [x] Generator v2 stage 5, carve (issue #250, 2026-10-23). `generation/carve.ts`: `carveDungeon(rng, graph, rooms, { cell, margin })` stamps each room into its cell with jitter inside the margin (so neighbours keep at least `2 * margin` tiles, 4 at the design's margin of 2), joins every graph edge socket to socket with a corridor that jogs once inside the gap, never writes the outer ring, and returns each corridor's tiles in walking order for lighting. It returns null when no jog keeps a corridor clear of those already cut (the caller retries with another stream) and throws for a room too large for its cell. Nothing calls it yet; populate and switching `vault-run` are later issues. The breadth-first router in `dungeonGenerator.ts` is untouched and stays the `generated` layout, so its tests are unchanged.
+- [x] Generator v2 stage 5, carve (issue #250, 2026-10-23). `generation/carve.ts`:
+      `carveDungeon(rng, graph, rooms, { cell, margin })` stamps each room into its cell with jitter
+      inside the margin (so neighbours keep at least `2 * margin` tiles, 4 at the design's margin of
+      2), joins every graph edge socket to socket with a corridor that jogs once inside the gap,
+      never writes the outer ring, and returns each corridor's tiles in walking order for lighting.
+      It returns null when no jog keeps a corridor clear of those already cut (the caller retries
+      with another stream) and throws for a room too large for its cell. Nothing calls it yet;
+      populate and switching `vault-run` are later issues. The breadth-first router in
+      `dungeonGenerator.ts` is untouched and stays the `generated` layout, so its tests are
+      unchanged.
 
 ### 10. Hub World and Run Lifecycle
 
@@ -405,7 +469,25 @@ full catalog, the shop and UI remain. Milestones landed under protocol v41 (#215
   extractor's run stats (`src/server/game/milestones.ts`) and a `content/milestones/` entry whose stat
   reaches its threshold grants one permanent stack of its skill once; a skill with prerequisites is
   refused at load. The hidden moth room does not exist yet, so `mothRoomsFound` stays at zero until a
-  room sets `runStats.mothRoomFound`. Since #216 the hub has a `shop` room with a Scrolls stall: `content/shops/scroll-shop.json` lists `fixed` scrolls, a `rotating` pool and a `rotatingCount`; `rotatingStock` (`src/server/game/shop.ts`, shared with the cosmetics shop #137) draws from the pool by a seed of the room code and the vault's `runCount`, which `returnToHub` advances on an escape or a wipe and the vault file saves. `buySkillScroll { itemId }` (hub, standing, in the shop room) is refused with `outOfStock`, `insufficientCoin`, `inventoryFull`, `skillMaxed`, `outOfRange` or `notPermitted` and changes nothing; missing prerequisites are allowed. The server sends `skillShopStock` (protocol v42) after joining and when the run count moves. Since #137 a profile holds `ownedCosmeticIds` (the starters `STARTER_COSMETIC_IDS` always included, added on read for older files) and `equippedCosmetics`, public on `PlayerState.cosmetics`. `content/cosmetics/` lists hats, cloaks, dyes and, since #138, weapon trails and torch flames, each `starter`, priced (fixed, or `rotating` and drawn two at a time by `rotatingStock`) or granted by a `milestone` stat threshold on extraction (`grantCosmeticMilestones`, beside the skill milestones). `buyCosmetic { id }` (hub, standing, in the `wardrobe` room) is refused with `unknownCosmetic`, `alreadyOwned`, `outOfStock`, `insufficientCoin`, `outOfRange` or `notPermitted`; `equipCosmetic { slot, id | null }` (anywhere in the hub) with `unknownCosmetic` (also the wrong slot), `notOwned` or `notPermitted`. Neither changes anything when refused, and death or a wipe never touches either. `wardrobeCatalog` (protocol v43) goes with `skillShopStock`. Remaining: puzzle effects. Since #217 every
+  room sets `runStats.mothRoomFound`. Since #216 the hub has a `shop` room with a Scrolls stall:
+  `content/shops/scroll-shop.json` lists `fixed` scrolls, a `rotating` pool and a `rotatingCount`;
+  `rotatingStock` (`src/server/game/shop.ts`, shared with the cosmetics shop #137) draws from the
+  pool by a seed of the room code and the vault's `runCount`, which `returnToHub` advances on an
+  escape or a wipe and the vault file saves. `buySkillScroll { itemId }` (hub, standing, in the shop
+  room) is refused with `outOfStock`, `insufficientCoin`, `inventoryFull`, `skillMaxed`,
+  `outOfRange` or `notPermitted` and changes nothing; missing prerequisites are allowed. The server
+  sends `skillShopStock` (protocol v42) after joining and when the run count moves. Since #137 a
+  profile holds `ownedCosmeticIds` (the starters `STARTER_COSMETIC_IDS` always included, added on
+  read for older files) and `equippedCosmetics`, public on `PlayerState.cosmetics`.
+  `content/cosmetics/` lists hats, cloaks, dyes and, since #138, weapon trails and torch flames,
+  each `starter`, priced (fixed, or `rotating` and drawn two at a time by `rotatingStock`) or
+  granted by a `milestone` stat threshold on extraction (`grantCosmeticMilestones`, beside the skill
+  milestones). `buyCosmetic { id }` (hub, standing, in the `wardrobe` room) is refused with
+  `unknownCosmetic`, `alreadyOwned`, `outOfStock`, `insufficientCoin`, `outOfRange` or
+  `notPermitted`; `equipCosmetic { slot, id | null }` (anywhere in the hub) with `unknownCosmetic`
+  (also the wrong slot), `notOwned` or `notPermitted`. Neither changes anything when refused, and
+  death or a wipe never touches either. `wardrobeCatalog` (protocol v43) goes with `skillShopStock`.
+  Remaining: puzzle effects. Since #217 every
   skill has a scroll and ordinary monsters drop them rarely, alongside the Warden and vault chest. The owner receives the catalog (`progressionCatalog`, now with `maxStacks`,
   `requires` and per-stack effects) and live stacks (`progressionUpdated`: permanent, run and
   active), first under protocol v15 (#24).
@@ -439,35 +521,271 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
 - [x] Scale only coordinates. Light radii, monster speeds, and reach stay in world units and are authored as they are used; the schema says which is which.
 - [x] Grow speed and light by less than the map. Speed 2.5 to 6, light and voice by `LIGHT_SCALE` of 3, so the dungeon is larger and darker rather than merely further away.
 - [x] Give a doorway the width of its opening. `doorState.size`, honoured by collision, line of sight, and reach.
-  - Two bugs in that width surfaced on 2026-09-18 while drawing the door art, both from the one-tile assumptions the block replaced. Line of sight exempted only a door's centre tile, so a closed door hid behind itself and was never sent to any client; and the client still measured interact reach to the centre while the server measured to the face, so no locked door could be opened from the UI. Fixed with `distanceToDoor` in `src/shared/game/movement.ts`, now shared by both sides.
+  - Two bugs in that width surfaced on 2026-09-18 while drawing the door art, both from the one-tile
+    assumptions the block replaced. Line of sight exempted only a door's centre tile, so a closed
+    door hid behind itself and was never sent to any client; and the client still measured interact
+    reach to the centre while the server measured to the face, so no locked door could be opened
+    from the UI. Fixed with `distanceToDoor` in `src/shared/game/movement.ts`, now shared by both
+    sides.
 - [x] Send a window of the map rather than all of it. `dungeonMapState.originX/originY` and `SNAPSHOT_VIEW_RADIUS_TILES`. Superseded by discovery deltas (issue #30).
 
 ### 14. Dungeon Generator v2
 
 - [x] Decide the design before building it: grid layout, one floor, `#`/`.` alphabet, omens on the quest board, small-party scaling, one biome per run, content as a menu (decision 0016, issue #243).
 - [x] Add flow and biome content (issue #245, 2026-10-23): `content/flows/` (`gauntlet`, `long-loop`, `three-roads`), `content/biomes/` (`cinder-depths`), a `delve` dungeon profile layout, and load-time reference checks. `vault-run` stays `generated`; nothing builds a `delve` run yet.
-- [x] Add room sockets, template transforms and procedural room shapes (issue #248, 2026-10-23): `src/server/game/generation/roomShapes.ts` with midpoint sockets, rotate and mirror for `transform` templates, ten procedural shapes (plain, pillars, block, cross, ring, octagon, partition, alcoves, braided maze, cavern), a 0-1 BFS socket repair and pocket fill, and a cavern retry that falls back to plain. `roomTemplateSchema` gains optional `sockets: "midpoints"` (derives `doorways`), `transform`, `biomes` and `tags`; existing templates load unchanged. Nothing in the generator calls the shapes yet; the grid layout and carve issues do.
-- [x] Add the layout stage (issue #246, 2026-10-23): `src/server/game/generation/layout.ts` `generateLayout(rng, flow, grid)` walks a self-avoiding critical path across the grid, grows the flow's branches, then adds loops between rooms at least three hops apart; the boss and exit get none, and it returns null when the path cannot fit or the flow's minimum branches or loops cannot be placed, for the caller to retry with `mixSeed`. Not wired into `generateDungeon` yet.
-- [x] Add the roles stage (issue #247, 2026-10-23): `src/server/game/generation/roles.ts` `assignRoles(rng, graph, flow, biome)` fixes the entrance, boss and exit, locks the boss room on the edge in front of it (the existing locked door, moved from the exit room), puts the key on the farthest free dead end beyond the lock's room (a puzzle reward, a branch's loot or a guarded room by `keySource`), and fills the rest from the biome's `roomWeights` with no kind twice in a row on the critical path and no trap first after the entrance. Only today's room kinds; vaults, shrines, camps, secrets and arenas wait for their own issues. It returns null when no dead end lies beyond the lock, the biome cannot avoid a repeat, or the flow's lock is not `key`, for the caller to retry. Not wired into `generateDungeon` yet.
-- [x] Author the Cinder Depths room templates (issue #249, 2026-10-23): 14 templates in `content/dungeons/templates/`, all odd-sized with `sockets: "midpoints"`, `transform: true` and `biomes: ["cinder-depths"]`: entrances `ash-stair`, `slag-landing`, `bellows-porch`; exits `chimney-climb`, `flue-ascent`, `soot-shaft`; boss `slag-pit` (a second Ember Warden arena beside `warden-crucible`, which stays as authored); puzzles `furnace-lock`, `brazier-court`, `lever-gallery` (all `paired-levers`); halls `slag-gallery`, `bellows-nave`; maze `flue-warren`; trap `vent-run`. Existing templates are unchanged. `tests/server/cinderDepthsTemplates.test.ts` checks socket connectivity, lights and plates on floor across all eight orientations, and the boss rule. No new monsters, items or art. The v1 chain generator draws from every template of a kind, so these also join `vault-run` runs.
-- [x] Add the populate stage (issue #251, 2026-10-23): `src/server/game/generation/populate.ts` `populateDungeon(rng, { graph, plan, world, biome, content, partySize })` places the boss door in the boss room's own socket, then lights (entrance, exit and boss fires, hall torches, a maze lantern, a trap room's red lamp, corridor torches every seventh tile), four entrance spawn points, the exit on the far side of its room, monsters from `threatBudget` (`base[kind] x (1 + 0.5 x depth) x (0.6 + 0.2 x partySize)`, hall 5, maze 3, trap 2, puzzle 1, using the biome's costs and weights; it returns each room's budget and spend), the boss and its vault chest, the boss key, role-based loot and nook-preferring chests, traps, and paired-levers plates. Every entity is built with the existing instance helpers and claims its own tile. A guardian key room spends its budget on the costliest guard it can afford, and the key lies on that room's floor because monster drops come from the monster type's table, not the instance. A paired-levers puzzle always gets two plates; Ballast Stones for a smaller party and passing the session's party size in are later issues. Nothing calls it yet, so `generateDungeon` and the `generated` layout are unchanged.
-- [x] Scale puzzles to the party and add the Ballast Stone (issue #252, 2026-10-23): `startRun` passes `session.players.size` into `DungeonRequest.partySize` (default 4), which `generateDungeon` and `populateDungeon` use to spawn `max(0, plates - partySize)` Ballast Stones (`content/items/ballast-stone.json`, kind `ballast`, new `loot-ballast` sprite) in the puzzle's room, off its plates. Picking one up costs `BALLAST_STAMINA_COST` (a refusal leaves it lying there) and it goes in an inventory slot; dropping it with `dropItem` puts it back on the floor. `resolvePuzzles` counts a stone lying within a plate's radius as holding that plate, which frees a player to stand on another, and a carried stone holds nothing. A stone is never banked in the party vault on escape. This adds a `ballast` item kind on the wire, so `PROTOCOL_VERSION` is 49. The existing "carry" action only lifts downed players, so a stone moves by pickup and drop, not `liftPlayer`. Threat scaling was already in the populate stage (#251); the live `generateDungeon` keeps its template-fixed plate counts and covers a small party with stones. Group-only gating (Split Seal) stays a later issue.
-- [x] Switch `vault-run` to the new generator with validation, retry and a full seed sweep (issue #253, 2026-10-24). `content/dungeons/vault-run.json` is now a `delve` profile (6x4 grid of 16-tile cells, all three flows, Cinder Depths, `maxAttempts` 200) and `ember-vault` stays the pinned authored map. `generateDungeon` dispatches a `delve` profile to `generation/delve.ts`: stage 1 draws the flow (weighted, filtered by `minParty`) and biome from the run seed, stages 2 to 6 read `mixSeed(seed, attempt)`, and each room is a rotated and mirrored Cinder Depths template (half the time, when one fits the cell) or a procedural shape. `generation/validate.ts` (stage 7) checks that every entity, plate, door and exit is on its own floor tile, the boss room cannot be entered with every lock closed, keys and puzzle rewards in any reachable order open a route to the exit, every room is reachable at the end, and no puzzle needs more plates than players plus Ballast Stones. `tests/server/generationSweep.test.ts` sweeps 1,000 seeds per party size 1 to 4 plus every flow, and mutation tests (a key in the boss room, locks never placed) are rejected. The old chain stays as the `generated` layout, no longer used by shipped content. Per-attempt success is low for some flows (about 31% gauntlet, 11% long-loop through the layout and roles stages alone), so `maxAttempts` is 200 rather than the design's 40: no seed in 8,000 needed more than that and a run still builds in about 1.3 ms. Raising those rates is a possible follow-up in the layout and roles stages. `scripts/benchTick.ts` gave its players a look so the benchmark starts a run again.
-- [x] Add omen content and apply warnings and anomalies to generation (issue #267, 2026-10-24). `content/omens/` and `omenDefinitionSchema` (`type`, `lightMult`, `radiusMult`, `budgetMult`, `chestBonus`, `corridorTraps`, `shrine`, run-scoped `overrides`); the recipe stage rolls at most one warning (35%) and one anomaly (30%) from the run seed after the flow and biome, and populate applies them. Brittle Floors uses a new single-use `collapsing-floor` trap. Scroll Cache places a skill scroll in a side room, since shrine rooms wait for Phase 2. The profile's `omens` chances are optional. Short Fuse and Echoing Halls, the `overrides` consumers, and the quest board are the next issue; no protocol change.
-- [x] Add typed key locks (issue #255, 2026-10-24, protocol v50). `DoorState.locked` is replaced by `lock`; only the `key` type is enforced, and `seal` and `hidden` are in the schema but refused by `interact` until their own issues. Key items (loot and inventory) now carry `itemId`, defaulting to `copper-key` so banked keys still parse. `boss-key` and `vault-key` are new content; the generator's boss door wants `boss-key` (the `paired-levers` reward is now `boss-key`), the old chain generator's exit door and the authored `ember-vault` door stay on `copper-key`. Chests keep `locked: boolean` and still take only the generic `copper-key`. `playerInteract` is now strict, so a message naming a key is refused, and a disconnected player can no longer act through `items.ts` (a key is never spent for them). The door prompt reads "Locked: needs Boss Key" or "Unlock door (Boss Key)". The seed validator tracks keys per item id. No vault door is placed by the generator yet.
-- [x] Add map themes and floor palettes for each biome (issue #272, 2026-10-24, no protocol change). `MAP_THEMES` gains `crypt`, `fungal` and `ossuary`, each with its own composed wall (`<theme>-fill` and `-edge-*`) and four `<theme>-floor-N` flagstones in `dungeon.tiles.json`, baked into `dungeon.png`. A `delve` run's map now carries its biome's `theme` (the biome field already existed), which snapshots already send, and the client draws dungeon torch halos cold for the crypt and green for the fungal from `THEME_LIGHT_TINTS`, so `LIGHT_TINTS` and the protocol are untouched. Walls stay `#` and the lightmap alone reveals tiles. No biome content ships beyond Cinder Depths (`stone`); the biomes and their monsters are separate issues. `tests/e2e/browser/biomeThemes.spec.ts` drives two real clients into a run with the socket proxied to set each theme, since shipped content has no themed biome.
-- [x] Add the camp, shrine, secret, arena and cavern room kinds to the protocol and minimap (issue #256, 2026-10-24, protocol v51). The server and wire `roomKind` enums now hold the same sixteen values (the server enum gains `corridor`; `vault` already existed) and a test compares them. The delve generator has shapes for the new kinds and `assignRoles` may fill with cavern, arena, camp and shrine when a biome weights them; no shipped biome does yet, so current seeds build the same runs. Secret rooms and vaults are not filled by the generator. The minimap header reads "Name · Kind" (kind omitted when the name says it) and floors in boss, camp, shrine, secret, arena, cavern and vault rooms are tinted; only rooms the server has sent are named or tinted. No mechanics for any new kind.
-- [x] Finish the decision record, content README and roadmap (issue #254, 2026-10-24): 0016 gains the shipped pipeline, invariants and differences from the design (`maxAttempts` 200, only the `key` boss lock, Ballast Stones instead of fewer plates) and links the design bible; `content/README.md` drops "nothing builds a `delve` run yet" and documents the pipeline and the Cinder Depths template set; 0007's corridor and chain section is marked superseded; `STEPS.md` marks Phase 1 done. Documentation only.
-- [x] Generate locked vaults with a key carried by an elite monster (issue #257, 2026-10-25, protocol v52). `MonsterState.elite` is public on the wire (the client frames an elite in gold with its name); `monsterInstance(type, position, id, true)` multiplies health by `ELITE_HEALTH_MULT` (3) and `monsterStatsFor` damage by `ELITE_DAMAGE_MULT` (1.5). `dropMonsterLoot` adds the `vault-key` for any dead elite beside its table's drops, whoever struck the blow. Below `ELITE_FLEE_HEALTH_FRACTION` (half) of its health an elite runs along the shared distance field (`FlowField.ascend`), shouts once so living monsters within 14 units hunt at twice their range for 8 s, and stands and fights if cornered. The generator: the recipe draws "has a vault" from `vaultChance` on its own seed stream, `generateDelve` adds a branch for it and `assignRoles(..., wantVault)` gives the farthest spare dead end the `vault` kind with the elite in an open room of another; populate places the `vault-key` door in the vault's socket, one or two `vault-chest` chests and no lights, and an elite of cost 2 or less that spends 4 of its room's budget. A run holds out for a vault layout for 120 attempts and builds without one after that. Validation treats an elite's tile as the key's pickup and adds the vault to the rooms unreachable with every lock closed. Out of scope: other elite behaviours, and Twin-lock Chests and Dark Bargain.
-- [x] Add Campfire Rest (issue #260, 2026-10-25, no protocol change). Generated `camp` rooms get a `campfire` light and four seats round it, one generator tile out and facing it (`populate.ts` `placeCampfire`, `Populated.seats`, carried into `map.seats`); `cinder-depths` now weights `camp` 1, and a camp or shrine never holds a guarded boss key (`CALM_KINDS` in `roles.ts`). `game/camps.ts` `advanceCamps`, run each dungeon tick, counts the standing, connected, designed and not-downed players: when all sit at that camp's seats for `CAMP_REST_SEATED_MS` (10 s), each gains `CAMP_REST_RESISTANCE` (15, capped by their skill-adjusted maximum) and the camp joins `session.campsRested`. Anyone standing, disconnecting or going down changes the party and restarts the count; a downed player neither blocks nor is restored. `advanceVitals` skips resistance decay for a seated player. `campsRested` is saved with the run (optional in the schema, so older saves load) and `campSeatedSince` is not, so a resumed party stands and starts over. Verified with two real browser clients on a forced camp seed (resistance 40 to 55 for both); no Playwright spec, since a real run's seed, and so its camp, is random.
-- [x] Draw shrine altars and show their offer and cage state (issue #259, 2026-10-26, protocol v58). `LIGHT_FIXTURES` gains `candle`, which `populate.ts` gives the shrine's light so the client draws `prop-candle` instead of a torch pillar (the one wire change). `src/client/state/altars.ts` turns an `altarState` into slots a world unit either side of its centre, each `offered`, `taken` or `caged`; `canvasRenderer.ts` draws the `altar` slab, a `loot-skill-scroll` on each offered or caged plinth (offered ones drift), `altar-cage` over each caged one, and a name plate within `LABEL_RANGE`; `reach.ts` makes an unspent altar an interaction target carrying the nearest offered scroll's id, which `actionPrompt` names ("Take Scroll of Iron Will") and `main.ts` sends as `choiceItemId`. The client holds no item catalogue, so a scroll is named from its skill (`<skillId>-scroll`) in the progression catalogue, falling back to its id title-cased. A client only receives altars on tiles it can see (`visibility.ts`, already tested). Verified with two real browser clients through `tests/e2e/browser/shrineAltar.spec.ts`, which stands an altar beside each party member in the snapshot, since a real run's shrine is random.
-- [x] Add the Twin-lock Chest (issue #292, 2026-10-26, protocol v59). `ChestState` gains `twinLock` and `keyTurnedBy` (both defaulted, so a run saved before still loads). `interact` on a twin lock records the turn in `session.twinLockTurns` (`src/server/game/twinLocks.ts`); a different player interacting within `TWIN_LOCK_WINDOW_MS` (1000) opens it and rolls its table as usual, the same player only restarts their turn, and `resolveTwinLocks` (every tick) drops a turn that timed out or whose turner disconnected, went down or left. Turns are not saved and clear on a world change. `populate.ts` makes a vault's first chest a twin lock half the time (`TWIN_LOCK_CHANCE`) when `partySize >= TWIN_LOCK_MIN_PARTY` (2); `validateDungeon` rejects one below that size or out of reach. The client draws `chest-twin` and `chest-twin-turned` and prompts "Turn a keyhole", "Waiting for a second key" for the turner and "Turn the other keyhole" for an ally. Secret rooms are not generated yet, so vaults are the only placement.
-- [x] Add the Mimic Chest (issue #279, 2026-10-27, protocol v61). `chestStateSchema` gains `mimic` (default false, so older saves load); `visibilityFrameForPlayer` always sends it false and omits an opened mimic's chest. `interact` on a mimic marks it opened and pushes a `mimic` monster (`MIMIC_MONSTER_ID`) at the chest's position with the chest's id; `dropMonsterLoot` spills that chest's table when it dies. `populate.ts` `dropChest` rolls `MIMIC_CHANCE` (0.2) for hall, maze and trap chests only. The mimic is drawn as the generic melee monster placeholder; no new behaviour.
-- [x] Keep a woken mimic on its chest's side of any wall (issue #352, 2026-10-29, no protocol change). `mimicSpawnPoint` in `items.ts` now also requires `hasLineOfSight` from the chest to each candidate spot, so a mimic never wakes through a one-tile wall into another room; the fallback to the chest's own position and the no-overlap-with-living-players rule are unchanged. Tests in `tests/server/mimicChest.test.ts`.
-- [x] Add the Idol Carry (issue #289, 2026-10-26, protocol v60). `itemKind` gains `idol` and `PuzzleState` a `heldBy` (`players` by default, so a run saved before still loads). `content/puzzles/idol-carry.json` (`heldBy: "idol"`, 1.5 s hold, boss-key reward) and `content/items/heavy-idol.json`; `src/server/game/idols.ts` places the idol on an altar from `interact` with the puzzle's id, and `setDownIdols` lets go of it where its carrier stands on a disconnect, going down (`resolveIdols`, every tick), leaving or Save and quit, so it never leaves the dungeon or the vault. `resolvePuzzles` counts only an idol lying on an idol altar, and removes it when solved. `pickupItem` charges `IDOL_STAMINA_COST` (the lift cost) and refuses a second idol or one while carrying a body; `giveItem` and `useItem` refuse it, `liftPlayer` refuses an idol carrier, melee and bow refuse its carrier, `carrySpeedMultiplier` halves its step on the server and in the client's prediction (which now also halves a body carrier's), and `MonsterPlanner.target` takes a noticed carrier over any nearer player. The Cinder Depths `puzzles` pool adds `idol-carry`; `populate.ts` puts its altar in the puzzle room and the idol in `idolRoom`, the farthest room by hops that is not the entrance, boss, exit or vault, and `validateDungeon` counts an altar solved only with an unused idol in reach. Swept for party sizes 1 to 4. The client draws `idol-altar`, `idol-altar-set` and `loot-idol` (over a carrier's head too, with an `[idol]` tag), and prompts the carrier "Set the Heavy Idol on the altar" and "Set down the Heavy Idol"; the drop key sets a carried idol down first. No stamina drain while carrying it, unlike a body.
-- [x] Roll a run's omens at the hub and apply Short Fuse and Echoing Halls per run (issue #268, 2026-10-27, protocol v62). The session stores `nextRunSeed`, drawn when the room opens and again in `returnToHub` (a pinned `runDungeon.seed` repeats), and `installWorld` builds the run from it, so the recipe on the board is the one built. New `hubState { nextRun { flowName?, biomeName?, omens[] } }` is sent to the hub's party whenever it changes (a join, a leave or a run ending; the recipe depends on party size through the flow's `minParty`); a disconnect keeps the reserved slot, so it does not change. `session.runOmens` holds the built run's omen ids (saved in `PersistedRun.omens`, default none) and the run-scoped `overrides` now apply: `short-fuse` (decay after 6 minutes) and `echoing-halls` (voice reach x1.5) are new omens, `advanceVitals` and `runStateFor` read the grace and `voiceRangeForPlayer` the silence distance. `RunState.decayGraceMs` is new so the run clock's bar scales to the run's grace. The client stores `nextRun` on the session view; the quest board that draws it is the next issue. `tests/server/runOmens.test.ts` covers a join mid-hub, a disconnect during ready-up and a re-roll after a run. Adding two omens to the pool changes which warning or anomaly some seeds roll.
-- [x] Add the Door Vote (issue #293, 2026-10-27, protocol v63). `puzzleTypeSchema` gains `heldBy: "doors"`, `minParty` and an optional `rewardItemId`; the biome names its vote in `doorVote` rather than the `puzzles` pool. `PuzzlePlateState` gains `doorId` and `icon` (`DOOR_VOTE_ICONS`). `layout.ts` takes `{ junction }` to grow the first two branches from one path room no deeper than index 3 and keep them loop-free; `roles.ts` (`doorVoteJunction`) picks the first path room with two or more branches whose rooms hold no boss key, vault, elite or puzzle, and names an icon by the rooms beyond (shrine, then trap or arena as danger, then maze as loot, else unknown); `populate.ts` seals each voted doorway with a `{ type: "seal", groupId: "door-vote" }` door and puts `min(partySize, 4)` plates before it, or no vote at all in a room too cramped. `puzzles.ts` (`resolveDoorVote`) opens the door every standing player holds a plate of after `holdMs`, keeps one hold timer per door, and refuses a sealed door to `interact`. `delve.ts` holds out for a vote for `VOTE_ATTEMPTS` (14, at most half of `maxAttempts`) and then builds without. `validate.ts` walks the run once per choice and requires the exit reachable in each, every room and puzzle reachable in some, two or more sealed doors each with a plate for every player, and a party of at least `minParty`. The client draws `vote-plate`, `vote-plate-held` and the four `vote-icon-*` sprites (the icon replaces the lock on a sealed vote door). Swept over 300 seeds for parties of two to four, and one to four by the existing sweep.
-- [x] Add switch entities and seal locks (issue #263, 2026-10-27, protocol v64). The dungeon snapshot gains `switches: switchState { id, kind: brazier | bell | lever, position, groupId, active }` (only switches on visible tiles). `interact` on a switch (`src/server/game/switches.ts`) lights a brazier only for a connected, standing player in reach who carries a torch; a switch already lit refuses a second light, and no message lets a client set one. A door whose lock is `{ type: "seal", groupId }` opens (lock cleared) the moment every switch in that group is active, never before, never for a group with no switches, and nothing closes it again. Interacting with the seal door itself is still refused. The client prompts "Light the brazier" (or "needs a torch") and draws a flat placeholder square, dark until lit. Nothing places a switch or seal door yet, so no generated run changes; specific puzzles built on switches, bells and levers are later issues. Room saves from v63 and earlier are not restored (protocol mismatch).
+- [x] Add room sockets, template transforms and procedural room shapes (issue #248, 2026-10-23):
+      `src/server/game/generation/roomShapes.ts` with midpoint sockets, rotate and mirror for
+      `transform` templates, ten procedural shapes (plain, pillars, block, cross, ring, octagon,
+      partition, alcoves, braided maze, cavern), a 0-1 BFS socket repair and pocket fill, and a
+      cavern retry that falls back to plain. `roomTemplateSchema` gains optional `sockets:
+      "midpoints"` (derives `doorways`), `transform`, `biomes` and `tags`; existing templates load
+      unchanged. Nothing in the generator calls the shapes yet; the grid layout and carve issues do.
+- [x] Add the layout stage (issue #246, 2026-10-23): `src/server/game/generation/layout.ts`
+      `generateLayout(rng, flow, grid)` walks a self-avoiding critical path across the grid, grows
+      the flow's branches, then adds loops between rooms at least three hops apart; the boss and
+      exit get none, and it returns null when the path cannot fit or the flow's minimum branches or
+      loops cannot be placed, for the caller to retry with `mixSeed`. Not wired into
+      `generateDungeon` yet.
+- [x] Add the roles stage (issue #247, 2026-10-23): `src/server/game/generation/roles.ts`
+      `assignRoles(rng, graph, flow, biome)` fixes the entrance, boss and exit, locks the boss room
+      on the edge in front of it (the existing locked door, moved from the exit room), puts the key
+      on the farthest free dead end beyond the lock's room (a puzzle reward, a branch's loot or a
+      guarded room by `keySource`), and fills the rest from the biome's `roomWeights` with no kind
+      twice in a row on the critical path and no trap first after the entrance. Only today's room
+      kinds; vaults, shrines, camps, secrets and arenas wait for their own issues. It returns null
+      when no dead end lies beyond the lock, the biome cannot avoid a repeat, or the flow's lock is
+      not `key`, for the caller to retry. Not wired into `generateDungeon` yet.
+- [x] Author the Cinder Depths room templates (issue #249, 2026-10-23): 14 templates in
+      `content/dungeons/templates/`, all odd-sized with `sockets: "midpoints"`, `transform: true`
+      and `biomes: ["cinder-depths"]`: entrances `ash-stair`, `slag-landing`, `bellows-porch`; exits
+      `chimney-climb`, `flue-ascent`, `soot-shaft`; boss `slag-pit` (a second Ember Warden arena
+      beside `warden-crucible`, which stays as authored); puzzles `furnace-lock`, `brazier-court`,
+      `lever-gallery` (all `paired-levers`); halls `slag-gallery`, `bellows-nave`; maze
+      `flue-warren`; trap `vent-run`. Existing templates are unchanged.
+      `tests/server/cinderDepthsTemplates.test.ts` checks socket connectivity, lights and plates on
+      floor across all eight orientations, and the boss rule. No new monsters, items or art. The v1
+      chain generator draws from every template of a kind, so these also join `vault-run` runs.
+- [x] Add the populate stage (issue #251, 2026-10-23): `src/server/game/generation/populate.ts`
+      `populateDungeon(rng, { graph, plan, world, biome, content, partySize })` places the boss door
+      in the boss room's own socket, then lights (entrance, exit and boss fires, hall torches, a
+      maze lantern, a trap room's red lamp, corridor torches every seventh tile), four entrance
+      spawn points, the exit on the far side of its room, monsters from `threatBudget` (`base[kind]
+      x (1 + 0.5 x depth) x (0.6 + 0.2 x partySize)`, hall 5, maze 3, trap 2, puzzle 1, using the
+      biome's costs and weights; it returns each room's budget and spend), the boss and its vault
+      chest, the boss key, role-based loot and nook-preferring chests, traps, and paired-levers
+      plates. Every entity is built with the existing instance helpers and claims its own tile. A
+      guardian key room spends its budget on the costliest guard it can afford, and the key lies on
+      that room's floor because monster drops come from the monster type's table, not the instance.
+      A paired-levers puzzle always gets two plates; Ballast Stones for a smaller party and passing
+      the session's party size in are later issues. Nothing calls it yet, so `generateDungeon` and
+      the `generated` layout are unchanged.
+- [x] Scale puzzles to the party and add the Ballast Stone (issue #252, 2026-10-23): `startRun`
+      passes `session.players.size` into `DungeonRequest.partySize` (default 4), which
+      `generateDungeon` and `populateDungeon` use to spawn `max(0, plates - partySize)` Ballast
+      Stones (`content/items/ballast-stone.json`, kind `ballast`, new `loot-ballast` sprite) in the
+      puzzle's room, off its plates. Picking one up costs `BALLAST_STAMINA_COST` (a refusal leaves
+      it lying there) and it goes in an inventory slot; dropping it with `dropItem` puts it back on
+      the floor. `resolvePuzzles` counts a stone lying within a plate's radius as holding that
+      plate, which frees a player to stand on another, and a carried stone holds nothing. A stone is
+      never banked in the party vault on escape. This adds a `ballast` item kind on the wire, so
+      `PROTOCOL_VERSION` is 49. The existing "carry" action only lifts downed players, so a stone
+      moves by pickup and drop, not `liftPlayer`. Threat scaling was already in the populate stage
+      (#251); the live `generateDungeon` keeps its template-fixed plate counts and covers a small
+      party with stones. Group-only gating (Split Seal) stays a later issue.
+- [x] Switch `vault-run` to the new generator with validation, retry and a full seed sweep (issue
+      #253, 2026-10-24). `content/dungeons/vault-run.json` is now a `delve` profile (6x4 grid of
+      16-tile cells, all three flows, Cinder Depths, `maxAttempts` 200) and `ember-vault` stays the
+      pinned authored map. `generateDungeon` dispatches a `delve` profile to `generation/delve.ts`:
+      stage 1 draws the flow (weighted, filtered by `minParty`) and biome from the run seed, stages
+      2 to 6 read `mixSeed(seed, attempt)`, and each room is a rotated and mirrored Cinder Depths
+      template (half the time, when one fits the cell) or a procedural shape.
+      `generation/validate.ts` (stage 7) checks that every entity, plate, door and exit is on its
+      own floor tile, the boss room cannot be entered with every lock closed, keys and puzzle
+      rewards in any reachable order open a route to the exit, every room is reachable at the end,
+      and no puzzle needs more plates than players plus Ballast Stones.
+      `tests/server/generationSweep.test.ts` sweeps 1,000 seeds per party size 1 to 4 plus every
+      flow, and mutation tests (a key in the boss room, locks never placed) are rejected. The old
+      chain stays as the `generated` layout, no longer used by shipped content. Per-attempt success
+      is low for some flows (about 31% gauntlet, 11% long-loop through the layout and roles stages
+      alone), so `maxAttempts` is 200 rather than the design's 40: no seed in 8,000 needed more than
+      that and a run still builds in about 1.3 ms. Raising those rates is a possible follow-up in
+      the layout and roles stages. `scripts/benchTick.ts` gave its players a look so the benchmark
+      starts a run again.
+- [x] Add omen content and apply warnings and anomalies to generation (issue #267, 2026-10-24).
+      `content/omens/` and `omenDefinitionSchema` (`type`, `lightMult`, `radiusMult`, `budgetMult`,
+      `chestBonus`, `corridorTraps`, `shrine`, run-scoped `overrides`); the recipe stage rolls at
+      most one warning (35%) and one anomaly (30%) from the run seed after the flow and biome, and
+      populate applies them. Brittle Floors uses a new single-use `collapsing-floor` trap. Scroll
+      Cache first placed a skill scroll in a side room, since shrine rooms wait for Phase 2; since
+      #258 it guarantees a shrine instead and drops no loose scroll. The profile's
+      `omens` chances are optional. Short Fuse and Echoing Halls, the `overrides` consumers, and the
+      quest board are the next issue; no protocol change.
+- [x] Add typed key locks (issue #255, 2026-10-24, protocol v50). `DoorState.locked` is replaced by
+      `lock`; only the `key` type is enforced, and `seal` and `hidden` are in the schema but refused
+      by `interact` until their own issues. Key items (loot and inventory) now carry `itemId`,
+      defaulting to `copper-key` so banked keys still parse. `boss-key` and `vault-key` are new
+      content; the generator's boss door wants `boss-key` (the `paired-levers` reward is now
+      `boss-key`), the old chain generator's exit door and the authored `ember-vault` door stay on
+      `copper-key`. Chests keep `locked: boolean` and still take only the generic `copper-key`.
+      `playerInteract` is now strict, so a message naming a key is refused, and a disconnected
+      player can no longer act through `items.ts` (a key is never spent for them). The door prompt
+      reads "Locked: needs Boss Key" or "Unlock door (Boss Key)". The seed validator tracks keys per
+      item id. No vault door is placed by the generator yet.
+- [x] Add map themes and floor palettes for each biome (issue #272, 2026-10-24, no protocol change).
+      `MAP_THEMES` gains `crypt`, `fungal` and `ossuary`, each with its own composed wall
+      (`<theme>-fill` and `-edge-*`) and four `<theme>-floor-N` flagstones in `dungeon.tiles.json`,
+      baked into `dungeon.png`. A `delve` run's map now carries its biome's `theme` (the biome field
+      already existed), which snapshots already send, and the client draws dungeon torch halos cold
+      for the crypt and green for the fungal from `THEME_LIGHT_TINTS`, so `LIGHT_TINTS` and the
+      protocol are untouched. Walls stay `#` and the lightmap alone reveals tiles. No biome content
+      ships beyond Cinder Depths (`stone`); the biomes and their monsters are separate issues.
+      `tests/e2e/browser/biomeThemes.spec.ts` drives two real clients into a run with the socket
+      proxied to set each theme, since shipped content has no themed biome.
+- [x] Add the camp, shrine, secret, arena and cavern room kinds to the protocol and minimap (issue
+      #256, 2026-10-24, protocol v51). The server and wire `roomKind` enums now hold the same
+      sixteen values (the server enum gains `corridor`; `vault` already existed) and a test compares
+      them. The delve generator has shapes for the new kinds and `assignRoles` may fill with cavern,
+      arena, camp and shrine when a biome weights them; no shipped biome does yet, so current seeds
+      build the same runs. Secret rooms and vaults are not filled by the generator. The minimap
+      header reads "Name · Kind" (kind omitted when the name says it) and floors in boss, camp,
+      shrine, secret, arena, cavern and vault rooms are tinted; only rooms the server has sent are
+      named or tinted. No mechanics for any new kind.
+- [x] Finish the decision record, content README and roadmap (issue #254, 2026-10-24): 0016 gains
+      the shipped pipeline, invariants and differences from the design (`maxAttempts` 200, only the
+      `key` boss lock, Ballast Stones instead of fewer plates) and links the design bible;
+      `content/README.md` drops "nothing builds a `delve` run yet" and documents the pipeline and
+      the Cinder Depths template set; 0007's corridor and chain section is marked superseded;
+      `STEPS.md` marks Phase 1 done. Documentation only.
+- [x] Generate locked vaults with a key carried by an elite monster (issue #257, 2026-10-25,
+      protocol v52). `MonsterState.elite` is public on the wire (the client frames an elite in gold
+      with its name); `monsterInstance(type, position, id, true)` multiplies health by
+      `ELITE_HEALTH_MULT` (3) and `monsterStatsFor` damage by `ELITE_DAMAGE_MULT` (1.5).
+      `dropMonsterLoot` adds the `vault-key` for any dead elite beside its table's drops, whoever
+      struck the blow. Below `ELITE_FLEE_HEALTH_FRACTION` (half) of its health an elite runs along
+      the shared distance field (`FlowField.ascend`), shouts once so living monsters within 14 units
+      hunt at twice their range for 8 s, and stands and fights if cornered. The generator: the
+      recipe draws "has a vault" from `vaultChance` on its own seed stream, `generateDelve` adds a
+      branch for it and `assignRoles(..., wantVault)` gives the farthest spare dead end the `vault`
+      kind with the elite in an open room of another; populate places the `vault-key` door in the
+      vault's socket, one or two `vault-chest` chests and no lights, and an elite of cost 2 or less
+      that spends 4 of its room's budget. A run holds out for a vault layout for 120 attempts and
+      builds without one after that. Validation treats an elite's tile as the key's pickup and adds
+      the vault to the rooms unreachable with every lock closed. Out of scope: other elite
+      behaviours, and Twin-lock Chests and Dark Bargain.
+- [x] Add Campfire Rest (issue #260, 2026-10-25, no protocol change). Generated `camp` rooms get a
+      `campfire` light and four seats round it, one generator tile out and facing it (`populate.ts`
+      `placeCampfire`, `Populated.seats`, carried into `map.seats`); `cinder-depths` now weights
+      `camp` 1, and a camp or shrine never holds a guarded boss key (`CALM_KINDS` in `roles.ts`).
+      `game/camps.ts` `advanceCamps`, run each dungeon tick, counts the standing, connected,
+      designed and not-downed players: when all sit at that camp's seats for `CAMP_REST_SEATED_MS`
+      (10 s), each gains `CAMP_REST_RESISTANCE` (15, capped by their skill-adjusted maximum) and the
+      camp joins `session.campsRested`. Anyone standing, disconnecting or going down changes the
+      party and restarts the count; a downed player neither blocks nor is restored. `advanceVitals`
+      skips resistance decay for a seated player. `campsRested` is saved with the run (optional in
+      the schema, so older saves load) and `campSeatedSince` is not, so a resumed party stands and
+      starts over. Verified with two real browser clients on a forced camp seed (resistance 40 to 55
+      for both); no Playwright spec, since a real run's seed, and so its camp, is random.
+- [x] Draw shrine altars and show their offer and cage state (issue #259, 2026-10-26, protocol v58).
+      `LIGHT_FIXTURES` gains `candle`, which `populate.ts` gives the shrine's light so the client
+      draws `prop-candle` instead of a torch pillar (the one wire change).
+      `src/client/state/altars.ts` turns an `altarState` into slots a world unit either side of its
+      centre, each `offered`, `taken` or `caged`; `canvasRenderer.ts` draws the `altar` slab, a
+      `loot-skill-scroll` on each offered or caged plinth (offered ones drift), `altar-cage` over
+      each caged one, and a name plate within `LABEL_RANGE`; `reach.ts` makes an unspent altar an
+      interaction target carrying the nearest offered scroll's id, which `actionPrompt` names ("Take
+      Scroll of Iron Will") and `main.ts` sends as `choiceItemId`. The client holds no item
+      catalogue, so a scroll is named from its skill (`<skillId>-scroll`) in the progression
+      catalogue, falling back to its id title-cased. A client only receives altars on tiles it can
+      see (`visibility.ts`, already tested). Verified with two real browser clients through
+      `tests/e2e/browser/shrineAltar.spec.ts`, which stands an altar beside each party member in the
+      snapshot, since a real run's shrine is random.
+- [x] Add the Twin-lock Chest (issue #292, 2026-10-26, protocol v59). `ChestState` gains `twinLock`
+      and `keyTurnedBy` (both defaulted, so a run saved before still loads). `interact` on a twin
+      lock records the turn in `session.twinLockTurns` (`src/server/game/twinLocks.ts`); a different
+      player interacting within `TWIN_LOCK_WINDOW_MS` (1000) opens it and rolls its table as usual,
+      the same player only restarts their turn, and `resolveTwinLocks` (every tick) drops a turn
+      that timed out or whose turner disconnected, went down or left. Turns are not saved and clear
+      on a world change. `populate.ts` makes a vault's first chest a twin lock half the time
+      (`TWIN_LOCK_CHANCE`) when `partySize >= TWIN_LOCK_MIN_PARTY` (2); `validateDungeon` rejects
+      one below that size or out of reach. The client draws `chest-twin` and `chest-twin-turned` and
+      prompts "Turn a keyhole", "Waiting for a second key" for the turner and "Turn the other
+      keyhole" for an ally. Secret rooms are not generated yet, so vaults are the only placement.
+- [x] Add the Mimic Chest (issue #279, 2026-10-27, protocol v61). `chestStateSchema` gains `mimic`
+      (default false, so older saves load); `visibilityFrameForPlayer` always sends it false and
+      omits an opened mimic's chest. `interact` on a mimic marks it opened and pushes a `mimic`
+      monster (`MIMIC_MONSTER_ID`) at the chest's position with the chest's id; `dropMonsterLoot`
+      spills that chest's table when it dies. `populate.ts` `dropChest` rolls `MIMIC_CHANCE` (0.2)
+      for hall, maze and trap chests only. The mimic is drawn as the generic melee monster
+      placeholder; no new behaviour.
+- [x] Keep a woken mimic on its chest's side of any wall (issue #352, 2026-10-29, no protocol
+      change). `mimicSpawnPoint` in `items.ts` now also requires `hasLineOfSight` from the chest to
+      each candidate spot, so a mimic never wakes through a one-tile wall into another room; the
+      fallback to the chest's own position and the no-overlap-with-living-players rule are
+      unchanged. Tests in `tests/server/mimicChest.test.ts`.
+- [x] Add the Idol Carry (issue #289, 2026-10-26, protocol v60). `itemKind` gains `idol` and
+      `PuzzleState` a `heldBy` (`players` by default, so a run saved before still loads).
+      `content/puzzles/idol-carry.json` (`heldBy: "idol"`, 1.5 s hold, boss-key reward) and
+      `content/items/heavy-idol.json`; `src/server/game/idols.ts` places the idol on an altar from
+      `interact` with the puzzle's id, and `setDownIdols` lets go of it where its carrier stands on
+      a disconnect, going down (`resolveIdols`, every tick), leaving or Save and quit, so it never
+      leaves the dungeon or the vault. `resolvePuzzles` counts only an idol lying on an idol altar,
+      and removes it when solved. `pickupItem` charges `IDOL_STAMINA_COST` (the lift cost) and
+      refuses a second idol or one while carrying a body; `giveItem` and `useItem` refuse it,
+      `liftPlayer` refuses an idol carrier, melee and bow refuse its carrier, `carrySpeedMultiplier`
+      halves its step on the server and in the client's prediction (which now also halves a body
+      carrier's), and `MonsterPlanner.target` takes a noticed carrier over any nearer player. The
+      Cinder Depths `puzzles` pool adds `idol-carry`; `populate.ts` puts its altar in the puzzle
+      room and the idol in `idolRoom`, the farthest room by hops that is not the entrance, boss,
+      exit or vault, and `validateDungeon` counts an altar solved only with an unused idol in reach.
+      Swept for party sizes 1 to 4. The client draws `idol-altar`, `idol-altar-set` and `loot-idol`
+      (over a carrier's head too, with an `[idol]` tag), and prompts the carrier "Set the Heavy Idol
+      on the altar" and "Set down the Heavy Idol"; the drop key sets a carried idol down first. No
+      stamina drain while carrying it, unlike a body.
+- [x] Roll a run's omens at the hub and apply Short Fuse and Echoing Halls per run (issue #268,
+      2026-10-27, protocol v62). The session stores `nextRunSeed`, drawn when the room opens and
+      again in `returnToHub` (a pinned `runDungeon.seed` repeats), and `installWorld` builds the run
+      from it, so the recipe on the board is the one built. New `hubState { nextRun { flowName?,
+      biomeName?, omens[] } }` is sent to the hub's party whenever it changes (a join, a leave or a
+      run ending; the recipe depends on party size through the flow's `minParty`); a disconnect
+      keeps the reserved slot, so it does not change. `session.runOmens` holds the built run's omen
+      ids (saved in `PersistedRun.omens`, default none) and the run-scoped `overrides` now apply:
+      `short-fuse` (decay after 6 minutes) and `echoing-halls` (voice reach x1.5) are new omens,
+      `advanceVitals` and `runStateFor` read the grace and `voiceRangeForPlayer` the silence
+      distance. `RunState.decayGraceMs` is new so the run clock's bar scales to the run's grace. The
+      client stores `nextRun` on the session view; the quest board that draws it is the next issue.
+      `tests/server/runOmens.test.ts` covers a join mid-hub, a disconnect during ready-up and a
+      re-roll after a run. Adding two omens to the pool changes which warning or anomaly some seeds
+      roll.
+- [x] Add the Door Vote (issue #293, 2026-10-27, protocol v63). `puzzleTypeSchema` gains `heldBy:
+      "doors"`, `minParty` and an optional `rewardItemId`; the biome names its vote in `doorVote`
+      rather than the `puzzles` pool. `PuzzlePlateState` gains `doorId` and `icon`
+      (`DOOR_VOTE_ICONS`). `layout.ts` takes `{ junction }` to grow the first two branches from one
+      path room no deeper than index 3 and keep them loop-free; `roles.ts` (`doorVoteJunction`)
+      picks the first path room with two or more branches whose rooms hold no boss key, vault, elite
+      or puzzle, and names an icon by the rooms beyond (shrine, then trap or arena as danger, then
+      maze as loot, else unknown); `populate.ts` seals each voted doorway with a `{ type: "seal",
+      groupId: "door-vote" }` door and puts `min(partySize, 4)` plates before it, or no vote at all
+      in a room too cramped. `puzzles.ts` (`resolveDoorVote`) opens the door every standing player
+      holds a plate of after `holdMs`, keeps one hold timer per door, and refuses a sealed door to
+      `interact`. `delve.ts` holds out for a vote for `VOTE_ATTEMPTS` (14, at most half of
+      `maxAttempts`) and then builds without. `validate.ts` walks the run once per choice and
+      requires the exit reachable in each, every room and puzzle reachable in some, two or more
+      sealed doors each with a plate for every player, and a party of at least `minParty`. The
+      client draws `vote-plate`, `vote-plate-held` and the four `vote-icon-*` sprites (the icon
+      replaces the lock on a sealed vote door). Swept over 300 seeds for parties of two to four, and
+      one to four by the existing sweep.
+- [x] Add switch entities and seal locks (issue #263, 2026-10-27, protocol v64). The dungeon
+      snapshot gains `switches: switchState { id, kind: brazier | bell | lever, position, groupId,
+      active }` (only switches on visible tiles). `interact` on a switch
+      (`src/server/game/switches.ts`) lights a brazier only for a connected, standing player in
+      reach who carries a torch; a switch already lit refuses a second light, and no message lets a
+      client set one. A door whose lock is `{ type: "seal", groupId }` opens (lock cleared) the
+      moment every switch in that group is active, never before, never for a group with no switches,
+      and nothing closes it again. Interacting with the seal door itself is still refused. The
+      client prompts "Light the brazier" (or "needs a torch") and draws a flat placeholder square,
+      dark until lit. Nothing places a switch or seal door yet, so no generated run changes;
+      specific puzzles built on switches, bells and levers are later issues. Room saves from v63 and
+      earlier are not restored (protocol mismatch).
 - [x] Keep switch groups from opening Door Vote seals (issue #351, 2026-10-29, no protocol change). `openSealedDoors` skips any door a Door Vote owns (one a `heldBy: "doors"` plate names), so a switch group whose id equals the vote's seal group (`door-vote`) cannot open it, and `validateDungeon` rejects a dungeon whose switch `groupId` matches a Door Vote seal group.
 - [ ] Rest of Phase 1: complete. Later phases not started; issues are filed per bullet in `STEPS.md` Backend 14.
 
@@ -489,7 +807,13 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
   with steps spaced one move interval apart and brief capped extrapolation when the buffer runs dry
   (issue #62), fed by a `requestAnimationFrame` loop in `main.ts`; local prediction/reconciliation is
   untouched. A hub/run transition, a fresh join or resume, or a correction beyond `SNAP_DISTANCE`
-  snaps instead of sliding. Monsters get the same buffer (issue #316, 2026-10-25): `updateMonsterInterpolation` tracks living visible monsters by id with the same render delay, spacing and extrapolation cap, drops a track the moment its monster dies or leaves the snapshot (no absent grace, so a reused id snaps), and snaps on a jump past `SNAP_DISTANCE`. `main.ts` `dungeonAt` hands the renderer monsters at their drawn position, so the telegraph cone, health bar, damage popups and swing impact follow it; `windupProgress` is untouched, so the strike lands exactly when the server resolves it. No protocol change.
+  snaps instead of sliding. Monsters get the same buffer (issue #316, 2026-10-25):
+  `updateMonsterInterpolation` tracks living visible monsters by id with the same render delay,
+  spacing and extrapolation cap, drops a track the moment its monster dies or leaves the snapshot
+  (no absent grace, so a reused id snaps), and snaps on a jump past `SNAP_DISTANCE`. `main.ts`
+  `dungeonAt` hands the renderer monsters at their drawn position, so the telegraph cone, health
+  bar, damage popups and swing impact follow it; `windupProgress` is untouched, so the strike lands
+  exactly when the server resolves it. No protocol change.
   Local prediction skips a step onto ground the client has never been shown (`stepsIntoUndiscovered`
   in `src/client/state/gameState.ts`) and follows the server's placement instead. Without a torch
   nothing ahead is discovered, and predicting against unknown tiles as walls froze the player and
@@ -522,9 +846,29 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   only (ring standing, cross downed), and exits once sent. It is windowed around the player on large
   worlds, repaints only on a change, toggles with a rebindable key (M), and starts shown in each new
   world. No protocol change.
-  - [x] Replace the run clock with a numberless torch tally under the minimap (issue #174, HUD Torch & Tally Phase 5). `runClockView` now returns `label` (the exact run time and time to decay, for `aria-label` and the title only), `status`, `mark`, `ratio` and `stage`; the visible tally draws no digits. `ui/hud/runClock.ts` renders a torch, a bar that shrinks from full to empty across `RESISTANCE_DECAY_GRACE_MS`, and a status line: nothing while decay is far off, "! Decay near" in the final minute (amber), "▼ Resistance falling" (red) once decay starts, with the bar empty and the tally staying on screen. It sits in `hud__corner` under the minimap, keeps `role="timer"` and the stage thresholds, hides outside a run, and drops its flicker and bar transition under reduced motion. The bottom-right panel now holds only the touch buttons. No protocol change.
-  - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1). `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its anchor never moves, and the session panel stacked under it; a hidden minimap takes no space and the panel rises into the corner. It keeps one size on short windows (no more 60% shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored room under the predicted position, or the dungeon's name between rooms) and an `N` mark.
-  - [x] Show party colours, initials and icons on the minimap (issue #171, HUD Torch & Tally Phase 5). `minimapAllies` gives each visible ally their `PARTY_PALETTES` ring colour and `minimapInitial` (first letter or digit of the name); a standing ally is a ring holding the letter, a downed one a cross with the letter beside it. `rememberMarkers` keeps exits and chests seen in the current world (a chest keeps its last-seen opened state), and `minimapIcons` draws them only on discovered tiles: an arch for an exit, a box for a chest, hollow once opened. The canvas `title` carries the legend. No protocol change.
+  - [x] Replace the run clock with a numberless torch tally under the minimap (issue #174, HUD Torch
+        & Tally Phase 5). `runClockView` now returns `label` (the exact run time and time to decay,
+        for `aria-label` and the title only), `status`, `mark`, `ratio` and `stage`; the visible
+        tally draws no digits. `ui/hud/runClock.ts` renders a torch, a bar that shrinks from full to
+        empty across `RESISTANCE_DECAY_GRACE_MS`, and a status line: nothing while decay is far off,
+        "! Decay near" in the final minute (amber), "▼ Resistance falling" (red) once decay starts,
+        with the bar empty and the tally staying on screen. It sits in `hud__corner` under the
+        minimap, keeps `role="timer"` and the stage thresholds, hides outside a run, and drops its
+        flicker and bar transition under reduced motion. The bottom-right panel now holds only the
+        touch buttons. No protocol change.
+  - [x] Give the minimap its own top-right frame (issue #162, HUD Torch & Tally Phase 1).
+        `ui/hud.ts` puts a `hud__corner` column in the top-right with the minimap first, so its
+        anchor never moves, and the session panel stacked under it; a hidden minimap takes no space
+        and the panel rises into the corner. It keeps one size on short windows (no more 60%
+        shrink). A header strip shows `minimapRoomName` ("Hub" in the hub, otherwise the authored
+        room under the predicted position, or the dungeon's name between rooms) and an `N` mark.
+  - [x] Show party colours, initials and icons on the minimap (issue #171, HUD Torch & Tally Phase
+        5). `minimapAllies` gives each visible ally their `PARTY_PALETTES` ring colour and
+        `minimapInitial` (first letter or digit of the name); a standing ally is a ring holding the
+        letter, a downed one a cross with the letter beside it. `rememberMarkers` keeps exits and
+        chests seen in the current world (a chest keeps its last-seen opened state), and
+        `minimapIcons` draws them only on discovered tiles: an arch for an exit, a box for a chest,
+        hollow once opened. The canvas `title` carries the legend. No protocol change.
 - [x] Add an emote wheel (issue #149, protocol v30). `EMOTES` in `src/shared/constants/emotes.ts`; the
   `emote { kind }` message is refused for a player with no look, anything but `help` while downed, and
   more than one a second (`rateLimited`). `playerEmoted` goes only to the sender and the party members
@@ -532,8 +876,24 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
   rebindable key (B) or the HUD's Emote button, picks by mouse, touch, or keys 1-8, draws a ~2 s
   bubble (`rendering/emoteBubbles.ts`), and writes a line to the action feed (a toast since #161).
 - [ ] Add minimal menus for start, pause, settings, and exit. A Controls menu now exists; start/pause/settings/exit menus remain.
-  - [x] Move the session and voice controls into an Esc camp menu (issue #161, HUD Torch & Tally Phase 1). `ui/hud/campMenu.ts` holds Ready, Leave, Stash, Controls, and the voice readout, level meter, and Enable/Mute/Deafen buttons, with the disabled rules they had. Escape opens it once the player is in the world, unless the controls menu, the emote wheel, or the Stash takes the key first; Escape, Close, or a click outside shuts it. It does not pause the game; while open it owns the keyboard, traps Tab, and hands focus back on close. On screen stay a mic chip (`micChipView`: grey off/starting/muted/deafened, green live, amber blocked or missing, always with text) that opens the menu, a one-line key-hint strip whose Esc hint is also a button for touch, and a Ready button shown only in the hub (`hubReadyVisible`). The title, Place, and Action lines are gone: the latest server action and client refusals now show as an `action` toast, and the room name moves to the minimap header in #162.
-  - [x] Merge the toasts and the hub status into one notice stack (issue #163, HUD Torch & Tally Phase 1). `ui/hud/toasts.ts` `createNoticeStack` puts the hub banner and the toast list in one `hud__notices` column at the top centre, so they flow instead of overlapping; the banner is drawn as a toast card, amber while waiting and green when ready. `hubStatusView` adds one `pips` entry per party member in their party ring colour, filled with ✓ when ready and hollow with ○ otherwise (dashed while designing, dimmed while disconnected, each with a spoken label), plus the gate key hint. Toast timing, order, and live regions are unchanged.
+  - [x] Move the session and voice controls into an Esc camp menu (issue #161, HUD Torch & Tally
+        Phase 1). `ui/hud/campMenu.ts` holds Ready, Leave, Stash, Controls, and the voice readout,
+        level meter, and Enable/Mute/Deafen buttons, with the disabled rules they had. Escape opens
+        it once the player is in the world, unless the controls menu, the emote wheel, or the Stash
+        takes the key first; Escape, Close, or a click outside shuts it. It does not pause the game;
+        while open it owns the keyboard, traps Tab, and hands focus back on close. On screen stay a
+        mic chip (`micChipView`: grey off/starting/muted/deafened, green live, amber blocked or
+        missing, always with text) that opens the menu, a one-line key-hint strip whose Esc hint is
+        also a button for touch, and a Ready button shown only in the hub (`hubReadyVisible`). The
+        title, Place, and Action lines are gone: the latest server action and client refusals now
+        show as an `action` toast, and the room name moves to the minimap header in #162.
+  - [x] Merge the toasts and the hub status into one notice stack (issue #163, HUD Torch & Tally
+        Phase 1). `ui/hud/toasts.ts` `createNoticeStack` puts the hub banner and the toast list in
+        one `hud__notices` column at the top centre, so they flow instead of overlapping; the banner
+        is drawn as a toast card, amber while waiting and green when ready. `hubStatusView` adds one
+        `pips` entry per party member in their party ring colour, filled with ✓ when ready and
+        hollow with ○ otherwise (dashed while designing, dimmed while disconnected, each with a
+        spoken label), plus the gate key hint. Toast timing, order, and live regions are unchanged.
 
 ### 4. Combat and Dungeon Interaction
 
@@ -556,7 +916,25 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [x] Add mute, deafened, input level, and permission-denied states. Camp menu buttons (#161), a
   level meter, and "microphone blocked" / "no microphone" readouts (`src/client/ui/hud/voice.ts`),
   plus an on-screen mic chip.
-  - [x] Show out-of-sight allies in the party frames (issue #172, HUD Torch & Tally Phase 5, protocol v37). The server sends `partyRoster` (`members`: `playerId`, `name`, `partyColor`, `connected`, a strict schema) to each connected member at join and whenever the list changes, built by `partyRosterOf` and sent from the tick loop only when it differs from what that socket last had. It lists members who have a look and carries nothing about the body, so an unseen ally's position, health, resistance and downed state never leave the server; a session test asserts the exact fields and the protocol test rejects extras. The client keeps it in `SessionView.partyRoster`; `partyFrames` shows live frames for allies in `visiblePlayerIds` and, for the rest, a greyed, dashed `outOfSight` frame (icon ◌, caption "out of sight", no bars, silhouette portrait), or `disconnected` when the roster says they dropped. Downed or carried allies in sight sort first; the rest keep roster order. Browser spec `partyOutOfSight.spec.ts` drives two real clients but hides the guest from the host's snapshots, since the lit hub offers no way to lose sight. Issue #315 (protocol v54) closed the two gaps: the roster now lists a member with no look yet, flagged `designing` (still strict, so no position, vitals or downed state), and `partyFrames` shows them as "Designing…" even when unseen; and the client keeps `SessionView.lastSeenRooms`, the name of the discovered room each ally was last in, taken from the snapshot's own room list (so nothing undiscovered is named, and nothing new is sent) and shown in the out-of-sight caption as "out of sight · last seen in <room>". It is forgotten on a hub/run change.
+  - [x] Show out-of-sight allies in the party frames (issue #172, HUD Torch & Tally Phase 5,
+        protocol v37). The server sends `partyRoster` (`members`: `playerId`, `name`, `partyColor`,
+        `connected`, a strict schema) to each connected member at join and whenever the list
+        changes, built by `partyRosterOf` and sent from the tick loop only when it differs from what
+        that socket last had. It lists members who have a look and carries nothing about the body,
+        so an unseen ally's position, health, resistance and downed state never leave the server; a
+        session test asserts the exact fields and the protocol test rejects extras. The client keeps
+        it in `SessionView.partyRoster`; `partyFrames` shows live frames for allies in
+        `visiblePlayerIds` and, for the rest, a greyed, dashed `outOfSight` frame (icon ◌, caption
+        "out of sight", no bars, silhouette portrait), or `disconnected` when the roster says they
+        dropped. Downed or carried allies in sight sort first; the rest keep roster order. Browser
+        spec `partyOutOfSight.spec.ts` drives two real clients but hides the guest from the host's
+        snapshots, since the lit hub offers no way to lose sight. Issue #315 (protocol v54) closed
+        the two gaps: the roster now lists a member with no look yet, flagged `designing` (still
+        strict, so no position, vitals or downed state), and `partyFrames` shows them as
+        "Designing…" even when unseen; and the client keeps `SessionView.lastSeenRooms`, the name of
+        the discovered room each ally was last in, taken from the snapshot's own room list (so
+        nothing undiscovered is named, and nothing new is sent) and shown in the out-of-sight
+        caption as "out of sight · last seen in <room>". It is forgotten on a hub/run change.
   - [x] Show speaking rings on party portraits (issue #173, HUD Torch & Tally Phase 5). Each peer
     link reads its remote stream through an analyser in the microphone's AudioContext, made on the
     track and disconnected on close. `voiceMesh.speakingPeers()` marks a connected peer speaking at
@@ -569,23 +947,182 @@ Breakdown in `STEPS.md`. Complete on `feature/client-networking`.
 - [ ] Add sprites, sound effects, and visual feedback.
   - Player character sprites, the character design screen, and cosmetics are designed and owner-approved in `docs/design/character-sprite-bible.html` (decisions on #63 and #128). Open it in a browser; its `SPRITES` object is the pixel data to port. Monster sprites still need their own design pass.
   - [x] Give the hub a ground layer and a hue-shifted palette (issue #144). Rounded cobble with a plum gap, grass and dirt, ragged grass edges, the forest canopy overhanging the floor with a 25% shade, contact shadows under props, and one muted awning colour per stall. The ramps are documented in `assets/sprites/README.md`.
-  - [x] Port the character bodies and hair to source art and bake a character sheet (issue #136). `assets/sprites/source/characters.tiles.json` holds `body-{guy,girl}` and six hair styles, each facing `down`, `up` and `side`, as whole 16 x 24 frames ported pixel for pixel from the reference. Skin, hair and tunic are baked in nine key colours (`CHARACTER_KEY_COLOURS`) for the renderer to swap; everything else is a fixed colour. `npm run build:sprites` also bakes `assets/sprites/characters.png`, deriving `walk1`/`walk2` frames by lifting one half's boots a row. `src/client/rendering/characters.ts` lists the layers and frame cells. Drawing characters in game, hats and cloaks, and attack and downed frames remain out of scope.
-  - [x] Draw players as layered pixel-art characters with party colours (issue #132). `characters.ts` recolours the sheet's key colours by exact swap from the bible's ramps (`characterPalettes.ts`, keyed by the shared ids), closes the eyes for a blink, picks the facing (left mirrors `side`) and the 8 fps walk from whether the drawn position moved, and caches one composite per `body|skinTone|hairStyle|hairColor|partyColor`. `characterSprites.ts` stamps them at `pixelsPerWorldUnit / 16`, feet on `position.y + PLAYER_RADIUS`, over a 13 x 5 party-colour ring, in `y` order, with names tinted in the party colour. Downed and disconnected players draw at 45% alpha; a null appearance is not drawn. Every client still sends `DEFAULT_APPEARANCE` until the design screen exists. Hats, cloaks, dyes, attack and downed frames remain out of scope.
-  - [x] Add the character design screen between the lobby and the hub (issue #133). When `sessionJoined.needsAppearance` is true and the player's own entry has no look, `ui/characterDesign.ts` shows a full-screen step: body, skin tone, hair style and hair colour as keyboard-navigable radio groups, a read-only party colour chip, a 10x preview (6x at phone width) with Turn and Walk and an idle blink, and an in-game-scale panel on flagstones with the party. The look opens as the last confirmed one from `localStorage` (`dnd.lastLook`) or a random one, and an id that is no longer offered falls back to random (`state/characterDesign.ts`). **Enter the hub** sends `setAppearance` and shows "Entering…" until the snapshot carries the look, or the server's refusal inline; **Back** leaves the session. The client no longer sends `DEFAULT_APPEARANCE`, and holds back its own move and action intents while designing. The name is editable on this screen as of issue #314 (`setName`, protocol v53). The preview builds its own composites in `characterPreview.ts` from the shared helpers; folding it into `characterSprites.ts` waits on #156. The party roster's "Designing…" entry and cosmetics remain out of scope.
-  - [x] Give the HUD a palette and pixel fonts (issue #165, HUD Torch & Tally Phase 2). `styles.css` defines `--hud-*` colour tokens on `:root` (panel, frame, brass, ember, text, and a light/dark pair per vital) and the HUD rules use them instead of literals; vital fills are two-tone. Silkscreen (numbers, key hints, labels) and Pixelify Sans (names, headings, sentences) are bundled as WOFF2 in `assets/ui/fonts/` with their OFL licences and load with `font-display: swap`; nothing is fetched from a font host. Vital glyph labels stay in the system face so ◆ and » keep their size. No layout change; the 9-slice frame is #166, below.
-  - [x] Bake a 9-slice HUD frame and brass stud and restyle every panel (issue #166, HUD Torch & Tally Phase 2). `assets/sprites/source/hud.tiles.json` authors a 16x16 frame (4 px border) and an 8x8 stud as text; `scripts/hudSprites.ts` bakes them to `assets/sprites/hud-frame.png` and `hud-stud.png` through `npm run build:sprites`, and `tests/client/hudSprites.test.ts` fails if a PNG drifts. `styles.css` draws the frame with `border-image` and the studs as four corner backgrounds on the party, session, hints, stash and camp-menu panels, the minimap, party frames, prompt, toasts and hotbar slots, at `--hud-zoom`: `hudFrameZoom` gives 2 at every UI scale up to Large and 3 at Extra large, so the art stays on whole pixels. Party colour is an inset stripe, warning and error toasts a 1 px ring, and the held slot a brass ring; the notice stack narrowed by 2rem for the thicker border. `tests/e2e/browser/hudFrame.spec.ts` checks the frame, zoom and no clipping or overlap at the default and largest scale. The self frame and hotbar redesign stay Phase 3.
-  - [x] Fade quiet HUD modules back to 55% opacity (issue #169, HUD Torch & Tally Phase 4). `state/hudFade.ts` holds the rule and its constants (`HUD_FADE_QUIET_MS` 4000, `HUD_FADE_COMBAT_HOLD_MS` 4000, `HUD_FADE_OPACITY` 0.55) and takes `now` from the caller. `ui/hud.ts` compares a per-module signature on each snapshot (vitals, party frames, hotbar, minimap room, session, run clock) and re-evaluates every 250 ms, setting `data-faded` on the module; `styles.css` dims it to `--hud-fade-opacity` with a 0.4 s transition, none under reduced motion. Damage taken or the Attack button restores everything and holds it for 4 s; any key press restores everything. Never faded: the vitals while health is low or resistance is decaying, the party frames while an ally is downed or carried, any module holding focus, and every module while the camp menu or Stash is open. `--hud-text-muted` was lightened so it holds 4.5:1 at 55% over an unlit scene. The Full/Calm/Minimal setting is #170. No protocol change.
-  - [x] Add a HUD density setting next to UI scale (issue #170, HUD Torch & Tally Phase 4). `density` (`full` | `calm` | `minimal`, default `calm`) joins `HudSettings`, parsed per field so an unknown stored value falls back to `calm`; blocked storage degrades to `calm` too. `HUD_DENSITY_RULES` in `state/hudFade.ts` holds the rule: Full never fades, Calm is the #169 55% fade, Minimal fades to 35% and hides the key hints (the camp button stays). Warnings, vitals, party frames and focus pin modules at every level. The HUD settings select sets `data-hud-density` on the root and fires `hud-settings-changed` so the change applies at once. Minimal's 35% is an opt-in and sits below the 55% contrast floor the accessibility spec checks. No protocol change.
-  - [x] Build the bottom-left self frame (issue #167, HUD Torch & Tally Phase 3). `ui/hud/vitals.ts` now draws a 64px portrait of the local character (their look and party colour, or the grey silhouette while designing; the same `createCharacterPortraits` the party frames use), a 16px health bar with `82/100` inside it (`role="meter"`, `aria-label` "Health 82 of 100", ", low" below the threshold), a resistance shield badge on the portrait's corner showing the bare number with ▼ while decaying (its `aria-label` carries the same text), and a thin stamina bar with no digits that fades to 50% while full. `!` still marks low health. `vitalsView` gained `portrait`, `accent`, `spoken` and `stamina.full`. Per #160 the digits sit behind the density view model: `HUD_DENSITY_RULES[...].showsNumbers` is false for Minimal, which hides the digits visually while the text equivalents stay. The skill-diamond row is left to #25. No protocol change.
-  - [x] Redesign the hotbar (issue #168, HUD Torch & Tally Phase 3). `hotbarView`/`heldView` carry a `SlotKind` (`empty`, `scroll`, `item`) and `torchView` gives the lit/out state; `ui/hud/hotbar.ts` toggles `hud__slot--empty`/`--scroll` from it and every slot holds a `SKILL` badge shown only for scrolls. The hand slot is 72px with a brass edge, the three item slots 60px, and empty slots are an opaque brown socket with an inset edge instead of 60% opacity. Scrolls glow violet; the torch is a round slot that glows ember while carried and is dimmed and desaturated otherwise, keeping its title and aria label. The prompt and key hints are unchanged. `tests/e2e/browser/hotbarLook.spec.ts` checks the sizes, opaque empty slots and the dim torch. No protocol change.
-  - [x] Pulse a hotbar slot on a confirmed item use and fly a picked-up item into its slot (issue #175, HUD Torch & Tally). `state/itemFeedback.ts` diffs consecutive views: an inventory item that is gone and neither on the floor (dropped) nor carried by an ally (given) was used, a stack whose count fell was spent, and a new id or a grown stack was picked up or received, with its origin taken from the floor entry, the giving ally, or the pile of the same ammo that shrank; a swap or the shuffle after a slot empties is quiet, and nothing is reported across a hub/run transition. A refused use or a full-inventory pickup changes no slot, so it shows nothing. `ui/hud/itemFeedback.ts` plays a 360 ms pulse and a 420 ms fly-in from the item's screen position (the centre when off-screen) into the hand, a slot, or the torch pip; both ignore the pointer. Under reduced motion both are one instant highlight. Sound and world loot-drop animation stay out of scope.
-  - [x] Add hat, cloak and dye cosmetics and the hub wardrobe (issue #137). `characters.tiles.json` gains `hat-<id>-down`/`-up` for the bible's eight hats and the shared `cloak-behind`/`-back`/`-clasp`, baked in cosmetic key colours (`COSMETIC_KEY_COLOURS`: a hat ramp plus four accents, six cloak colours) that `characterSwaps` replaces from `HAT_PALETTES`/`CLOAK_PALETTES` in `characterPalettes.ts`; a dye replaces the tunic ramp (`DYE_RAMPS`) and the ring keeps the party colour. `buildCharacterComposite` (now shared by the world, portraits and the design and wardrobe previews) layers cloak behind, body, cloak back, hair from the hat's `HAT_HAIR_CLIP_ROWS` row down (none under the hood, all under the crown), clasp, then hat; side-on a hat wears its front and the cloak is not drawn, as in the bible. The Ember Crown's tips (200 ms) and the Ember Cloak's hem (160 ms) flicker as a second composite per phase. The cache key gains dye, hat and cloak; an id with no art draws as none. Interacting at the Wardrobe stall opens a Wardrobe panel: Hats, Cloaks and Outfit dyes tabs, a card per item with its rarity edge, lore, how it is got (price and stock, or milestone progress), and Buy, Wear or Take off, plus a try-on preview with a back view.
-  - [x] Add weapon trail and torch flame cosmetics (issue #138, protocol v44). `COSMETIC_SLOTS` gains `trail` and `flame`, so `equippedCosmetics` and `PlayerState.cosmetics` carry both (a stored profile from before reads them as none). Content adds Ember Sparks, Frost Shards (rotating), Shadow Wisps (`runsWithoutTorch` 1), Petal Drift and Gilded Glint (`flawlessEmberWardenKills` 1), and the Spirit, Witchfire (`leverPuzzlesSolved` 20), Amethyst (rotating) and Bonefire (`runsEscaped` 50) flames; no trail and the Hearth flame are the empty cards. `rendering/trails.ts` turns a swing (`swingArc` now carries the attacker and a seed) into art pixels: a band from 0.55 of the reach out to the reach, swept with the slash and fading behind it, plus particles per style (sparks fall, shards hang, wisps rise, petals drift) or the glint's five-pixel star on the strike; every pixel is dropped unless all four corners are inside the server's range and arc. `rendering/flames.ts` maps the torch sprite's `e f g h` to the bearer's ramp (`FLAME_RAMPS`, `HEARTH_FLAME_RAMP` in `characterPalettes.ts`) through `tileset.drawSwapped` and adds a faint halo; fixed lights keep the hearth flame and `sceneLights`, moved to `lighting.ts`, never reads a cosmetic. Hub halos are now drawn before any flame, so a neighbour's additive halo no longer washes a flame to white. The Wardrobe gains Weapon trails and Torch flames tabs, with a looping demonstration swing and the recoloured flame as previews.
-  - [x] Add seated, downed and attack frames to the character sheet (issue #313). `characters.tiles.json` gains, per body, `-seated` and `-attack-windup`/`-strike`/`-recover` layers for each facing and one 24 x 16 `body-<body>-downed` (the bible's lying frame; it has no seated pose, so the seated one is new). The sheet keeps its 16 x 24 grid and gains a 16 px band under it for the downed frames (`LYING_FRAME_WIDTH`/`_HEIGHT`, `CharacterFrame` now carries its size). A look's composite gains a seated and three attack cells per facing plus a lying cell, built with the same layers, recolouring and cache key: a seated head is `SEATED_DROP_ROWS` lower so hair, hats and cloaks follow it, attack frames keep the head still, and the standing hair, hat and cloak are turned a quarter to meet the downed body. `pickDrawnPose` chooses lying (downed, which beats everything), the attack frame for the swing's third facing the swing's heading, seated, then the walk. The swing carries no timing beyond its 180 ms life, so wind-up, strike and recover are thirds of it and no hit rule changes. `canvasRenderer.ts` loses `SEATED_DROP` and the faded-standing stand-in (only a disconnected player stays faded); a carried player is drawn `CARRIED_LIFT_PX` (6) above the carrier, last. `tests/client/characterSheet.test.ts` and `characterComposite.test.ts` cover the layout, head alignment and frame selection; `tests/e2e/browser/poseFrames.spec.ts` checks a downed and a seated figure with two real clients. No held item is drawn on the body yet, so there is none to align. Monster and trap art stay out of scope.
+  - [x] Port the character bodies and hair to source art and bake a character sheet (issue #136).
+        `assets/sprites/source/characters.tiles.json` holds `body-{guy,girl}` and six hair styles,
+        each facing `down`, `up` and `side`, as whole 16 x 24 frames ported pixel for pixel from the
+        reference. Skin, hair and tunic are baked in nine key colours (`CHARACTER_KEY_COLOURS`) for
+        the renderer to swap; everything else is a fixed colour. `npm run build:sprites` also bakes
+        `assets/sprites/characters.png`, deriving `walk1`/`walk2` frames by lifting one half's boots
+        a row. `src/client/rendering/characters.ts` lists the layers and frame cells. Drawing
+        characters in game, hats and cloaks, and attack and downed frames remain out of scope.
+  - [x] Draw players as layered pixel-art characters with party colours (issue #132).
+        `characters.ts` recolours the sheet's key colours by exact swap from the bible's ramps
+        (`characterPalettes.ts`, keyed by the shared ids), closes the eyes for a blink, picks the
+        facing (left mirrors `side`) and the 8 fps walk from whether the drawn position moved, and
+        caches one composite per `body|skinTone|hairStyle|hairColor|partyColor`.
+        `characterSprites.ts` stamps them at `pixelsPerWorldUnit / 16`, feet on `position.y +
+        PLAYER_RADIUS`, over a 13 x 5 party-colour ring, in `y` order, with names tinted in the
+        party colour. Downed and disconnected players draw at 45% alpha; a null appearance is not
+        drawn. Every client still sends `DEFAULT_APPEARANCE` until the design screen exists. Hats,
+        cloaks, dyes, attack and downed frames remain out of scope.
+  - [x] Add the character design screen between the lobby and the hub (issue #133). When
+        `sessionJoined.needsAppearance` is true and the player's own entry has no look,
+        `ui/characterDesign.ts` shows a full-screen step: body, skin tone, hair style and hair
+        colour as keyboard-navigable radio groups, a read-only party colour chip, a 10x preview (6x
+        at phone width) with Turn and Walk and an idle blink, and an in-game-scale panel on
+        flagstones with the party. The look opens as the last confirmed one from `localStorage`
+        (`dnd.lastLook`) or a random one, and an id that is no longer offered falls back to random
+        (`state/characterDesign.ts`). **Enter the hub** sends `setAppearance` and shows "Entering…"
+        until the snapshot carries the look, or the server's refusal inline; **Back** leaves the
+        session. The client no longer sends `DEFAULT_APPEARANCE`, and holds back its own move and
+        action intents while designing. The name is editable on this screen as of issue #314
+        (`setName`, protocol v53). The preview builds its own composites in `characterPreview.ts`
+        from the shared helpers; folding it into `characterSprites.ts` waits on #156. The party
+        roster's "Designing…" entry and cosmetics remain out of scope.
+  - [x] Give the HUD a palette and pixel fonts (issue #165, HUD Torch & Tally Phase 2). `styles.css`
+        defines `--hud-*` colour tokens on `:root` (panel, frame, brass, ember, text, and a
+        light/dark pair per vital) and the HUD rules use them instead of literals; vital fills are
+        two-tone. Silkscreen (numbers, key hints, labels) and Pixelify Sans (names, headings,
+        sentences) are bundled as WOFF2 in `assets/ui/fonts/` with their OFL licences and load with
+        `font-display: swap`; nothing is fetched from a font host. Vital glyph labels stay in the
+        system face so ◆ and » keep their size. No layout change; the 9-slice frame is #166, below.
+  - [x] Bake a 9-slice HUD frame and brass stud and restyle every panel (issue #166, HUD Torch &
+        Tally Phase 2). `assets/sprites/source/hud.tiles.json` authors a 16x16 frame (4 px border)
+        and an 8x8 stud as text; `scripts/hudSprites.ts` bakes them to
+        `assets/sprites/hud-frame.png` and `hud-stud.png` through `npm run build:sprites`, and
+        `tests/client/hudSprites.test.ts` fails if a PNG drifts. `styles.css` draws the frame with
+        `border-image` and the studs as four corner backgrounds on the party, session, hints, stash
+        and camp-menu panels, the minimap, party frames, prompt, toasts and hotbar slots, at
+        `--hud-zoom`: `hudFrameZoom` gives 2 at every UI scale up to Large and 3 at Extra large, so
+        the art stays on whole pixels. Party colour is an inset stripe, warning and error toasts a 1
+        px ring, and the held slot a brass ring; the notice stack narrowed by 2rem for the thicker
+        border. `tests/e2e/browser/hudFrame.spec.ts` checks the frame, zoom and no clipping or
+        overlap at the default and largest scale. The self frame and hotbar redesign stay Phase 3.
+  - [x] Fade quiet HUD modules back to 55% opacity (issue #169, HUD Torch & Tally Phase 4).
+        `state/hudFade.ts` holds the rule and its constants (`HUD_FADE_QUIET_MS` 4000,
+        `HUD_FADE_COMBAT_HOLD_MS` 4000, `HUD_FADE_OPACITY` 0.55) and takes `now` from the caller.
+        `ui/hud.ts` compares a per-module signature on each snapshot (vitals, party frames, hotbar,
+        minimap room, session, run clock) and re-evaluates every 250 ms, setting `data-faded` on the
+        module; `styles.css` dims it to `--hud-fade-opacity` with a 0.4 s transition, none under
+        reduced motion. Damage taken or the Attack button restores everything and holds it for 4 s;
+        any key press restores everything. Never faded: the vitals while health is low or resistance
+        is decaying, the party frames while an ally is downed or carried, any module holding focus,
+        and every module while the camp menu or Stash is open. `--hud-text-muted` was lightened so
+        it holds 4.5:1 at 55% over an unlit scene. The Full/Calm/Minimal setting is #170. No
+        protocol change.
+  - [x] Add a HUD density setting next to UI scale (issue #170, HUD Torch & Tally Phase 4).
+        `density` (`full` | `calm` | `minimal`, default `calm`) joins `HudSettings`, parsed per
+        field so an unknown stored value falls back to `calm`; blocked storage degrades to `calm`
+        too. `HUD_DENSITY_RULES` in `state/hudFade.ts` holds the rule: Full never fades, Calm is the
+        #169 55% fade, Minimal fades to 35% and hides the key hints (the camp button stays).
+        Warnings, vitals, party frames and focus pin modules at every level. The HUD settings select
+        sets `data-hud-density` on the root and fires `hud-settings-changed` so the change applies
+        at once. Minimal's 35% is an opt-in and sits below the 55% contrast floor the accessibility
+        spec checks. No protocol change.
+  - [x] Build the bottom-left self frame (issue #167, HUD Torch & Tally Phase 3). `ui/hud/vitals.ts`
+        now draws a 64px portrait of the local character (their look and party colour, or the grey
+        silhouette while designing; the same `createCharacterPortraits` the party frames use), a
+        16px health bar with `82/100` inside it (`role="meter"`, `aria-label` "Health 82 of 100", ",
+        low" below the threshold), a resistance shield badge on the portrait's corner showing the
+        bare number with ▼ while decaying (its `aria-label` carries the same text), and a thin
+        stamina bar with no digits that fades to 50% while full. `!` still marks low health.
+        `vitalsView` gained `portrait`, `accent`, `spoken` and `stamina.full`. Per #160 the digits
+        sit behind the density view model: `HUD_DENSITY_RULES[...].showsNumbers` is false for
+        Minimal, which hides the digits visually while the text equivalents stay. The skill-diamond
+        row is left to #25. No protocol change.
+  - [x] Redesign the hotbar (issue #168, HUD Torch & Tally Phase 3). `hotbarView`/`heldView` carry a
+        `SlotKind` (`empty`, `scroll`, `item`) and `torchView` gives the lit/out state;
+        `ui/hud/hotbar.ts` toggles `hud__slot--empty`/`--scroll` from it and every slot holds a
+        `SKILL` badge shown only for scrolls. The hand slot is 72px with a brass edge, the three
+        item slots 60px, and empty slots are an opaque brown socket with an inset edge instead of
+        60% opacity. Scrolls glow violet; the torch is a round slot that glows ember while carried
+        and is dimmed and desaturated otherwise, keeping its title and aria label. The prompt and
+        key hints are unchanged. `tests/e2e/browser/hotbarLook.spec.ts` checks the sizes, opaque
+        empty slots and the dim torch. No protocol change.
+  - [x] Pulse a hotbar slot on a confirmed item use and fly a picked-up item into its slot (issue
+        #175, HUD Torch & Tally). `state/itemFeedback.ts` diffs consecutive views: an inventory item
+        that is gone and neither on the floor (dropped) nor carried by an ally (given) was used, a
+        stack whose count fell was spent, and a new id or a grown stack was picked up or received,
+        with its origin taken from the floor entry, the giving ally, or the pile of the same ammo
+        that shrank; a swap or the shuffle after a slot empties is quiet, and nothing is reported
+        across a hub/run transition. A refused use or a full-inventory pickup changes no slot, so it
+        shows nothing. `ui/hud/itemFeedback.ts` plays a 360 ms pulse and a 420 ms fly-in from the
+        item's screen position (the centre when off-screen) into the hand, a slot, or the torch pip;
+        both ignore the pointer. Under reduced motion both are one instant highlight. Sound and
+        world loot-drop animation stay out of scope.
+  - [x] Add hat, cloak and dye cosmetics and the hub wardrobe (issue #137). `characters.tiles.json`
+        gains `hat-<id>-down`/`-up` for the bible's eight hats and the shared
+        `cloak-behind`/`-back`/`-clasp`, baked in cosmetic key colours (`COSMETIC_KEY_COLOURS`: a
+        hat ramp plus four accents, six cloak colours) that `characterSwaps` replaces from
+        `HAT_PALETTES`/`CLOAK_PALETTES` in `characterPalettes.ts`; a dye replaces the tunic ramp
+        (`DYE_RAMPS`) and the ring keeps the party colour. `buildCharacterComposite` (now shared by
+        the world, portraits and the design and wardrobe previews) layers cloak behind, body, cloak
+        back, hair from the hat's `HAT_HAIR_CLIP_ROWS` row down (none under the hood, all under the
+        crown), clasp, then hat; side-on a hat wears its front and the cloak is not drawn, as in the
+        bible. The Ember Crown's tips (200 ms) and the Ember Cloak's hem (160 ms) flicker as a
+        second composite per phase. The cache key gains dye, hat and cloak; an id with no art draws
+        as none. Interacting at the Wardrobe stall opens a Wardrobe panel: Hats, Cloaks and Outfit
+        dyes tabs, a card per item with its rarity edge, lore, how it is got (price and stock, or
+        milestone progress), and Buy, Wear or Take off, plus a try-on preview with a back view.
+  - [x] Add weapon trail and torch flame cosmetics (issue #138, protocol v44). `COSMETIC_SLOTS`
+        gains `trail` and `flame`, so `equippedCosmetics` and `PlayerState.cosmetics` carry both (a
+        stored profile from before reads them as none). Content adds Ember Sparks, Frost Shards
+        (rotating), Shadow Wisps (`runsWithoutTorch` 1), Petal Drift and Gilded Glint
+        (`flawlessEmberWardenKills` 1), and the Spirit, Witchfire (`leverPuzzlesSolved` 20),
+        Amethyst (rotating) and Bonefire (`runsEscaped` 50) flames; no trail and the Hearth flame
+        are the empty cards. `rendering/trails.ts` turns a swing (`swingArc` now carries the
+        attacker and a seed) into art pixels: a band from 0.55 of the reach out to the reach, swept
+        with the slash and fading behind it, plus particles per style (sparks fall, shards hang,
+        wisps rise, petals drift) or the glint's five-pixel star on the strike; every pixel is
+        dropped unless all four corners are inside the server's range and arc. `rendering/flames.ts`
+        maps the torch sprite's `e f g h` to the bearer's ramp (`FLAME_RAMPS`, `HEARTH_FLAME_RAMP`
+        in `characterPalettes.ts`) through `tileset.drawSwapped` and adds a faint halo; fixed lights
+        keep the hearth flame and `sceneLights`, moved to `lighting.ts`, never reads a cosmetic. Hub
+        halos are now drawn before any flame, so a neighbour's additive halo no longer washes a
+        flame to white. The Wardrobe gains Weapon trails and Torch flames tabs, with a looping
+        demonstration swing and the recoloured flame as previews.
+  - [x] Add seated, downed and attack frames to the character sheet (issue #313).
+        `characters.tiles.json` gains, per body, `-seated` and `-attack-windup`/`-strike`/`-recover`
+        layers for each facing and one 24 x 16 `body-<body>-downed` (the bible's lying frame; it has
+        no seated pose, so the seated one is new). The sheet keeps its 16 x 24 grid and gains a 16
+        px band under it for the downed frames (`LYING_FRAME_WIDTH`/`_HEIGHT`, `CharacterFrame` now
+        carries its size). A look's composite gains a seated and three attack cells per facing plus
+        a lying cell, built with the same layers, recolouring and cache key: a seated head is
+        `SEATED_DROP_ROWS` lower so hair, hats and cloaks follow it, attack frames keep the head
+        still, and the standing hair, hat and cloak are turned a quarter to meet the downed body.
+        `pickDrawnPose` chooses lying (downed, which beats everything), the attack frame for the
+        swing's third facing the swing's heading, seated, then the walk. The swing carries no timing
+        beyond its 180 ms life, so wind-up, strike and recover are thirds of it and no hit rule
+        changes. `canvasRenderer.ts` loses `SEATED_DROP` and the faded-standing stand-in (only a
+        disconnected player stays faded); a carried player is drawn `CARRIED_LIFT_PX` (6) above the
+        carrier, last. `tests/client/characterSheet.test.ts` and `characterComposite.test.ts` cover
+        the layout, head alignment and frame selection; `tests/e2e/browser/poseFrames.spec.ts`
+        checks a downed and a seated figure with two real clients. No held item is drawn on the body
+        yet, so there is none to align. Monster and trap art stay out of scope.
 - [ ] Test with 2-4 players in the same dungeon.
 - [ ] Fix layout, browser permission, and reconnect edge cases.
-  - [x] Cover the Torch & Tally HUD zones, density levels and touch layout in e2e (issue #176). `tests/e2e/browser/hudZones.spec.ts` pins each module to its zone (key hints and party frames top-left, notice stack top-centre, minimap corner top-right, self frame bottom-left, hotbar bottom-centre, touch buttons bottom-right) at 1280x720 and 800x600, checks no two overlap and the canvas centre takes a click, and records the hub name plates the renderer draws to prove none lands under a module. It runs each density with a fake clock, checks the notice stack and a low-health self frame stay lit and that glyphs, text and key letters remain, and places the touch buttons clear of the self frame, hotbar and minimap. It found three layout bugs, fixed here: the key hints covered the party frames (now one `hud__top-left` column), the self frame covered the hotbar at 800px (its health bar narrows on small windows), and plates could draw under toasts or the minimap (the renderer's obstacle list now takes the whole `hud__corner` and `hud__notices`). The duplicate layout checks in `hudAccessibility.spec.ts` and `minimap.spec.ts` were removed.
-  - [x] Compare the finished Torch & Tally HUD with the proposal and fix what reads worse (issue #194). The series is finished; the PR holds the zone-by-zone difference table, and every other difference is a recorded decision (#160, or an earlier phase's issue). The self frame now heads its bars with the player's name (`VitalsView.name`). Ally frames lost the self frame's 16px health bar that #167's rule had leaked onto them: their health is a thin bar across the frame, and resistance is the bare number under it beside the health digits (`hud__frame-footer`), as on the self frame's badge, never a bar. The camp menu's groups use the HUD frame and brass tokens instead of a cool grey rounded box. No follow-up issues were needed. No protocol change.
+  - [x] Cover the Torch & Tally HUD zones, density levels and touch layout in e2e (issue #176).
+        `tests/e2e/browser/hudZones.spec.ts` pins each module to its zone (key hints and party
+        frames top-left, notice stack top-centre, minimap corner top-right, self frame bottom-left,
+        hotbar bottom-centre, touch buttons bottom-right) at 1280x720 and 800x600, checks no two
+        overlap and the canvas centre takes a click, and records the hub name plates the renderer
+        draws to prove none lands under a module. It runs each density with a fake clock, checks the
+        notice stack and a low-health self frame stay lit and that glyphs, text and key letters
+        remain, and places the touch buttons clear of the self frame, hotbar and minimap. It found
+        three layout bugs, fixed here: the key hints covered the party frames (now one
+        `hud__top-left` column), the self frame covered the hotbar at 800px (its health bar narrows
+        on small windows), and plates could draw under toasts or the minimap (the renderer's
+        obstacle list now takes the whole `hud__corner` and `hud__notices`). The duplicate layout
+        checks in `hudAccessibility.spec.ts` and `minimap.spec.ts` were removed.
+  - [x] Compare the finished Torch & Tally HUD with the proposal and fix what reads worse (issue
+        #194). The series is finished; the PR holds the zone-by-zone difference table, and every
+        other difference is a recorded decision (#160, or an earlier phase's issue). The self frame
+        now heads its bars with the player's name (`VitalsView.name`). Ally frames lost the self
+        frame's 16px health bar that #167's rule had leaked onto them: their health is a thin bar
+        across the frame, and resistance is the bare number under it beside the health digits
+        (`hud__frame-footer`), as on the self frame's badge, never a bar. The camp menu's groups use
+        the HUD frame and brass tokens instead of a cool grey rounded box. No follow-up issues were
+        needed. No protocol change.
   - [x] Show the HUD's Attack and Emote buttons only on a coarse pointer (issue #164, HUD Torch & Tally Phase 1). `state/touchControls.ts` follows `(pointer: coarse)`, including a hybrid device switching input at runtime; on a fine pointer the buttons are hidden and out of the tab order, and the bottom-right panel hides when the run clock is hidden too. The hotbar and prompt keep their key hints.
 - [ ] Capture screenshots or short recordings for pull requests.
 
@@ -658,7 +1195,11 @@ Complete on `feature/hub-run-flow`.
 ### 10. Skills and Progression UI
 
 - [x] Show unlocked skills and their effects. The camp menu's Skills panel (#25) separates permanent from this-run stacks, shows `held/max` (a bare count when unlimited, nothing when non-stacking), the resolved effect and the next stack's.
-- [x] Show locked skills and their unlock cost. Locked entries show prerequisites (unavailable while one is missing) and how they are earned, including milestone thresholds. The coin price is not in the catalog; the shop (#216) sends its stock separately as `skillShopStock`, which the Skills panel reuses to show the price of a scroll in stock, "sometimes sold" for a rotating scroll out of stock, and nothing for one the shop never lists (#308).
+- [x] Show locked skills and their unlock cost. Locked entries show prerequisites (unavailable while
+      one is missing) and how they are earned, including milestone thresholds. The coin price is not
+      in the catalog; the shop (#216) sends its stock separately as `skillShopStock`, which the
+      Skills panel reuses to show the price of a scroll in stock, "sometimes sold" for a rotating
+      scroll out of stock, and nothing for one the shop never lists (#308).
 - [x] Drive unlocks from server-owned profile state. The panel only reads `progressionCatalog` and `progressionUpdated`; the one button opens the existing conversion prompt, and the server judges its Confirm.
 
 ### 11. Drawing at World Scale
@@ -671,43 +1212,53 @@ Complete on `feature/hub-run-flow`.
 
 ## Activity Log
 
-- 2026-10-27: Dark Bargain: shrine candle bargain, 20 s of dark improves the shrine chest one tier and sends a wave; shrines gain a chest; protocol v66 (#280).
+Order: newest first. Add each change as one new bullet at the top of the list, dated by the day of the work; do not edit other entries.
+
+- 2026-11-03: `PROGRESS.md` history moved off the long `Current Status` line into the `Activity Log` (newest first), protocol version dropped from `Current Status`, `project-progress-sync` and `ticket` updated (#372, documentation only).
+- 2026-11-03: Cinder Depths names its boss and shrine rooms, and `loadContent` refuses a biome with no name for a room kind the generator can place (#364, no protocol change).
+- 2026-11-03: The session store and game server share one clock by default, so a continued run's restored timers come due (#361, no protocol change).
+- 2026-11-03: A snuffed player keeps their torch out from the torch key; `torchSnuffedForMs` reaches only the snuffed player, protocol v68 (#360).
+- 2026-11-03: Trap effects and the Snuffer Vent put out every held torch in range for 8 s, protocol v67 (#276); the Snuffer Vent also hides every flare in reach and pushes its burn-out back by the same wait (`session.snuffedFlareUntil`, saved with the run).
+- 2026-11-03: A player carrying the Heavy Idol cannot sit, and taking one stands a sitter up (#365).
+- 2026-11-03: A downed player stands up off their seat, freeing it (#362).
 - 2026-10-29: Hub quest board and hub status show the next run's omens as plates and icons, a triangle for a warning and a diamond for an anomaly (#269, no protocol change).
+- 2026-10-27: Mimic Chest: a server-only `mimic` flag on a chest, protocol v61 (#279).
+- 2026-10-27: Putting out and relighting a carried torch from another flame, protocol v65 (#348).
+- 2026-10-27: Dark Bargain: shrine candle bargain, 20 s of dark improves the shrine chest one tier and sends a wave; shrines gain a chest; protocol v66 (#280).
+  Owner decisions: shrines gain a chest so the reward has something to improve, shifting seeded layouts; the wave is existing biome-roster monsters (cost 2 or less) scaled by party size, 2 per connected, designed player.
 - 2026-10-27: Door Vote: at a junction the party chooses between sealed branch doorways, each hinting at what lies beyond, by standing on its plates; protocol v63 (#293).
-- 2026-10-26: Idol Carry: carry a Heavy Idol at half speed, unable to fight and hunted by monsters, to an altar for the boss key; every party size, protocol v60 (#289).
 - 2026-10-27: Switch entities and seal locks: a lit brazier stays lit and a seal door opens when its whole group is lit, protocol v64 (#263).
+- 2026-10-26: Idol Carry: carry a Heavy Idol at half speed, unable to fight and hunted by monsters, to an altar for the boss key; every party size, protocol v60 (#289).
 - 2026-10-26: Twin-lock Chest: two players interact within a second to open it, placed in vaults for parties of two or more, protocol v59 (#292).
 - 2026-10-26: Shrine altars drawn, with a candle fixture, take prompt and cage state, protocol v58 (#259).
-- 2026-10-25: Shrine altars: `altarState`, taking one offered scroll cages the rest, far dead-end shrines in the generator, protocol v57 (#258).
+- 2026-10-25: Players rename their character on the design screen with a `setName` intent, protocol v53 (#314).
+- 2026-10-25: Shrine altars: `altarState`, taking one offered scroll cages the rest, far dead-end shrines in the generator, protocol v57 (#258); Scroll Cache no longer drops a loose scroll since the shrine altar offers one.
 - 2026-10-25: Designing members in the party roster and last-seen rooms in out-of-sight frames, protocol v54 (#315).
 - 2026-10-25: Rebound keys persist in local storage (`dnd.keyBindings`), validated on load; Reset to defaults clears them (#307, no protocol change).
+- 2026-10-25: `npm run typecheck` is green again and runs in the CI unit-test job; the Continue-list spec types its canvas read without the DOM lib (#304, tests and CI only).
+- 2026-10-25: Campfire Rest: seated parties at a camp regain 15 resistance once per camp, and decay pauses while seated (#260).
+- 2026-10-25: Locked vaults and the elite that carries their key, protocol v52 (#257).
+- 2026-10-25: Locked skills show their hub-shop scroll price in the Skills panel; `skillShopStock` gains `rotatingSkillIds` (#308, protocol v55).
 - 2026-10-24: Biome map themes: `crypt`, `fungal` and `ossuary` walls, floors and torch tints, carried by a run from its biome (#272, no protocol change).
 - 2026-10-24: Typed key locks: a door's `locked` boolean becomes `lock`, keys carry `itemId`, and `boss-key` and `vault-key` open different doors (#255, protocol v50).
 - 2026-10-24: Omens added to generation: six warnings and anomalies rolled from the run seed, plus a single-use `collapsing-floor` trap (#267, no protocol change).
 - 2026-10-24: Generator v2 Phase 1 documented: decision 0016 pipeline and invariants, content README, 0007 layout marked superseded (#254, documentation only).
-- 2026-10-25: `npm run typecheck` is green again and runs in the CI unit-test job; the Continue-list spec types its canvas read without the DOM lib (#304, tests and CI only).
 - 2026-10-24: `vault-run` switched to the generator v2 `delve` layout with validation, retry and a 1,000-seed-per-party-size sweep (#253, no protocol change).
+- 2026-10-24: Room kinds camp, shrine, secret, arena and cavern on the wire and minimap, protocol v51 (#256).
 - 2026-10-23: Puzzles scale to the party: `partySize` passed into generation, Ballast Stones stand in for missing players on a plate, and a new `ballast` item kind (#252, protocol v49).
 - 2026-10-23: Generator v2 populate stage: boss door, lights, spawn points, threat-budget monsters, role-based loot, traps and plates placed into carved rooms (#251, not yet called by `generateDungeon`).
 - 2026-10-23: Generator v2 carve stage: rooms stamped into grid cells and joined socket to socket by corridors (#250, not yet called by `generateDungeon`).
 - 2026-10-23: 14 Cinder Depths room templates for generator v2, covering entrance, exit, boss, puzzle, hall, maze and trap kinds (#249).
 - 2026-10-23: Generator v2 roles stage: boss lock, key holder and room kinds from the layout graph (#247).
 - 2026-10-23: Room sockets, rotated and mirrored templates and ten procedural room shapes for generator v2 (#248, not yet called by the generator).
-- 2026-11-03: A player carrying the Heavy Idol cannot sit, and taking one stands a sitter up (#365).
-- 2026-11-03: A downed player stands up off their seat, freeing it (#362).
-- 2026-10-25: Campfire Rest: seated parties at a camp regain 15 resistance once per camp, and decay pauses while seated (#260).
-- 2026-10-25: Locked vaults and the elite that carries their key, protocol v52 (#257).
-- 2026-10-24: Room kinds camp, shrine, secret, arena and cavern on the wire and minimap, protocol v51 (#256).
 - 2026-10-23: Generator v2 layout stage: critical path, branches and loops on the grid (#246).
 - 2026-10-23: Flow and biome content for generator v2: three flows, the Cinder Depths biome and a `delve` layout profile (#245, nothing builds a `delve` run yet).
 - 2026-10-23: Seeded `chance`, `weighted` and `mixSeed` helpers for generator v2 (#244, no protocol change).
 - 2026-10-23: Dungeon generator v2 design decided (decision 0016, #243); the series is Backend 14 in `STEPS.md`, documentation only.
-- 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48).
-One line per change; read the linked pull request for detail.
-
+- 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48); the session client no longer lets a closed socket's late `close` event clobber a socket opened right after it.
 - 2026-10-22: Save and quit in the camp menu and the lobby's saved-room prompt, with a `savedAndQuit` acknowledgement from the server, a "Run saved" banner in the lobby that stays until the player acts, and a "Saving..." button while Save and quit is pending (#232, protocol v47).
+- 2026-10-21: HUD Torch & Tally Phase 3: a larger hand slot, a torch slot and scroll glow on the hotbar (#168, protocol unchanged).
 - 2026-10-21: Continue a saved run from its room code after a restart: `savedRun` on `joinSession`, `notSaveMember`, `savedRunExists` and `notPermitted` errors, discarding a save, and members returning with their saved look (#235, protocol v46).
-- 2026-10-25: Locked skills show their hub-shop scroll price in the Skills panel; `skillShopStock` gains `rotatingSkillIds` (#308, protocol v55).
 - 2026-10-21: Room saves written on member changes, autosave, an emptied party and shutdown, cleared by an escape or a wipe, and a `saveAndQuit` intent refused in combat (#234, protocol v45).
 - 2026-10-21: Room save format and store in `data/rooms.json`, with run state captured and restored as durations, a saveable loot stream, and a content version (#233, no protocol change).
 - 2026-10-21: Run saves decided (#122): a save per room code that outlives runs, autosave and "Save and quit", no undoing a death or wipe, 7-day expiry, in decision 0015; follow-ups #232-#235.
@@ -725,6 +1276,7 @@ One line per change; read the linked pull request for detail.
 - 2026-10-21: E2e spec for HUD zones, density levels and touch layout, fixing hint, hotbar and name-plate overlaps (#176, HUD Torch & Tally).
 - 2026-10-21: Numberless torch tally under the minimap replaces the run clock (#174, HUD Torch & Tally Phase 5).
 - 2026-10-21: Owner decisions on unseen allies, minimap access, bar numbers and the run clock (#160), unblocking #167, #172 and #174.
+- 2026-10-20: HUD Torch & Tally Phase 1: toasts and the hub gate status merged into one notice stack (#163, protocol unchanged).
 - 2026-10-20: HUD density setting (Full/Calm/Minimal) next to UI scale (#170, HUD Torch & Tally Phase 4).
 - 2026-10-20: Quiet HUD modules fade to 55% opacity after 4 s out of combat (#169, HUD Torch & Tally Phase 4).
 - 2026-10-20: Baked 9-slice HUD frame and brass studs on every HUD panel, drawn at a whole-number zoom per UI scale (#166, HUD Torch & Tally Phase 2).
@@ -732,25 +1284,21 @@ One line per change; read the linked pull request for detail.
 - 2026-10-20: Speaking rings on party portraits from per-peer voice levels (#173, HUD Torch & Tally Phase 5).
 - 2026-10-20: Ready plates in front of the hub gate, with a public `readyPlateId` and a party-ready cue (#147, v35).
 - 2026-10-20: Hotbar slots pulse on a confirmed item use and a picked-up item flies into its slot, with a reduced-motion highlight (#175, HUD Torch & Tally).
+- 2026-10-20: Chargeable Hunting Bow, draw clock on the server, arrows in the hub (#116, v36).
+- 2026-10-20: Bow draw strength and aim indicator in the world and on the HUD (#117, no protocol change).
 - 2026-10-19: Sitting on hub benches and the fountain rim, with a public `seatId` (#148, v34).
 - 2026-10-19: Minimap given its own top-right frame with a room-name header and an N mark (#162, HUD Torch & Tally Phase 1).
 - 2026-10-19: Session and voice controls moved into an Esc camp menu, with a mic chip, key hints and a hub-only Ready button on screen (#161, HUD Torch & Tally Phase 1).
 - 2026-10-19: HUD colour tokens and self-hosted Silkscreen and Pixelify Sans fonts (#165, HUD Torch & Tally Phase 2).
 - 2026-10-19: Attack and Emote HUD buttons shown only on a coarse pointer (#164, HUD Torch & Tally Phase 1).
-- 2026-10-19: Hub re-authored as a ring round a 3x3 fountain, with stalls on the diagonals, benches,
-  a gate road, campfire clearing and training yard (#145, Hub Revamp Phase 3, v33).
-- 2026-10-19: Ambient hub lighting, flickering lanterns and campfire, and distance-based prop name
-  plates inside a HUD-safe area; the hub is fully visible to everyone (#146, Hub Revamp Phase 4, v32).
+- 2026-10-19: Hub re-authored as a ring round a 3x3 fountain, with stalls on the diagonals, benches, a gate road, campfire clearing and training yard (#145, Hub Revamp Phase 3, v33).
+- 2026-10-19: Ambient hub lighting, flickering lanterns and campfire, and distance-based prop name plates inside a HUD-safe area; the hub is fully visible to everyone (#146, Hub Revamp Phase 4, v32).
 - 2026-10-19: Party-frame portraits, a "Designing…" state, and a hub banner naming designers (#134).
-- 2026-10-19: Hub ground layer, canopy overhang, contact shadows, stall tints and hue-shifted
-  palette (#144, Hub Revamp Phase 2, protocol unchanged at v31).
+- 2026-10-19: Hub ground layer, canopy overhang, contact shadows, stall tints and hue-shifted palette (#144, Hub Revamp Phase 2, protocol unchanged at v31).
 - 2026-10-19: Players drawn as recoloured, animated pixel-art characters with party rings (#132).
 - 2026-10-19: Hub training dummies with a rolling damage-per-second readout (#150, v31).
 - 2026-10-19: Emote wheel with server-validated, rate-limited, visibility-gated emotes (#149, v30).
-- 2026-10-19: Map themes and render-only props; the hub draws forest walls and one of each prop
-  (#143, Hub Revamp Phase 1, protocol unchanged at v29).
-- 2026-10-20: Chargeable Hunting Bow, draw clock on the server, arrows in the hub (#116, v36).
-- 2026-10-20: Bow draw strength and aim indicator in the world and on the HUD (#117, no protocol change).
+- 2026-10-19: Map themes and render-only props; the hub draws forest walls and one of each prop (#143, Hub Revamp Phase 1, protocol unchanged at v29).
 - 2026-10-19: Animated weapon swings from server-resolved reach and arc (#129, v29).
 - 2026-10-19: Server-validated player appearance and party colours, `setAppearance` (#131, v28).
 - 2026-10-18: Stamina Draught, Flare, and Smelling Salts consumables; revive a downed ally (#85, v27).
@@ -761,26 +1309,18 @@ One line per change; read the linked pull request for detail.
 - 2026-10-13: Held-item slot and weapon item kind (#113, v22).
 - 2026-10-12: Ranged and charging monster behaviours (#91, v21).
 - 2026-10-12: Minimap HUD panel with rebindable toggle (#105).
+- 2026-10-09: Dropping and handing over inventory items (#87, protocol v19); the tick roster is built once and other players' banked items are no longer sent (#81, protocol v17).
+- 2026-10-09: Monster loot tables and drops on death (#86); consumable effects driven by item content instead of item kinds (#84).
 - 2026-10-09: Monster flow-field pathing, line-of-sight aggro and leash (#89).
 - 2026-10-07: Owner-only progression catalog and live state (#24, v15).
-- 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec
-  and its dependency, PR screenshot media, dead constants, and this ledger's long-form history.
-- 2026-10-04: Client proximity voice (#27, decision 0012); symmetric player-to-player sight (#61);
-  snapshots coalesced into the 20 Hz tick (#29); buffered remote interpolation (#62); WebRTC
-  signaling relay (#26); rebindable controls (#69); darker lighting (#60); HUD accessibility
-  (#51); party frames (#49); run clock and combat feedback (#50).
-- 2026-10-03: Bosses and sealed exits (#31, v14); cooperative puzzles (#32, v13); traps (#33,
-  v12); HUD overlay, vitals cluster, hotbar and action prompt (#46-#48); WebSocket payload limit
-  (#28).
+- 2026-10-06: Trimmed repository bloat: redundant tests, an always-skipped paid-API browser spec and its dependency, PR screenshot media, dead constants, and this ledger's long-form history.
+- 2026-10-04: Client proximity voice (#27, decision 0012); symmetric player-to-player sight (#61); snapshots coalesced into the 20 Hz tick (#29); buffered remote interpolation (#62); WebRTC signaling relay (#26); rebindable controls (#69); darker lighting (#60); HUD accessibility (#51); party frames (#49); run clock and combat feedback (#50).
+- 2026-10-03: Bosses and sealed exits (#31, v14); cooperative puzzles (#32, v13); traps (#33, v12); HUD overlay, vitals cluster, hotbar and action prompt (#46-#48); WebSocket payload limit (#28).
 - 2026-09-23: Carrying downed players (#34, v11).
 - 2026-09-22: Deployment readiness reconciled; first remote interpolation (#35); Playwright e2e.
-- 2026-09-20: Roguelite profiles persisted to `data/profiles.json` (v9); first skill scroll, Iron
-  Will (v10, decision 0011).
+- 2026-09-20: Roguelite profiles persisted to `data/profiles.json` (v9); first skill scroll, Iron Will (v10, decision 0011).
 - 2026-09-18: Pixel-art tiles (decision 0010); door-width line-of-sight and reach fixes.
 - 2026-09-17: World tile scale (decision 0008); hub and run lifecycle (decision 0009).
-- 2026-09-15: Content moved to `content/` and procedural generation from room templates
-  (decision 0007).
-- 2026-09-14: Player vitals: resistance, stamina, run timer (decision 0006); server-authoritative
-  visibility and lighting (decision 0005).
-- 2026-09-11 to 09-12: Project foundation, sessions, authoritative dungeon state, combat and items,
-  client networking (decisions 0001-0004).
+- 2026-09-15: Content moved to `content/` and procedural generation from room templates (decision 0007).
+- 2026-09-14: Player vitals: resistance, stamina, run timer (decision 0006); server-authoritative visibility and lighting (decision 0005).
+- 2026-09-11 to 09-12: Project foundation, sessions, authoritative dungeon state, combat and items, client networking (decisions 0001-0004).
