@@ -549,6 +549,34 @@ describe("rebound keys", () => {
     expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
   });
 
+  describe("unlit torch near a flame", () => {
+    const flameView = (carrier: PlayerState, withFlame: boolean) =>
+      view({
+        ...inSession,
+        players: [carrier],
+        dungeon: dungeon({
+          lightSources: withFlame ? [{ kind: "fixed", position: { x: 0.5, y: 0 } }] : [],
+        } as unknown as Partial<DungeonState>),
+      });
+
+    it("offers to light a torch that is out", () => {
+      const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+      expect(actionPrompt(flameView(dark, true), dark, origin)).toMatchObject({ action: "torch", text: "Light your torch" });
+    });
+
+    it("says a snuffed torch relights soon rather than offering to light it", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      const text = actionPrompt(flameView(snuffed, true), snuffed, origin)?.text;
+      expect(text).toBe("Torch relights soon (keep it out)");
+      expect(text).not.toContain("Light your torch");
+    });
+
+    it("shows nothing for a snuffed torch with no flame in reach", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      expect(actionPrompt(flameView(snuffed, false), snuffed, origin)).toBeNull();
+    });
+  });
+
   it("prompts a torch carrier to light a dark brazier but not a bell or lever", () => {
     const carrier = player("Maya", { id: SELF_ID, carryingTorch: true });
     const lit = (kind: string) =>

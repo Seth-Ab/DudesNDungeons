@@ -871,9 +871,12 @@ export function actionPrompt(
   const idol = carriedIdol(self.inventory, self.held);
   if (idol && target?.kind === "idolAltar") return prompt("interact", `Set the ${idol.name} on the altar`);
 
-  // An unlit torch is worth a word only when a flame is close enough to light it from.
+  // An unlit torch is worth a word only when a flame is close enough to light it from. A snuffed
+  // torch relights on its own, and the torch key then keeps it out, so the prompt says that instead.
   if (self.carryingTorch && !self.torchLit && flameNearby(view, self, position)) {
-    return prompt("torch", "Light your torch");
+    return self.torchSnuffedForMs !== undefined
+      ? prompt("torch", "Torch relights soon (keep it out)")
+      : prompt("torch", "Light your torch");
   }
 
   const loot = nearestLoot(view, position);
