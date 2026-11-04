@@ -475,8 +475,8 @@ describe("appearance contract", () => {
     };
   }
 
-  it("is on protocol v67, the version that added the trap effect field", () => {
-    expect(PROTOCOL_VERSION).toBe(67);
+  it("is on protocol v68, the version that added the own-entry torch snuff wait", () => {
+    expect(PROTOCOL_VERSION).toBe(68);
   });
 
   it("round-trips a refused Save and quit with its reason", () => {

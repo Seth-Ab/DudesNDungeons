@@ -29,7 +29,7 @@ import type {
 } from "../../shared/types/core.js";
 import { darkBargainFor } from "./darkBargain.js";
 import type { ServerMessage } from "../../shared/protocol/index.js";
-import { rosterOf, withOwnBank, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
+import { rosterOf, withOwnState, type Session, type SessionPlayer } from "../sessions/sessionStore.js";
 import { monsterStatsFor } from "./dungeonState.js";
 import { overridesFor } from "./generation/omens.js";
 import { contentForSession, torchLightRadiusFor } from "./progression.js";
@@ -745,10 +745,10 @@ export function visibilityFrameForPlayer(
 
   return {
     dungeon: visibleDungeon(session, viewer, visible, sources),
-    // The roster is shared across viewers, so only the viewer's own entry is copied to add the bank.
+    // The roster is shared across viewers, so only the viewer's own entry is copied to add the bank and snuff wait.
     players: roster
       .filter((player) => visiblePlayerIds.has(player.id))
-      .map((player) => (player.id === viewer.id ? withOwnBank(player, viewer) : player)),
+      .map((player) => (player.id === viewer.id ? withOwnState(player, viewer, session) : player)),
     visiblePlayerIds,
   };
 }

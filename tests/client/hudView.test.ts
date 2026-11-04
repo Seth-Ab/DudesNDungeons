@@ -31,6 +31,7 @@ import {
   partyFrames,
   toastMessages,
   slotKind,
+  torchKeyAction,
   torchStatusLabel,
   torchView,
   vaultPanelView,
@@ -731,6 +732,14 @@ describe("hotbar", () => {
     const out = player("Maya", { carryingTorch: true, torchLit: false });
     expect(torchView(out)).toEqual({ lit: false, label: "Torch: out" });
     expect(torchStatusLabel(out)).toBe("out");
+  });
+
+  it("maps the torch key to putOutTorch while lit or snuffed, and to lightTorch otherwise", () => {
+    expect(torchKeyAction(player("Maya", { carryingTorch: true, torchLit: true }))).toBe("putOutTorch");
+    expect(torchKeyAction(player("Maya", { carryingTorch: true, torchLit: false }))).toBe("lightTorch");
+    const snuffed = player("Maya", { carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+    expect(torchKeyAction(snuffed)).toBe("putOutTorch");
+    expect(torchStatusLabel(snuffed)).toBe("out, relights in 5s (torch key keeps it out)");
   });
 
   it("disables every slot when outside a session or downed", () => {

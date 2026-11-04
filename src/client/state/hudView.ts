@@ -504,7 +504,19 @@ export function newServerAction(view: SessionView, lastShown: string | null): st
  */
 export function torchStatusLabel(self: PlayerState | null): string {
   if (!self?.carryingTorch) return "none";
-  return self.torchLit ? "carried" : "out";
+  if (self.torchLit) return "carried";
+  if (self.torchSnuffedForMs !== undefined) {
+    return `out, relights in ${Math.ceil(self.torchSnuffedForMs / 1000)}s (torch key keeps it out)`;
+  }
+  return "out";
+}
+
+/**
+ * What the torch key sends: `putOutTorch` while the torch burns or a Snuffer Vent's wait is running
+ * (there it cancels the relight), `lightTorch` otherwise. The server still decides.
+ */
+export function torchKeyAction(self: PlayerState): "putOutTorch" | "lightTorch" {
+  return self.torchLit || self.torchSnuffedForMs !== undefined ? "putOutTorch" : "lightTorch";
 }
 
 export interface TorchSlotView {

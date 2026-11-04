@@ -1010,6 +1010,13 @@ export const playerStateSchema = z.object({
    * data: present only on the receiving player's own entry, absent from every teammate's.
    */
   bankedItems: z.array(inventoryItemSchema).optional(),
+  /**
+   * Milliseconds left on a Snuffer Vent's wait, while it holds this player's torch out and will
+   * relight it. Owner data like `bankedItems`: present only on the receiving player's own entry,
+   * absent from every teammate's and whenever no wait is running. While it is present the torch key
+   * sends `putOutTorch`, which keeps the torch out past the wait.
+   */
+  torchSnuffedForMs: z.number().min(0).optional(),
 });
 export type PlayerState = z.infer<typeof playerStateSchema>;
 

@@ -832,11 +832,20 @@ export function toPlayerState(player: SessionPlayer, session?: Session): PlayerS
 
 /** The player's own entry, the only one that carries their bank. Never broadcast. */
 export function toOwnerPlayerState(player: SessionPlayer, session?: Session): PlayerState {
-  return withOwnBank(toPlayerState(player, session), player);
+  return withOwnState(toPlayerState(player, session), player, session);
 }
 
-export function withOwnBank(state: PlayerState, player: SessionPlayer): PlayerState {
-  return { ...state, bankedItems: player.profile.bankedItems.map((item) => ({ ...item })) };
+/**
+ * Adds what only the player's own client receives: their bank, and the time left on a Snuffer Vent's
+ * wait while it holds their torch out (`torchSnuffedForMs`, absent otherwise).
+ */
+export function withOwnState(state: PlayerState, player: SessionPlayer, session?: Session): PlayerState {
+  const own: PlayerState = { ...state, bankedItems: player.profile.bankedItems.map((item) => ({ ...item })) };
+  const until = session?.snuffedTorchUntil.get(player.id);
+  if (session && until !== undefined) {
+    own.torchSnuffedForMs = Math.max(0, until - (session.simulatedAt ?? until));
+  }
+  return own;
 }
 
 /**
