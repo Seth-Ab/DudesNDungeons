@@ -6,6 +6,7 @@ import type { EntityId, MonsterState, ProjectileState } from "../../shared/types
 import type { MonsterType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { standUp } from "./seats.js";
 import { recordDummyHit } from "./dummies.js";
 import { damageMonster } from "./monsterDamage.js";
 import { contentForSession } from "./progression.js";
@@ -49,6 +50,8 @@ function hitPlayer(
   // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
   const dealt = damagePlayer(player, damage, contentForSession(session));
   markCombat(player, now);
+  // A player who goes down comes off their seat, so the seat is free and they lie on the floor.
+  if (isDown(player)) standUp(session, player);
   return {
     type: "attackResolved",
     attackerId,
