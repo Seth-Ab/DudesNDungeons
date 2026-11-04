@@ -24,6 +24,8 @@ const biome = content.biomes.get("cinder-depths")!;
 const flows = [...content.flows.values()];
 const costOf = new Map(biome.roster.map((entry) => [entry.typeId, entry.cost]));
 
+type RunBiome = typeof biome;
+
 interface Run {
   graph: LayoutGraph;
   plan: RoleAssignment;
@@ -31,18 +33,27 @@ interface Run {
   populated: Populated;
 }
 
-function roll(seed: number, flow: (typeof flows)[number], partySize: number): Run | null {
+function roll(
+  seed: number,
+  flow: (typeof flows)[number],
+  partySize: number,
+  doorVoteTypeId: string | null = null,
+  runBiome: RunBiome = biome,
+): Run | null {
   const rng = createRng(seed);
-  const graph = generateLayout(rng, flow, GRID);
+  const drawn = doorVoteTypeId
+    ? { ...flow, branches: { min: Math.max(3, flow.branches.min), max: Math.max(3, flow.branches.max) } }
+    : flow;
+  const graph = generateLayout(rng, drawn, GRID, { junction: doorVoteTypeId !== null });
   if (!graph) return null;
-  const plan = assignRoles(rng, graph, flow, biome);
+  const plan = assignRoles(rng, graph, flow, runBiome, false, undefined, doorVoteTypeId);
   if (!plan) return null;
   const rooms = graph.nodes.map(() =>
     generateRoomShape(rng.pick(ROOM_SHAPE_IDS), rng.pick(SIZES), rng.pick(SIZES), rng).tiles,
   );
   const world = carveDungeon(createRng(mixSeed(seed, 5)), graph, rooms, CELL);
   if (!world) return null;
-  const populated = populateDungeon(createRng(mixSeed(seed, 6)), { graph, plan, world, biome, content, partySize });
+  const populated = populateDungeon(createRng(mixSeed(seed, 6)), { graph, plan, world, biome: runBiome, content, partySize });
   return { graph, plan, world, populated };
 }
 
@@ -198,6 +209,31 @@ describe("populateDungeon", () => {
         expect(roomAt(run, keys[0]!.position)).toBe(holder);
       }
     }
+  });
+
+  const idolBiome = { ...biome, puzzles: ["idol-carry"] };
+
+  it("keeps the idol out of every room a Door Vote's doorways lead into", () => {
+    let both = 0;
+    for (const flow of flows) {
+      for (let seed = 0; seed < SEEDS; seed += 1) {
+        const run = roll(seed, flow, 4, "door-vote", idolBiome);
+        const vote = run?.plan.doorVote;
+        const altar = run?.plan.puzzles.find((spec) => content.puzzles.get(spec.typeId)?.heldBy === "idol");
+        if (!run || !vote || !altar) continue;
+        both += 1;
+        // Everything reached from a voted doorway without passing back through the junction.
+        const branch = new Set(vote.doors.map((door) => door.toNodeId));
+        for (const id of branch) {
+          for (const edge of run.graph.edges) {
+            const next = edge.a === id ? edge.b : edge.b === id ? edge.a : -1;
+            if (next >= 0 && next !== vote.nodeId) branch.add(next);
+          }
+        }
+        expect(branch.has(idolRoom(run.graph, run.plan, altar.nodeId)), `${flow.id} seed ${seed}`).toBe(false);
+      }
+    }
+    expect(both).toBeGreaterThan(0);
   });
 
   it("gives every planned puzzle its plates in its room and a monster to a guarded key room", () => {

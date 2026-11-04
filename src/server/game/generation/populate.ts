@@ -208,7 +208,7 @@ const NO_IDOL_KINDS: readonly RoomKind[] = ["entrance", "boss", "exit", "vault"]
 
 /**
  * The room an Idol Carry's idol lies in: the farthest by hops from the altar's room that is open to
- * the party before the boss, ties to the lower id. A layout with no such room falls back to the
+ * the party before the boss and outside a Door Vote's branches, ties to the lower id. A layout with no such room falls back to the
  * entrance; validation still has to find the idol in reach.
  */
 export function idolRoom(graph: LayoutGraph, plan: RoleAssignment, altarNodeId: number): number {
@@ -224,8 +224,28 @@ export function idolRoom(graph: LayoutGraph, plan: RoleAssignment, altarNodeId: 
       queue.push(next);
     }
   }
+  // A voted door stays sealed for one choice, so nothing a run needs lies beyond it.
+  const voted = new Set<number>();
+  if (plan.doorVote) {
+    const junction = plan.doorVote.nodeId;
+    const branch = plan.doorVote.doors.map((door) => door.toNodeId);
+    for (const id of branch) voted.add(id);
+    for (let head = 0; head < branch.length; head += 1) {
+      for (const edge of graph.edges) {
+        const id = branch[head]!;
+        const next = edge.a === id ? edge.b : edge.b === id ? edge.a : -1;
+        if (next < 0 || next === junction || voted.has(next)) continue;
+        voted.add(next);
+        branch.push(next);
+      }
+    }
+  }
   const candidates = graph.nodes.filter(
-    (node) => node.id !== altarNodeId && hops[node.id] !== Infinity && !NO_IDOL_KINDS.includes(plan.roles[node.id]!),
+    (node) =>
+      node.id !== altarNodeId &&
+      hops[node.id] !== Infinity &&
+      !voted.has(node.id) &&
+      !NO_IDOL_KINDS.includes(plan.roles[node.id]!),
   );
   return candidates.sort((a, b) => hops[b.id]! - hops[a.id]! || a.id - b.id)[0]?.id ?? 0;
 }
