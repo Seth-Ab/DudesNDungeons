@@ -872,11 +872,9 @@ export function actionPrompt(
   if (idol && target?.kind === "idolAltar") return prompt("interact", `Set the ${idol.name} on the altar`);
 
   // An unlit torch is worth a word only when a flame is close enough to light it from. A snuffed
-  // torch relights on its own, and the torch key then keeps it out, so the prompt says that instead.
-  if (self.carryingTorch && !self.torchLit && flameNearby(view, self, position)) {
-    return self.torchSnuffedForMs !== undefined
-      ? prompt("torch", "Torch relights soon (keep it out)")
-      : prompt("torch", "Light your torch");
+  // torch relights on its own, so it is never offered a light; its hint comes last, below.
+  if (self.carryingTorch && !self.torchLit && self.torchSnuffedForMs === undefined && flameNearby(view, self, position)) {
+    return prompt("torch", "Light your torch");
   }
 
   const loot = nearestLoot(view, position);
@@ -908,6 +906,12 @@ export function actionPrompt(
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;
   if (held && ally) return prompt("give", `Give ${held.name} to ${ally.name}`);
+
+  // The torch key keeps a snuffed torch out, wherever the player stands; this hint never hides
+  // anything that has something to do.
+  if (self.carryingTorch && !self.torchLit && self.torchSnuffedForMs !== undefined) {
+    return prompt("torch", "Torch relights soon (keep it out)");
+  }
 
   return null;
 }

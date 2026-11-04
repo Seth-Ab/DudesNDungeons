@@ -571,9 +571,35 @@ describe("rebound keys", () => {
       expect(text).not.toContain("Light your torch");
     });
 
-    it("shows nothing for a snuffed torch with no flame in reach", () => {
+    it("still hints that a snuffed torch relights when no flame is in reach", () => {
       const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
-      expect(actionPrompt(flameView(snuffed, false), snuffed, origin)).toBeNull();
+      expect(actionPrompt(flameView(snuffed, false), snuffed, origin)).toMatchObject({
+        action: "torch",
+        text: "Torch relights soon (keep it out)",
+      });
+    });
+
+    it("lets loot or a door beside a snuffed player win over the hint, even by a flame", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      const lights = [{ kind: "fixed", position: { x: 0.5, y: 0 } }];
+      const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, lock: null };
+      const lootView = view({
+        ...inSession,
+        players: [snuffed],
+        dungeon: dungeon({ loot: [loot("Tonic", 0.5)], lightSources: lights } as unknown as Partial<DungeonState>),
+      });
+      expect(actionPrompt(lootView, snuffed, origin)).toMatchObject({ action: "pickup" });
+      const doorView = view({
+        ...inSession,
+        players: [snuffed],
+        dungeon: dungeon({ doors: [door], lightSources: lights } as unknown as Partial<DungeonState>),
+      });
+      expect(actionPrompt(doorView, snuffed, origin)).toMatchObject({ action: "interact" });
+    });
+
+    it("shows nothing for an unlit torch with no flame in reach", () => {
+      const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+      expect(actionPrompt(flameView(dark, false), dark, origin)).toBeNull();
     });
   });
 
