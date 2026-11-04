@@ -449,7 +449,10 @@ describe("joining a dungeon", () => {
     const start = joined.players[0]?.position.y ?? 0;
 
     // Held still, so the whole burst is judged at one instant however slowly the server reaches it.
-    frozenNow = performance.now();
+    // A whole number of ms, because the server books `due + MOVE_INTERVAL_MS` and allows a move that
+    // far ahead: on a fractional reading, `(now + interval) - interval` can round above `now` and
+    // refuse the second move of the burst.
+    frozenNow = 1_000_000;
     const burst = 10;
     for (let sequence = 1; sequence <= burst; sequence += 1) {
       client.send({ type: "playerMoveIntent", sequence, direction: { x: 0, y: 1 } });
