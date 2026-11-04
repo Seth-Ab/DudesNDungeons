@@ -1,6 +1,6 @@
 import { INTERACT_RANGE } from "../../shared/constants/game.js";
 import { SEAT_FACING_VECTORS } from "../../shared/constants/scenery.js";
-import { distance, isFloor, isOpen, tileOf } from "../../shared/game/movement.js";
+import { carriesIdol, distance, isFloor, isOpen, tileOf } from "../../shared/game/movement.js";
 import type { RejectionReason } from "../../shared/protocol/index.js";
 import type { EntityId, MapSeat, Vector2 } from "../../shared/types/core.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
@@ -59,13 +59,14 @@ export function standPointFor(session: Session, seat: MapSeat): Vector2 {
 
 /**
  * Sits a player on a seat. They must be standing in the world (designed, not downed, not carrying
- * or being carried, not already seated), within reach of it, and nobody else may be on it.
+ * or being carried, not carrying an idol, not already seated), within reach of it, and nobody else may be on it.
  */
 export function sitOn(session: Session, player: SessionPlayer, seat: MapSeat): SeatResult {
   if (!isSpawned(player) || isDown(player)) return { ok: false, reason: "notPermitted" };
   if (player.carryingPlayerId !== null || player.carriedByPlayerId !== null) {
     return { ok: false, reason: "notPermitted" };
   }
+  if (carriesIdol(player)) return { ok: false, reason: "notPermitted" };
   if (player.seatId !== null) return { ok: false, reason: "notPermitted" };
   if (distance(player.position, seat) > INTERACT_RANGE) return { ok: false, reason: "outOfRange" };
   if (seatTaken(session, seat)) return { ok: false, reason: "blocked" };
