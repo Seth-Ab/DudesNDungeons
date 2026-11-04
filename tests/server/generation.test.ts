@@ -304,7 +304,6 @@ describe("the delve generator", () => {
         }) / runs;
       ratios.push(perRunMs / referenceMs);
     }
-    
     expect(Math.min(...ratios)).toBeLessThan(RATIO_LIMIT);
   });
 
