@@ -292,6 +292,7 @@ export type SetNameResult =
   | { ok: false; code: ErrorCode; message: string };
 
 export interface SessionStoreOptions {
+  /** Monotonic clock in ms. Defaults to `performance.now()`, the game server's default, so a restored run's timers share its clock. */
   now?: () => number;
   createPlayerId?: () => PlayerId;
   createSessionId?: () => SessionId;
@@ -346,7 +347,7 @@ export class SessionStore {
   readonly #dungeon: DungeonRequest;
 
   constructor(options: SessionStoreOptions = {}) {
-    this.#now = options.now ?? Date.now;
+    this.#now = options.now ?? (() => performance.now());
     this.#createPlayerId = options.createPlayerId ?? randomUUID;
     this.#createSessionId = options.createSessionId ?? randomUUID;
     this.#createResumeToken = options.createResumeToken ?? (() => randomBytes(16).toString("hex"));
