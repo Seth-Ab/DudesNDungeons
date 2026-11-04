@@ -67,6 +67,19 @@ const FILL_KINDS: readonly RoomKind[] = [
   "arena",
   "camp",
 ];
+/** Kinds every delve can place whatever the biome weights: the path ends, plus the optional vault and shrine. */
+const FIXED_KINDS: readonly RoomKind[] = ["entrance", "exit", "boss", "vault", "shrine"];
+
+/** Every room kind the generator can give a room in this biome, so each needs a name. */
+export function placeableKinds(biome: Pick<BiomeDefinition, "roomWeights" | "puzzles">): RoomKind[] {
+  const fill = Object.keys(biome.roomWeights).filter(
+    (kind) => FILL_KINDS.includes(kind as RoomKind) && (kind !== "puzzle" || biome.puzzles.length > 0),
+  );
+  // A puzzle key holder is placed whenever the biome has puzzles, whatever the weights say.
+  const keyHolder: RoomKind[] = biome.puzzles.length > 0 ? ["puzzle"] : [];
+  return [...new Set([...FIXED_KINDS, ...keyHolder, ...(fill as RoomKind[])])];
+}
+
 /** Kinds with no threat budget: a party rests or prays there, so no guard or key holder is put in one. */
 const CALM_KINDS: readonly RoomKind[] = ["camp", "shrine"];
 /** Kinds an elite may roam: open enough to chase it through. */

@@ -28,6 +28,11 @@ describe("the delve generator seed sweep", { timeout: SWEEP_TIMEOUT_MS }, () => 
       const built = generateDungeon(delveProfile, content, seed, partySize);
       expect(validateDungeon(built, content, partySize), `seed ${seed}`).toEqual([]);
       expect(built.dungeon.rooms.filter((room) => room.kind === "boss")).toHaveLength(1);
+      // Every room carries a name from its biome, never the raw kind it falls back to.
+      for (const room of built.dungeon.rooms) {
+        const names = [...content.biomes.values()].flatMap((biome) => biome.names[room.kind] ?? []);
+        expect(names, `seed ${seed} ${room.kind}`).toContain(room.name);
+      }
       // The party arrives inside the entrance's light, not in the dark beside it. Radii are world
       // units and positions authored tiles, which `TILE_SCALE` world units span.
       const spawn = built.spawnPoints[0]!;

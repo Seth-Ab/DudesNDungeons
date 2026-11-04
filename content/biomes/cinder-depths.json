@@ -24,6 +24,8 @@
     "trap": ["Collapsing Span", "Vent Run", "Spike Gallery"],
     "puzzle": ["Hall of Paired Levers", "Furnace Lock", "Brazier Court"],
     "camp": ["Banked Hearth", "Ember Rest"],
+    "boss": ["Warden's Furnace", "Kiln of the Warden", "Crucible Throne"],
+    "shrine": ["Shrine of the Kiln", "Ember Altar Nook"],
     "vault": ["Slag Vault", "Cinder Strongroom"]
   }
 }
