@@ -8,7 +8,8 @@ import { isDown } from "../../src/server/game/dungeonState.js";
 import { liftPlayer } from "../../src/server/game/carrying.js";
 import { resolvePlayerAttack, simulate } from "../../src/server/game/combat.js";
 import { HUB_DUNGEON_ID, monsterStatsFor, movePlayer } from "../../src/server/game/dungeonState.js";
-import { interact } from "../../src/server/game/items.js";
+import { IDOL_ITEM_ID, lootInstance } from "../../src/server/game/dungeonBuilder.js";
+import { interact, pickupItem } from "../../src/server/game/items.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import { standPointFor } from "../../src/server/game/seats.js";
 import { takeMapDiscovery } from "../../src/server/game/visibility.js";
@@ -21,6 +22,7 @@ import { ASH_IMP_ID, at, joinRequest, monster, testPlayer, testSession } from ".
 const WEST_BENCH_LEFT = "14f4b265-75ae-41f0-81ba-f62410dcc5b3";
 const NORTH_RIM = "32924e4e-473a-4c26-b13a-4f8ba4376dfb";
 const WEST_RIM = "556c3c11-fb36-4f2f-b4e3-9a2aec59a6e6";
+const IDOL_LOOT = "abababab-abab-4bab-8bab-abababababab";
 const LOOT_TORCH = "a1111111-1111-4111-8111-111111111111";
 
 function hubSession(names = ["sitter", "friend"]) {
@@ -149,6 +151,34 @@ describe("sitting down", () => {
       });
       expect(sitter.seatId, label).toBeNull();
     }
+  });
+
+  it("refuses a player carrying the Heavy Idol, but seats one without it", () => {
+    const { session, players } = hubSession();
+    const sitter = players[0]!;
+    const idol = gameContent().items.get(IDOL_ITEM_ID)!;
+    standBefore(session, sitter, WEST_BENCH_LEFT);
+    session.dungeon.loot = [lootInstance(idol, { ...sitter.position }, IDOL_LOOT)];
+    expect(pickupItem(session, sitter.id, IDOL_LOOT)).toEqual({ ok: true });
+
+    expect(interact(session, sitter.id, WEST_BENCH_LEFT)).toEqual({ ok: false, reason: "notPermitted" });
+    expect(sitter.seatId).toBeNull();
+
+    sitter.inventory = [];
+    expect(interact(session, sitter.id, WEST_BENCH_LEFT)).toEqual({ ok: true });
+    expect(sitter.seatId).toBe(WEST_BENCH_LEFT);
+  });
+
+  it("stands a seated player up when they pick up an idol", () => {
+    const { session, players } = hubSession();
+    const sitter = players[0]!;
+    sitDown(session, sitter);
+    const idol = gameContent().items.get(IDOL_ITEM_ID)!;
+    session.dungeon.loot = [lootInstance(idol, { ...sitter.position }, IDOL_LOOT)];
+
+    expect(pickupItem(session, sitter.id, IDOL_LOOT)).toEqual({ ok: true });
+    expect(sitter.seatId).toBeNull();
+    expect(sitter.inventory.map((item) => item.kind)).toContain("idol");
   });
 
   it("refuses a second seat while already sitting", () => {

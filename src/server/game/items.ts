@@ -32,7 +32,7 @@ import { dropItemNear, spillLootTable } from "./monsterLoot.js";
 import { contentForSession, convertScrollSkill, learnSkill, progressionEffectTotal } from "./progression.js";
 import { returnToHub, startRun } from "./runLifecycle.js";
 import { noteTorchLit } from "./darkBargain.js";
-import { seatById, sitOn } from "./seats.js";
+import { seatById, sitOn, standUp } from "./seats.js";
 import { lightSwitch } from "./switches.js";
 import { turnTwinLock } from "./twinLocks.js";
 import { inVaultArea, storeInVault } from "./vault.js";
@@ -223,6 +223,8 @@ export function pickupItem(session: Session, playerId: PlayerId, itemId: EntityI
 
   loot.pickedUp = true;
   receive(player, item, destination);
+  // Two hands full of idol leave none for a bench: a seated player stands first, as when lifting a body.
+  if (loot.kind === "idol") standUp(session, player);
   return OK;
 }
 

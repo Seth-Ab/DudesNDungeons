@@ -174,7 +174,7 @@ export function nearestInteraction(
           gap: distance(position, plate.position),
         })),
       ),
-    ...(sitting ? [] : (view.dungeon.map.seats ?? []))
+    ...(sitting || bringingIdol || self?.carryingPlayerId ? [] : (view.dungeon.map.seats ?? []))
       .filter((seat) => !taken.has(seat.id))
       .map((seat) => ({
         id: seat.id,

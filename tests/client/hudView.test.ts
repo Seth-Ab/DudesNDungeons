@@ -1162,6 +1162,15 @@ describe("seat prompt", () => {
     const seated = player("Maya", { id: SELF_ID, seatId: "14f4b265-75ae-41f0-81ba-f62410dcc5b3" });
     expect(actionPrompt(withSeat([seated]), seated, origin)).toBeNull();
   });
+
+  it("offers no seat to a player carrying the Heavy Idol or a body", () => {
+    const idol = { id: "i", name: "Heavy Idol", kind: "idol" } as unknown as PlayerState["inventory"][number];
+    const bearer = player("Maya", { id: SELF_ID, inventory: [idol] });
+    expect(actionPrompt(withSeat([bearer]), bearer, origin)).not.toMatchObject({ action: "interact", text: "Sit" });
+
+    const lifter = player("Maya", { id: SELF_ID, carryingPlayerId: "friend" });
+    expect(actionPrompt(withSeat([lifter]), lifter, origin)).not.toMatchObject({ action: "interact", text: "Sit" });
+  });
 });
 
 describe("party vault", () => {
