@@ -10,6 +10,8 @@ import { coversTile, isFloor, tileOf } from "../../src/shared/game/movement.js";
 import type { DungeonState, Vector2 } from "../../src/shared/types/core.js";
 
 const content = loadContent();
+/** A run costs about 0.02 of the reference workload; this leaves room for timer noise, and a generator 2x slower reaches 0.04. */
+const RATIO_LIMIT = 0.035;
 
 function generate(seed: number) {
   return buildDungeon({ dungeonId: DEFAULT_DUNGEON_ID, seed, content });
@@ -257,24 +259,53 @@ describe("the delve generator", () => {
     expect(layouts.size).toBeGreaterThan(45);
   });
 
-  // About 2.4 ms alone, 2.2 without a Door Vote, which walks a run once for each door it could pick.
-  // It counts this process's CPU time rather than the clock, and takes the fastest of several
-  // batches: load from other processes (cache, SMT, GC pauses) only ever adds to a batch, so the
-  // minimum tracks the code's own cost, while a materially slower generator is slow in every batch.
-  it("builds a run in well under 5 ms on average", () => {
-    for (let seed = 0; seed < 20; seed += 1) generateDungeon(delveProfile, content, seed, 4);
-    const batches = 5;
-    const runs = 60;
-    const perRunMs: number[] = [];
-    for (let batch = 0; batch < batches; batch += 1) {
+  // A run costs about 2.4 ms alone on a dev machine and about twice that on a CI runner, so a fixed
+  // millisecond limit either passes a generator twice as slow locally or fails a healthy one on CI.
+  // Instead each batch of runs is timed next to a fixed reference workload in this same process, and
+  // the budget is a multiple of that reference: both slow down together on a slow runner, but only
+  // the generator slows down when its own code gets worse. Both count this process's CPU time rather
+  // than the clock, and take the fastest of several batches: load from other processes (cache, SMT,
+  // GC pauses) only ever adds to a batch, so the minimum tracks the code's own cost.
+  it("builds a run within its budget relative to a reference workload", () => {
+    const cpuMs = (work: () => void): number => {
       const startedAt = process.cpuUsage();
-      for (let seed = 0; seed < runs; seed += 1) {
-        generateDungeon(delveProfile, content, batch * runs + seed, 1 + (seed % 4));
-      }
+      work();
       const spent = process.cpuUsage(startedAt);
-      perRunMs.push((spent.user + spent.system) / 1000 / runs);
+      return (spent.user + spent.system) / 1000;
+    };
+    // Allocation, array and arithmetic work of the same flavour as generation, with a fixed cost.
+    const reference = (): number => {
+      let state = 12345;
+      let total = 0;
+      for (let round = 0; round < 160; round += 1) {
+        const cells: number[][] = [];
+        for (let index = 0; index < 5000; index += 1) {
+          state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+          cells.push([state % 97, index]);
+        }
+        cells.sort((left, right) => left[0]! - right[0]! || left[1]! - right[1]!);
+        total += cells[round]![0]!;
+      }
+      return total;
+    };
+
+    for (let seed = 0; seed < 20; seed += 1) generateDungeon(delveProfile, content, seed, 4);
+    reference();
+    const batches = 5;
+    const runs = 100;
+    const ratios: number[] = [];
+    for (let batch = 0; batch < batches; batch += 1) {
+      const referenceMs = cpuMs(reference);
+      const perRunMs =
+        cpuMs(() => {
+          for (let seed = 0; seed < runs; seed += 1) {
+            generateDungeon(delveProfile, content, batch * runs + seed, 1 + (seed % 4));
+          }
+        }) / runs;
+      ratios.push(perRunMs / referenceMs);
     }
-    expect(Math.min(...perRunMs)).toBeLessThan(5);
+    
+    expect(Math.min(...ratios)).toBeLessThan(RATIO_LIMIT);
   });
 
   it("retries a failed attempt from a new stream, and throws naming the seed when none works", () => {
