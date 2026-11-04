@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { MOVE_INTERVAL_MS, isFloor, tileOf } from "../../src/shared/game/movement.js";
+import { gameContent } from "../../src/server/content/loadContent.js";
+import { trapInstance } from "../../src/server/game/dungeonBuilder.js";
+import { resolveTraps } from "../../src/server/game/traps.js";
+import { isDown } from "../../src/server/game/dungeonState.js";
 import { liftPlayer } from "../../src/server/game/carrying.js";
-import { resolvePlayerAttack } from "../../src/server/game/combat.js";
-import { HUB_DUNGEON_ID, movePlayer } from "../../src/server/game/dungeonState.js";
+import { resolvePlayerAttack, simulate } from "../../src/server/game/combat.js";
+import { HUB_DUNGEON_ID, monsterStatsFor, movePlayer } from "../../src/server/game/dungeonState.js";
 import { interact } from "../../src/server/game/items.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import { standPointFor } from "../../src/server/game/seats.js";
@@ -11,7 +15,7 @@ import { takeMapDiscovery } from "../../src/server/game/visibility.js";
 import { SessionStore, toPlayerState, type Session } from "../../src/server/sessions/sessionStore.js";
 import { SEAT_FACING_VECTORS } from "../../src/shared/constants/scenery.js";
 import type { MapSeat } from "../../src/shared/types/core.js";
-import { joinRequest, testPlayer, testSession } from "./fixtures.js";
+import { ASH_IMP_ID, at, joinRequest, monster, testPlayer, testSession } from "./fixtures.js";
 
 /** Seats pinned in `content/dungeons/hub.json`. */
 const WEST_BENCH_LEFT = "14f4b265-75ae-41f0-81ba-f62410dcc5b3";
@@ -290,5 +294,89 @@ describe("seats across a disconnect", () => {
     expect(resumed.player.seatId).toBeNull();
     expect(isFloor(session.dungeon, resumed.player.position)).toBe(true);
     expect(tileOf(resumed.player.position)).toEqual(tileOf(player.position));
+  });
+});
+
+describe("going down on a seat", () => {
+  function spikeAt(position: { x: number; y: number }) {
+    return trapInstance(gameContent().traps.get("spike-plate")!, position, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  }
+
+  /** A dungeon session with one seat on open floor, by default at tile (6, 3), facing south, and its sitter on it. */
+  function seatedInDungeon(where = at(6, 3)) {
+    const sitter = testPlayer("sitter", { resistance: 0 });
+    const session = testSession([sitter]);
+    const placed: MapSeat = { id: "cc111111-1111-4111-8111-111111111111", ...where, facing: "south" };
+    session.dungeon.map.seats = [placed];
+    sitter.seatId = placed.id;
+    sitter.position = { x: placed.x, y: placed.y };
+    return { session, sitter, placed };
+  }
+
+  it("stands a sitter downed by a monster up onto the floor and frees the seat", () => {
+    // Just west of the Ash Imp, inside its reach.
+    const { session, sitter, placed } = seatedInDungeon(at(11, 2, -0.9));
+    const imp = monster(session, ASH_IMP_ID);
+    sitter.health = 1;
+
+    simulate(session, 0);
+    const events = simulate(session, monsterStatsFor(imp).windupMs);
+
+    expect(events).toMatchObject([{ targetId: sitter.id, targetDefeated: true }]);
+    expect(isDown(sitter)).toBe(true);
+    expect(sitter.seatId).toBeNull();
+    expect(sitter.position).toEqual(standPointFor(session, placed));
+  });
+
+  it("stands a sitter downed by a trap up, and a teammate can then take the seat", () => {
+    const { session, sitter, placed } = seatedInDungeon();
+    const friend = testPlayer("friend");
+    session.players.set(friend.id, friend);
+    session.dungeon.monsters = [];
+    session.dungeon.traps = [spikeAt(placed)];
+    sitter.health = 1;
+    friend.position = standPointFor(session, placed);
+    friend.position = { x: friend.position.x + 1.5, y: friend.position.y };
+
+    resolveTraps(session, 1_000);
+
+    expect(isDown(sitter)).toBe(true);
+    expect(sitter.seatId).toBeNull();
+    expect(sitter.position).toEqual(standPointFor(session, placed));
+    friend.position = { x: placed.x, y: placed.y + 0.5 };
+    expect(interact(session, friend.id, placed.id)).toEqual({ ok: true });
+    expect(friend.seatId).toBe(placed.id);
+  });
+
+  it("leaves a sitter revived afterwards standing, off the seat", () => {
+    const { session, sitter, placed } = seatedInDungeon();
+    session.dungeon.monsters = [];
+    session.dungeon.traps = [spikeAt(placed)];
+    sitter.health = 1;
+
+    resolveTraps(session, 1_000);
+    expect(isDown(sitter)).toBe(true);
+    sitter.health = 30;
+
+    expect(isDown(sitter)).toBe(false);
+    expect(sitter.seatId).toBeNull();
+    expect(sitter.position).toEqual(standPointFor(session, placed));
+  });
+
+  it("lays a player downed on a solid hub seat on the floor, not in the bench", () => {
+    const { session, players } = hubSession();
+    const sitter = players[0]!;
+    sitter.resistance = 0;
+    sitDown(session, sitter);
+    // Nothing arms traps in the hub, so run the dungeon rules over the hub map.
+    session.location = "dungeon";
+    session.dungeon.traps = [spikeAt(sitter.position)];
+    sitter.health = 1;
+
+    resolveTraps(session, 1_000);
+
+    expect(isDown(sitter)).toBe(true);
+    expect(sitter.seatId).toBeNull();
+    expectStoodInFront(session, sitter.position, WEST_BENCH_LEFT);
   });
 });

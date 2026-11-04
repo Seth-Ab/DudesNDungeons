@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { advanceCamps } from "../../src/server/game/camps.js";
+import { gameContent } from "../../src/server/content/loadContent.js";
+import { trapInstance } from "../../src/server/game/dungeonBuilder.js";
+import { resolveTraps } from "../../src/server/game/traps.js";
 import { simulate } from "../../src/server/game/combat.js";
 import { buildDungeon } from "../../src/server/game/dungeonState.js";
 import { interact } from "../../src/server/game/items.js";
@@ -195,6 +198,30 @@ describe("Campfire Rest", () => {
     expect(players[0]!.resistance).toBe(players[0]!.resistance);
     expect(session.campsRested.size).toBe(1);
     expect(players[2]!.resistance).toBe(downedBefore);
+  });
+
+  it("frees the seat of a player a monster downs, so the standing party can still rest", () => {
+    const names = ["alpha", "bravo", "charlie", "delta"];
+    const { session, players, campId } = campRun(names);
+    const seats = campSeats(session, campId);
+    session.dungeon.monsters = [];
+    session.dungeon.traps = [
+      trapInstance(gameContent().traps.get("spike-plate")!, seats[0]!, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    ];
+    sit(session, players[0]!, seats[0]!.id);
+    players[0]!.health = 1;
+
+    resolveTraps(session, 1000);
+    expect(players[0]!.seatId).toBeNull();
+    seatAll(session, players.slice(1), campId);
+    const before = players.slice(1).map((player) => player.resistance);
+
+    advanceCamps(session, 1000);
+    advanceCamps(session, 1000 + CAMP_REST_SEATED_MS);
+
+    expect(players.slice(1).map((player) => player.resistance)).toEqual(
+      before.map((value) => value + CAMP_REST_RESISTANCE),
+    );
   });
 
   it("does nothing while every player is down, rather than resting no one", () => {

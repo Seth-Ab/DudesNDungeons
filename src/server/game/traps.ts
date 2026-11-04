@@ -4,6 +4,7 @@ import type { GameContent } from "../content/loadContent.js";
 import type { TrapType } from "../content/schema.js";
 import type { Session, SessionPlayer } from "../sessions/sessionStore.js";
 import { isDown } from "./dungeonState.js";
+import { standUp } from "./seats.js";
 import { contentForSession } from "./progression.js";
 import { noteTorchLit } from "./darkBargain.js";
 import { damagePlayer, loseStamina, markCombat, reduceResistance } from "./vitals.js";
@@ -35,8 +36,16 @@ function victimsOf(session: Session, trap: TrapState): SessionPlayer[] {
   );
 }
 
-function applyEffects(player: SessionPlayer, type: TrapType, content: GameContent, now: number): void {
+function applyEffects(
+  session: Session,
+  player: SessionPlayer,
+  type: TrapType,
+  content: GameContent,
+  now: number,
+): void {
   if (damagePlayer(player, type.damage, content) > 0) markCombat(player, now);
+  // A player who goes down comes off their seat, so the seat is free and they lie on the floor.
+  if (isDown(player)) standUp(session, player);
   reduceResistance(player, type.resistanceLoss);
   loseStamina(player, type.staminaDrain);
 }
@@ -120,7 +129,7 @@ export function resolveTraps(session: Session, now: number): TrapState[] {
     if (victims.length === 0) continue;
 
     const type = trapTypeFor(trap, content);
-    for (const victim of victims) applyEffects(victim, type, content, now);
+    for (const victim of victims) applyEffects(session, victim, type, content, now);
     if (type.effect === "snuffTorch") snuff(session, trap, type, now);
 
     if (type.rearmMs === undefined) {

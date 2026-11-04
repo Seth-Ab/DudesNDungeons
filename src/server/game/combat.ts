@@ -364,6 +364,8 @@ function resolveWindup(
     // Resistance is applied inside damagePlayer, which is the only thing that lowers player health.
     const dealt = damagePlayer(player, stats.damage, content);
     markCombat(player, now);
+    // A player who goes down comes off their seat, so the seat is free and they lie on the floor.
+    if (isDown(player)) standUp(session, player);
     events.push({
       type: "attackResolved",
       attackerId: monster.id,
