@@ -75,7 +75,9 @@ export function placeableKinds(biome: Pick<BiomeDefinition, "roomWeights" | "puz
   const fill = Object.keys(biome.roomWeights).filter(
     (kind) => FILL_KINDS.includes(kind as RoomKind) && (kind !== "puzzle" || biome.puzzles.length > 0),
   );
-  return [...new Set([...FIXED_KINDS, ...(fill as RoomKind[])])];
+  // A puzzle key holder is placed whenever the biome has puzzles, whatever the weights say.
+  const keyHolder: RoomKind[] = biome.puzzles.length > 0 ? ["puzzle"] : [];
+  return [...new Set([...FIXED_KINDS, ...keyHolder, ...(fill as RoomKind[])])];
 }
 
 /** Kinds with no threat budget: a party rests or prays there, so no guard or key holder is put in one. */

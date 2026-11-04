@@ -918,6 +918,17 @@ describe("flow and biome content", () => {
     expect(() => loadContent(root)).toThrow(new RegExp(`biome "cinder-depths".*kind "${kind}"|kind "${kind}".*biome "cinder-depths"`));
   });
 
+  it("refuses a biome with puzzles but no puzzle name, even when no weight draws puzzle rooms", () => {
+    const source = biome();
+    expect(source.puzzles.length).toBeGreaterThan(0);
+    const { puzzle: _dropped, ...names } = source.names;
+    const { puzzle: _weight, ...roomWeights } = source.roomWeights;
+    const root = shippedWith({ "biomes/cinder-depths.json": { ...source, names, roomWeights } });
+
+    expect(() => loadContent(root)).toThrow(/biome "cinder-depths".*kind "puzzle"|kind "puzzle".*biome "cinder-depths"/);
+    expect(placeableKinds({ roomWeights: { hall: 1 }, puzzles: source.puzzles })).toContain("puzzle");
+  });
+
   it("only asks for names of weighted kinds the generator can place", () => {
     expect(placeableKinds({ roomWeights: { hall: 1, cavern: 1 }, puzzles: [] }).sort()).toEqual(
       ["boss", "cavern", "entrance", "exit", "hall", "shrine", "vault"],
