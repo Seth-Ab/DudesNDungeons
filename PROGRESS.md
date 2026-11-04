@@ -616,7 +616,8 @@ Taken before steps 10-12, on the demo's evidence that the map was too cramped fo
       `chestBonus`, `corridorTraps`, `shrine`, run-scoped `overrides`); the recipe stage rolls at
       most one warning (35%) and one anomaly (30%) from the run seed after the flow and biome, and
       populate applies them. Brittle Floors uses a new single-use `collapsing-floor` trap. Scroll
-      Cache places a skill scroll in a side room, since shrine rooms wait for Phase 2. The profile's
+      Cache first placed a skill scroll in a side room, since shrine rooms wait for Phase 2; since
+      #258 it guarantees a shrine instead and drops no loose scroll. The profile's
       `omens` chances are optional. Short Fuse and Echoing Halls, the `overrides` consumers, and the
       quest board are the next issue; no protocol change.
 - [x] Add typed key locks (issue #255, 2026-10-24, protocol v50). `DoorState.locked` is replaced by
@@ -1217,20 +1218,21 @@ Order: newest first. Add each change as one new bullet at the top of the list, d
 - 2026-11-03: Cinder Depths names its boss and shrine rooms, and `loadContent` refuses a biome with no name for a room kind the generator can place (#364, no protocol change).
 - 2026-11-03: The session store and game server share one clock by default, so a continued run's restored timers come due (#361, no protocol change).
 - 2026-11-03: A snuffed player keeps their torch out from the torch key; `torchSnuffedForMs` reaches only the snuffed player, protocol v68 (#360).
-- 2026-11-03: Trap effects and the Snuffer Vent put out every held torch in range for 8 s, protocol v67 (#276).
+- 2026-11-03: Trap effects and the Snuffer Vent put out every held torch in range for 8 s, protocol v67 (#276); the Snuffer Vent also hides every flare in reach and pushes its burn-out back by the same wait (`session.snuffedFlareUntil`, saved with the run).
 - 2026-11-03: A player carrying the Heavy Idol cannot sit, and taking one stands a sitter up (#365).
 - 2026-11-03: A downed player stands up off their seat, freeing it (#362).
 - 2026-10-29: Hub quest board and hub status show the next run's omens as plates and icons, a triangle for a warning and a diamond for an anomaly (#269, no protocol change).
 - 2026-10-27: Mimic Chest: a server-only `mimic` flag on a chest, protocol v61 (#279).
 - 2026-10-27: Putting out and relighting a carried torch from another flame, protocol v65 (#348).
 - 2026-10-27: Dark Bargain: shrine candle bargain, 20 s of dark improves the shrine chest one tier and sends a wave; shrines gain a chest; protocol v66 (#280).
+  Owner decisions: shrines gain a chest so the reward has something to improve, shifting seeded layouts; the wave is existing biome-roster monsters (cost 2 or less) scaled by party size, 2 per connected, designed player.
 - 2026-10-27: Door Vote: at a junction the party chooses between sealed branch doorways, each hinting at what lies beyond, by standing on its plates; protocol v63 (#293).
 - 2026-10-27: Switch entities and seal locks: a lit brazier stays lit and a seal door opens when its whole group is lit, protocol v64 (#263).
 - 2026-10-26: Idol Carry: carry a Heavy Idol at half speed, unable to fight and hunted by monsters, to an altar for the boss key; every party size, protocol v60 (#289).
 - 2026-10-26: Twin-lock Chest: two players interact within a second to open it, placed in vaults for parties of two or more, protocol v59 (#292).
 - 2026-10-26: Shrine altars drawn, with a candle fixture, take prompt and cage state, protocol v58 (#259).
 - 2026-10-25: Players rename their character on the design screen with a `setName` intent, protocol v53 (#314).
-- 2026-10-25: Shrine altars: `altarState`, taking one offered scroll cages the rest, far dead-end shrines in the generator, protocol v57 (#258).
+- 2026-10-25: Shrine altars: `altarState`, taking one offered scroll cages the rest, far dead-end shrines in the generator, protocol v57 (#258); Scroll Cache no longer drops a loose scroll since the shrine altar offers one.
 - 2026-10-25: Designing members in the party roster and last-seen rooms in out-of-sight frames, protocol v54 (#315).
 - 2026-10-25: Rebound keys persist in local storage (`dnd.keyBindings`), validated on load; Reset to defaults clears them (#307, no protocol change).
 - 2026-10-25: `npm run typecheck` is green again and runs in the CI unit-test job; the Continue-list spec types its canvas read without the DOM lib (#304, tests and CI only).
@@ -1253,7 +1255,7 @@ Order: newest first. Add each change as one new bullet at the top of the list, d
 - 2026-10-23: Flow and biome content for generator v2: three flows, the Cinder Depths biome and a `delve` layout profile (#245, nothing builds a `delve` run yet).
 - 2026-10-23: Seeded `chance`, `weighted` and `mixSeed` helpers for generator v2 (#244, no protocol change).
 - 2026-10-23: Dungeon generator v2 design decided (decision 0016, #243); the series is Backend 14 in `STEPS.md`, documentation only.
-- 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48).
+- 2026-10-22: Lobby Continue list with character portraits, and per-field fallback for saved appearance ids removed from the shared lists (#135, protocol v48); the session client no longer lets a closed socket's late `close` event clobber a socket opened right after it.
 - 2026-10-22: Save and quit in the camp menu and the lobby's saved-room prompt, with a `savedAndQuit` acknowledgement from the server, a "Run saved" banner in the lobby that stays until the player acts, and a "Saving..." button while Save and quit is pending (#232, protocol v47).
 - 2026-10-21: HUD Torch & Tally Phase 3: a larger hand slot, a torch slot and scroll glow on the hotbar (#168, protocol unchanged).
 - 2026-10-21: Continue a saved run from its room code after a restart: `savedRun` on `joinSession`, `notSaveMember`, `savedRunExists` and `notPermitted` errors, discarding a save, and members returning with their saved look (#235, protocol v46).
