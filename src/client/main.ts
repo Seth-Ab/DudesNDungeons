@@ -55,6 +55,7 @@ import {
   newAttacks,
   swingArc,
 } from "./state/combatFeedback.js";
+import { torchKeyAction } from "./state/hudView.js";
 import { bowAims } from "./state/bowIndicator.js";
 import {
   nearestDownedAlly,
@@ -557,7 +558,7 @@ function performAction(action: GameplayAction): void {
         hud.setActionStatus("No torch to put out or light");
         return;
       }
-      if (self.torchLit) client.putOutTorch();
+      if (torchKeyAction(self) === "putOutTorch") client.putOutTorch();
       else client.lightTorch();
       return;
     }

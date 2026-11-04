@@ -12,6 +12,8 @@ import { contentVersion } from "../../src/server/content/contentVersion.js";
 import { loadContent } from "../../src/server/content/loadContent.js";
 import { createRng } from "../../src/server/game/random.js";
 import { resolveTraps } from "../../src/server/game/traps.js";
+import { putOutTorch } from "../../src/server/game/torches.js";
+import { toOwnerPlayerState } from "../../src/server/sessions/sessionStore.js";
 import { startRun } from "../../src/server/game/runLifecycle.js";
 import { DEFAULT_APPEARANCE } from "../../src/shared/constants/appearance.js";
 import { timeInDungeon } from "../../src/server/game/vitals.js";
@@ -245,6 +247,23 @@ describe("saving and restoring a run", () => {
     expect(session.snuffedTorchUntil.size).toBe(1);
     resolveTraps(session, 1_003_000);
     expect(reloaded.torchLit).toBe(true);
+  });
+
+  it("lets a player keep the torch out after a reload mid-wait", () => {
+    const original = runInProgress();
+    const grix = [...original.players.values()].find((player) => player.name === "Grix")!;
+    grix.carryingTorch = true;
+    grix.torchLit = false;
+    original.snuffedTorchUntil.set(grix.id, 8_000);
+
+    const session = restored(captureRun(original, 5_000, VERSION), 1_000_000);
+    session.simulatedAt = 1_000_000;
+    const reloaded = [...session.players.values()].find((player) => player.name === "Grix")!;
+
+    expect(toOwnerPlayerState(reloaded, session).torchSnuffedForMs).toBe(3_000);
+    expect(putOutTorch(session, reloaded.id)).toEqual({ ok: true });
+    resolveTraps(session, 1_003_000);
+    expect(reloaded.torchLit).toBe(false);
   });
 
   it("pauses the run clock and trap timers while saved", () => {

@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { trackContexts } from "./contexts.js";
 import { enterHub } from "./designScreen.js";
 import { position, walkTo } from "./walk.js";
+import { GAME_SOCKET } from "./ports.js";
 
 /** A Traveler's Torch on the Torch Supply counter; see `darkness.spec.ts`. */
 const TORCH = { x: 25.5, y: 22.75 };
@@ -139,6 +140,57 @@ test.describe("Putting out and relighting a torch", () => {
     await expect(hostSlot).toHaveClass(/hud__torch--lit/);
     await expect(hostSlot).toHaveAttribute("aria-label", "Torch: carried");
     await host.page.screenshot({ path: testInfo.outputPath("torch-relit.png") });
+
+    expect(errors).toEqual([]);
+  });
+
+  test("the torch key keeps a snuffed torch out, and the HUD says the torch will relight", async ({ browser }, testInfo) => {
+    test.setTimeout(120_000);
+    const errors: string[] = [];
+    const context = track(await browser.newContext({ viewport: { width: 1280, height: 720 } }));
+    const page = await context.newPage();
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    // A real Snuffer Vent is rarely in reach, so the proxy marks the player's own entry as the server
+    // does while a vent's wait runs; what the server does with `putOutTorch` is in `traps.test.ts`.
+    let snuffed = false;
+    let selfId: string | null = null;
+    let carrying = false;
+    const sent: string[] = [];
+    await page.routeWebSocket(GAME_SOCKET, (client) => {
+      const server = client.connectToServer();
+      client.onMessage((message) => {
+        if (typeof message === "string") sent.push((JSON.parse(message) as { type: string }).type);
+        server.send(message);
+      });
+      server.onMessage((message) => {
+        if (typeof message !== "string") return client.send(message);
+        const frame = JSON.parse(message) as { type: string; playerId?: string; players?: Record<string, unknown>[] };
+        if (frame.type === "sessionJoined") selfId = frame.playerId ?? null;
+        if (frame.type === "stateSnapshot") {
+          const own = frame.players?.find((player) => player.id === selfId);
+          carrying = own?.carryingTorch === true;
+          if (own && snuffed) Object.assign(own, { torchLit: false, torchSnuffedForMs: 6000 });
+        }
+        client.send(JSON.stringify(frame));
+      });
+    });
+    await page.goto("/?debug");
+    await page.getByPlaceholder("Your name").fill("Maya");
+    await page.getByRole("button", { name: "Create a new dungeon" }).click();
+    await enterHub(page);
+    await takeTorch(page, () => ({ carryingTorch: carrying }), HOST_SPOT, TORCH.x);
+
+    const slot = page.locator(".hud__torch");
+    await expect(slot).toHaveAttribute("aria-label", "Torch: carried");
+    snuffed = true;
+    await expect(slot).toHaveAttribute("aria-label", /^Torch: out, relights in \d+s \(torch key keeps it out\)$/);
+    await page.screenshot({ path: testInfo.outputPath("torch-snuffed-hud.png") });
+
+    sent.length = 0;
+    await page.keyboard.press("y");
+    await expect.poll(() => sent).toContain("putOutTorch");
+    expect(sent).not.toContain("lightTorch");
 
     expect(errors).toEqual([]);
   });

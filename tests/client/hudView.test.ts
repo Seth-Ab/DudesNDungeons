@@ -31,6 +31,7 @@ import {
   partyFrames,
   toastMessages,
   slotKind,
+  torchKeyAction,
   torchStatusLabel,
   torchView,
   vaultPanelView,
@@ -548,6 +549,60 @@ describe("rebound keys", () => {
     expect(actionPrompt(lootView, self, origin)?.keyHint).toBe("G");
   });
 
+  describe("unlit torch near a flame", () => {
+    const flameView = (carrier: PlayerState, withFlame: boolean) =>
+      view({
+        ...inSession,
+        players: [carrier],
+        dungeon: dungeon({
+          lightSources: withFlame ? [{ kind: "fixed", position: { x: 0.5, y: 0 } }] : [],
+        } as unknown as Partial<DungeonState>),
+      });
+
+    it("offers to light a torch that is out", () => {
+      const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+      expect(actionPrompt(flameView(dark, true), dark, origin)).toMatchObject({ action: "torch", text: "Light your torch" });
+    });
+
+    it("says a snuffed torch relights soon rather than offering to light it", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      const text = actionPrompt(flameView(snuffed, true), snuffed, origin)?.text;
+      expect(text).toBe("Torch relights soon (keep it out)");
+      expect(text).not.toContain("Light your torch");
+    });
+
+    it("still hints that a snuffed torch relights when no flame is in reach", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      expect(actionPrompt(flameView(snuffed, false), snuffed, origin)).toMatchObject({
+        action: "torch",
+        text: "Torch relights soon (keep it out)",
+      });
+    });
+
+    it("lets loot or a door beside a snuffed player win over the hint, even by a flame", () => {
+      const snuffed = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+      const lights = [{ kind: "fixed", position: { x: 0.5, y: 0 } }];
+      const door = { id: "door", position: { x: 0.5, y: 0 }, size: 1, open: false, lock: null };
+      const lootView = view({
+        ...inSession,
+        players: [snuffed],
+        dungeon: dungeon({ loot: [loot("Tonic", 0.5)], lightSources: lights } as unknown as Partial<DungeonState>),
+      });
+      expect(actionPrompt(lootView, snuffed, origin)).toMatchObject({ action: "pickup" });
+      const doorView = view({
+        ...inSession,
+        players: [snuffed],
+        dungeon: dungeon({ doors: [door], lightSources: lights } as unknown as Partial<DungeonState>),
+      });
+      expect(actionPrompt(doorView, snuffed, origin)).toMatchObject({ action: "interact" });
+    });
+
+    it("shows nothing for an unlit torch with no flame in reach", () => {
+      const dark = player("Maya", { id: SELF_ID, carryingTorch: true, torchLit: false });
+      expect(actionPrompt(flameView(dark, false), dark, origin)).toBeNull();
+    });
+  });
+
   it("prompts a torch carrier to light a dark brazier but not a bell or lever", () => {
     const carrier = player("Maya", { id: SELF_ID, carryingTorch: true });
     const lit = (kind: string) =>
@@ -731,6 +786,14 @@ describe("hotbar", () => {
     const out = player("Maya", { carryingTorch: true, torchLit: false });
     expect(torchView(out)).toEqual({ lit: false, label: "Torch: out" });
     expect(torchStatusLabel(out)).toBe("out");
+  });
+
+  it("maps the torch key to putOutTorch while lit or snuffed, and to lightTorch otherwise", () => {
+    expect(torchKeyAction(player("Maya", { carryingTorch: true, torchLit: true }))).toBe("putOutTorch");
+    expect(torchKeyAction(player("Maya", { carryingTorch: true, torchLit: false }))).toBe("lightTorch");
+    const snuffed = player("Maya", { carryingTorch: true, torchLit: false, torchSnuffedForMs: 4200 });
+    expect(torchKeyAction(snuffed)).toBe("putOutTorch");
+    expect(torchStatusLabel(snuffed)).toBe("out, relights in 5s (torch key keeps it out)");
   });
 
   it("disables every slot when outside a session or downed", () => {

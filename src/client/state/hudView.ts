@@ -504,7 +504,19 @@ export function newServerAction(view: SessionView, lastShown: string | null): st
  */
 export function torchStatusLabel(self: PlayerState | null): string {
   if (!self?.carryingTorch) return "none";
-  return self.torchLit ? "carried" : "out";
+  if (self.torchLit) return "carried";
+  if (self.torchSnuffedForMs !== undefined) {
+    return `out, relights in ${Math.ceil(self.torchSnuffedForMs / 1000)}s (torch key keeps it out)`;
+  }
+  return "out";
+}
+
+/**
+ * What the torch key sends: `putOutTorch` while the torch burns or a Snuffer Vent's wait is running
+ * (there it cancels the relight), `lightTorch` otherwise. The server still decides.
+ */
+export function torchKeyAction(self: PlayerState): "putOutTorch" | "lightTorch" {
+  return self.torchLit || self.torchSnuffedForMs !== undefined ? "putOutTorch" : "lightTorch";
 }
 
 export interface TorchSlotView {
@@ -859,8 +871,9 @@ export function actionPrompt(
   const idol = carriedIdol(self.inventory, self.held);
   if (idol && target?.kind === "idolAltar") return prompt("interact", `Set the ${idol.name} on the altar`);
 
-  // An unlit torch is worth a word only when a flame is close enough to light it from.
-  if (self.carryingTorch && !self.torchLit && flameNearby(view, self, position)) {
+  // An unlit torch is worth a word only when a flame is close enough to light it from. A snuffed
+  // torch relights on its own, so it is never offered a light; its hint comes last, below.
+  if (self.carryingTorch && !self.torchLit && self.torchSnuffedForMs === undefined && flameNearby(view, self, position)) {
     return prompt("torch", "Light your torch");
   }
 
@@ -893,6 +906,12 @@ export function actionPrompt(
   const held = actionableItem(self.inventory, self.held);
   const ally = held ? nearestStandingAlly(view, position) : null;
   if (held && ally) return prompt("give", `Give ${held.name} to ${ally.name}`);
+
+  // The torch key keeps a snuffed torch out, wherever the player stands; this hint never hides
+  // anything that has something to do.
+  if (self.carryingTorch && !self.torchLit && self.torchSnuffedForMs !== undefined) {
+    return prompt("torch", "Torch relights soon (keep it out)");
+  }
 
   return null;
 }

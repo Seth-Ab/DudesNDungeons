@@ -10,6 +10,7 @@ import { simulate } from "../../src/server/game/combat.js";
 import { visibilityFrameForPlayer } from "../../src/server/game/visibility.js";
 import { returnToHub } from "../../src/server/game/runLifecycle.js";
 import type { TrapState } from "../../src/shared/types/core.js";
+import { rosterOf } from "../../src/server/sessions/sessionStore.js";
 import { at, testPlayer, testSession } from "./fixtures.js";
 
 const content = gameContent();
@@ -433,6 +434,57 @@ describe("snuffer vent", () => {
     player.connected = true;
     resolveTraps(session, 1000 + SNUFF_MS + 50);
     expect(player.torchLit).toBe(true);
+    expect(session.snuffedTorchUntil.size).toBe(0);
+  });
+
+  it("tells only the snuffed player how long the wait has left", () => {
+    const { session, player, trap } = withVent();
+    const mate = testPlayer("p2", { position: { ...trap.position } });
+    session.players.set(mate.id, mate);
+    resolveTraps(session, 1000);
+    session.simulatedAt = 1000 + 2500;
+
+    const own = visibilityFrameForPlayer(session, player).players;
+    expect(own.find((p) => p.id === player.id)?.torchSnuffedForMs).toBe(SNUFF_MS - 2500);
+    for (const viewer of [player, mate]) {
+      const others = visibilityFrameForPlayer(session, viewer).players.filter((p) => p.id !== viewer.id);
+      for (const other of others) expect(other).not.toHaveProperty("torchSnuffedForMs");
+    }
+    for (const entry of rosterOf(session)) expect(entry).not.toHaveProperty("torchSnuffedForMs");
+  });
+
+  it("drops the field once the wait ends or the torch is kept out", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    session.simulatedAt = 2000;
+    const field = () => visibilityFrameForPlayer(session, player).players[0]?.torchSnuffedForMs;
+    expect(field()).toBeDefined();
+
+    expect(putOutTorch(session, player.id)).toEqual({ ok: true });
+    expect(field()).toBeUndefined();
+    resolveTraps(session, 1000 + SNUFF_MS);
+    expect(player.torchLit).toBe(false);
+  });
+
+  it("refuses putOutTorch with no torch, or an unlit torch and no snuff", () => {
+    const { session, player } = withVent();
+    player.carryingTorch = false;
+    expect(putOutTorch(session, player.id).ok).toBe(false);
+    player.carryingTorch = true;
+    player.torchLit = false;
+    expect(putOutTorch(session, player.id).ok).toBe(false);
+  });
+
+  it("lets a player who returns mid-wait keep the torch out", () => {
+    const { session, player } = withVent();
+    resolveTraps(session, 1000);
+    player.connected = false;
+    resolveTraps(session, 1000 + SNUFF_MS);
+    player.connected = true;
+
+    expect(putOutTorch(session, player.id)).toEqual({ ok: true });
+    resolveTraps(session, 1000 + SNUFF_MS + 50);
+    expect(player.torchLit).toBe(false);
     expect(session.snuffedTorchUntil.size).toBe(0);
   });
 
